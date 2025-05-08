@@ -1,27 +1,26 @@
 //
-//  ContentView.swift
+//  ScoreGameView.swift
 //  ScoreKeep
 //
-//  Created by Karl Keller on 3/15/25.
+//  Created by Karl Keller on 3/26/25.
 //
 
 import SwiftUI
 import SwiftData
-@Query var games: [Game]
 
-struct ContentView: View {
+struct ScoreContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @State private var path = NavigationPath()
-    
+
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Game.date)]
-    
+
     var body: some View {
         NavigationStack(path: $path) {
-            GameView(searchString: searchText, sortOrder: sortOrder,title:"Add or Delete a Game")
+            GameView(searchString: searchText, sortOrder: sortOrder,title:"Pick a Game")
                 .navigationDestination(for: Game.self) { game in
-                    EditGameView(game: game, navigationPath: $path)
+                    EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "")
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
@@ -34,14 +33,13 @@ struct ContentView: View {
                                     .tag([SortDescriptor(\Game.date, order: .reverse)])
                             }
                         }
-                        Button("Add Game", systemImage: "plus", action: addGame)
+//                        Button("Add Game", systemImage: "plus", action: addGame)
                     }
                     ToolbarItem(placement: .topBarLeading) {
                          Button("< Back") {
                              dismiss()
                          }
                     }
-
                 }
                 .searchable(text: $searchText)
         }

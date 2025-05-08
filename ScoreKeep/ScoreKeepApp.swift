@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import SwiftData
 
 @main
 struct ScoreKeepApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            StartView()
         }
+        .modelContainer(for: Game.self)
     }
 }
