@@ -1,2 +1,0 @@
-                            let colbox = [BoxScore]()
-                            let batbox = [BoxScore]()
