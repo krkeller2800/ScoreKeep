@@ -14,25 +14,25 @@ class Pitcher {
     var player: Player
     var team: Team
     var game: Game
-    var startinn: Int
-    var sBatIn: Int
-    var endinn: Int
-    var eBatIn: Int
+    var startInn: Int
+    var sOuts: Int
+    var endInn: Int
+    var eOuts: Int
     var strikeOuts: Int
     var walks: Int
     var hits: Int
     var runs: Int
     var won: Bool
 
-    init(ident: UUID = UUID(), player: Player, team: Team, game: Game, startinn: Int, sBatIn: Int, endinn: Int, eBatIn: Int, strikeOuts: Int, walks: Int, hits: Int, runs: Int, won: Bool) {
+    init(ident: UUID = UUID(), player: Player, team: Team, game: Game, startInn: Int, sOuts: Int, endInn: Int, eOuts: Int, strikeOuts: Int, walks: Int, hits: Int, runs: Int, won: Bool) {
         self.ident = ident
         self.player = player
         self.team = team
         self.game = game
-        self.startinn = startinn
-        self.sBatIn = sBatIn
-        self.endinn = endinn
-        self.eBatIn = eBatIn
+        self.startInn = startInn
+        self.sOuts = sOuts
+        self.endInn = endInn
+        self.eOuts = eOuts
         self.strikeOuts = strikeOuts
         self.walks = walks
         self.hits = hits

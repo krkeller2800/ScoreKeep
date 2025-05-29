@@ -17,22 +17,22 @@ struct GameView: View {
     var body: some View {
         Form {
             HStack {
-                Text("Game Date").frame(maxWidth: .infinity).border(.gray)
+                Text("Game Date").frame(width: 100).border(.gray)
                     .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
                 Spacer()
-                Text("Visiting Team").frame(maxWidth:.infinity).border(.gray)
+                Text("Visiting").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer()
-                Text("Home Team").frame(maxWidth:.infinity).border(.gray)
+                Text("Home").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer()
                 Text("Field").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer()
-                Text("Every One Hits").frame(maxWidth:.infinity).border(.gray)
+                Text("All Hit").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer()
-                Text("Num of Innings").frame(maxWidth:.infinity).border(.gray)
+                Text("Innings").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer()
                 Text("Final Score").frame(maxWidth:.infinity).border(.gray)
@@ -44,7 +44,7 @@ struct GameView: View {
                 NavigationLink(value: game) {
                     HStack {
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                        Text(date.formatted(date:.abbreviated, time: .shortened)).frame(maxWidth: .infinity,maxHeight: 60, alignment: .leading).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2)
+                        Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width: 100, alignment: .leading).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.5)
                             .overlay(Divider().background(.black), alignment: .trailing)
                         Spacer()
                         Text(game.vteam?.name ?? "").frame(maxWidth:.infinity, alignment: .leading)
@@ -73,7 +73,7 @@ struct GameView: View {
                         let win = winner + " in the \(com.innAbr[inning])"
                         Spacer()
                         Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing)
+                            .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
                         Spacer()
                     }
                     

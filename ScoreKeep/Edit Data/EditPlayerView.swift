@@ -40,7 +40,7 @@ struct EditPlayerView: View {
         Form {
             VStack {
                 HStack {
-                    Text("Name").frame(maxWidth:.infinity).border(.gray)
+                    Text("Name").frame(width:150).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
                     Text("Number").frame(maxWidth:.infinity).border(.gray)
@@ -49,10 +49,10 @@ struct EditPlayerView: View {
                     Text("Position").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
-                    Text("Bat Direction").frame(maxWidth:.infinity).border(.gray)
+                    Text("Bat Dir").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
-                    Text("Place in Order").frame(maxWidth:.infinity).border(.gray)
+                    Text("Bat Order").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
                     Text("Team").frame(maxWidth:.infinity).border(.gray)
@@ -65,7 +65,7 @@ struct EditPlayerView: View {
                         if !editingChanged {
                             checkForDup(pname: playerName)
                         }})
-                        .background(Color.white).frame(maxWidth:.infinity)
+                        .background(Color.white).frame(width: 150)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
@@ -75,10 +75,10 @@ struct EditPlayerView: View {
                     TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                     Spacer()
-                    TextField("Position", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
+                    TextField("Pos", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                     Spacer()
-                    TextField("Bat Direction", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
+                    TextField("Bat Dir", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                     Spacer()
                     Picker("Bat Order", selection: $player.batOrder) {

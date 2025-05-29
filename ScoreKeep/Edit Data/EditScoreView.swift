@@ -32,6 +32,8 @@ struct EditScoreView: View {
     @State private var shareReport = false
     @State private var alertText = ""
     @State private var pdfURL:URL = URL.documentsDirectory.appending(path: "Stats.pdf")
+    @State private var screenHeight = 0.0
+    @State private var screenWidth = 0.0
 
     @FocusState private var focusedField: FocusField?
     
@@ -42,7 +44,6 @@ struct EditScoreView: View {
                 HStack {
                     Text(game.location).font(.title3)
                     Spacer()
-                    
                     VStack (spacing: 5) {
                         Text("Select which team to score!").font(.headline)
                         HStack {
@@ -92,7 +93,7 @@ struct EditScoreView: View {
                     .font(.largeTitle).italic(true)
                     Spacer ()
                     let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                    Text(date.formatted(date:.abbreviated, time: .shortened)).font(.title3)
+                    Text(date.formatted(date:.numeric, time: .shortened)).font(.title3)
                 }
                 .frame(maxWidth:.infinity,maxHeight: 75)
                 .overlay(drawBoxScore(game:game), alignment: .topTrailing)
@@ -135,10 +136,24 @@ struct EditScoreView: View {
                 }
                 ToolbarItem(placement: .principal) {
                     Text("Score the Game")
-                        .font(.title2).frame(width:300, alignment: .leading)
+                        .font(.title2)
+//                        .frame(width:300, alignment: .leading)
                 }
             }
-            let bpos:CGFloat = UIScreen.screenWidth > 1300 ? 1250 : UIScreen.screenWidth > 1100 ? 1075 : 900
+            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+                    
+                // Give a moment for the screen boundaries to change after
+                // the device is rotated
+                Task { @MainActor in
+                    try await Task.sleep(for: .seconds(0.1))
+                    withAnimation {
+                        screenHeight = UIScreen.main.bounds.height
+                        screenWidth = UIScreen.main.bounds.width
+                    }
+                }
+            }
+//            let bpos:CGFloat = UIScreen.screenWidth > 1300 ? 1250 : UIScreen.screenWidth > 1100 ? 1075 : 900
+            let bpos:CGFloat = screenWidth == 0 ? UIScreen.screenWidth * 0.9 : screenWidth * 0.9
             Button("Show Stats", action: {
                 showReport.toggle()
             })

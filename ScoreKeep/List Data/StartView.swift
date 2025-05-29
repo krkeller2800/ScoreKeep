@@ -17,15 +17,18 @@ struct StartView: View {
     var body: some View {
         NavigationView {
             VStack {
-                Button("Edit/Add Games") {
+                Button("\n\n\n\nGames") {
                     presentGames.toggle()
                 }
-                .frame(width: 300, height: 50)
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .font(.title)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("game 1")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                }
                 .fullScreenCover(isPresented: $presentGames, content: ContentView.init)
+
 //                NavigationLink(destination: ContentView()) {
 //                    Text("Edit/Add Game")
 //                        .frame(width: 300, height: 50)
@@ -35,49 +38,55 @@ struct StartView: View {
 //                        .font(.title)
 //                }
                 Spacer()
-                Button("Edit/Add Teams") {
+                Button("\n\n\n\nTeams") {
                     presentTeams.toggle()
                 }
-                .frame(width: 300, height: 50)
-                .background(Color.green)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .font(.title)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("team")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                }
                 .fullScreenCover(isPresented: $presentTeams, content: TeamContentView.init)
+
                 Spacer()
-                Button("Edit/Add Players") {
+                Button("\n\n\n\nPlayers") {
                     presentPlayers.toggle()
                 }
-                .frame(width: 300, height: 50)
-                .background(Color.red)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .font(.title)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("Player 1")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                }
                 .fullScreenCover(isPresented: $presentPlayers, content: PlayerContentView.init)
                 Spacer()
-                Button("Score Games") {
+                Button("\n\n\n\nScore Games") {
                     presentScoreGame.toggle()
                 }
-                .frame(width: 300, height: 50)
-                .background(Color.purple)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .font(.title)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("score")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                }
                 .fullScreenCover(isPresented: $presentScoreGame, content: ScoreContentView.init)
                 Spacer()
-                Button("Paste Players") {
+                Button("\n\n\n\nPaste in Players") {
                     presentPaste.toggle()
                 }
-                .frame(width: 300, height: 50)
-                .background(Color.pink)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .font(.title)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("Paste")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                }
                 .fullScreenCover(isPresented: $presentPaste, content: PasteView.init)
-
                 Spacer()
-                Spacer()
-
             }
                PdfView()
         }

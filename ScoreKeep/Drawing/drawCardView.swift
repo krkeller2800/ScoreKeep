@@ -348,7 +348,7 @@ struct drawBoxScore: View {
     let com = Common()
     var body: some View {
         
-        let placeBox = CGRect(x: 115, y: -37.5, width:150, height:100)
+        let placeBox = CGRect(x: 115, y: -50, width:150, height:100)
         let boxHome = doBoxScore(doTeam: "Home")
         let boxVisit = doBoxScore(doTeam: "Visit")
         let com = Common()
@@ -363,27 +363,27 @@ struct drawBoxScore: View {
 
         Text(game.vteam?.name ?? "")
             .font(.headline).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-            .position(x: 60, y: -25)
+            .position(x: 60, y: -37)
         Text(game.hteam?.name ?? "")
             .font(.headline).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-            .position(x: 60, y: -0)
+            .position(x: 60, y: -12)
         Text("\(boxVisit.runs)")
-            .position(x: 60 + 111, y: -25)
+            .position(x: 60 + 111, y: -37)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxVisit.hits)")
-            .position(x: 60 + 148, y: -25)
+            .position(x: 60 + 148, y: -37)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxVisit.errors)")
-            .position(x: 60 + 185, y: -25)
+            .position(x: 60 + 185, y: -37)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxHome.runs)")
-            .position(x: 60 + 111, y: -0)
+            .position(x: 60 + 111, y: -12)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxHome.hits)")
-            .position(x: 60 + 148, y: -0)
+            .position(x: 60 + 148, y: -12)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxHome.errors)")
-            .position(x: 60 + 185, y: -0)
+            .position(x: 60 + 185, y: -12)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("Inning  Runs   Hits   Errors")
             .font(.caption).italic().foregroundColor(.black).frame(alignment: .leading)
@@ -452,8 +452,11 @@ struct drawPitchers: View {
         .foregroundColor(.white).bold().padding().frame(maxHeight: 35)
         .background(Color.blue).cornerRadius(25)
         .position(x: space.minX + (0.5 * space.width), y:1.2 * space.height + newy)
-        .sheet(isPresented: $showPitchers) {
-            PitchersStaffView(showDetails: $showPitchers, passedGame: atbats[0].game, passedTeam: atbats[0].team, theTeam: atbats[0].team.name)
+//        .sheet(isPresented: $showPitchers) {
+//            PitchersStaffView(showDetails: $showPitchers, passedGame: atbats[0].game, passedTeam: atbats[0].team, theTeam: atbats[0].team.name)
+//        }
+        .fullScreenCover(isPresented: $showPitchers) {
+            PitcherContentView(team: atbats[0].team, game: atbats[0].game)
         }
         
         Text("\(atbats[0].team.name) Pitching Stats for This Game")
@@ -462,10 +465,10 @@ struct drawPitchers: View {
         
         
         Text("Num").foregroundColor(.red).bold().frame(maxWidth: 65,maxHeight: 25)
-            .position(x: space.minX + (2.0 * space.width), y:1.85 * space.height + newy)
-        Text("Name").foregroundColor(.red).bold().frame(maxWidth: 200,maxHeight: 25)
-            .position(x: space.minX + (3.5 * space.width), y:1.85 * space.height + newy)
-        Text("Inn Bats   Inn Bats").foregroundColor(.red).bold().frame(maxWidth: 400,maxHeight: 25)
+            .position(x: space.minX + (0.80 * space.width), y:1.85 * space.height + newy)
+        Text("Name").foregroundColor(.red).bold().frame(maxWidth: 260,maxHeight: 25)
+            .position(x: space.minX + (2.5 * space.width), y:1.85 * space.height + newy)
+        Text(" Inn Outs    Inn Outs").foregroundColor(.red).bold().frame(maxWidth: 400,maxHeight: 25)
             .position(x: space.minX + (5.75 * space.width), y:1.85 * space.height + newy)
         Text("Run").foregroundColor(.red).bold().frame(maxWidth: 200,maxHeight: 25)
             .position(x: space.minX + (8 * space.width), y:1.85 * space.height + newy)
@@ -493,16 +496,16 @@ struct drawPitchers: View {
         ForEach(Array(pitchers.enumerated()), id: \.1) { index, pitcher in
             let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
             let off:CGFloat = ((CGFloat(index) + 4.6)/2.0)
-            let sinn = String("\(pitcher.startinn)      \(pitcher.sBatIn)")
-            let einn = pitcher.endinn == 0 ? String("\(stats.innings + pitcher.startinn)      \(pitcher.eBatIn)") : String("\(pitcher.endinn)     \(pitcher.eBatIn)")
+            let sinn = String("\(pitcher.startInn)      \(pitcher.sOuts)")
+            let einn = pitcher.endInn == 0 ? String("\(stats.innings + pitcher.startInn)      \(pitcher.eOuts)") : String("\(pitcher.endInn)     \(pitcher.eOuts)")
             Text("\(pitcher.player.number)")
                 .foregroundColor(.black).bold().frame(maxWidth: 50)
-                .position(x: space.minX + (2.0 * space.width), y:(off) * space.height + newy)
+                .position(x: space.minX + (0.80 * space.width), y:(off) * space.height + newy)
             Text("\(pitcher.player.name)")
-                .foregroundColor(.black).bold().frame(maxWidth: 100)
-                .position(x: space.minX + (3.5 * space.width), y:(off) * space.height + newy)
+                .foregroundColor(.black).bold().frame(maxWidth: 260).lineLimit(1).minimumScaleFactor(0.5)
+                .position(x: space.minX + (2.5 * space.width), y:(off) * space.height + newy)
             
-            Text("\(sinn)   to   \(einn)")
+            Text("  \(sinn)  to  \(einn)")
                 .foregroundColor(.black).bold().frame(maxWidth: 400)
                 .position(x: space.minX + (5.75 * space.width), y:(off) * space.height + newy)
             Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
@@ -535,48 +538,51 @@ struct drawPitchers: View {
         }
     }
     func doPitchers(oAtbats:[Atbat],pitcher: Pitcher)->PitchStats {
-
-        let endinn = pitcher.endinn > 0 ? pitcher.endinn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1
-        let innings = CGFloat(oAtbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                                                    (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                                                    (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
-        let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                            (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                            (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let hits = oAtbats.filter({com.hitresults.contains($0.result) &&    (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                                            (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                                            (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let HR = oAtbats.filter({$0.result == "Home Run" && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                            (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                            (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let BB = oAtbats.filter({$0.result == "Walk" && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                        (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                        (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let Ks = oAtbats.filter({($0.result == "Strikeout" || $0.result == "Strikout Looking") &&   (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                                                                    (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                                                                    (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let singles = oAtbats.filter({$0.result == "Single" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                                (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let doubles = oAtbats.filter({$0.result == "Double" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-        let triples = oAtbats.filter({$0.result == "Triple" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startinn) + pitcher.sBatIn) &&
-                                                                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBatIn ||
-                                                                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-
-       let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
-
-       return PitchStats(runs: runs, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
+        if oAtbats.count > 0 {
+            let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1
+            let innings = CGFloat(oAtbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
+            let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let hits = oAtbats.filter({com.hitresults.contains($0.result) &&    (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let HR = oAtbats.filter({$0.result == "Home Run" && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let BB = oAtbats.filter({$0.result == "Walk" && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let Ks = oAtbats.filter({($0.result == "Strikeout" || $0.result == "Strikout Looking") &&   (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let singles = oAtbats.filter({$0.result == "Single" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let doubles = oAtbats.filter({$0.result == "Double" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            let triples = oAtbats.filter({$0.result == "Triple" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eOuts ||
+                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
+            
+            let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
+            return PitchStats(runs: runs, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
+        } else {
+            return PitchStats(ERA: 0.0)
+        }
+     
     }
     func fixInnings(pitchers:[Pitcher])->[Pitcher] {
-        let pitchs = pitchers.sorted {$0.startinn < $1.startinn}
+        let pitchs = pitchers.sorted {$0.startInn < $1.startInn}
         if pitchs.count > 1 {
-            if pitchs [0].startinn != 0 {
+            if pitchs [0].startInn != 0 {
                 let prevPitch = pitchs[0]
                 for pitcher in pitchs {
                     if pitcher != prevPitch {
-                        prevPitch.endinn = pitcher.startinn
+                        prevPitch.endInn = pitcher.startInn
                     }
                 }
             }

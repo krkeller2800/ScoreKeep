@@ -35,6 +35,9 @@ struct ReportView: View {
                     Text("Name").foregroundColor(.red).bold().frame(width: 150, alignment: .leading)
                     Text("Bats").foregroundColor(.red).bold().frame(width: 40)
                     Text("AVG").foregroundColor(.red).bold().frame(width: 40)
+                    Text("OBP").foregroundColor(.red).bold().frame(width: 40)
+                    Text("SLG").foregroundColor(.red).bold().frame(width: 40)
+                    Text("OPS").foregroundColor(.red).bold().frame(width: 40)
                     Text("Run").foregroundColor(.red).bold().frame(width: 40)
                     Text("Hit").foregroundColor(.red).bold().frame(width: 40)
                     Text("K").foregroundColor(.red).bold().frame(width: 40)
@@ -55,10 +58,17 @@ struct ReportView: View {
                     HStack {
                         let stats = doStats(player: atbat.player)
                         let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
+                        let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
+                                                                         (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
+                        let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) + (4 * stats.HR)) /
+                                                                        stats.atbats))
                         Text(atbat.player.number).foregroundColor(.black).bold().frame(width: 40,alignment: .leading)
                         Text(atbat.player.name).foregroundColor(.black).bold().frame(width: 150,alignment: .leading)
                         Text("\(stats.atbats)").foregroundColor(.black).bold().frame(width: 40)
-                        Text(String(format: "%03d", avg)).foregroundColor(.black).bold().frame(width: 45,alignment: .center)
+                        Text(String(format: "%03d", avg)).foregroundColor(.black).bold().frame(width: 41,alignment: .center)
+                        Text(String(format: "%03d", obp)).foregroundColor(.black).bold().frame(width: 41,alignment: .center)
+                        Text(String(format: "%03d", slg)).foregroundColor(.black).bold().frame(width: 41,alignment: .center)
+                        Text(String(format: "%03d", obp + slg)).foregroundColor(.black).bold().frame(width: 41,alignment: .center)
                         Text("\(stats.runs)").foregroundColor(.black).bold().frame(width: 35,alignment: .center)
                         Text("\(stats.hits)").foregroundColor(.black).bold().frame(width: 40,alignment: .center)
                         Text("\(stats.strikeouts)").foregroundColor(.black).bold().frame(width: 40,alignment: .center)

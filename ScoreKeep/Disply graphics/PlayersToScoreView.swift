@@ -13,6 +13,8 @@ struct PlayersToScoreView: View {
     @Binding var lAtbats: [Atbat]
     @Binding var game: Game
     @State var screenSize: CGSize = .zero
+    @State var screenWidth = UIScreen.screenWidth
+    @State var screenHeight = UIScreen.screenHeight
     @State var showingScoring = false
     @State var firstTime = true
     var com:Common = Common()
@@ -42,27 +44,29 @@ struct PlayersToScoreView: View {
                                     if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                         let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
                                         let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
-                                        Text(atbat.player.number).frame(maxWidth: 30, alignment: .center).foregroundColor(.black).bold()
+                                        Text(atbat.player.number).frame(width: 30, alignment: .center).foregroundColor(.black).bold()
                                             .overlay(Divider().background(.black), alignment: .trailing)
-                                        Text(iName).frame(maxWidth: 150, alignment: .leading).foregroundColor(.black).bold()
+                                        Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).bold()
                                             .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
                                             .lineLimit(1).minimumScaleFactor(0.5).strikethrough(strikeIt)
                                         let newCol = atbats.map({ $0.col }).max()! + 1
                                         let bSize = UIScreen.screenWidth > 1300 ? 14 : 14
                                         let maxCol = newCol < bSize ? bSize : newCol
                                         ForEach((1...maxCol), id: \.self) {ind in
+                                            let bSize:CGFloat = screenWidth > 1300 ? 60 : 50
                                             Button(action: {
                                                 showingScoring.toggle()
                                             }, label: {
                                                 Image("field").resizable().scaledToFit()
                                             })
+                                            .frame(width: bSize, height: bSize)
                                             .buttonStyle(GlowButtonStyle())
                                             .simultaneousGesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
                                                 .onEnded {
                                                     let posx = Int(ind)
                                                     let posy = Int(index+1)
                                                     print("Changed \($0.location)")
-                                                    print("\(posx),\(posy),\(geometry.size.width) \(atbat.player.name)")
+//                                                    print("\(posx),\(posy),\(geometry.size.width) \(atbat.player.name)")
                                                     
 //                                                    let theSize:CGFloat = UIScreen.screenWidth > 1300 ? 60 : 50
 //                                                    let offset = UIScreen.main.bounds.size.width - geometry.size.width + 184.0
@@ -114,8 +118,8 @@ struct PlayersToScoreView: View {
                             updMaxBases()
                         }
                         Spacer()
-                        let bSize:CGFloat = UIScreen.screenWidth > 1300 ? 60 : 50
-                        let newx:CGFloat = UIScreen.screenWidth > 1300 ? 125 : 135
+                        let bSize:CGFloat = screenWidth > 1300 ? 60 : 50
+                        let newx:CGFloat = screenWidth > 1300 ? 125 : 135
                         let space:CGRect = CGRect(x: newx, y: 15, width: bSize, height: bSize)
                         if !atbats.isEmpty {
                             drawSing(space: space, atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox)
@@ -125,6 +129,18 @@ struct PlayersToScoreView: View {
             }
             .sheet(isPresented: $showingScoring) {ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring)}
 
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+                
+            // Give a moment for the screen boundaries to change after
+            // the device is rotated
+            Task { @MainActor in
+                try await Task.sleep(for: .seconds(0.1))
+                withAnimation {
+                    screenHeight = UIScreen.main.bounds.height
+                    screenWidth = UIScreen.main.bounds.width
+                }
+            }
         }
     }
     func updMaxBases() {

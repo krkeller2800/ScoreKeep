@@ -34,6 +34,12 @@ struct PlayerContentView: View {
                                 
                                 Text("Name (Z-A)")
                                     .tag([SortDescriptor(\Player.name, order: .reverse)])
+                                Text("Order (1-99)")
+                                    .tag([SortDescriptor(\Player.batOrder)])
+                                Text("Number (1-99)")
+                                    .tag([SortDescriptor(\Player.number)])
+                                Text("Team then Order (1-99)")
+                                    .tag([SortDescriptor(\Player.team?.name),SortDescriptor(\Player.batOrder)])
                             }
                         }
                         Button("Add Player", systemImage: "plus", action: addPlayers)

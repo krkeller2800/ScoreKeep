@@ -35,19 +35,19 @@ struct EditAllPlayerView: View {
         Form {
             VStack {
                 HStack {
-                    Text("Name").frame(maxWidth:.infinity).border(.gray)
+                    Text("Name").frame(width: 150).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
                     Text("Number").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
-                    Text("Position").frame(maxWidth:.infinity).border(.gray)
+                    Text("Pos").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
-                    Text("Bat Direction").frame(maxWidth:.infinity).border(.gray)
+                    Text("Bat Dir").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
-                    Text("Place in Order").frame(maxWidth:.infinity).border(.gray)
+                    Text("Bat Order").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Spacer()
                     Text("Team").frame(maxWidth:.infinity).border(.gray)
@@ -56,7 +56,7 @@ struct EditAllPlayerView: View {
                 }
                 .background {Color.yellow.opacity(0.3)}
                 HStack {
-                    TextField("Player", text: $player.name).background(Color.white).frame(maxWidth:.infinity)
+                    TextField("Player", text: $player.name).background(Color.white).frame(width: 150)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                         .focused($focusedField, equals: .field)
                         .onAppear {self.focusedField = .field}

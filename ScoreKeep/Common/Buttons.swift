@@ -25,9 +25,8 @@ struct SelectButton: View {
 
 struct GlowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        let bSize:CGFloat = UIScreen.screenWidth > 1300 ? 60 : 50
         configuration.label
-            .frame(width: bSize, height: bSize)
+//            .frame(width: bSize, height: bSize)
             .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue) // button's background
             .foregroundColor(.white) // text color
             .overlay(

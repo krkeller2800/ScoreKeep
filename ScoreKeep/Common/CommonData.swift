@@ -18,6 +18,7 @@ struct Common {
     var battings:[String]
     var batAbbrevs:[String]
     var innAbr:[String]
+    var outAbr:[String]
     init(
         atBats:[String] = ["","Single", "Double", "Triple", "Home Run","Fielder's Choice", "Ground Out", "Fly Out", "Strikeout", "Strikeout Looking","Error"],
         hitresults:[String] = ["","Single", "Double", "Triple", "Home Run"],
@@ -26,7 +27,8 @@ struct Common {
         outabs:[String] = ["", "GO", "FO", "K","SAC","ꓘ"],
         battings:[String] = ["","Hit By Pitch","Dropped 3rd Strike","Walk","Single", "Double", "Triple", "Home Run", "Ground Out", "Fly Out", "Strikeout","Strikeout Looking","Fielder's Choice","Sacrifise fly","Sacrifice Bunt","Error"],
         batAbbrevs:[String] = ["","HP","DK3","BB","1b", "2b", "3b", "hr", "GO", "FO", "K","ꓘ","FC","SF","SB","E"],
-        innAbr:[String] = ["","1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th","13th","14th","15th","16th","17th","18th"]
+        innAbr:[String] = ["0","1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th","13th","14th","15th","16th","17th","18th"],
+        outAbr:[String] = ["0","1 Out","2 Out","3 out"]
     ) {
         self.atBats = atBats
         self.hitresults = hitresults
@@ -35,7 +37,8 @@ struct Common {
         self.outabs = outabs
         self.battings = battings
         self.batAbbrevs = batAbbrevs
-        self.innAbr = innAbr   
+        self.innAbr = innAbr
+        self.outAbr = outAbr
     }
 }
     

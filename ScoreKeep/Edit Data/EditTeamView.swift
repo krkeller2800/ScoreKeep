@@ -30,11 +30,11 @@ struct EditTeamView: View {
     var body: some View {
         Form {
             HStack {
-                Text("Team Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Spacer()
                 Text("Coach Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Spacer()
-                Text("Team Notes").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Notes").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Spacer()
             }
             HStack {
@@ -79,6 +79,8 @@ struct EditTeamView: View {
                                     
                                     Text("Name (Z-A)")
                                         .tag([SortDescriptor(\Player.name, order: .reverse)])
+                                    Text("Battin Order (1-99)")
+                                        .tag([SortDescriptor(\Player.batOrder)])
                                 }
                             }
                         }

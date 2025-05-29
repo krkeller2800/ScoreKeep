@@ -129,7 +129,7 @@ struct PasteView: View {
                         }
                         Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: numberIdx) {
                         if numberIdx != playerComponents.count+1 {
@@ -153,7 +153,7 @@ struct PasteView: View {
                         }
                         Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: firstNameIdx) {
                         if firstNameIdx != playerComponents.count+1 {
@@ -175,7 +175,7 @@ struct PasteView: View {
                         }
                         Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: lastNameIdx) {
                         if lastNameIdx != playerComponents.count+1 {
@@ -197,7 +197,7 @@ struct PasteView: View {
                         }
                         Text("Paste order").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 190,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 190,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: batOrderIdx) {
                         var x = 0
@@ -222,7 +222,7 @@ struct PasteView: View {
                         }
                         Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: batsDirIdx) {
                         if batsDirIdx != playerComponents.count+1 {
@@ -244,7 +244,7 @@ struct PasteView: View {
                         }
                         Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: positionIdx) {
                         if positionIdx != playerComponents.count+1 {
@@ -263,7 +263,7 @@ struct PasteView: View {
                 VStack(alignment: .leading, spacing:0) {
                     if players.count > 0 {
                         ForEach (players, id: \.self) { player in
-                            Text(player).frame(maxWidth: 350, alignment: .leading).lineLimit(1).padding(.leading, 10)
+                            Text(player).frame(maxWidth: 250, alignment: .leading).lineLimit(1).padding(.leading, 10)
                         }
                     }
                     Spacer()
