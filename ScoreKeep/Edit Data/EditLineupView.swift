@@ -74,6 +74,8 @@ struct EditLineupView: View {
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                     .focused($focusedField, equals: .field)
                     .onAppear {self.focusedField = .field}
+                    .autocapitalization(.words)
+                    .textContentType(.none)
                 Spacer()
                 TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()

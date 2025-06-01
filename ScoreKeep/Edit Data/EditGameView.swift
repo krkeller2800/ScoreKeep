@@ -69,6 +69,8 @@ struct EditGameView: View {
                     .overlay(Divider().background(.black), alignment: .trailing)
                     .focused($focusedField, equals: .field)
                     .onAppear {self.focusedField = .field}
+                    .autocapitalization(.words)
+                    .textContentType(.none)
                 Spacer()
                 Button(action:{game.everyOneHits.toggle()}){
                     Text(game.everyOneHits ? "True" : "False")
@@ -133,7 +135,7 @@ struct EditGameView: View {
                 Button("Add home or visiting team", action: addTeam)
             }
             ToolbarItem(placement: .principal) {
-                Text("Edit a Game")
+                Text("Games")
                     .font(.title2)
             }
 

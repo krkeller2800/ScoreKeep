@@ -19,12 +19,15 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
-            GameView(searchString: searchText, sortOrder: sortOrder,title:"Add/Edit or Delete a Game")
+            GameView(searchString: searchText, sortOrder: sortOrder,title:"Games")
                 .navigationDestination(for: Game.self) { game in
                     EditGameView(game: game, navigationPath: $path)
                 }
                 .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                         Button("< Back") {
+                             dismiss()
+                         }
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
                             Picker("Sort", selection: $sortOrder) {
                                 Text("Name (A-Z)")
@@ -36,12 +39,6 @@ struct ContentView: View {
                         }
                         Button("Add Game", systemImage: "plus", action: addGame)
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                         Button("< Back") {
-                             dismiss()
-                         }
-                    }
-
                 }
                 .searchable(text: $searchText)
         }

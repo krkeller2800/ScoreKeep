@@ -12,20 +12,22 @@ import SwiftData
 struct TeamContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
-    @State private var navigationPath = NavigationPath()
+    @State private var path = NavigationPath()
 
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Team.name)]
     
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        NavigationStack(path: $path) {
             TeamView(searchString: searchText, sortOrder: sortOrder)
                 .navigationDestination(for: Team.self) { team in
-                    EditTeamView(navigationPath: $navigationPath, team: team)
-
+                    EditTeamView(navigationPath: $path, team: team)
                 }
                 .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Button("< Back") {
+                            dismiss()
+                        }
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
                             Picker("Sort", selection: $sortOrder) {
                                 Text("Name (A-Z)")
@@ -37,11 +39,6 @@ struct TeamContentView: View {
                         }
                         Button("Add Team", systemImage: "plus", action: addTeam)
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                         Button("< Back") {
-                             dismiss()
-                         }
-                    }
                 }
                 .searchable(text: $searchText)
         }
@@ -49,6 +46,6 @@ struct TeamContentView: View {
     func addTeam() {
         let team = Team(name: "" ,coach: "",details: "")
         modelContext.insert(team)
-        navigationPath.append(team)
+        path.append(team)
     }
 }

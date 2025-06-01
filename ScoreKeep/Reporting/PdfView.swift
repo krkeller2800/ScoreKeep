@@ -19,7 +19,7 @@ struct PdfView: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("ScoreKeep")
-                    .font(.title2)
+                    .font(.title)
             }
 
         }

@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 import Foundation
-
+@MainActor
 struct TeamView: View {
     @Environment(\.modelContext) var modelContext
     @Query var teams: [Team]
@@ -28,8 +28,19 @@ struct TeamView: View {
             ForEach(teams) { team in
                 NavigationLink(value: team) {
                     HStack {
-                        Text(team.name).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
+                        HStack {
+                            if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: 30, maxHeight: 30, alignment: .center)
+                            } else {
+                                Text("").frame(width: 30, height: 30).background(.clear)
+                            }
+                            Text(team.name)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                        .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
                         Spacer()
                         Text(team.coach).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                             .overlay(Divider().background(.black), alignment: .trailing)
@@ -44,7 +55,7 @@ struct TeamView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("Edit/Add a Team")
+                Text("Teams")
                     .font(.title2)
             }
         }

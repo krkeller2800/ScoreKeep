@@ -63,7 +63,7 @@ struct PlayerView: View {
         }
         .toolbar {
              ToolbarItem(placement: .principal) {
-                 Text("Edit/Add a Player")
+                 Text("Players")
                      .font(.title2)
              }
          }

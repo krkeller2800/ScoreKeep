@@ -4,7 +4,7 @@
 //
 //  Created by Karl Keller on 3/16/25.
 //
-
+import PhotosUI
 import SwiftUI
 import SwiftData
 
@@ -12,6 +12,7 @@ struct EditTeamView: View {
     @Environment(\.modelContext) var modelContext
     @Binding var navigationPath: NavigationPath
     @Bindable var team: Team
+    @State private var selectedItem: PhotosPickerItem?
     enum FocusField: Hashable {case field}
 
     @FocusState private var focusedField: FocusField?
@@ -30,6 +31,8 @@ struct EditTeamView: View {
     var body: some View {
         Form {
             HStack {
+                Text("Logo").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Spacer()
                 Text("Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Spacer()
                 Text("Coach Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
@@ -38,10 +41,21 @@ struct EditTeamView: View {
                 Spacer()
             }
             HStack {
-                //                TextField("team", text: $team.name).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                //                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-                //                    .focused($focusedField, equals: .field)
-                //                    .onAppear {self.focusedField = .field}
+                if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
+                    HStack {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 50, maxHeight: 50, alignment: .center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
+                    .overlay(Divider().background(.black), alignment: .trailing)
+                } else {
+                    Text("")
+                        .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
+                        .overlay(Divider().background(.black), alignment: .trailing)
+                }
+                Spacer()
                 TextField("team", text: $teamName, onEditingChanged: { (editingChanged) in
                     if !editingChanged {
                         checkForDup()
@@ -60,8 +74,21 @@ struct EditTeamView: View {
                     .overlay(Divider().background(.black), alignment: .trailing)
                 Spacer()
             }
+            HStack {
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    Text("Select a logo")
+                }
+                .onChange(of: selectedItem, loadLogo).frame(maxWidth:.infinity,alignment:.center)
+                Spacer()
+                Text("").frame(maxWidth:.infinity)
+                Spacer()
+                Text("").frame(maxWidth:.infinity)
+                Spacer()
+                Text("").frame(maxWidth:.infinity)
+                Spacer()
+            }
         }
-        .frame(maxWidth:.infinity, maxHeight: 150, alignment: .top)
+        .frame(maxWidth:.infinity, maxHeight: 175, alignment: .top)
 
         Section() {
             VStack( ) {
@@ -71,7 +98,7 @@ struct EditTeamView: View {
                     }
                     .border(Color.gray)
                     .toolbar {
-                        ToolbarItemGroup(placement: .topBarTrailing) {
+                        ToolbarItemGroup(placement: .topBarLeading) {
                             Menu("Sort", systemImage: "arrow.up.arrow.down") {
                                 Picker("Sort", selection: $sortOrder) {
                                     Text("Name (A-Z)")
@@ -85,8 +112,8 @@ struct EditTeamView: View {
                             }
                         }
                         ToolbarItem(placement: .principal) {
-                            Text("Edit a Team")
-                                .font(.title2).frame(width:300, alignment: .leading)
+                            Text("Teams")
+                                .font(.title2)
                             }
                     }
                     .searchable(text: $searchText)
@@ -121,7 +148,6 @@ struct EditTeamView: View {
             modelContext.insert(player)
             navigationPath.append(player)
         }
-//        try? modelContext.save()
     }
     func checkForDup() {
         
@@ -153,6 +179,12 @@ struct EditTeamView: View {
             }
         }
     }
+    func loadLogo() {
+        Task { @MainActor in
+            team.logo = try await selectedItem?.loadTransferable(type: Data.self)
+        }
+    }
+
 }
 
 

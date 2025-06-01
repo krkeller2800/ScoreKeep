@@ -70,6 +70,8 @@ struct EditPlayerView: View {
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
                         .onAppear {self.focusedField = .field}
+                        .autocapitalization(.words)
+                        .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     Spacer()
                     TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)

@@ -126,7 +126,7 @@ struct EditAllPlayerView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("Edit a Player")
+                Text("Players")
                     .font(.title2)
             }
         }

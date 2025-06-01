@@ -35,7 +35,7 @@ struct GameView: View {
                 Text("Innings").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer()
-                Text("Final Score").frame(maxWidth:.infinity).border(.gray)
+                Text("Score").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Spacer(minLength: 35)
             }
@@ -47,13 +47,33 @@ struct GameView: View {
                         Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width: 100, alignment: .leading).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.5)
                             .overlay(Divider().background(.black), alignment: .trailing)
                         Spacer()
-                        Text(game.vteam?.name ?? "").frame(maxWidth:.infinity, alignment: .leading)
-                            .foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing)
+                        HStack {
+                            if let imageData = game.vteam?.logo, let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: 30, maxHeight: 30, alignment: .center)
+                            } else {
+                                Text("").frame(width: 30, height: 30).background(.clear)
+                            }
+                            Text(game.vteam?.name ?? "").lineLimit(1).minimumScaleFactor(0.5)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                        .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
                         Spacer()
-                        Text(game.hteam?.name ?? "").frame(maxWidth:.infinity, alignment: .leading)
-                            .foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing)
+                        HStack {
+                            if let imageData = game.hteam?.logo, let uiImage = UIImage(data: imageData) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: 30, maxHeight: 30, alignment: .center)
+                            } else {
+                                Text("").frame(width: 30, height: 30).background(.clear)
+                            }
+                            Text(game.hteam?.name ?? "").lineLimit(1).minimumScaleFactor(0.5)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                        .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
                         Spacer()
                         Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
                             .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing)
@@ -87,10 +107,10 @@ struct GameView: View {
                 Text(self.title)
                     .font(.title2)
                 }
-            ToolbarItem(placement: .principal) {
-                Text("Edit/Add a Team")
-                    .font(.title2)
-            }
+//            ToolbarItem(placement: .principal) {
+//                Text("Edit/Add a Team")
+//                    .font(.title2)
+//            }
         }
         .listRowSeparator(.hidden)
         

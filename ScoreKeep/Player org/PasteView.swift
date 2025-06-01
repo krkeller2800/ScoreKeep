@@ -118,7 +118,7 @@ struct PasteView: View {
                 }
                 Divider()
                 HStack {
-                    Spacer()
+//                    Spacer()
                     Picker("Number", selection: $numberIdx) {
                         let fnames = playerComponents
                         Text("Number").tag(0)
@@ -197,7 +197,7 @@ struct PasteView: View {
                         }
                         Text("Paste order").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 190,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 170,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: batOrderIdx) {
                         var x = 0
@@ -214,7 +214,7 @@ struct PasteView: View {
 
                     Picker("Bat Dir", selection: $batsDirIdx) {
                         let fnames = playerComponents
-                        Text("Bat Direction").tag(0)
+                        Text("Batting Dir").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
@@ -222,7 +222,7 @@ struct PasteView: View {
                         }
                         Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 170,maxHeight: 50, alignment:.trailing).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     .onChange(of: batsDirIdx) {
                         if batsDirIdx != playerComponents.count+1 {
@@ -255,7 +255,7 @@ struct PasteView: View {
                             }
                         }
                     }
-                    Spacer()
+//                    Spacer()
                 }
             }
             Spacer()

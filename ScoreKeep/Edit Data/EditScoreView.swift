@@ -14,7 +14,7 @@ struct EditScoreView: View {
     @State var game: Game
     @Binding var navigationPath: NavigationPath
     @State var team: Team = Team(name: "", coach: "", details: "")
-    @State var isHomeTeam: Bool = true
+    @State var isHomeTeam: Bool = false
     @State var theTeam: String = ""
     @State var latbats: [Atbat] = []
     @State private var searchText = ""
@@ -31,6 +31,7 @@ struct EditScoreView: View {
     @State private var showReport = false
     @State private var shareReport = false
     @State private var alertText = ""
+    @State private var selectedOption = ""
     @State private var pdfURL:URL = URL.documentsDirectory.appending(path: "Stats.pdf")
     @State private var screenHeight = 0.0
     @State private var screenWidth = 0.0
@@ -42,46 +43,49 @@ struct EditScoreView: View {
         ZStack {
             VStack(spacing: 0) {
                 HStack {
-                    Text(game.location).font(.title3)
+                    Text(game.location).font(.title3).frame(maxWidth: .infinity,alignment: .leading)
                     Spacer()
                     VStack (spacing: 5) {
-                        Text("Select which team to score!").font(.headline)
+                        Text("Select which team to score!").font(.headline).frame(maxWidth: .infinity,alignment: .center)
                         HStack {
-                            SelectButton(isSelected: $visitSelected, color:.blue, text:game.vteam?.name ?? "")
-                                .onTapGesture {
-                                    visitSelected.toggle()
-                                    isHomeTeam.toggle()
-                                    
-                                    AudioServicesPlaySystemSound(1052)
-                                    if visitSelected {
-                                        homeSelected = false
+                            ForEach([game.vteam?.name ?? "", game.hteam?.name ?? ""], id: \.self) { option in
+                                Button(action: {
+                                    selectedOption = option
+                                    if option == game.vteam?.name ?? "" {
+                                        isHomeTeam = false
                                     } else {
-                                        homeSelected = true
+                                        isHomeTeam = true
+                                    }
+                                }) {
+                                    HStack {
+                                        let theTeam = option == game.vteam?.name ?? "" ? game.vteam! : game.hteam!
+                                        if let imageData = theTeam.logo, let uiImage = UIImage(data: imageData) {
+                                            Image(uiImage: uiImage)
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(maxWidth: 40, maxHeight: 40, alignment: .center)
+                                        }
+                                        Text(option)
+                                            .lineLimit(1).minimumScaleFactor(0.5).foregroundColor(selectedOption == option ? Color.blue : Color.gray)
+
                                     }
                                 }
-                            Text(" at ")
-                            SelectButton(isSelected: $homeSelected, color:.blue, text:game.hteam?.name ?? "")
-                                .onTapGesture {
-                                    homeSelected.toggle()
-                                    isHomeTeam.toggle()
-                                    
-                                    AudioServicesPlaySystemSound(1052)
-                                    if homeSelected {
-                                        visitSelected = false
-                                    } else {
-                                        visitSelected = true
-                                    }
+                                if option == game.vteam?.name ?? "" {
+                                    Text(" at ").foregroundColor(.black)
                                 }
+                            }
                         }
+                        .frame(width: 300)
                     }
                     .onAppear {
                         team = game.vteam ?? Team(name:"",coach:"",details:"")
-                        theTeam = game.vteam!.name
+                        theTeam = game.vteam?.name ?? ""
+                        selectedOption = game.vteam?.name ?? ""
                         print(modelContext.sqliteCommand)
                         
                     }
                     .onChange(of: isHomeTeam, {
-                        if !isHomeTeam {
+                        if isHomeTeam {
                             theTeam = game.hteam?.name ?? ""
                             team = game.hteam ?? Team(name:"",coach:"",details:"")
                         } else {
@@ -93,7 +97,7 @@ struct EditScoreView: View {
                     .font(.largeTitle).italic(true)
                     Spacer ()
                     let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                    Text(date.formatted(date:.numeric, time: .shortened)).font(.title3)
+                    Text(date.formatted(date:.numeric, time: .shortened)).font(.title3).frame(maxWidth: .infinity,alignment: .trailing)
                 }
                 .frame(maxWidth:.infinity,maxHeight: 75)
                 .overlay(drawBoxScore(game:game), alignment: .topTrailing)
@@ -115,14 +119,14 @@ struct EditScoreView: View {
                     Button(action: {
                         self.showingDetail.toggle()
                     }) {
-                        if !isHomeTeam {
+                        if isHomeTeam {
                             Text("\(game.hteam!.name) Lineup")
                         } else {
                             Text("\(game.vteam!.name) Lineup")
                         }
                     }
                     .onChange(of: showingDetail, {
-                        if !isHomeTeam {
+                        if isHomeTeam {
                             team = game.hteam ?? Team(name:"",coach:"",details:"")
                             theTeam = game.hteam?.name ?? ""
                         } else {
