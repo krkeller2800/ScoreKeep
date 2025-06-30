@@ -15,38 +15,77 @@ struct ContentView: View {
     @State private var path = NavigationPath()
     
     @State private var searchText = ""
-    @State private var sortOrder = [SortDescriptor(\Game.date)]
+    @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
+    @AppStorage("selectedGameCriteria") var selectedGameCriteria: SortCriteria = .dateAsc
+    
+    enum SortCriteria: String, CaseIterable, Identifiable {
+        case dateAsc, dateDec, homeTeam, visitorTeam
+        var id: String { self.rawValue }
+    }
+    
+    var sortDescriptor: [SortDescriptor<Game>] {
+        switch selectedGameCriteria {
+        case .dateAsc:
+            return [SortDescriptor(\Game.date, order: .forward)]
+        case .dateDec:
+            return [SortDescriptor(\Game.date, order: .reverse)]
+        case .homeTeam:
+            return [SortDescriptor(\Game.hteam!.name, order: .forward)]
+        case .visitorTeam:
+            return [SortDescriptor(\Game.vteam!.name, order: .forward)]
+        }
+    }
     
     var body: some View {
         NavigationStack(path: $path) {
-            GameView(searchString: searchText, sortOrder: sortOrder,title:"Games")
+            GameView(searchString: searchText, sortOrder: sortDescriptor, title:"Games", navigationPath: $path)
                 .navigationDestination(for: Game.self) { game in
                     EditGameView(game: game, navigationPath: $path)
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
-                         Button("< Back") {
-                             dismiss()
-                         }
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                            Picker("Sort", selection: $sortOrder) {
-                                Text("Name (A-Z)")
-                                    .tag([SortDescriptor(\Game.date)])
-                                
-                                Text("Name (Z-A)")
-                                    .tag([SortDescriptor(\Game.date, order: .reverse)])
+                            Picker("Sort", selection: $selectedGameCriteria) {
+                                ForEach(SortCriteria.allCases) { criteria in
+                                    if criteria == .dateAsc {
+                                        Text("Date (A-Z)").tag(criteria)
+                                    } else if criteria == .dateDec {
+                                        Text("Date (Z-A)").tag(criteria)
+                                    } else if criteria == .homeTeam {
+                                        Text("Home Team (A-Z)").tag(criteria)
+                                    } else if criteria == .visitorTeam {
+                                        Text("Visitor Team (A-Z)").tag(criteria)
+                                    }
+                                }
                             }
                         }
-                        Button("Add Game", systemImage: "plus", action: addGame)
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("Add a team") {
+                            let team = Team(name: "", coach: "", details: "")
+                            modelContext.insert(team)
+                            try? modelContext.save()
+                            path.append(team)
+                        }
                     }
                 }
-                .searchable(text: $searchText)
+//                .searchable(text: $searchText)
+                .searchable(text: $searchText,  prompt: "YYYY-MM-DD or any text")
+
+                .onChange(of: sortDescriptor) {
+                    sortOrder = sortDescriptor
+                }
+                .navigationDestination(for: Team.self) { team in
+                    EditTeamView(navigationPath: $path, team: team)
+                }
+
         }
     }
     func addGame() {
         let game = Game(date: "" ,location: "",highLights: "",hscore: 0, vscore: 0)
         modelContext.insert(game)
         path.append(game)
+        try? modelContext.save()
     }
 }
 

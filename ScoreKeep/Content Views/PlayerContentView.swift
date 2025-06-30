@@ -15,36 +15,60 @@ struct PlayerContentView: View {
 
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Player.name)]
+    @AppStorage("selectedPlayerCriteria") var selectedPlayerCriteria: SortCriteria = .teamOrderAsc
+    
+    enum SortCriteria: String, CaseIterable, Identifiable {
+        case nameAsc, nameDec, orderAsc, numAsc, teamOrderAsc
+        var id: String { self.rawValue }
+    }
+    
+    var sortDescriptor: [SortDescriptor<Player>] {
+        switch selectedPlayerCriteria {
+        case .nameAsc:
+            return [SortDescriptor(\Player.name, order: .forward)]
+        case .nameDec:
+            return [SortDescriptor(\Player.name, order: .reverse)]
+        case .orderAsc:
+            return [SortDescriptor(\Player.batOrder, order: .forward)]
+        case .numAsc:
+            return [SortDescriptor(\Player.number, order: .forward)]
+        case .teamOrderAsc:
+            return [SortDescriptor(\Player.team?.name, order: .forward), SortDescriptor(\Player.batOrder, order: .forward)]
+        }
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-            PlayerView(searchString: searchText, sortOrder: sortOrder)
+            PlayerView(searchString: searchText, sortOrder: sortDescriptor, navigationPath: $navigationPath)
                 .navigationDestination(for: Player.self) { player in
                     EditAllPlayerView(player: player, navigationPath: $navigationPath)
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
-                        Button("< Back") {
-                            dismiss()
-                        }
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                            Picker("Sort", selection: $sortOrder) {
-                                Text("Name (A-Z)")
-                                    .tag([SortDescriptor(\Player.name)])
-                                Text("Name (Z-A)")
-                                    .tag([SortDescriptor(\Player.name, order: .reverse)])
-                                Text("Order (1-99)")
-                                    .tag([SortDescriptor(\Player.batOrder)])
-                                Text("Number (1-99)")
-                                    .tag([SortDescriptor(\Player.number)])
-                                Text("Team then Order (1-99)")
-                                    .tag([SortDescriptor(\Player.team?.name),SortDescriptor(\Player.batOrder)])
+                            Picker("Sort", selection: $selectedPlayerCriteria) {
+                                ForEach(SortCriteria.allCases) { criteria in
+                                    if criteria == .nameAsc {
+                                        Text("Name (A-Z)").tag(criteria)
+                                    } else if criteria == .nameDec {
+                                        Text("Name (Z-A)").tag(criteria)
+                                    } else if criteria == .numAsc {
+                                        Text("Number (A-Z)").tag(criteria)
+                                    } else if criteria == .orderAsc {
+                                        Text("order (A-Z)").tag(criteria)
+                                    } else if criteria == .teamOrderAsc {
+                                        Text("Team then order (A-Z)").tag(criteria)
+                                    }
+                                }
                             }
                         }
-                        Button("Add Player", systemImage: "plus", action: addPlayers)
                     }
                 }
-                .searchable(text: $searchText)
+                .searchable(text: $searchText, prompt: "Player name")
+                .onChange(of: sortDescriptor) {
+                    sortOrder = sortDescriptor
+                }
+
         }
     }
     func addPlayers() {

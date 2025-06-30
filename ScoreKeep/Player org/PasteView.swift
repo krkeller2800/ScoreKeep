@@ -12,6 +12,8 @@ struct PasteView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @State private var delimeter: String = "Delimeter"
+    @State private var delim: String = ""
+    @State private var del: String = ""
     @State private var pastedText: String = ""
     @State private var usePasteOrder = false
     @State private var leaveNumBlank = false
@@ -22,6 +24,7 @@ struct PasteView: View {
     @State private var batsDirIdx = 0
     @State private var positionIdx = 0
     @State private var batOrderIdx = 0
+    @State private var pickId = 0
     @State private var alertMessage = ""
     @State private var showingAlert = false
 
@@ -40,10 +43,13 @@ struct PasteView: View {
     @State private var selectPlayers:[Player] = []
     @State private var dels:[String] = ["","Tab","A Space","Comma","Type in"]
     @State private var tgs:[String] = ["","\t"," ",",","Type in"]
+    @AppStorage("delimeters") var delimeters: String = "\n\nTab\nA Space\nComma\nType in\nReset"
+    @AppStorage("theTags") var theTags: String = "\n\n\t\n \n,\nType in\nReset"
 
     @Query var teams: [Team]
     
     var body: some View {
+        let com = Common()
         NavigationStack(path: $navigationPath) {
             VStack(spacing:0) {
                 HStack {
@@ -69,70 +75,91 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 40, alignment:.center).background(.blue)
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue)
                     .border(.gray).cornerRadius(10).padding().accentColor(.white)
                     .onChange(of: team) { checkForPlayers() }
                     Spacer()
-                    PasteButton(payloadType: String.self) { strings in
-                        let replaced = strings[0].replacingOccurrences(of: " Jr.", with: "_Jr.")
-                        pastedText = replaced
-                        cleanPaste()
+                    Button {
+                        let pasteboard = UIPasteboard.general
+                        if let string = pasteboard.string {
+                            pastedText = string.replacingOccurrences(of: " Jr.", with: "_Jr.")
+                            cleanPaste()
+                        } else {
+                            alertMessage = "No Text found on clipboard"
+                            showingAlert = true
+                        }
+                    } label: {
+                               Label("Paste", systemImage: "doc.on.doc")
                     }
+                    .foregroundColor(.white).bold().padding().frame(maxHeight: 35)
+                    .background(Color.blue).cornerRadius(20)
                     Spacer()
                     Picker("delimeter", selection: $delimeter) {
                         Text("Delimeter").tag("Delimeter")
-                        ForEach(Array(dels.enumerated()), id: \.1) { index, del in
-                            if !del.isEmpty {
-                                Text(del).tag(tgs[index])
+                        ForEach(0 ..< dels.count, id: \.self) {
+                            if dels[$0] != "" {
+                                Text(dels[$0]).tag(tgs[$0])
                             }
                         }
                     }
-                    .onChange(of: delimeter) {
-                        if delimeter == "Type in" {
-                            delimeter = ""
-                            addDelimeter = true
-                        }
-                    }
-                    .frame(maxWidth: 140,maxHeight: 40, alignment:.center).background(.blue)
+                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue)
                     .border(.gray).cornerRadius(10).padding(.leading, 15).padding().accentColor(.white)
                     .alert("Enter your Delimeter", isPresented: $addDelimeter) {
-                        TextField("", text: $delimeter).disableAutocorrection(true).autocapitalization(.none)
+                        TextField("", text: $delim).disableAutocorrection(true).autocapitalization(.none)
                         Button("OK") {
-                            dels.insert(delimeter, at: dels.count-1)
-                            tgs.insert(delimeter, at: tgs.count-1)
-                            writeFile(fileName: "dels.txt", file: dels)
-                            writeFile(fileName: "tgs.txt", file: tgs)
+                            if dels.last != "Reset" {
+                                dels.append("Reset")
+                                tgs.append("Reset")
+                            }
+                            del = delim
+                            if let xx = com.keySym.firstIndex(where: { $0 == delim }) {
+                                del = com.keyWord[xx]
+                            }
+                            dels.insert(del, at: dels.count-2)
+                            tgs.insert(delim, at: tgs.count-2)
+                            delimeters = dels.joined(separator: "\n")
+                            theTags = tgs.joined(separator: "\n")
+                            delimeter = delim
+                            delim = ""
                         }
                     }
                     message: {
                         Text("Enter the character(s) that separates your fields.")
                     }
                     .onAppear {
-                        let thedels = readFile(fileName: "dels.txt")
-                        let thetgs = readFile(fileName: "tgs.txt")
-                        if !thedels.isEmpty && !thetgs.isEmpty && thedels.count == thetgs.count {
-                            dels = thedels
-                            tgs = thetgs
-                        }
+                        dels = delimeters.components(separatedBy: "\n")
+                        tgs = theTags.components(separatedBy: "\n")
                     }
                 }
                 Divider()
                 HStack {
-//                    Spacer()
+                    Text("Number").frame(maxWidth: 140,alignment: .center).bold().padding(.leading, 5)
+                    Spacer()
+                    Text("First Name").frame(maxWidth: 140,alignment: .center).bold()
+                    Spacer()
+                    Text("Last Name").frame(maxWidth: 140,alignment: .center).bold()
+                    Spacer()
+                    Text("Batting Order").frame(maxWidth: 170,alignment: .center).bold()
+                    Spacer()
+                    Text("Batting Direction").frame(maxWidth: 170,alignment: .center).bold()
+                    Spacer()
+                    Text("Position").frame(maxWidth: 140,alignment: .center).bold().padding(.trailing, 5)
+                    Spacer()
+                }
+                HStack {
                     Picker("Number", selection: $numberIdx) {
                         let fnames = playerComponents
-                        Text("Number").tag(0)
+                        Text("Leave Blank").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
-                        Text("Leave Blank").tag(fnames.count+1)
                     }
                     .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 5)
                     .onChange(of: numberIdx) {
-                        if numberIdx != playerComponents.count+1 {
+                        if numberIdx != 0 {
                             var x = 0
                             for player in players {
                                 number.insert(player.components(separatedBy:  delimeter)[numberIdx-1], at: x)
@@ -145,18 +172,17 @@ struct PasteView: View {
                     Spacer()
                     Picker("First Name", selection: $firstNameIdx) {
                         let fnames = playerComponents
-                        Text("First Name").tag(0)
+                        Text("Leave Blank").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
-                        Text("Leave Blank").tag(fnames.count+1)
                     }
                     .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: firstNameIdx) {
-                        if firstNameIdx != playerComponents.count+1 {
+                        if firstNameIdx != 0 {
                             var x = 0
                             for player in players {
                                 firstName.insert(player.components(separatedBy: delimeter)[firstNameIdx-1], at: x)
@@ -167,18 +193,17 @@ struct PasteView: View {
                     Spacer()
                     Picker("Last Name", selection: $lastNameIdx) {
                         let fnames = playerComponents
-                        Text("Last Name").tag(0)
+                        Text("Leave Blank").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
-                        Text("Leave Blank").tag(fnames.count+1)
                     }
                     .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: lastNameIdx) {
-                        if lastNameIdx != playerComponents.count+1 {
+                        if lastNameIdx != 0 {
                             var x = 0
                             for player in players {
                                 lastName.insert(player.components(separatedBy: delimeter)[lastNameIdx-1], at: x)
@@ -187,9 +212,9 @@ struct PasteView: View {
                         }
                     }
                     Spacer()
-                    Picker("Bat Order", selection: $batOrderIdx) {
+                    Picker("Batting Order", selection: $batOrderIdx) {
                         let fnames = playerComponents
-                        Text("Batting Order").tag(0)
+                        Text("Leave Blank").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
@@ -198,34 +223,34 @@ struct PasteView: View {
                         Text("Paste order").tag(fnames.count+1)
                     }
                     .frame(maxWidth: 170,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: batOrderIdx) {
                         var x = 0
                         for player in players {
-                            if batOrderIdx != playerComponents.count+1 {
+                            if batOrderIdx != 0 && batOrderIdx != player.components(separatedBy: delimeter).count+2  {
                                 batOrder.insert(player.components(separatedBy: delimeter)[batOrderIdx-1], at: x)
-                            } else {
+                            } else if batOrderIdx != 0 {
                                 batOrder.insert(String(x+1), at: x)
+                            } else {
+                                batOrder.insert("99", at: x)
                             }
                             x += 1
                         }
                     }
                     Spacer()
-
-                    Picker("Bat Dir", selection: $batsDirIdx) {
+                    Picker("Batting Dir", selection: $batsDirIdx) {
                         let fnames = playerComponents
-                        Text("Batting Dir").tag(0)
+                        Text("Leave Blank").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
-                        Text("Leave Blank").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 170,maxHeight: 50, alignment:.trailing).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .frame(maxWidth: 170,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: batsDirIdx) {
-                        if batsDirIdx != playerComponents.count+1 {
+                        if batsDirIdx != 0 {
                             var x = 0
                             for player in players {
                                 batsDirection.insert(player.components(separatedBy: delimeter)[batsDirIdx-1], at: x)
@@ -236,18 +261,17 @@ struct PasteView: View {
                     Spacer()
                     Picker("Position", selection: $positionIdx) {
                         let fnames = playerComponents
-                        Text("Position").tag(0)
+                        Text("Leave Blank").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
-                        Text("Leave Blank").tag(fnames.count+1)
                     }
                     .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.trailing, 5)
                     .onChange(of: positionIdx) {
-                        if positionIdx != playerComponents.count+1 {
+                        if positionIdx != 0 {
                             var x = 0
                             for player in players {
                                 position.insert(player.components(separatedBy: delimeter)[positionIdx-1], at: x)
@@ -255,38 +279,43 @@ struct PasteView: View {
                             }
                         }
                     }
-//                    Spacer()
                 }
             }
             Spacer()
             HStack {
                 VStack(alignment: .leading, spacing:0) {
                     if players.count > 0 {
-                        ForEach (players, id: \.self) { player in
-                            Text(player).frame(maxWidth: 250, alignment: .leading).lineLimit(1).padding(.leading, 10)
+                        ForEach(Array(players.enumerated()), id: \.1) { index, player in
+                            if index < 15 {
+                                Text(player).frame(width: 170, alignment: .leading).lineLimit(1).padding(.leading, 10)
+                            }
                         }
                     }
                     Spacer()
                 }
                 Spacer()
                 if team != nil {
-                    PlayersOnTeamView(teamName: team!.name, searchString: "", sortOrder: sortOrder)
-                        .navigationDestination(for: Player.self) { player in
-                            EditPlayerView( player: player, team: team!, navigationPath: $navigationPath)
-                        }
+                    PlayersOnTeamView(team: team!, searchString: "", sortOrder: sortOrder)
                 }
             }
             .navigationDestination(for: Team.self) { team in
                 EditTeamView(navigationPath: $navigationPath, team: team)
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Text("< Back")
-                    }
+            .navigationDestination(for: Player.self) { player in
+                EditPlayerView( player: player, team: team!, navigationPath: $navigationPath)
+            }
+            .onChange(of: delimeter) {
+                if delimeter == "Type in" {
+                    addDelimeter = true
+                } else  if delimeter == "Reset" {
+                    delimeter = "Delimeter"
+                    delimeters = ["","Tab","A Space","Comma","Type in"].joined(separator: "\n")
+                    theTags = ["","\t"," ",",","Type in"].joined(separator: "\n")
+                    dels = delimeters.components(separatedBy: "\n")
+                    tgs = theTags.components(separatedBy: "\n")
                 }
+            }
+            .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("Import Lineup")
                         .font(.title2).bold()
@@ -294,6 +323,8 @@ struct PasteView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         importPlayers()
+                        UIPasteboard.general.items = []
+                        players.removeAll()
                     }) {
                         Text("Add or update Players")
                     }
@@ -306,8 +337,8 @@ struct PasteView: View {
     }
     func importPlayers() {
         if team != nil {
-            if numberIdx == 0 || lastNameIdx == 0 || firstNameIdx == 0 || positionIdx == 0 || batsDirIdx == 0 || batOrderIdx == 0 {
-                alertMessage = "Please finish filling out the header row"
+            if numberIdx == 0 && positionIdx == 0 && firstNameIdx == 0 && lastNameIdx == 0 && batsDirIdx == 0 && batOrderIdx == 0 {
+                alertMessage = "Please indicate where the fields are in the column headers"
                 showingAlert = true
             } else if delimeter == "Delimeter" {
                 alertMessage = "Please pick a Delimeter"
@@ -315,19 +346,23 @@ struct PasteView: View {
             } else {
                 var x = 0
                 for _ in players {
-                    let bOrder:Int = Int(batOrder[x]) ?? 99
+                    let num = numberIdx == 0 ? "" : number[x]
+                    let pos = positionIdx == 0 ? "" : position[x]
+                    var Name = firstNameIdx == 0 ? lastName[x]: ""
+                        Name = lastNameIdx == 0 ? Name :  firstNameIdx == 0 ? lastName[x] : String("\(firstName[x]) \(lastName[x])")
+                        Name = Name.removeAccents()
+                        Name = Name.split(separator: " ").count > 2 ? String(Name.split(separator: " ").first! + " " + Name.split(separator: " ").last!) : Name
+                    let batdir = batsDirIdx == 0 ? "" : batsDirection[x]
+                    let bOrder:Int = batOrder.count > 0 ? Int(batOrder[x]) ?? 99 : 99
                     if bOrder < 20 {
                         for splayer in selectPlayers.filter({$0.batOrder == bOrder}) {
                             splayer.batOrder = 99
                         }
                     }
-                    let num = numberIdx == playerComponents.count + 1 ? "" : number[x]
-                    let pos = positionIdx == playerComponents.count + 1 ? "" : position[x]
-                    var Name = firstNameIdx == playerComponents.count + 1 ? lastName[x]: firstName[x]
-                        Name = lastNameIdx == playerComponents.count + 1 ? Name :  firstNameIdx == playerComponents.count + 1 ? lastName[x] : String("\(firstName[x]) \(lastName[x])")
-                    let batdir = batsDirIdx == playerComponents.count + 1 ? "" : batsDirection[x]
-                    if let pidx = selectPlayers.firstIndex(where: { $0.name == Name }) {
-                        selectPlayers[pidx].batOrder = bOrder
+                    if let pidx = selectPlayers.firstIndex(where: { ($0.name.removeAccents().split(separator: " ").last == Name.split(separator: " ").last &&
+                                                                        (Name.split(separator: " ").first?.count == 1 || $0.name.split(separator: " ").first?.count == 1)) ||
+                                                                        $0.name.removeAccents() == Name}) {
+                        selectPlayers[pidx].batOrder = bOrder == 99 ? selectPlayers[pidx].batOrder : bOrder
                         selectPlayers[pidx].position = pos == "" ? selectPlayers[pidx].position : pos
                         selectPlayers[pidx].number = num == "" ? selectPlayers[pidx].number : num
                         selectPlayers[pidx].batDir = batdir == "" ? selectPlayers[pidx].batDir : batdir
@@ -338,16 +373,17 @@ struct PasteView: View {
                     x += 1
                 }
                 try? modelContext.save()
+                selectPlayers.removeAll()
             }
         } else {
             alertMessage = "Please select a team"
             showingAlert = true
         }
-        selectPlayers.removeAll()
     }
     func addTeam() {
         let team = Team(name: "", coach: "", details: "")
         modelContext.insert(team)
+        try? modelContext.save()
         navigationPath.append(team)
     }
     init() {
@@ -399,42 +435,22 @@ struct PasteView: View {
             }
             players = nArray
             
-            if players[0].components(separatedBy: delimeter).count > 3 {
-                playerComponents = players[0].components(separatedBy: delimeter)
-                players.removeAll {
-                    $0.components(separatedBy: delimeter).count < 3
+            if players.count > 0 {
+                if players[0].components(separatedBy: delimeter).count > 3 {
+                    playerComponents = players[0].components(separatedBy: delimeter)
+                    players.removeAll {
+                        $0.components(separatedBy: delimeter).count < 3
+                    }
+                } else {
+                    alertMessage = "could not parse header row"
+                    showingAlert.toggle()
                 }
             } else {
-                alertMessage = "could not parse header row"
+                alertMessage = "No Text found on clipboard"
                 showingAlert.toggle()
             }
             playerComponents.insert("", at: 0)
         }
     }
-    func readFile(fileName:String) -> [String] {
-        var arrayOfStrings: [String]?
-        let filename = URL.documentsDirectory.appending(path: fileName)
-
-
-           do {
-               let data = try String(contentsOfFile:filename.relativePath, encoding: String.Encoding.utf8)
-               arrayOfStrings = data.components(separatedBy: "\n")
-           } catch let err as NSError {
-               print(err)
-           }
-        return arrayOfStrings ?? []
-    }
-    func writeFile(fileName:String, file:[String]) {
-        let thefile = file
-        let joined = thefile.joined(separator: "\n")
-        let filename = URL.documentsDirectory.appending(path: fileName)
-
-        do {
-            try joined.write(to: filename, atomically: true, encoding: String.Encoding.utf8)
-        } catch let err as NSError {
-            print(err)
-        }
-    }
-
 }
 

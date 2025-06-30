@@ -12,83 +12,85 @@ struct StartView: View {
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp"]
     @State private var flags:[Bool] = [true,false,false,false,false,false]
+    @State private var navigationPath = NavigationPath()
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack {
-            Button("\n\n\n\nGames") {
+            Button("\n\n\n\n\nGames") {
                 setFlags(flag: "presentGames")
                 columnVisibility = .doubleColumn
             }
             .foregroundColor(.black).bold().italic().font(.caption)
             .background {
-            Image("game 1")
-            .resizable()
-            .scaledToFill()
-            .frame(width: 50, height: 50)
-            }
+                Image("bgame")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 75, height: 75)
+                }
             Spacer()
-            Button("\n\n\n\nTeams") {
+            Button("\n\n\n\n\nTeams") {
                 setFlags(flag: "presentTeams")
                 columnVisibility = .doubleColumn
             }
             .foregroundColor(.black).bold().italic().font(.caption)
             .background {
-            Image("team")
-            .resizable()
-            .scaledToFill()
-            .frame(width: 50, height: 50)
-            }
+                Image("bteam")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 75, height: 75)
+                }
+//            Spacer()
+//            Button("\n\n\n\n\nPlayers") {
+//                setFlags(flag: "presentPlayers")
+//                columnVisibility = .doubleColumn
+//            }
+//            .foregroundColor(.black).bold().italic().font(.caption)
+//            .background {
+//                Image("Player 1")
+//                .resizable()
+//                .scaledToFill()
+//                .frame(width: 75, height: 75)
+//                }
             Spacer()
-            Button("\n\n\n\nPlayers") {
-                setFlags(flag: "presentPlayers")
-                columnVisibility = .doubleColumn
-            }
-            .foregroundColor(.black).bold().italic().font(.caption)
-            .background {
-            Image("Player 1")
-            .resizable()
-            .scaledToFill()
-            .frame(width: 50, height: 50)
-            }
-            Spacer()
-            Button("\n\n\n\nScore Games") {
+            Button("\n\n\n\n\nScore Games") {
                 setFlags(flag: "presentScoreGame")
                 columnVisibility = .detailOnly
             }
             .foregroundColor(.black).bold().italic().font(.caption)
             .background {
-            Image("score")
-            .resizable()
-            .scaledToFill()
-            .frame(width: 50, height: 50)
-            }
+                Image("score")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 75, height: 75)
+                }
             Spacer()
-            Button("\n\n\n\nPaste in Players") {
+            Button("\n\n\n\n\nPaste in Players") {
                 setFlags(flag: "presentPaste")
                 columnVisibility = .doubleColumn
             }
             .foregroundColor(.black).bold().italic().font(.caption)
             .background {
-            Image("Paste")
-            .resizable()
-            .scaledToFill()
-            .frame(width: 50, height: 50)
-            }
+                Image("Paste")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 75, height: 75)
+                }
             Spacer()
-            Button("\n\n\n\nHelp Documentation") {
+            Button("\n\n\n\n\nHelp Documentation") {
                 setFlags(flag: "presentHelp")
                 columnVisibility = .doubleColumn
             }
             .foregroundColor(.black).bold().italic().font(.caption)
             .background {
-            Image("help")
-            .resizable()
-            .scaledToFill()
-            .frame(width: 50, height: 50)
-            }
+                Image("bhelp")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 75, height: 75)
+                }
             Spacer()
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom )
         } detail: {
             if flags[0] {
                 ContentView()
@@ -104,6 +106,7 @@ struct StartView: View {
                 PdfView()
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom )
     }
     func setFlags(flag flagName: String) {
         if let nameIndex = flagNames.firstIndex(of: flagName) {
@@ -117,84 +120,12 @@ struct StartView: View {
         }
     }
 }
-//        NavigationView {
-//            VStack {
-//                Button("\n\n\n\nGames") {
-//                    presentGames.toggle()
-//                }
-//                .foregroundColor(.black).bold().italic().font(.caption)
-//                .background {
-//                    Image("game 1")
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(width: 50, height: 50)
-//                }
-//                .fullScreenCover(isPresented: $presentGames, content: ContentView.init)
-//
-//                NavigationLink(destination: ContentView()) {
-//                    Text("Edit/Add Game")
-//                        .frame(width: 300, height: 50)
-//                        .background(Color.blue)
-//                        .foregroundColor(.white)
-//                        .cornerRadius(10)
-//                        .font(.title)
-//                }
-//                Spacer()
-//                Button("\n\n\n\nTeams") {
-//                    presentTeams.toggle()
-//                }
-//                .foregroundColor(.black).bold().italic().font(.caption)
-//                .background {
-//                    Image("team")
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(width: 50, height: 50)
-//                }
-//                .fullScreenCover(isPresented: $presentTeams, content: TeamContentView.init)
-//
-//                Spacer()
-//                Button("\n\n\n\nPlayers") {
-//                    presentPlayers.toggle()
-//                }
-//                .foregroundColor(.black).bold().italic().font(.caption)
-//                .background {
-//                    Image("Player 1")
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(width: 50, height: 50)
-//                }
-//                .fullScreenCover(isPresented: $presentPlayers, content: PlayerContentView.init)
-//                Spacer()
-//                Button("\n\n\n\nScore Games") {
-//                    presentScoreGame.toggle()
-//                }
-//                .foregroundColor(.black).bold().italic().font(.caption)
-//                .background {
-//                    Image("score")
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(width: 50, height: 50)
-//                }
-//                .fullScreenCover(isPresented: $presentScoreGame, content: ScoreContentView.init)
-//                Spacer()
-//                Button("\n\n\n\nPaste in Players") {
-//                    presentPaste.toggle()
-//                }
-//                .foregroundColor(.black).bold().italic().font(.caption)
-//                .background {
-//                    Image("Paste")
-//                        .resizable()
-//                        .scaledToFill()
-//                        .frame(width: 50, height: 50)
-//                }
-//                .fullScreenCover(isPresented: $presentPaste, content: PasteView.init)
-//                Spacer()
-//            }
-//        }
-//    }
-//
-//}
-//
 //#Preview {
-//    StartView()
+//    do {
+//        let previewer = try Previewer()
+//        return ContentGameView()
+//            .modelContainer(previewer.container)
+//    } catch {
+//        return Text("Failed to create preview: \(error.localizedDescription)")
+//    }
 //}

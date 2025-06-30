@@ -12,6 +12,10 @@ struct EditGameView: View {
     @Bindable var game: Game
     @Binding var navigationPath: NavigationPath
     @State var date = Date.now
+    @State private var alertMessage = ""
+    @State private var showingAlert = false
+    @State private var addingTeam = false
+
     enum FocusField: Hashable {case field}
     
     @FocusState private var focusedField: FocusField?
@@ -34,22 +38,17 @@ struct EditGameView: View {
             HStack{
                 Text("Select Game Date").frame(width: 200, alignment: .center).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
-                 Text("Field").frame(maxWidth: .infinity, alignment: .center).border(.gray)
+                Text("Field").frame(maxWidth: .infinity, alignment: .center).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("All Hit").frame(maxWidth: .infinity, alignment: .center).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
-                Text("Innings").frame(maxWidth: .infinity, alignment: .center).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
+//                Text("Innings").frame(maxWidth: .infinity, alignment: .center).border(.gray)
+//                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+//                Spacer()
                 Text("Visiting").frame(maxWidth: .infinity, alignment: .center).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Home").frame(maxWidth: .infinity, alignment: .center).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
             }
             HStack{
                 DatePicker("", selection: $date)
@@ -62,16 +61,14 @@ struct EditGameView: View {
                     .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
                     .frame(width: 200, height: 30, alignment: .center)
                     .clipped()
-                Spacer()
                 TextField("Field", text: $game.location)
                     .frame(maxWidth: .infinity)
                     .foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
                     .focused($focusedField, equals: .field)
-                    .onAppear {self.focusedField = .field}
+//                    .onAppear {self.focusedField = .field}
                     .autocapitalization(.words)
                     .textContentType(.none)
-                Spacer()
                 Button(action:{game.everyOneHits.toggle()}){
                     Text(game.everyOneHits ? "True" : "False")
                         .frame(maxWidth:.infinity,maxHeight:30)
@@ -80,11 +77,6 @@ struct EditGameView: View {
                 }.buttonStyle(PlainButtonStyle())
                 .cornerRadius(10)
                 .overlay(Divider().background(.black), alignment: .trailing)
-                Spacer()
-                TextField("Normal Number of Innings", value: $game.numInnings, formatter: formatter)
-                    .background(Color.white).frame(maxWidth:.infinity)
-                    .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                Spacer()
                 Picker("Visiting Team", selection: $game.vteam) {
                     Text("Unknown Team").tag(Optional<Team>.none)
                     if teams.isEmpty == false {
@@ -98,7 +90,6 @@ struct EditGameView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading).labelsHidden().pickerStyle(.menu).accentColor(.blue)
                 .overlay(Divider().background(.black), alignment: .trailing)
-                Spacer()
                 Picker("Home Team", selection: $game.hteam) {
                     Text("Unknown Team").tag(Optional<Team>.none)
                     if teams.isEmpty == false {
@@ -113,11 +104,15 @@ struct EditGameView: View {
                 .frame(maxWidth: .infinity, alignment: .leading).labelsHidden().pickerStyle(.menu).accentColor(.blue)
                 .overlay(Divider().background(.black), alignment: .trailing)
             }
-            
+            .onDisappear() {
+                if (game.hteam == nil || game.vteam == nil) && !addingTeam {
+                    modelContext.delete(game)
+                    alertMessage = "You must select a Home and Visiting Team! Game deleted."
+                    showingAlert = true
+                }
+            }
+            .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
             HStack {
-                Spacer()
-//                Button("Add a new  home or visiting team", action: addTeam)
-                Spacer()
             }
             Text("Highlights").frame(width: 600, alignment: .center).foregroundColor(.black).font(.title)
             TextField("Comment", text: $game.highLights, prompt: Text("Please input game highlights"), axis: .vertical)
@@ -127,9 +122,9 @@ struct EditGameView: View {
                     .frame(width:600)
                     .foregroundColor(.blue).bold()
         }
-        .navigationDestination(for: Team.self) { team in
-            EditTeamView(navigationPath: $navigationPath, team: team)
-            }
+//        .navigationDestination(for: Team.self) { team in
+//            EditTeamView(navigationPath: $navigationPath, team: team)
+//            }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Add home or visiting team", action: addTeam)
@@ -142,6 +137,7 @@ struct EditGameView: View {
         }
     }
     func addTeam() {
+        addingTeam = true
         let team = Team(name: "", coach: "", details: "")
         modelContext.insert(team)
         navigationPath.append(team)

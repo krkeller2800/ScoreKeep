@@ -27,6 +27,8 @@ struct ReplacementView: View {
     @State private var incomingIdx: Int = 0
     @State private var rplPlayers: [Player] = []
     @State private var incPlayers: [Player] = []
+    @State private var searchText = ""
+
 
     @Query var players: [Player]
 
@@ -35,8 +37,6 @@ struct ReplacementView: View {
         NavigationStack(path: $navigationPath) {
             VStack {
                 HStack {
-                    Spacer()
-                    Spacer()
                     Spacer()
                     Picker("Replaced", selection: $replacedIdx) {
                         Text("Playing Players").tag(0)
@@ -65,6 +65,7 @@ struct ReplacementView: View {
                     .onChange(of: doSubstitution ) {
                         if replacedIdx > 0 && incomingIdx > 0 {
                             doSubs()
+                            dismiss()
                         } else {
                             alertMessage = "Please select a player to replace and an incoming player."
                             showingAlert.toggle()
@@ -74,12 +75,14 @@ struct ReplacementView: View {
                 }
                 HStack {
                     Spacer()
-                    PlayersOnTeamView(teamName: team.name, searchString: "", sortOrder: sortOrder)
+                    PlayersOnTeamView(team: team, searchString: "", sortOrder: sortOrder)
                         .navigationDestination(for: Player.self) { player in
                             EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
                         }
                     Spacer()
                 }
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
                 .onAppear() {
                     rplPlayers = players.filter { $0.batOrder < 99 }
                     incPlayers = players.filter { $0.batOrder >= 99 }
@@ -90,18 +93,30 @@ struct ReplacementView: View {
                 ToolbarItem(placement: .principal) {
                     Text("Choose Pinch Hitters and Player Substitutions").font(.title2)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add Player", action: addPlayers)
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                     Button("< Back") {
-                         dismiss()
-                     }
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Button("< Back") {
+                        dismiss()
+                    }
+                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                        Picker("Sort", selection: $sortOrder) {
+                            Text("Name (A-Z)")
+                                .tag([SortDescriptor(\Player.name)])
+                            Text("Name (Z-A)")
+                                .tag([SortDescriptor(\Player.name, order: .reverse)])
+                            Text("Order (1-99)")
+                                .tag([SortDescriptor(\Player.batOrder)])
+                            Text("Number (1-99)")
+                                .tag([SortDescriptor(\Player.number)])
+                            Text("Team then Order (1-99)")
+                                .tag([SortDescriptor(\Player.team?.name),SortDescriptor(\Player.batOrder)])
+                        }
+                    }
+                    Button("Add Player", systemImage: "plus", action: addPlayers)
                 }
             }
-
+            .searchable(text: $searchText)
         }
-}
+    }
     init (game:Game, team:Team) {
         self.team = team
         self.game = game
@@ -110,8 +125,6 @@ struct ReplacementView: View {
         _players = Query(filter: #Predicate { player in
             player.team?.name == tname
         },  sort: sortOrder)
-
-//        getPlayers()
     }
     func getPlayers () {
         
@@ -119,7 +132,7 @@ struct ReplacementView: View {
         
         if !teamName.isEmpty {
             
-            var fetchDescriptor = FetchDescriptor<Player>()
+            var fetchDescriptor = FetchDescriptor<Player>(sortBy: [SortDescriptor(\.batOrder)])
             
             fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }
             
@@ -143,7 +156,7 @@ struct ReplacementView: View {
     }
     func doSubs() {
         
-        var newseq = 999
+        var newseq = Array(repeating: 999, count: 20)
         var fixBatorder = false
         var newPlayer:Player = Player(name: "", number: "", position: "", batDir: "", batOrder: 0)
         
@@ -154,9 +167,9 @@ struct ReplacementView: View {
                 game.replaced.append(player)
             }
             if player.name == incPlayers[incomingIdx-1].name {
-                newPlayer = player
-                game.incomings.append(player)
-
+                newPlayer = incPlayers[incomingIdx-1]
+                game.incomings.append(newPlayer)
+                print("new Player:\(newPlayer.name) Colume: 1 batorder: \(newPlayer.batOrder) Seq: \(newseq)")
             }
             if player.batOrder >= incPlayers[incomingIdx-1].batOrder && fixBatorder && player.name != incPlayers[incomingIdx-1].name {
                 if player.batOrder < 99 {
@@ -168,14 +181,27 @@ struct ReplacementView: View {
         for atbat in atbats {
             atbat.batOrder = atbat.player.batOrder
             if atbat.player.name == rplPlayers[replacedIdx-1].name {
-                newseq = atbat.seq + 1
-            } else if atbat.seq >= newseq {
-                atbat.seq += 1
+                newseq[atbat.col] = atbat.seq + 1
             }
         }
-        let newatbat = Atbat(game: game, team: team, player: newPlayer, result: "Result", maxbase: "No Bases", batOrder: newPlayer.batOrder, outAt: "Safe",
-                             inning: 1, seq: newseq, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
-        modelContext.insert(newatbat)
+        for atbat in atbats {
+            if atbat.seq >= newseq[atbat.col] {
+                atbat.seq += 1
+            }
+            print("Atbats = Name:\(atbat.player.name) Column:\(atbat.col) batOrder:\(atbat.batOrder) Seq:\(atbat.seq)")
+            if atbat.player.name == rplPlayers[replacedIdx-1].name {
+                 let newatbat = Atbat(game: game, team: team, player: newPlayer, result: "Pitch Hitter", maxbase: "No Bases", batOrder: newPlayer.batOrder, outAt: "Safe",
+                                      inning: atbat.inning, seq: newseq[atbat.col], col: atbat.col, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+                 modelContext.insert(newatbat)
+                 print("newatbat = Name:\(newatbat.player.name) Column:\(newatbat.col) batOrder:\(newatbat.batOrder) Seq:\(newatbat.seq)")
+             }
+        }
+        do {
+            try self.modelContext.save()
+        }
+        catch {
+            print("Error saving new atbat: \(error)")
+        }
     }
     func getAtbats () {
         
@@ -184,14 +210,14 @@ struct ReplacementView: View {
         let tname = team.name
 
         
-        var fetchDescriptor = FetchDescriptor<Atbat>()
+        var fetchDescriptor = FetchDescriptor<Atbat>(sortBy: [SortDescriptor(\.col), SortDescriptor(\.seq)])
         
         fetchDescriptor.predicate = #Predicate { $0.game.location == gloc && $0.game.date == gdate && $0.team.name == tname }
         
         do {
             atbats = try self.modelContext.fetch(fetchDescriptor)
         } catch {
-            print("SwiftData Error: \(error)")
+            print("SwiftData Error fetching atbats: \(error)")
         }
     }
 }

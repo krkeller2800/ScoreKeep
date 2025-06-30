@@ -12,11 +12,14 @@ struct PlayersToScoreView: View {
     @Query var atbats: [Atbat]
     @Binding var lAtbats: [Atbat]
     @Binding var game: Game
+    @Binding var isLoading: Bool
     @State var screenSize: CGSize = .zero
     @State var screenWidth = UIScreen.screenWidth
     @State var screenHeight = UIScreen.screenHeight
     @State var showingScoring = false
     @State var firstTime = true
+    @State var teamName = ""
+    @State var playerName = ""
     var com:Common = Common()
 
     @State var colbox:[BoxScore] = Array(repeating: BoxScore(), count: 20)
@@ -35,7 +38,7 @@ struct PlayersToScoreView: View {
                     ZStack {
                         VStack (spacing: 0) {
                             HStack {
-                                Text("Num").frame(maxWidth:30, alignment:.center).font(.caption).foregroundColor(.black).bold()
+                                Text("Num").frame(maxWidth:30, alignment:.center).font(.caption).foregroundColor(.black).bold().padding(.leading, 3)
                                 Text("Name").frame(maxWidth:70, alignment:.leading).font(.caption).foregroundColor(.black).bold()
                                 Spacer()
                             }
@@ -48,12 +51,13 @@ struct PlayersToScoreView: View {
                                             .overlay(Divider().background(.black), alignment: .trailing)
                                         Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).bold()
                                             .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-                                            .lineLimit(1).minimumScaleFactor(0.5).strikethrough(strikeIt)
-                                        let newCol = atbats.map({ $0.col }).max()! + 1
-                                        let bSize = UIScreen.screenWidth > 1300 ? 14 : 14
+                                            .lineLimit(2).minimumScaleFactor(0.8).strikethrough(strikeIt)
+                                        let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
+                                        let bSize = screenWidth > 1100 ? 14 : 13
+                                        let newCol = bigCol?.col ?? 0 + 1
                                         let maxCol = newCol < bSize ? bSize : newCol
                                         ForEach((1...maxCol), id: \.self) {ind in
-                                            let bSize:CGFloat = screenWidth > 1300 ? 60 : 50
+                                            let bSize:CGFloat = screenWidth > 1200 ? 60 : 50
                                             Button(action: {
                                                 showingScoring.toggle()
                                             }, label: {
@@ -66,13 +70,6 @@ struct PlayersToScoreView: View {
                                                     let posx = Int(ind)
                                                     let posy = Int(index+1)
                                                     print("Changed \($0.location)")
-//                                                    print("\(posx),\(posy),\(geometry.size.width) \(atbat.player.name)")
-                                                    
-//                                                    let theSize:CGFloat = UIScreen.screenWidth > 1300 ? 60 : 50
-//                                                    let offset = UIScreen.main.bounds.size.width - geometry.size.width + 184.0
-//                                                    let posx = (($0.location.x-offset)/theSize).rounded(.up)
-//                                                    let posy = (($0.location.y-220)/theSize).rounded(.up)
-
                                                     if let curratbat = atbats.firstIndex(where: {  $0.game == atbat.game &&
                                                         $0.team == atbat.team &&
                                                         $0.batOrder == posy &&
@@ -81,10 +78,10 @@ struct PlayersToScoreView: View {
                                                         theAtbat = atbats[curratbat]
                                                     } else {
                                                         let newAtbat = Atbat(game: atbat.game, team: atbat.team, player: atbat.player, result: "Result",
-                                                                             maxbase: "No Bases", batOrder: posy, outAt: "Not Out", inning: 99, seq:99, col: posx, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
+                                                                             maxbase: "No Bases", batOrder: posy, outAt: "Safe", inning: 99, seq:99, col: posx, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
                                                         modelContext.insert(newAtbat)
                                                         game.atbats.append(newAtbat)
-                                                        
+
                                                         do {
                                                             try self.modelContext.save()
                                                         }
@@ -100,14 +97,22 @@ struct PlayersToScoreView: View {
                                     }
                                 }
                             }
+                            let device = UIDevice.current
+                            if device.name == "iPad (10th generation)" {
+                                Spacer(minLength:200)
+                            } else {
+                                Spacer(minLength:130)
+                            }
                         }
                         .onAppear() {
                             lAtbats = atbats
                         }
                         .onChange(of: atbats) {
+                            if firstTime {
                                 seqGame()
                                 updMaxBases()
                                 firstTime = false
+                            }
                         }
                         .onChange(of: theAtbat.result) {
                             seqGame()
@@ -117,15 +122,23 @@ struct PlayersToScoreView: View {
                             seqGame()
                             updMaxBases()
                         }
-                        Spacer()
-                        let bSize:CGFloat = screenWidth > 1300 ? 60 : 50
+                        .onChange(of: atbats.count > 0 ? atbats[0].team.name : "") {
+                            seqGame()
+                            updMaxBases()
+                        }
+                        .onChange(of: theAtbat.sacFly) {
+                            seqGame()
+                            updMaxBases()
+                        }
+                        let bSize:CGFloat = screenWidth > 1200 ? 60 : 50
                         let newx:CGFloat = screenWidth > 1300 ? 125 : 135
                         let space:CGRect = CGRect(x: newx, y: 15, width: bSize, height: bSize)
                         if !atbats.isEmpty {
-                            drawSing(space: space, atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox)
+                            drawSing(space: space, atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: screenWidth, isLoading: $isLoading)
+                            drawPitchers(space: space, atbats: atbats, abb: "", inning: 1)
                         }
                     }
-               }
+                }
             }
             .sheet(isPresented: $showingScoring) {ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring)}
 
@@ -144,9 +157,8 @@ struct PlayersToScoreView: View {
         }
     }
     func updMaxBases() {
-        let inning = theAtbat.outs == 0 ? (theAtbat.inning + 1).rounded(.up) : theAtbat.inning.rounded(.up)
-        let atbatsToUpd = atbats.filter {$0.inning.rounded(.up) + (1 - (CGFloat($0.outs) / 3).rounded(.up)) == inning && com.onresults.contains($0.result) }
-//        print("\(atbats[11].inning.rounded(.up) + (1 - (CGFloat(atbats[11].outs) / 3).rounded(.up))) and \(inning)")
+        let inning = theAtbat.inning.rounded(.up)
+        let atbatsToUpd = atbats.filter {$0.inning.rounded(.up) == inning && com.onresults.contains($0.result) }
         var currMaxBase = 0
         let maxbases:[String] = ["First","Second","Third","Home"]
         let maxHits:[String] = ["Single","Double","Triple","Home Run"]
@@ -159,25 +171,24 @@ struct PlayersToScoreView: View {
             theMaxHit = (theBase.result == "Walk") ? 0 : (theBase.result == "Dropped 3rd Strike") ? 0 : (theBase.result == "Hit By Pitch") ? 0 : theMaxHit
             
             if theBase.maxbase == "No Bases" || theMaxHit > theMaxBase {
-                theBase.maxbase = (theBase.result == "Dropped 3rd Strike") ? "First" :
-                (theBase.result == "Walk") ? "First" :
-                (theBase.result == "Fielder's Choice") ? "First" :
-                (theBase.result == "Hit By Pitch") ? "First" :
-                (theBase.result == "Single") ? "First" :
-                (theBase.result == "Double") ? "Second" :
-                (theBase.result == "Triple") ? "Third" :
-                (theBase.result == "Home Run") ? "Home" :theBase.result
+                theBase.maxbase =   (theBase.result == "Dropped 3rd Strike") ? "First" :
+                                    (theBase.result == "Walk") ? "First" :
+                                    (theBase.result == "Fielder's Choice") ? "First" :
+                                    (theBase.result == "Hit By Pitch") ? "First" :
+                                    (theBase.result == "Single") ? "First" :
+                                    (theBase.result == "Double") ? "Second" :
+                                    (theBase.result == "Triple") ? "Third" :
+                                    (theBase.result == "Home Run") ? "Home" :theBase.result
             }
             if index == 0 {
                 currMaxBase = maxbases.firstIndex(of: theBase.maxbase) ?? -1
             }
-            if currMaxBase >= maxbases.firstIndex(of: theBase.maxbase) ?? -1 && index != 0 && currMaxBase != 3 
-                                                                             && (theBase.outAt == "Safe" || theBase.outAt == "Not Out") {
+            if currMaxBase >= maxbases.firstIndex(of: theBase.maxbase) ?? -1 && index != 0 && currMaxBase != 3 && theBase.outAt == "Safe"  {
                 theBase.maxbase = maxbases[currMaxBase + 1]
                 currMaxBase = currMaxBase + 1
-            } else if currMaxBase >= 3 && (theBase.outAt == "Safe" || theBase.outAt == "Not Out") {
+            } else if currMaxBase >= 3 && theBase.outAt == "Safe" {
                 theBase.maxbase = maxbases[3]
-            } else if index != 0 && (theBase.outAt == "Safe" || theBase.outAt == "Not Out") {
+            } else if index != 0 && theBase.outAt == "Safe" {
                 currMaxBase = maxbases.firstIndex(of: theBase.maxbase) ?? -1
             }
         }
@@ -189,6 +200,9 @@ struct PlayersToScoreView: View {
         var seq:Int = 1
         var inning:Int = 1
         var col:Int = 1
+        var endOfInning:Bool = false
+
+//        print("Game.atbats.count = \(game.atbats.count)")
         
         colbox = Array(repeating: BoxScore(), count: 20)
         batbox = Array(repeating: BoxScore(), count: 20)
@@ -198,26 +212,36 @@ struct PlayersToScoreView: View {
 
         for (_, atbat) in atbatsSoFar.enumerated() {
             if atbat.result != "Result" {
-                if outs == 3 {
+                if outs == 3 && endOfInning {
                     outs = 0
                     inning += 1
                     col += 1
                     seq = 1
                 }
-                if seq == 10 || seq == 19 {
-                    col += 1
+                if game.everyOneHits {
+                    if seq == atbat.team.players.count+1 || seq == (atbat.team.players.count*2) + 1 {
+                        col += 1
+                    }
+                } else {
+                    if seq == 10 || seq == 19 {
+                        col += 1
+                    }
                 }
+             
                 atbat.col = col
-                if com.outresults.contains(atbat.result) || (atbat.outAt != "Safe" && atbat.outAt != "Not Out")  {
+                if com.outresults.contains(atbat.result) || atbat.outAt != "Safe"  {
                     outs += 1
                     allOuts += 1
                 }
                 atbat.inning = CGFloat(allOuts)/3.0
-                atbat.outs = outs
-                if atbat.result != "Result" {
-                    atbat.seq = seq
-                    seq += 1
+                if CGFloat(inning) > atbat.inning {
+                    atbat.inning += 0.1
                 }
+                atbat.outs = outs
+                atbat.seq = seq
+                seq += 1
+                endOfInning = atbat.endOfInning
+                
                 if atbat.maxbase == "Home" {
                     colbox[col].runs += 1
                     batbox[atbat.batOrder].runs += 1
@@ -238,7 +262,7 @@ struct PlayersToScoreView: View {
                     batbox[atbat.batOrder].walks += 1
                     totbox[0].walks += 1
                 }
-                if atbat.result == "Strikeout" || atbat.result == "Strikeout Looking" {
+                if atbat.result == "Strikeout" || atbat.result == "Strikeout Looking" || atbat.result == "Dropped 3rd Strike" {
                     colbox[col].strikeouts += 1
                     batbox[atbat.batOrder].strikeouts += 1
                     totbox[0].strikeouts += 1
@@ -252,10 +276,11 @@ struct PlayersToScoreView: View {
             }
         }
     }
-    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>) {
+    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>) {
         _game = passedGame
         _lAtbats = theAtbats
-        
+        _isLoading = isLoading
+
         let date = game.date
         let location = game.location
         _atbats = Query(filter: #Predicate { atbat in
@@ -277,12 +302,3 @@ struct PlayersToScoreView: View {
 
 
 
-#Preview {
-    do {
-        let previewer = try Previewer()
-        return PlayerView()
-            .modelContainer(previewer.container)
-    } catch {
-        return Text("Failed to create preview: \(error.localizedDescription)")
-    }
-}

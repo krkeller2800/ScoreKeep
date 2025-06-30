@@ -14,9 +14,12 @@ struct ScoreGameView: View {
     @Binding private var atbat:Atbat
     @Binding private var showingScoring:Bool
     @State private var thisInning:Int = 0
+    @State private var earnedRun: Bool = true
+    @State private var recPlay: Bool = false
+    @State private var delAtbat: Bool = false
+    @State private var playRec: String = ""
 
-    var batSelection:Int = 0
-    var com:Common = Common()
+    let com:Common = Common()
     
     var body: some View {
         Section {
@@ -27,14 +30,12 @@ struct ScoreGameView: View {
                             showingScoring.toggle()
                             if atbat.result == "Result" {
                                 if atbat.col != 1 {
-                                    if let index = atbat.game.atbats.firstIndex(of: atbat) {
-                                        atbat.game.atbats.remove(at: index)
-                                    }
-                                    modelContext.delete(atbat)
+                                    atbat.game.atbats.removeAll() {$0 == atbat}
+                                    delAtbat = true
                                 }
                             }
                         })
-                        .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.green.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
                         Spacer()
                         Text("\(atbat.player.team!.name) Batting").font(.title2)
@@ -42,18 +43,16 @@ struct ScoreGameView: View {
                         Button("Delete At Bat", action: {
                             showingScoring.toggle()
                             if atbat.col != 1 {
-                                if let index = atbat.game.atbats.firstIndex(of: atbat) {
-                                    atbat.game.atbats.remove(at: index)
-                                }
-                                modelContext.delete(atbat)
+                                atbat.game.atbats.removeAll() {$0 == atbat}
+                                delAtbat = true
                             } else {
                                 atbat.result = "Result"
                                 atbat.maxbase = "No Bases"
-                                atbat.outAt = "Not Out"
+                                atbat.outAt = "Safe"
+                                checkForCol1Dup ()
                             }
-                            
                         })
-                        .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.red.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
 
                     }
@@ -91,9 +90,13 @@ struct ScoreGameView: View {
                         Spacer()
                         Picker("Batting", selection: $atbat.result) {
                             Text("Result").tag("Result")
+                            Divider()
                             let bats = com.battings
                             ForEach (bats, id: \.self) { batting in
                                 (batting != "") ? Text(batting).tag(batting): nil
+                                if batting == "Home Run" || batting == "Fielder's Choice" || batting == "Sacrifice Bunt" {
+                                    Divider()
+                                }
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
@@ -110,9 +113,7 @@ struct ScoreGameView: View {
                          .border(.gray).cornerRadius(10).accentColor(.black)
                         Spacer()
                         Picker("Out", selection: $atbat.outAt) {
-                            if atbat.outAt == "Safe" || atbat.outAt == "Not Out" {
-                                Text(atbat.outAt).tag(atbat.outAt)
-                            }
+                            Text("Safe").tag("Safe")
                             let outs = ["","First","Second","Third","Home"]
                             ForEach (outs, id: \.self) { out in
                                 (out != "") ? Text(out).tag(out): nil
@@ -123,27 +124,102 @@ struct ScoreGameView: View {
                         Spacer()
                     }
                     .padding(.leading, 15)
+                    .onChange(of: atbat.result) {
+                        if atbat.result == "Result" {
+                            if atbat.col != 1 {
+                                atbat.game.atbats.removeAll() {$0 == atbat}
+                                delAtbat = true
+                           }
+                        }
+                        if atbat.result == "Dropped 3rd Strike" || atbat.result == "Error" {
+                            earnedRun = false
+                            atbat.earnedRun = false
+                        }
+                        if !com.recOuts.contains(atbat.result) || atbat.outAt != "Safe"  {
+                            atbat.playRec = ""
+                            recPlay = false
+                            showingScoring.toggle()
+                        } else {
+                            recPlay = true
+                        }
+                        if atbat.result != "Result" {
+                            setEndOfInning()
+                        }
+                    }
+                    .onChange(of: atbat.outAt) {
+                        if atbat.outAt != "Safe" {
+                            recPlay = true
+                        } else {
+                            atbat.playRec = ""
+                            recPlay = false
+                            showingScoring.toggle()
+                        }
+                        setEndOfInning()
+                    }
+                    .onAppear {
+                        if atbat.playRec != "" || com.recOuts.contains(atbat.result) || atbat.outAt != "Safe" {
+                            recPlay = true
+                        }
+                    }
+                    .onDisappear {
+                        setEndOfInning()
+                        if delAtbat {
+                            modelContext.delete(atbat)
+                        }
+                    }
                     Spacer()
+                    HStack (spacing: 0){
+                        if com.onresults.contains(atbat.result) {
+                            Text("\nIf batter scores:").padding(.leading, 10).font(.title3)
+                        }
+                        Spacer()
+                        if recPlay {
+                            Text("Select player(s)\nto record the out").padding([.bottom,.trailing],10)
+                        }
+                    }
+                    HStack {
+                        if com.onresults.contains(atbat.result) {
+                            Button(earnedRun ? "Run Earned" : "Run Unearned", action: {
+                                earnedRun.toggle()
+                                atbat.earnedRun = earnedRun
+                            })
+                            .frame(maxWidth: 130,maxHeight: 30, alignment:.center).background(earnedRun ? .green.opacity(0.5) : .red.opacity(0.5))
+                            .border(.gray).cornerRadius(10).accentColor(.black).padding([.leading, .trailing, .bottom], 15)
+                        }
+                        Spacer()
+                        if recPlay {
+                            Spacer()
+                            Text(atbat.playRec).padding(.trailing,15)
+                            Button("Clear", action: {
+                                 atbat.playRec = ""
+                             })
+                             .frame(maxWidth: 50,maxHeight: 30, alignment:.center).background(.red.opacity(0.5))
+                             .border(.gray).cornerRadius(10).accentColor(.black).padding([.bottom,.trailing], 10)
+                        }
+                    }
+   
                 }
-                
+                if recPlay {
+                    fielderButtons(size: geometry.size, atbat: atbat)
+                }
                 if let idx = com.battings.firstIndex(where: { $0 == atbat.result }) {
                     let abb = com.batAbbrevs[idx]
                     drawIt(size: geometry.size, atbat: atbat, abb: abb)
                 }
                 Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
-                    .position(x:0.87 * geometry.size.width, y:0.6 * geometry.size.height)
+                    .position(x:0.75 * geometry.size.width, y:0.7 * geometry.size.height)
                 Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
-                    .position(x:0.5 * geometry.size.width, y:0.35 * geometry.size.height)
+                    .position(x:0.5 * geometry.size.width, y:0.5 * geometry.size.height)
                 Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(47))
-                    .position(x:0.148 * geometry.size.width, y:0.6 * geometry.size.height)
+                    .position(x:0.25 * geometry.size.width, y:0.7 * geometry.size.height)
                 Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 22)
-                    .position(x:0.5 * geometry.size.width, y:0.9 * geometry.size.height)
+                    .position(x:0.5 * geometry.size.width, y:0.88 * geometry.size.height)
                 Path() {
                     myPath in
-                    myPath.move(to: CGPoint(x: 0.475 * geometry.size.width, y: 0.92 * geometry.size.height))
-                    myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.94 * geometry.size.height))
-                    myPath.addLine(to: CGPoint(x: 0.525 * geometry.size.width, y: 0.92 * geometry.size.height))
-                    myPath.addLine(to: CGPoint(x: 0.48 * geometry.size.width, y: 0.92 * geometry.size.height))
+                    myPath.move(to: CGPoint(x: 0.475 * geometry.size.width, y: 0.9 * geometry.size.height))
+                    myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.92 * geometry.size.height))
+                    myPath.addLine(to: CGPoint(x: 0.525 * geometry.size.width, y: 0.90 * geometry.size.height))
+                    myPath.addLine(to: CGPoint(x: 0.48 * geometry.size.width, y: 0.90 * geometry.size.height))
                 }
                 .fill(Color.gray.opacity(0.5))
             }
@@ -152,6 +228,49 @@ struct ScoreGameView: View {
     init(atbat: Binding<Atbat>, showingScoring: Binding<Bool>) {
         _atbat = atbat
         _showingScoring = showingScoring
+    }
+    func setEndOfInning () {
+     
+        var inning = 0
+        var outs = 0
+        let bats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" }.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        for atbat in bats {
+            atbat.endOfInning = false
+            inning += outs % 3 == 0 ? 1 : 0
+            if (com.outresults.contains(atbat.result) || atbat.outAt != "Safe") && atbat.team == atbat.team {
+                outs += 1
+            }
+//            atbat.inning = CGFloat(outs)/3.0
+//            if CGFloat(inning) > atbat.inning {
+//                atbat.inning += 0.1
+//            }
+        }
+        let innings:Int = outs / 3
+        let out = outs % 3
+
+        if innings > 0 {
+            for inning in 1...innings {
+                if inning <= innings || out == 0 {
+                    let gAtbats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" &&
+                        ($0.inning >= CGFloat(inning-1) && $0.inning <= CGFloat(inning)) }.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+                    gAtbats.last?.endOfInning = true
+                }
+            }
+            atbat.sacFly = atbat.sacFly != 0 ? 0 : -1
+        }
+    }
+    func checkForCol1Dup () {
+        let dups = atbat.game.atbats.filter({ $0.team == atbat.team && $0.col == 1 && $0.player == atbat.player})
+        if dups.count > 1 {
+            for dup in dups {
+                if dup.result != "Result" {
+                    if let index = atbat.game.atbats.firstIndex(of: dup) {
+                        atbat.game.atbats.remove(at: index)
+                    }
+                    modelContext.delete(dup)
+                }
+            }
+        }
     }
  }
 

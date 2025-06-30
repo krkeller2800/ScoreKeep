@@ -18,10 +18,9 @@ class Player {
     var batOrder: Int
     var team: Team?
     var atbat = [Atbat]()
-    var game = [Game]()
     @Attribute(.externalStorage) var photo: Data?
 
-    init(identifier: UUID = UUID(), name: String, number: String, position: String, batDir: String, batOrder: Int, team: Team? = nil, atbat: [Atbat] = [Atbat](), game: [Game] = [Game](), photo: Data? = nil) {
+    init(identifier: UUID = UUID(), name: String, number: String, position: String, batDir: String, batOrder: Int, team: Team? = nil, atbat: [Atbat] = [Atbat](), photo: Data? = nil) {
         self.identifier = identifier
         self.name = name
         self.number = number
@@ -30,7 +29,6 @@ class Player {
         self.batOrder = batOrder
         self.team = team
         self.atbat = atbat
-        self.game = game
         self.photo = photo
     }
 }

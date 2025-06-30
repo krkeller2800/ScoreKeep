@@ -39,7 +39,6 @@ struct EditLineupView: View {
                     self.addPlayer.toggle()
                 }
                 .frame(maxWidth: .infinity, alignment:.leading).background(Color.white)
-                Spacer()
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Label("Select a photo", systemImage: "person")
                 }
@@ -51,22 +50,16 @@ struct EditLineupView: View {
             HStack {
                 Text("Name").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Number").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Position").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Bat Direction").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Order").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Team").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
             }
             .background {Color.yellow.opacity(0.3)}
             HStack {
@@ -76,20 +69,15 @@ struct EditLineupView: View {
                     .onAppear {self.focusedField = .field}
                     .autocapitalization(.words)
                     .textContentType(.none)
-                Spacer()
                 TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                Spacer()
                 TextField("Position", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                Spacer()
                 TextField("Bat Direction", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                Spacer()
                 TextField("Batting Order", value: $player.batOrder, formatter: formatter)
                     .background(Color.white).frame(maxWidth:.infinity)
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                Spacer()
                 Picker("Player Team", selection: $player.team) {
                     Text("Unknown Team").tag(Optional<Team>.none)
                     if teams.isEmpty == false {
@@ -103,10 +91,8 @@ struct EditLineupView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                Spacer()
             }
             HStack {
-                Spacer()
                 if let imageData = player.photo, let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
                         .resizable()
@@ -114,9 +100,7 @@ struct EditLineupView: View {
                         .scaledToFit()
                         .cornerRadius(25)
                 }
-                Spacer()
             }
-            Spacer()
         }
     }
     func loadPhoto() {

@@ -18,7 +18,6 @@ class Team {
     var games = [Game]()
     @Attribute(.externalStorage) var logo: Data?
 
-
     init(ident: UUID = UUID(), name: String, coach: String, details: String, players: [Player] = [Player](), games: [Game] = [Game](), logo:Data? = nil) {
         self.ident = ident
         self.name = name

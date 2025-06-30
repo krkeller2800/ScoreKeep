@@ -16,10 +16,13 @@ struct PitchersStaffView: View {
     @State var updDateLineup = false
     @State var updDatePitcher = false
     @State var pName = "Not Selected Yet"
+    @State var pNum = ""
     @State var startInn = 0
     @State var endInn = 0
     @State var sOuts = 0
     @State var eOuts = 0
+    @State var sBats = 0
+    @State var eBats = 0
     @State var thisPlayer = Player(name: "", number: "", position: "", batDir: "", batOrder: 99)
     @State private var editMode: EditMode = .active
     @State var linePlayers: [Player] = []
@@ -35,185 +38,182 @@ struct PitchersStaffView: View {
     @Query var pitchers: [Pitcher]
     @Query var players: [Player]
     
-
     var body: some View {
-        Section {
-            VStack() {
-                Form {
-                    HStack (spacing:0) {
-                        Text("Name")
-                            .frame(width: 160).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Start Inn")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Start Outs")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("End Inn")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("End Outs")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer(minLength: 5)
+        VStack() {
+            List(selection: $selection) {
+                HStack (spacing:0) {
+                    Text("Num")
+                        .frame(width: 40).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Name")
+                        .frame(width: 175).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Start Inn")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Start Outs")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Start Bats")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End Inn")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End Outs")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End Bats")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Spacer(minLength: 5)
+                }
+                HStack (spacing:0) {
+                    Text(pNum).frame(width:40, alignment: .center).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
+                        .overlay(Divider().background(.black), alignment: .trailing)
+                    Text(pName).frame(width:175, alignment: .leading).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
+                        .overlay(Divider().background(.black), alignment: .trailing)
+                    Picker("Start Inning", selection: $startInn) {
+                        let innings = ["0","1st","2nd","3rd","4th",
+                                       "5th","6th","7th","8th","9th",
+                                       "10th","11th","12th","13th","14th",
+                                       "15","15th","17th","18th","19th"]
+                        ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
+                            Text(inning).tag(index)
+                        }
                     }
-                    HStack {
-                        Text(pName).background(Color.white).frame(maxWidth:160)
-                            .foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).padding(.trailing,0)
-                        Spacer()
-                        Picker("Start Inning", selection: $startInn) {
-                            let innings = ["0","1st","2nd","3rd","4th",
-                                           "5th","6th","7th","8th","9th",
-                                           "10th","11th","12th","13th","14th",
-                                           "15","15th","17th","18th","19th"]
-                            ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
-                                Text(inning).tag(index)
+                    .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                    Picker("Starts Outs", selection: $sOuts) {
+                        let outs = ["0","1 Out","2 Out","3 Out"]
+                        ForEach(Array(outs.enumerated()), id: \.1) { index, out in
+                            Text(out).tag(index)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                    Picker("Starts Bats", selection: $sBats) {
+                        let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
+                        ForEach(Array(bats.enumerated()), id: \.1) { index, out in
+                            Text(out).tag(index)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                    Picker("End Inning", selection: $endInn) {
+                        let innings = ["0","1st","2nd","3rd","4th",
+                                       "5th","6th","7th","8th","9th",
+                                       "10th","11th","12th","13th","14th",
+                                       "15","15th","17th","18th","19th"]
+                        ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
+                            Text(inning).tag(index)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                    Picker("End Outs", selection: $eOuts) {
+                        let outs = ["0","1","2","3"]
+                        ForEach(Array(outs.enumerated()), id: \.1) { index, out in
+                            Text(out).tag(index)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                    Picker("End Bats", selection: $eBats) {
+                        let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
+                        ForEach(Array(bats.enumerated()), id: \.1) { index, out in
+                            Text(out).tag(index)
+                        }
+                    }
+                    .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                }
+                .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
+                .onChange(of: [startInn, sOuts, sBats, endInn, eOuts, eBats]) {
+                    if let pitch = game.pitchers.first(where: { $0.player.name == pName }) {
+                        pitch.startInn = startInn
+                        pitch.sOuts = sOuts
+                        pitch.sBats = sBats
+                        pitch.endInn = endInn
+                        pitch.eOuts = eOuts
+                        pitch.eBats = eBats
+                    } else {
+                        for player in players {
+                            if pName == player.name {
+                                thisPlayer = player
                             }
                         }
-                        .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Spacer()
-                        Picker("Starts Outs", selection: $sOuts) {
-                            let outs = ["0","1 Out","2 Out","3 Out"]
-                            ForEach(Array(outs.enumerated()), id: \.1) { index, out in
-                                Text(out).tag(index)
+                        if !thisPlayer.name.isEmpty {
+                            let pitcher = Pitcher(player: thisPlayer, team: team, game: game, startInn: startInn, sOuts: sOuts, sBats: sBats, endInn: endInn,
+                                                  eOuts: eOuts, eBats: eBats, strikeOuts: 0, walks: 0, hits: 0, runs: 0, won: false)
+                            modelContext.insert(pitcher)
+                            game.pitchers.append(pitcher)
+                            
+                            do {
+                                try self.modelContext.save()
                             }
-                        }
-                        .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                       Spacer()
-                        Picker("End Inning", selection: $endInn) {
-                            let innings = ["0","1st","2nd","3rd","4th",
-                                           "5th","6th","7th","8th","9th",
-                                           "10th","11th","12th","13th","14th",
-                                           "15","15th","17th","18th","19th"]
-                            ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
-                                Text(inning).tag(index)
-                            }
-                        }
-                        .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Spacer()
-                        Picker("End Outs", selection: $eOuts) {
-                            let outs = ["0","1","2","3"]
-                            ForEach(Array(outs.enumerated()), id: \.1) { index, out in
-                                Text(out).tag(index)
-                            }
-                        }
-                        .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Spacer()
-                    }
-                    let pitchLastName = pName == "Not Selected Yet" ? "Pitcher" : pName.split(separator: " ").last ?? "Pitcher"
-                    Button("Delete \(pitchLastName) Stats") {
-                        deleteStats()
-                    }
-                    .foregroundColor(.blue).buttonStyle(.bordered).frame(maxWidth: .infinity, alignment: .center)
-                    .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-
-                    HStack (spacing:0) {
-                        Text("Name")
-                            .frame(width: 160).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Num")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Pos")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Team")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Start Inn")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("Start Outs")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("End Inn")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer()
-                        Text("End Outs")
-                            .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Spacer(minLength: 5)
-                    }
-                    .onChange(of: [startInn, sOuts, endInn, eOuts]) {
-                        if let pitch = game.pitchers.first(where: { $0.player.name == pName }) {
-                            pitch.startInn = startInn
-                            pitch.sOuts = sOuts
-                            pitch.endInn = endInn
-                            pitch.eOuts = eOuts
-                        } else {
-                            for player in players {
-                                if pName == player.name {
-                                    thisPlayer = player
-                                }
-                            }
-                            if !thisPlayer.name.isEmpty {
-                                let pitcher = Pitcher(player: thisPlayer, team: team, game: game, startInn: startInn, sOuts: sOuts, endInn: endInn, eOuts: eOuts,
-                                                      strikeOuts: 0, walks: 0, hits: 0, runs: 0, won: false)
-                                modelContext.insert(pitcher)
-                                game.pitchers.append(pitcher)
-                                
-                                do {
-                                    try self.modelContext.save()
-                                }
-                                catch {
-                                    print("Error saving new pitcher: \(error)")
-                                }
+                            catch {
+                                print("Error saving new pitcher: \(error)")
                             }
                         }
                     }
                 }
-                .frame(maxWidth: .infinity,maxHeight: 200,alignment:.leading)
-                List(players, id: \.self, selection: $selection) { player in
+                Text("Select which player will pitch!").font(.title).bold().italic().frame(height: 50, alignment: .bottomLeading)
+                HStack (spacing:0) {
+                    Text("Num")
+                        .frame(width: 40).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Name")
+                        .frame(width: 175).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Start Inn")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Start Outs")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Start Bats")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End Inn")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End Outs")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End Bats")
+                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Spacer(minLength: 5)
+                }
+                ForEach(players, id: \.self) { player in
                     HStack {
-                        Text(player.name).frame(width: 160, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.leading,5)
-                        Spacer()
-                        Text(player.number).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Spacer()
-                        Text(player.position).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Spacer()
-                        Text(player.team?.name ?? "").frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Spacer()
+                        Text(player.number).frame(width: 40, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(player.name).frame(width: 175, alignment: .leading).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing) //.minimumScaleFactor(0.5).lineLimit(1)
                         let pitch = game.pitchers.first(where: { $0.player.id == player.id })
-                        Text(String(pitch?.startInn ?? 0)).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                              .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Text(String(pitch?.sOuts ?? 0)).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Text(String(pitch?.endInn ?? 0)).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Text(String(pitch?.eOuts ?? 0)).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.2).padding(.trailing,0)
-                        Spacer()
+                        Text(String(pitch?.startInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.sOuts ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.sBats ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.endInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.eOuts ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.eBats ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
                     }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
-                    .padding(.horizontal,10)
                 }
                 .listStyle(.plain)
                 .contentMargins(.top, 0)
-//                .scrollContentBackground(.hidden)
                 .onChange(of: selection, {
                     cleanupPitchers()
                     if let selection {
                         self.updDatePitcher = true
                         if let pitch = game.pitchers.first(where: { $0.player.id == selection.id }) {
                             pName = pitch.player.name
+                            pNum = pitch.player.number
                             startInn = pitch.startInn
                             sOuts = pitch.sOuts
+                            sBats = pitch.sBats
                             endInn = pitch.endInn
                             eOuts = pitch.eOuts
+                            eBats = pitch.eBats
                         } else {
                             pName = selection.name
                             startInn = 0
                             sOuts = 0
+                            sBats = 0
                             endInn = 0
                             eOuts = 0
+                            eBats = 0
                         }
                     }
                 })
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
         }
         .onDisappear {
             if game.pitchers.first(where: { $0.player.name == pName }) == nil {
@@ -222,9 +222,9 @@ struct PitchersStaffView: View {
                         thisPlayer = player
                     }
                 }
-                if pName != "" {
-                    let pitcher = Pitcher(player: thisPlayer, team: team, game: game, startInn: startInn, sOuts: sOuts, endInn: endInn, eOuts: eOuts,
-                                          strikeOuts: 0, walks: 0, hits: 0, runs: 0, won: false)
+                if pName != "" && pName != "Not Selected Yet" {
+                    let pitcher = Pitcher(player: thisPlayer, team: team, game: game, startInn: startInn, sOuts: sOuts, sBats: sBats, endInn: endInn, eOuts: eOuts,
+                                          eBats: eBats, strikeOuts: 0, walks: 0, hits: 0, runs: 0, won: false)
                     modelContext.insert(pitcher)
                     game.pitchers.append(pitcher)
                     
@@ -236,13 +236,19 @@ struct PitchersStaffView: View {
                     }
                 }
             }
+            cleanupPitchers()
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Select who will pitch")
                     .font(.title2)
             }
-
+            ToolbarItem(placement: .topBarTrailing) {
+                let pitchLastName = pName == "Not Selected Yet" ? "Pitcher" : pName.split(separator: " ").last ?? "Pitcher"
+                Button("Delete \(pitchLastName) Stats") {
+                    deleteStats()
+                }
+            }
         }
         Spacer()
     }
@@ -284,11 +290,11 @@ struct PitchersStaffView: View {
     func cleanupPitchers() {
         for pitcher in game.pitchers {
             if pitcher.player.name.isEmpty {
-                game.pitchers.removeAll { value in
-                  return value == pitcher
-                }
+                game.pitchers.removeAll {
+                    $0 == pitcher }
                 modelContext.delete(pitcher)
             }
         }
+        try? modelContext.save()
     }
 }

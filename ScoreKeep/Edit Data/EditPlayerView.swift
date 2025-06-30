@@ -42,23 +42,17 @@ struct EditPlayerView: View {
                 HStack {
                     Text("Name").frame(width:150).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Number").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Position").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Bat Dir").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Bat Order").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Team").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
-                }
+                    }
                 .background {Color.yellow.opacity(0.3)}
                 HStack {
                     TextField("Player", text: $playerName, onEditingChanged: { (editingChanged) in
@@ -69,20 +63,16 @@ struct EditPlayerView: View {
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
-                        .onAppear {self.focusedField = .field}
+//                        .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                    Spacer()
                     TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                    Spacer()
                     TextField("Pos", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                    Spacer()
                     TextField("Bat Dir", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                    Spacer()
                     Picker("Bat Order", selection: $player.batOrder) {
                         let orders = ["None","1st","2nd","3rd","4th",
                                        "5th","6th","7th","8th","9th",
@@ -91,11 +81,10 @@ struct EditPlayerView: View {
                         ForEach(Array(orders.enumerated()), id: \.1) { index, order in
                             Text(order).tag(index)
                         }
-                        Text("Not Hitting").tag(99)
+                    Text("Not Hitting").tag(99)
                     }
                     .frame(maxWidth:.infinity).labelsHidden().pickerStyle(.menu).accentColor(.blue)
 
-                    Spacer()
                     Picker("Player Team", selection: $player.team) {
                         Text("Unknown Team").tag(Optional<Team>.none)
                         if teams.isEmpty == false {
@@ -109,27 +98,24 @@ struct EditPlayerView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                    Spacer()
-                }
-
+                    }
             }
             HStack {
-                Spacer()
                 if let imageData = player.photo, let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
-                        .resizable()
-                        .frame(maxWidth: 400, maxHeight: 400, alignment: .center)
-                        .scaledToFit()
+                        .scaleImage(iHeight: 400, imageData: imageData)
                         .cornerRadius(25)
+//                        .resizable()
+//                        .frame(maxWidth: 400, maxHeight: 400, alignment: .center)
+//                        .scaledToFit()
                 }
-                Spacer()
             }
             Text("\n\n")
             HStack {
-                Spacer()
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Label("Select a photo", systemImage: "person")
                 }
+                .frame(maxWidth: .infinity, alignment: .center)
                 .onChange(of: selectedItem, loadPhoto)
                 .onDisappear() {
                     if dups || playerName.isEmpty {
@@ -146,7 +132,6 @@ struct EditPlayerView: View {
                     }
 
                 }
-                Spacer()
             }
         }
         .toolbar {

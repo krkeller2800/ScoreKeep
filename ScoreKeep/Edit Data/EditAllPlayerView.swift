@@ -11,9 +11,9 @@ import SwiftData
 
 struct EditAllPlayerView: View {
     @Environment(\.modelContext) var modelContext
-    @State private var selectedItem: PhotosPickerItem?
     @Bindable var player: Player
     @Binding var navigationPath: NavigationPath
+    @State private var selectedItem: PhotosPickerItem?
     enum FocusField: Hashable {case field}
     
     @FocusState private var focusedField: FocusField?
@@ -37,45 +37,35 @@ struct EditAllPlayerView: View {
                 HStack {
                     Text("Name").frame(width: 150).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Number").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Pos").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Bat Dir").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Bat Order").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
                     Text("Team").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Spacer()
-                }
+                    }
                 .background {Color.yellow.opacity(0.3)}
                 HStack {
                     TextField("Player", text: $player.name).background(Color.white).frame(width: 150)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                         .focused($focusedField, equals: .field)
-                        .onAppear {self.focusedField = .field}
+//                        .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.name)
-                    Spacer()
                     TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                    Spacer()
                     TextField("Position", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                         .autocapitalization(.none)
                         .textContentType(.none)
-                    Spacer()
                     TextField("Bat Direction", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                         .autocapitalization(.none)
                         .textContentType(.none)
-                    Spacer()
                     Picker("Bat Order", selection: $player.batOrder) {
                         let orders = ["None","1st","2nd","3rd","4th",
                                        "5th","6th","7th","8th","9th",
@@ -84,9 +74,9 @@ struct EditAllPlayerView: View {
                         ForEach(Array(orders.enumerated()), id: \.1) { index, order in
                             Text(order).tag(index)
                         }
+                        Text("Not Hitting").tag(99)
                     }
                     .frame(maxWidth:.infinity).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                    Spacer()
                     Picker("Player Team", selection: $player.team) {
                         Text("Unknown Team").tag(Optional<Team>.none)
                         if teams.isEmpty == false {
@@ -100,28 +90,24 @@ struct EditAllPlayerView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
                     .labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                    Spacer()
-                }
+                    }
             }
             HStack {
-                Spacer()
                 if let imageData = player.photo, let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
-                        .resizable()
-                        .frame(maxWidth: 400, maxHeight: 400, alignment: .center)
-                        .scaledToFit()
+                        .scaleImage(iHeight: 400, imageData: imageData)
                         .cornerRadius(25)
+//                        .resizable()
+//                        .frame(maxWidth: 400, maxHeight: 400, alignment: .center)
+//                        .scaledToFit()
                 }
-                Spacer()
             }
             Text("\n\n")
             HStack {
-                Spacer()
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Label("Select a photo", systemImage: "person")
                 }
                 .onChange(of: selectedItem, loadPhoto)
-                Spacer()
             }
         }
         .toolbar {

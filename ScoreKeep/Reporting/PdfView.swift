@@ -10,7 +10,7 @@ import PDFKit
 
 struct PdfView: View {
     
-    let url = Bundle.main.url(forResource: "Manual", withExtension: "pdf")!
+    let url = Bundle.main.url(forResource: "Manual Reduced", withExtension: "pdf")!
 
     var body: some View {
         VStack {

@@ -26,8 +26,11 @@ class Atbat {
     var sacFly: Int
     var sacBunt: Int
     var stolenBases: Int
+    var earnedRun: Bool
+    var playRec: String
+    var endOfInning: Bool
 
-    init(ident: UUID = UUID(), game: Game, team: Team, player: Player, result: String, maxbase: String, batOrder: Int, outAt: String, inning: CGFloat, seq: Int, col: Int, rbis: Int, outs: Int, sacFly: Int, sacBunt: Int, stolenBases: Int) {
+    init(ident: UUID = UUID(), game: Game, team: Team, player: Player, result: String, maxbase: String, batOrder: Int, outAt: String, inning: CGFloat, seq: Int, col: Int, rbis: Int, outs: Int, sacFly: Int, sacBunt: Int, stolenBases: Int, earnedRun: Bool = true, playRec: String = "", endOfInning:Bool = false) {
         self.ident = ident
         self.game = game
         self.team = team
@@ -44,6 +47,9 @@ class Atbat {
         self.sacFly = sacFly
         self.sacBunt = sacBunt
         self.stolenBases = stolenBases
+        self.earnedRun = earnedRun
+        self.playRec = playRec
+        self.endOfInning = endOfInning
     }
         
         

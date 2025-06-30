@@ -16,31 +16,48 @@ struct TeamContentView: View {
 
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Team.name)]
+    @AppStorage("selectedTeamCriteria") var selectedTeamCriteria: SortCriteria = .nameAsc
     
+    enum SortCriteria: String, CaseIterable, Identifiable {
+        case nameAsc, nameDec
+        var id: String { self.rawValue }
+    }
+    
+    var sortDescriptor: [SortDescriptor<Team>] {
+        switch selectedTeamCriteria {
+        case .nameAsc:
+            return [SortDescriptor(\Team.name, order: .forward)]
+        case .nameDec:
+            return [SortDescriptor(\Team.name, order: .reverse)]
+        }
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
-            TeamView(searchString: searchText, sortOrder: sortOrder)
+            TeamView(searchString: searchText, sortOrder: sortDescriptor)
                 .navigationDestination(for: Team.self) { team in
                     EditTeamView(navigationPath: $path, team: team)
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
-                        Button("< Back") {
-                            dismiss()
-                        }
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                            Picker("Sort", selection: $sortOrder) {
-                                Text("Name (A-Z)")
-                                    .tag([SortDescriptor(\Team.name)])
-                                
-                                Text("Name (Z-A)")
-                                    .tag([SortDescriptor(\Team.name, order: .reverse)])
+                            Picker("Sort", selection: $selectedTeamCriteria) {
+                                ForEach(SortCriteria.allCases) { criteria in
+                                    if criteria == .nameAsc {
+                                        Text("Name (A-Z)").tag(criteria)
+                                    } else if criteria == .nameDec {
+                                        Text("Name (Z-A)").tag(criteria)
+                                    }
+                                }
                             }
                         }
-                        Button("Add Team", systemImage: "plus", action: addTeam)
                     }
                 }
-                .searchable(text: $searchText)
+                .searchable(text: $searchText, prompt: "Team name")
+                .onChange(of: sortDescriptor) {
+                    sortOrder = sortDescriptor
+                }
+
         }
     }
     func addTeam() {

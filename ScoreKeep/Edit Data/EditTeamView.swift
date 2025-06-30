@@ -20,33 +20,48 @@ struct EditTeamView: View {
     @State private var AddPlayers: Bool = false
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
-    @State private var alertMessage = ""
+    @State private var alertMessage = "kk"
     @State private var showingAlert: Bool = false
     @State private var teamName = ""
     @State private var prevTName = ""
     @State private var dups = false
     @State private var checkForDups = true
-
+    @AppStorage("selectedPlayerTCriteria") var selectedPlayerTCriteria: SortCriteria = .orderAsc
     
+    enum SortCriteria: String, CaseIterable, Identifiable {
+        case nameAsc, nameDec, orderAsc, numAsc
+        var id: String { self.rawValue }
+    }
+    
+    var sortDescriptor: [SortDescriptor<Player>] {
+        switch selectedPlayerTCriteria {
+        case .nameAsc:
+            return [SortDescriptor(\Player.name, order: .forward)]
+        case .nameDec:
+            return [SortDescriptor(\Player.name, order: .reverse)]
+        case .orderAsc:
+            return [SortDescriptor(\Player.batOrder, order: .forward)]
+        case .numAsc:
+            return [SortDescriptor(\Player.number, order: .forward)]
+        }
+    }
+
     var body: some View {
         Form {
             HStack {
                 Text("Logo").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Coach Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
                 Text("Notes").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Spacer()
             }
             HStack {
                 if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
                     HStack {
                         Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: 50, maxHeight: 50, alignment: .center)
+                            .scaleImage(iHeight: 50, imageData: imageData)
+//                            .resizable()
+//                            .scaledToFit()
+//                            .frame(maxWidth: 50, maxHeight: 50, alignment: .center)
                     }
                     .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
                     .overlay(Divider().background(.black), alignment: .trailing)
@@ -55,7 +70,6 @@ struct EditTeamView: View {
                         .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
                         .overlay(Divider().background(.black), alignment: .trailing)
                 }
-                Spacer()
                 TextField("team", text: $teamName, onEditingChanged: { (editingChanged) in
                     if !editingChanged {
                         checkForDup()
@@ -64,35 +78,28 @@ struct EditTeamView: View {
                     .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
                     .focused($focusedField, equals: .field)
                     .onChange(of: focusedField) { checkForDup()}
-                    .onAppear {self.focusedField = .field}
+//                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                Spacer()
                 TextField("Coach", text: $team.coach).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
-                Spacer()
                 TextField("Details", text: $team.details).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
-                Spacer()
             }
             HStack {
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Text("Select a logo")
                 }
                 .onChange(of: selectedItem, loadLogo).frame(maxWidth:.infinity,alignment:.center)
-                Spacer()
                 Text("").frame(maxWidth:.infinity)
-                Spacer()
                 Text("").frame(maxWidth:.infinity)
-                Spacer()
                 Text("").frame(maxWidth:.infinity)
-                Spacer()
             }
         }
         .frame(maxWidth:.infinity, maxHeight: 175, alignment: .top)
 
         Section() {
             VStack( ) {
-                PlayersOnTeamView(teamName: team.name, searchString: searchText, sortOrder: sortOrder)
+                PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
                     .navigationDestination(for: Player.self) { player in
                         EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
                     }
@@ -100,23 +107,31 @@ struct EditTeamView: View {
                     .toolbar {
                         ToolbarItemGroup(placement: .topBarLeading) {
                             Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                                Picker("Sort", selection: $sortOrder) {
-                                    Text("Name (A-Z)")
-                                        .tag([SortDescriptor(\Player.name)])
-                                    
-                                    Text("Name (Z-A)")
-                                        .tag([SortDescriptor(\Player.name, order: .reverse)])
-                                    Text("Battin Order (1-99)")
-                                        .tag([SortDescriptor(\Player.batOrder)])
+                                Picker("Sort", selection: $selectedPlayerTCriteria) {
+                                    ForEach(SortCriteria.allCases) { criteria in
+                                        if criteria == .nameAsc {
+                                            Text("Name (A-Z)").tag(criteria)
+                                        } else if criteria == .nameDec {
+                                            Text("Name (Z-A)").tag(criteria)
+                                        } else if criteria == .numAsc {
+                                            Text("Number (A-Z)").tag(criteria)
+                                        } else if criteria == .orderAsc {
+                                            Text("order (A-Z)").tag(criteria)
+                                        }
+                                    }
                                 }
                             }
                         }
                         ToolbarItem(placement: .principal) {
-                            Text("Teams")
+                            Text("\(team.name)")
                                 .font(.title2)
                             }
                     }
-                    .searchable(text: $searchText)
+                    .searchable(text: $searchText, prompt: "Player name or number")
+                    .onChange(of: sortDescriptor) {
+                        sortOrder = sortDescriptor
+                    }
+
             }
             .onDisappear() {
                 if dups || teamName.isEmpty {
@@ -133,8 +148,8 @@ struct EditTeamView: View {
                 }
             }
             Spacer()
-            Button("Add Player",  action: addPlayers).font(.title).background(Color.white)
-        }
+        } 
+
     }
 
     func addPlayers() {
