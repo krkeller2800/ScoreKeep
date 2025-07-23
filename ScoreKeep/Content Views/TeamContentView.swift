@@ -64,5 +64,6 @@ struct TeamContentView: View {
         let team = Team(name: "" ,coach: "",details: "")
         modelContext.insert(team)
         path.append(team)
+        try? modelContext.save()
     }
 }

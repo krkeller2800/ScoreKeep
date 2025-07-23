@@ -17,6 +17,7 @@ struct PitchersStaffView: View {
     @State var updDatePitcher = false
     @State var pName = "Not Selected Yet"
     @State var pNum = ""
+    @State var pPos = ""
     @State var startInn = 0
     @State var endInn = 0
     @State var sOuts = 0
@@ -43,27 +44,31 @@ struct PitchersStaffView: View {
             List(selection: $selection) {
                 HStack (spacing:0) {
                     Text("Num")
-                        .frame(width: 40).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                        .frame(width: 60,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Text("Name")
-                        .frame(width: 175).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Start Inn")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(width: 200,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Pos")
+                        .frame(width: 60,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Start\nInning")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                     Text("Start Outs")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("Start Bats")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("End Inn")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Num of\nBatters")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End\nInning")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                     Text("End Outs")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("End Bats")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Num of\nBatters")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                     Spacer(minLength: 5)
-                }
+             }
                 HStack (spacing:0) {
-                    Text(pNum).frame(width:40, alignment: .center).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
+                    Text(pNum).frame(width:60, alignment: .center).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
                         .overlay(Divider().background(.black), alignment: .trailing)
-                    Text(pName).frame(width:175, alignment: .leading).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
+                    Text(pName).frame(width:200, alignment: .leading).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
+                        .overlay(Divider().background(.black), alignment: .trailing)
+                    Text(pPos).frame(width:60, alignment: .center).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,0)
                         .overlay(Divider().background(.black), alignment: .trailing)
                     Picker("Start Inning", selection: $startInn) {
                         let innings = ["0","1st","2nd","3rd","4th",
@@ -147,29 +152,33 @@ struct PitchersStaffView: View {
                 Text("Select which player will pitch!").font(.title).bold().italic().frame(height: 50, alignment: .bottomLeading)
                 HStack (spacing:0) {
                     Text("Num")
-                        .frame(width: 40).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(width: 60,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     Text("Name")
-                        .frame(width: 175).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Start Inn")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(width: 200,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Pos")
+                        .frame(width: 60,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    Text("Start\nInning")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                     Text("Start Outs")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("Start Bats")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("End Inn")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Num of\nBatters")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("End\nInning")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                     Text("End Outs")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("End Bats")
-                        .frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Num of\nBatters")
+                        .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                     Spacer(minLength: 5)
-                }
+             }
                 ForEach(players, id: \.self) { player in
                     HStack {
-                        Text(player.number).frame(width: 40, alignment: .center).foregroundColor(.black).bold()
+                        Text(player.number).frame(width: 60, alignment: .center).foregroundColor(.black).bold()
                             .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(player.name).frame(width: 175, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing) //.minimumScaleFactor(0.5).lineLimit(1)
+                        Text(player.name).frame(width: 200, alignment: .leading).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(player.position).frame(width: 60, alignment: .center).foregroundColor(.black).bold()
+                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
                         let pitch = game.pitchers.first(where: { $0.player.id == player.id })
                         Text(String(pitch?.startInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black).bold()
                             .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
@@ -194,6 +203,7 @@ struct PitchersStaffView: View {
                         if let pitch = game.pitchers.first(where: { $0.player.id == selection.id }) {
                             pName = pitch.player.name
                             pNum = pitch.player.number
+                            pPos = pitch.player.position
                             startInn = pitch.startInn
                             sOuts = pitch.sOuts
                             sBats = pitch.sBats
@@ -202,6 +212,8 @@ struct PitchersStaffView: View {
                             eBats = pitch.eBats
                         } else {
                             pName = selection.name
+                            pNum = selection.number
+                            pPos = selection.position
                             startInn = 0
                             sOuts = 0
                             sBats = 0

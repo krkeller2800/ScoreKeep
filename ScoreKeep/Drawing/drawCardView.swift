@@ -214,7 +214,7 @@ struct drawTots: View {
     var body: some View {
 
         let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-        let bSize = sWidth > 1100 ? 14 : 13
+        let bSize = sWidth > 1100 ? 14 : 11
         let newCol = bigCol?.col ?? 0 + 1
         let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
         let yoffset = UIScreen.screenWidth > 1200 &&  UIScreen.screenWidth < 1400 ? 1.0 : 1.0
@@ -223,8 +223,8 @@ struct drawTots: View {
         let box2 = totbox[0]
         let box3 = colbox[atbat.col]
         let newy = (CGFloat(atbats.filter({$0.col == 1}).count) * space.height) + space.minY
-        let from = CGRect(x: (( maxCol  + 2) * space.width) + space.minX, y: space.minY+3,width:0, height:0)
-        let to = CGRect(x: (( maxCol  + 2) * space.width) + space.minX, y: space.height + newy-15,width:0, height:0)
+        let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX, y: space.minY+3,width:0, height:0)
+        let to = CGRect(x: (( maxCol + 2) * space.width) + space.minX, y: space.height + newy-15,width:0, height:0)
         let eachLine = CGRect(x: (( maxCol  + 2) * space.width) + space.minX, y: space.height + y+3, width:0, height:0)
         let x = CGFloat(atbat.col) * space.width + space.minX
         let placeBox = CGRect(x: x - (0 * space.width), y: 0.1 * space.height + newy, width:space.width, height:space.height)
@@ -240,19 +240,19 @@ struct drawTots: View {
         Text("Hits")
             .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
             .position(x: from.minX + (space.width * 0.1), y:space.minY - 7)
-        Text("Errors")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 0.7), y:space.minY - 7)
-        Text("Ks")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 1.3), y:space.minY - 7)
-        Text("BB")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 1.9), y:space.minY - 7)
         Text("HR")
             .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 0.7), y:space.minY - 7)
+        Text("BB")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 1.3), y:space.minY - 7)
+        Text("Ks")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 1.9), y:space.minY - 7)
+        Text("SB")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
             .position(x: from.minX + (space.width * 2.5), y:space.minY - 7)
-        Text("R  H  E")
+        Text("  R   H ")
             .foregroundColor(.black).frame(alignment: .leading)
             .position(x: space.minX + (0.5 * space.width), y: 0.35 * space.height + newy)
         Text("\(box.runs)")
@@ -261,16 +261,16 @@ struct drawTots: View {
         Text("\(box.hits)")
             .position(x: from.minX + (space.width * 0.1), y:0.5 * space.height + y)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box.errors)")
+        Text("\(box.HR)")
             .position(x:from.minX + (space.width * 0.7), y:0.5 * space.height + y)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box.strikeouts)")
+        Text("\(box.walks)")
             .position(x:from.minX + (space.width * 1.3), y:0.5 * space.height + y)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box.walks)")
+        Text("\(box.strikeouts)")
             .position(x:from.minX + (space.width * 1.9), y:0.5 * space.height + y)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box.HR)")
+        Text("\(box.stoleBase)")
             .position(x:from.minX + (space.width * 2.5), y:0.5 * space.height + y)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(box2.runs)")
@@ -279,26 +279,23 @@ struct drawTots: View {
         Text("\(box2.hits)")
             .position(x: from.minX + (space.width * 0.1), y:0.4 * space.height + newy)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box2.errors)")
+        Text("\(box2.HR)")
             .position(x:from.minX + (space.width * 0.7), y:0.4 * space.height + newy)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box2.strikeouts)")
+        Text("\(box2.walks)")
             .position(x:from.minX + (space.width * 1.3), y:0.4 * space.height + newy)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box2.walks)")
+        Text("\(box2.strikeouts)")
             .position(x:from.minX + (space.width * 1.9), y:0.4 * space.height + newy)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box2.HR)")
+        Text("\(box2.stoleBase)")
             .position(x:from.minX + (space.width * 2.5), y:0.4 * space.height + newy)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(box3.runs)")
-            .position(x: placeBox.minX + (space.width * 0.15), y:0.25 * space.height + placeBox.minY)
+            .position(x: placeBox.minX + (space.width * 0.25), y:0.25 * space.height + placeBox.minY)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(box3.hits)")
-            .position(x: placeBox.minX + (space.width * 0.5), y:0.25 * space.height + placeBox.minY)
-            .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(box3.errors)")
-            .position(x: placeBox.minX + (space.width * 0.8), y:0.25 * space.height + placeBox.minY)
+            .position(x: placeBox.minX + (space.width * 0.75), y:0.25 * space.height + placeBox.minY)
             .font(.headline).foregroundColor(.black).background(.clear)
         if newCol < 13 {
             Text("Total >")
@@ -350,19 +347,20 @@ struct drawTots: View {
             myPath.addLine(to: CGPoint(x: start.minX + (1 * start.width), y:start.minY + (0.5 * start.height)))
             myPath.addLine(to: CGPoint(x: start.minX + (1 * start.width), y:start.minY + (0 * start.height)))
             myPath.addLine(to: CGPoint(x: start.minX + (0 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.33 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.33 * start.width), y:start.minY + (0.5 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.66 * start.width), y:start.minY + (0.5 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.66 * start.width), y:start.minY + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX + (0.5 * start.width), y:start.minY + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX + (0.5 * start.width), y:start.minY + (0.5 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX + (1 * start.width), y:start.minY + (0.5 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX + (1 * start.width), y:start.minY + (0 * start.height)))
         }
     }
 }
 struct drawBoxScore: View {
     var game:Game
+    var size:CGSize
     let com = Common()
     var body: some View {
         
-        let placeBox = CGRect(x: 115, y: -50, width:150, height:100)
+        let placeBox = CGRect(x: 0.20 * size.width, y: -130, width:150, height:100)
         let boxHome = doBoxScore(doTeam: "Home")
         let boxVisit = doBoxScore(doTeam: "Visit")
         let com = Common()
@@ -377,27 +375,27 @@ struct drawBoxScore: View {
 
         Text(game.vteam?.name ?? "")
             .font(.headline).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-            .position(x: 60, y: -37)
+            .position(x: placeBox.minX - 55, y: placeBox.minY + 13)
         Text(game.hteam?.name ?? "")
             .font(.headline).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-            .position(x: 60, y: -12)
+            .position(x: placeBox.minX - 55, y: placeBox.minY + 38)
         Text("\(boxVisit.runs)")
-            .position(x: 60 + 111, y: -37)
+            .position(x: placeBox.minX + 56, y: placeBox.minY + 13)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxVisit.hits)")
-            .position(x: 60 + 148, y: -37)
+            .position(x: placeBox.minX + 93, y: placeBox.minY + 13)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(boxVisit.errors)")
-            .position(x: 60 + 185, y: -37)
+        Text("\(boxVisit.stoleBase)")
+            .position(x: placeBox.minX + 130, y: placeBox.minY + 13)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxHome.runs)")
-            .position(x: 60 + 111, y: -12)
+            .position(x: placeBox.minX + 56, y: placeBox.minY + 38)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("\(boxHome.hits)")
-            .position(x: 60 + 148, y: -12)
+            .position(x: placeBox.minX + 93, y: placeBox.minY + 38)
             .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(boxHome.errors)")
-            .position(x: 60 + 185, y: -12)
+        Text("\(boxHome.stoleBase)")
+            .position(x: placeBox.minX + 130, y: placeBox.minY + 38)
             .font(.headline).foregroundColor(.black).background(.clear)
         Text("Inning  Runs   Hits   Errors")
             .font(.caption).italic().foregroundColor(.black).frame(alignment: .leading)
@@ -419,15 +417,13 @@ struct drawBoxScore: View {
         if doTeam == "Home" {
             let runs = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
             let hits = game.atbats.filter({com.hitresults.contains($0.result) && $0.team.name == game.hteam!.name}).count
-            let errors = game.atbats.filter({$0.result == "Error" && $0.team.name == game.vteam!.name}).count
             
-            return BoxScore(type:"",runs: runs, hits: hits, errors: errors, strikeouts:0, walks:0, HR:0)
+            return BoxScore(type:"",runs: runs, hits: hits, stoleBase: 0, strikeouts:0, walks:0, HR:0)
         } else {
             let runs = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
             let hits = game.atbats.filter({com.hitresults.contains($0.result) && $0.team.name == game.vteam!.name}).count
-            let errors = game.atbats.filter({$0.result == "Error" && $0.team.name == game.hteam!.name}).count
             
-            return BoxScore(type:"",runs: runs, hits: hits, errors: errors, strikeouts:0, walks:0, HR:0)
+            return BoxScore(type:"",runs: runs, hits: hits, stoleBase: 0 , strikeouts:0, walks:0, HR:0)
         }
    
      }
@@ -453,14 +449,19 @@ struct drawPitchers: View {
     var atbats:[Atbat]
     var abb:String
     var inning:Int
+    var game:Game
+    var team:Team
     @State var showPitchers:Bool = false
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     let com = Common()
+
     var body: some View {
         
         GeometryReader { geometry in
             let width = geometry.size.width
             VStack {
+                Spacer()
+                Text("\(team.name) Pitching Stats For This Game").font(.title2).frame(maxWidth:.infinity, alignment: .center).italic()
                 HStack {
                     Text("").frame(maxWidth:5)
                     Text("Num").frame(maxWidth:.infinity).border(.gray)
@@ -487,9 +488,9 @@ struct drawPitchers: View {
                     }
                     Text("").frame(maxWidth:70)
                 }
-                let oTHit = atbats[0].game.atbats.filter({$0.team != atbats[0].team})
+                let oTHit = game.atbats.filter({$0.team == atbats[0].team})
                 let oTHitting = oTHit.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
-                let pitchs = atbats[0].game.pitchers.filter({$0.team == atbats[0].team})
+                let pitchs = game.pitchers.filter({$0.team != atbats[0].team})
                 let pitchers = fixInnings(pitchers: pitchs)
                 ForEach(Array(pitchers.enumerated()), id: \.offset) { index, pitcher in
                     NavigationLink(value: pitcher) {
@@ -506,7 +507,7 @@ struct drawPitchers: View {
                                     .foregroundColor(.black).frame(width: 225,alignment: .leading)
                                 Text("\(sinn)    to   \(einn)")
                                     .foregroundColor(.black).frame(width: 250)
-                                Text(Double(stats.ERA), format: .number.rounded(increment: 0.01))
+                                Text(Double(stats.ERA), format: Int(stats.ERA) == 999 ? .number.rounded(increment: 1.0) : .number.rounded(increment: 0.01))
                                     .foregroundColor(.black).frame(maxWidth:.infinity)
                                 if width > 1000 {
                                     Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
@@ -529,9 +530,11 @@ struct drawPitchers: View {
                     }
                 }
                 .navigationDestination(for: Pitcher.self) { pitcher in
-                    EditPitcherView(pitcher: pitcher)
+                    EditPitcherView(pitcher: pitcher, game: atbats[0].game)
                 }
-                
+                .onAppear() {
+                    
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
@@ -539,35 +542,35 @@ struct drawPitchers: View {
     func doPitchers(oAtbats:[Atbat],pitcher: Pitcher)->PitchStats {
         if oAtbats.count > 0 {
             let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1 
-            let innings = CGFloat(oAtbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning + 1)) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
-                (10 * (Int($0.inning + 1)) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
+            let innings = CGFloat(oAtbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
-            let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
-            let uruns = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let uruns = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3)) && !$0.earnedRun}).count
-            let hits = oAtbats.filter({com.hitresults.contains($0.result) &&    (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let hits = oAtbats.filter({com.hitresults.contains($0.result) &&    (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            let HR = oAtbats.filter({$0.result == "Home Run" && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let HR = oAtbats.filter({$0.result == "Home Run" && (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            let BB = oAtbats.filter({$0.result == "Walk" && (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let BB = oAtbats.filter({$0.result == "Walk" && (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            let Ks = oAtbats.filter({($0.result == "Strikeout" || $0.result == "Strikout Looking") &&   (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let Ks = oAtbats.filter({($0.result == "Strikeout" || $0.result == "Strikeout Looking") && (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            let singles = oAtbats.filter({$0.result == "Single" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let singles = oAtbats.filter({$0.result == "Single" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            let doubles = oAtbats.filter({$0.result == "Double" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let doubles = oAtbats.filter({$0.result == "Double" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            let triples = oAtbats.filter({$0.result == "Triple" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+            let triples = oAtbats.filter({$0.result == "Triple" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
+                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
             
             let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
@@ -583,3 +586,22 @@ struct drawPitchers: View {
     }
 }
 
+struct drawIndicator: View {
+    var iStat:InnStatus
+    var size:CGSize
+
+    var body: some View {
+        
+        let placeBox = CGRect(x: 0.70 * size.width, y: -110, width:150, height:100)
+        Rectangle().fill(iStat.onThird && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
+            .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX, y:placeBox.minY)
+        Rectangle().fill(iStat.onSecond && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
+            .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX+17, y:placeBox.minY-17)
+        Rectangle().fill(iStat.onFirst && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
+            .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX+34, y:placeBox.minY)
+        Circle().fill(iStat.outs == 1 || iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
+            .position(x:placeBox.minX+10, y:placeBox.minY+24)
+        Circle().fill(iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
+            .position(x:placeBox.minX+25, y:placeBox.minY+24)
+    }
+}

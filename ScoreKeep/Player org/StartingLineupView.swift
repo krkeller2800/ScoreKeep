@@ -72,6 +72,8 @@ struct StartingLineupView: View {
                                     if atbat.team == team {
                                         modelContext.delete(atbat)
                                         game.atbats.removeAll() {$0 == atbat}
+                                        game.replaced.removeAll {$0 == atbat.player}
+                                        game.incomings.removeAll {$0 == atbat.player}
                                     }
                                 }
                                 doLineup()
@@ -271,6 +273,7 @@ struct StartingLineupView: View {
                     let atbat = Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: player.batOrder, outAt: "Safe", inning: 1, seq:seq, col:1, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
                     modelContext.insert(atbat)
                     game.atbats.append(atbat)
+                    try? modelContext.save()
                 }
             }
         }

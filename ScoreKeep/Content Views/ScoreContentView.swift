@@ -92,16 +92,8 @@ struct ScoreContentView: View {
         path.append(game)
         addAGame = true
         print(addAGame)
+        try? modelContext.save()
     }
 }
 
 
-#Preview {
-    do {
-        let previewer = try Previewer()
-        return ContentView()
-            .modelContainer(previewer.container)
-    } catch {
-        return Text("Failed to create preview: \(error.localizedDescription)")
-    }
-}

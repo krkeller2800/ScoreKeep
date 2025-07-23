@@ -102,21 +102,24 @@ struct PlayerView: View {
                         }
                         .frame(width: mediumWidth, alignment: .center)
                         .labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                        Text("Add").onTapGesture {
-                            if !dups && pTeam != nil && !pName.isEmpty {
-                                let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:pTeam)
-                                modelContext.insert(thisPlayer)
-                                try? self.modelContext.save()
-                                pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = "";pTeam = nil
-                            } else if dups {
-                                alertMessage = "Player named \(pName) already exists on \(pTeam!.name)"
-                                showingAlert = true
-                            } else {
-                                alertMessage = "Be sure to input a name and select a team for the new player."
-                                showingAlert = true
+                        HStack {
+                            Image(systemName: "plus.square")
+                            Text("Add").onTapGesture {
+                                if !dups && pTeam != nil && !pName.isEmpty {
+                                    let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:pTeam)
+                                    modelContext.insert(thisPlayer)
+                                    try? self.modelContext.save()
+                                    pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = "";pTeam = nil
+                                } else if dups {
+                                    alertMessage = "Player named \(pName) already exists on \(pTeam!.name)"
+                                    showingAlert = true
+                                } else {
+                                    alertMessage = "Be sure to input a name and select a team for the new player."
+                                    showingAlert = true
+                                }
                             }
                         }
-                        .frame(width: 75, alignment:.center).border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
+                        .frame(width: 75, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     }
                     ForEach(players) { player in

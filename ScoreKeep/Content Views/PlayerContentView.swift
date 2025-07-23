@@ -68,12 +68,12 @@ struct PlayerContentView: View {
                 .onChange(of: sortDescriptor) {
                     sortOrder = sortDescriptor
                 }
-
         }
     }
     func addPlayers() {
         let  player = Player(name: "", number: "",  position: "", batDir: "", batOrder: 99)
         modelContext.insert(player)
         navigationPath.append(player)
+        try? modelContext.save()
     }
 }

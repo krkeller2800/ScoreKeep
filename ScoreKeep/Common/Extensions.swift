@@ -45,3 +45,15 @@ extension String {
         return normalizedString
     }
 }
+extension SharePlayer: Transferable {
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation(exporting: \.photo)
+    }
+}
+import UniformTypeIdentifiers
+
+extension UTType {
+    static var myCustomFile: UTType {
+        UTType(exportedAs: "com.komakode.scorekeep.ScoreKeep_Players") // Replace with your custom UTI
+    }
+}

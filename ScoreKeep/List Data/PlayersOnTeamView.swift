@@ -10,6 +10,7 @@ import SwiftData
 struct PlayersOnTeamView: View {
     @Environment(\.modelContext) var modelContext
     
+    @State var showHeader: Bool
     @State var pName: String = ""
     @State var pNum: String = ""
     @State var pPos: String = ""
@@ -40,7 +41,7 @@ struct PlayersOnTeamView: View {
                 Section {
                     HStack {
                         Text("Order")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.6)
                         Text("Name")
                             .frame(width:nameWidth).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                         Text("Num")
@@ -50,7 +51,7 @@ struct PlayersOnTeamView: View {
                         Text("Dir")
                             .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
                         Text("")
-                            .frame(width:45)
+                            .frame(width:70)
                     }
                     HStack {
                         Picker("Bat Order", selection: $pOrder) {
@@ -85,21 +86,24 @@ struct PlayersOnTeamView: View {
                             .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                             .autocapitalization(.none)
                             .textContentType(.none)
-                        Text("Add").onTapGesture {
-                            if !dups && !pName.isEmpty {
-                                let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:team)
-                                modelContext.insert(thisPlayer)
-                                try? self.modelContext.save()
-                                pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = ""
-                            } else if dups {
-                                alertMessage = "Player named \(pName) already exists on \(team.name)"
-                                showingAlert = true
-                            } else {
-                                alertMessage = "Be sure to input a name for the new player."
-                                showingAlert = true
+                        HStack {
+                            Image(systemName: "plus.square")
+                            Text("Add").onTapGesture {
+                                if !dups && !pName.isEmpty {
+                                    let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:team)
+                                    modelContext.insert(thisPlayer)
+                                    try? self.modelContext.save()
+                                    pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = ""
+                                } else if dups {
+                                    alertMessage = "Player named \(pName) already exists on \(team.name)"
+                                    showingAlert = true
+                                } else {
+                                    alertMessage = "Be sure to input a name for the new player."
+                                    showingAlert = true
+                                }
                             }
                         }
-                        .frame(width: 45, alignment:.center).border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
+                        .frame(width: 70, height: 30, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     }
                     ForEach(players) { player in
@@ -115,14 +119,14 @@ struct PlayersOnTeamView: View {
                                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(player.batDir).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
                                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text("").frame(width:25)
+                                Text("").frame(width:50)
                             }
                         }
                     }
                     .onDelete(perform: deletePlayer)
                 }
                 header: {
-                    if players.count > 0 {
+                    if players.count > 0 && showHeader {
                         Text("Select a Player to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundColor(.black).bold()
                     }
                 }
@@ -130,8 +134,9 @@ struct PlayersOnTeamView: View {
         }
     }
     
-    init(team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = []) {
+    init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = []) {
         
+        self.showHeader = showHeader
         self.team = team
         let teamName = team.name
           _players = Query(filter: #Predicate { player in
@@ -155,8 +160,17 @@ struct PlayersOnTeamView: View {
                 showingAlert = true
                 alertMessage = "\(player.name) has pitched in a game. Cannot delete."
             } else {
+                team.players.removeAll(where: {$0 == player})
                 modelContext.delete(player)
             }
+        }
+        do {
+            try modelContext.save()
+        }
+        catch {
+            alertMessage = "Error deleting player: \(error.localizedDescription)"
+            showingAlert = true
+            print("Error deleting player: \(error.localizedDescription)")
         }
     }
     func playedInGame(player:Player)->Bool {

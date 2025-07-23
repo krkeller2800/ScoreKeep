@@ -7,13 +7,17 @@
 
 import SwiftUI
 import SwiftData
+import os.log
 
 @main
 struct ScoreKeepApp: App {
     var body: some Scene {
         WindowGroup {
             StartView()
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
         }
         .modelContainer(for: Game.self)
+        .handlesExternalEvents(matching: ["*"])
+        
     }
 }

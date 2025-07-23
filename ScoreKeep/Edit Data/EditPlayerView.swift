@@ -101,6 +101,7 @@ struct EditPlayerView: View {
                     }
             }
             HStack {
+                Spacer()
                 if let imageData = player.photo, let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
                         .scaleImage(iHeight: 400, imageData: imageData)
@@ -109,14 +110,33 @@ struct EditPlayerView: View {
 //                        .frame(maxWidth: 400, maxHeight: 400, alignment: .center)
 //                        .scaledToFit()
                 }
+                Spacer()
             }
             Text("\n\n")
             HStack {
+                Spacer()
                 PhotosPicker(selection: $selectedItem, matching: .images) {
-                    Label("Select a photo", systemImage: "person")
+                    HStack(spacing:0) {
+                        Image(systemName: "person")
+                        Text("Photos").padding(.leading,5)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(width: 100, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
                 .onChange(of: selectedItem, loadPhoto)
+                Text(" or ")
+                Button {
+                    let pasteboard = UIPasteboard.general
+                    if let image = pasteboard.image {
+                        player.photo = image.pngData()
+                    }
+                } label: {
+                    HStack(spacing:0) {
+                        Image(systemName: "doc.on.doc")
+                        Text("Paste").padding(.leading,5)
+                    }
+                }
+                .frame(width: 100, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                Spacer()
                 .onDisappear() {
                     if dups || playerName.isEmpty {
                         modelContext.delete(player)
@@ -133,6 +153,7 @@ struct EditPlayerView: View {
 
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .toolbar {
             ToolbarItem(placement: .principal) {

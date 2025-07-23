@@ -25,6 +25,7 @@ struct PlayersToScoreView: View {
     @State var colbox:[BoxScore] = Array(repeating: BoxScore(), count: 20)
     @State var batbox:[BoxScore] = Array(repeating: BoxScore(), count: 20)
     @State var totbox:[BoxScore] = Array(repeating: BoxScore(), count: 5)
+    @State var iStat:InnStatus = InnStatus()
 
     @State var theAtbat = Atbat(game: Game(date: "", location: "", highLights: "", hscore: 0, vscore: 0),
                                 team: Team(name: "", coach: "", details: ""),
@@ -34,6 +35,8 @@ struct PlayersToScoreView: View {
     var body: some View {
         Section {
             GeometryReader { geometry in
+                drawIndicator(iStat:iStat,size:geometry.size)
+                drawBoxScore(game:game,size:geometry.size)
                 ScrollView {
                     ZStack {
                         VStack (spacing: 0) {
@@ -53,7 +56,7 @@ struct PlayersToScoreView: View {
                                             .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
                                             .lineLimit(2).minimumScaleFactor(0.8).strikethrough(strikeIt)
                                         let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-                                        let bSize = screenWidth > 1100 ? 14 : 13
+                                        let bSize = screenWidth > 1100 ? 14 : 11
                                         let newCol = bigCol?.col ?? 0 + 1
                                         let maxCol = newCol < bSize ? bSize : newCol
                                         ForEach((1...maxCol), id: \.self) {ind in
@@ -97,13 +100,12 @@ struct PlayersToScoreView: View {
                                     }
                                 }
                             }
-                            let device = UIDevice.current
-                            if device.name == "iPad (10th generation)" {
-                                Spacer(minLength:200)
-                            } else {
-                                Spacer(minLength:130)
+                            if atbats.count > 0 {
+                                let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
+                                let numOfPitchers = CGFloat(game.pitchers.filter { $0.team == opTeam }.count)
+                                Spacer(minLength:numOfPitchers * 50 + 85)
                             }
-                        }
+                          }
                         .onAppear() {
                             lAtbats = atbats
                         }
@@ -135,13 +137,19 @@ struct PlayersToScoreView: View {
                         let space:CGRect = CGRect(x: newx, y: 15, width: bSize, height: bSize)
                         if !atbats.isEmpty {
                             drawSing(space: space, atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: screenWidth, isLoading: $isLoading)
-                            drawPitchers(space: space, atbats: atbats, abb: "", inning: 1)
+                            let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
+                            drawPitchers(space: space, atbats: atbats, abb: "", inning: 1,game: game, team: opTeam)
                         }
                     }
                 }
             }
-            .sheet(isPresented: $showingScoring) {ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring)}
-
+            .sheet(isPresented: $showingScoring) {ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring)
+                    .background(Color.yellow.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.black, lineWidth: 8)
+                    )
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 
@@ -157,13 +165,16 @@ struct PlayersToScoreView: View {
         }
     }
     func updMaxBases() {
-        let inning = theAtbat.inning.rounded(.up)
-        let atbatsToUpd = atbats.filter {$0.inning.rounded(.up) == inning && com.onresults.contains($0.result) }
+        let usedAtbats = atbats.filter {$0.result != "Result"}
+        let inning = usedAtbats.last?.inning.rounded(.up) ?? 0
+        let atbatsToUpd = usedAtbats.filter {($0.inning.rounded(.up) == inning || $0.inning.rounded(.up) == 0) && com.onresults.contains($0.result) }
         var currMaxBase = 0
         let maxbases:[String] = ["First","Second","Third","Home"]
         let maxHits:[String] = ["Single","Double","Triple","Home Run"]
         let atbatsToUpdSorted = atbatsToUpd.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
-
+        
+        iStat = InnStatus(outs: usedAtbats.last?.outs ?? 0)
+        
         for (index, theBase) in atbatsToUpdSorted.reversed().enumerated() {
     
             let theMaxBase = maxbases.firstIndex(of: theBase.maxbase) ?? -1
@@ -191,6 +202,16 @@ struct PlayersToScoreView: View {
             } else if index != 0 && theBase.outAt == "Safe" {
                 currMaxBase = maxbases.firstIndex(of: theBase.maxbase) ?? -1
             }
+            if theBase.outAt == "Safe" {
+                if theBase.maxbase == "Third" {
+                    iStat.onThird = true
+                } else if theBase.maxbase == "Second" {
+                    iStat.onSecond = true
+                } else if theBase.maxbase == "First" {
+                    iStat.onFirst = true
+                }
+            }
+        
         }
     }
 
@@ -228,17 +249,17 @@ struct PlayersToScoreView: View {
                     }
                 }
              
-                atbat.col = col
+                atbat.col = atbat.col == 1 && atbat.result == "Pitch Hitter" ? 1 : col
                 if com.outresults.contains(atbat.result) || atbat.outAt != "Safe"  {
                     outs += 1
                     allOuts += 1
                 }
                 atbat.inning = CGFloat(allOuts)/3.0
-                if CGFloat(inning) > atbat.inning {
+                if CGFloat(inning) > atbat.inning  && (atbat.col != 1 && atbat.result != "Pitch Hitter") {
                     atbat.inning += 0.1
                 }
                 atbat.outs = outs
-                atbat.seq = seq
+                atbat.seq = atbat.col == 1 && atbat.result == "Pitch Hitter" ? atbat.batOrder : seq
                 seq += 1
                 endOfInning = atbat.endOfInning
                 
@@ -266,6 +287,11 @@ struct PlayersToScoreView: View {
                     colbox[col].strikeouts += 1
                     batbox[atbat.batOrder].strikeouts += 1
                     totbox[0].strikeouts += 1
+                }
+                if com.onresults.contains(atbat.result) && atbat.stolenBases > 0 {
+                    colbox[col].stoleBase += atbat.stolenBases
+                    batbox[atbat.batOrder].stoleBase += atbat.stolenBases
+                    totbox[0].stoleBase += atbat.stolenBases
                 }
             }
             do {

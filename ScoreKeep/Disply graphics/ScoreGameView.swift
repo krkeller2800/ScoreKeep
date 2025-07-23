@@ -18,6 +18,8 @@ struct ScoreGameView: View {
     @State private var recPlay: Bool = false
     @State private var delAtbat: Bool = false
     @State private var playRec: String = ""
+    @State private var onBase: String = ""
+    @State private var batOut: String = ""
 
     let com:Common = Common()
     
@@ -69,7 +71,7 @@ struct ScoreGameView: View {
                         Text("\(atbat.player.number) \(atbat.player.name)").font(.title3)
                         Spacer()
                         Picker("Steal", selection: $atbat.stolenBases) {
-                            let rbis = ["Steals","1 Stolen","2 Stolen","3 Stolen","4 Stolen"]
+                            let rbis = ["Steals","1 Stolen","2 Stolen","3 Stolen"]
                             ForEach(Array(rbis.enumerated()), id: \.1) { index, rbi in
                                 Text(rbi).tag(index)
                             }
@@ -79,28 +81,56 @@ struct ScoreGameView: View {
                     }
                     HStack(spacing: 0) {
                         Spacer()
-                        Text("At Bat").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 75)
+                        Text("On Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 50)
+                        Spacer()
+                        Text("Batting Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 25)
                         Spacer()
                         Text("Max Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 25)
                         Spacer()
-                        Text("Out At").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 25)
+                        Text("Basepath Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
                         Spacer()
                     }
                     HStack(spacing: 0) {
                         Spacer()
-                        Picker("Batting", selection: $atbat.result) {
+                        Picker("Batting", selection: $onBase) {
                             Text("Result").tag("Result")
                             Divider()
-                            let bats = com.battings
+                            let bats = com.onresults
                             ForEach (bats, id: \.self) { batting in
                                 (batting != "") ? Text(batting).tag(batting): nil
-                                if batting == "Home Run" || batting == "Fielder's Choice" || batting == "Sacrifice Bunt" {
+                                if batting == "Dropped 3rd Stike" || batting == "Fielder's Choice" || batting == "Home Run" {
                                     Divider()
                                 }
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
                          .border(.gray).cornerRadius(10).accentColor(.black)
+                         .onChange(of: onBase) {
+                             if onBase != "Result" {
+                                 atbat.result = onBase
+                                 batOut = "Result"
+                             }
+                         }
+                         Spacer()
+                        Picker("Batting", selection: $batOut) {
+                            Text("Result").tag("Result")
+                            Divider()
+                            let bats = com.outresults
+                            ForEach (bats, id: \.self) { batting in
+                                (batting != "") ? Text(batting).tag(batting): nil
+                                if batting == "Strikeout Looking" {
+                                    Divider()
+                                }
+                            }
+                        }
+                         .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .border(.gray).cornerRadius(10).accentColor(.black)
+                         .onChange(of: batOut) {
+                             if batOut != "Result" {
+                                 atbat.result = batOut
+                                 onBase = "Result"
+                             }
+                         }
                          Spacer()
                         Picker("Running", selection: $atbat.maxbase) {
                             Text("No Bases").tag("No Bases")
@@ -160,6 +190,16 @@ struct ScoreGameView: View {
                         if atbat.playRec != "" || com.recOuts.contains(atbat.result) || atbat.outAt != "Safe" {
                             recPlay = true
                         }
+                        if com.onresults.contains(atbat.result) {
+                            onBase = atbat.result
+                            batOut = "Result"
+                        } else if com.outresults.contains(atbat.result) {
+                            batOut = atbat.result
+                            onBase = "Result"
+                        } else {
+                            onBase = "Result"
+                            batOut = "Result"
+                        }
                     }
                     .onDisappear {
                         setEndOfInning()
@@ -194,7 +234,7 @@ struct ScoreGameView: View {
                                  atbat.playRec = ""
                              })
                              .frame(maxWidth: 50,maxHeight: 30, alignment:.center).background(.red.opacity(0.5))
-                             .border(.gray).cornerRadius(10).accentColor(.black).padding([.bottom,.trailing], 10)
+                             .border(.gray).cornerRadius(10).accentColor(.black).padding([.bottom,.trailing], 15)
                         }
                     }
    
@@ -251,7 +291,7 @@ struct ScoreGameView: View {
         if innings > 0 {
             for inning in 1...innings {
                 if inning <= innings || out == 0 {
-                    let gAtbats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" &&
+                    let gAtbats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" && $0.result != "Pitch Hitter" &&
                         ($0.inning >= CGFloat(inning-1) && $0.inning <= CGFloat(inning)) }.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
                     gAtbats.last?.endOfInning = true
                 }

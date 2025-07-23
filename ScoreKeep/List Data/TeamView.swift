@@ -55,18 +55,21 @@ struct TeamView: View {
                     .overlay(Divider().background(.black), alignment: .trailing)
                 TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
-                Text("Add").onTapGesture {
-                    if !dups {
-                        let theTeam = Team(name:teamName, coach:coachName, details:teamInfo)
-                        modelContext.insert(theTeam)
-                        teamName = ""; coachName = ""; teamInfo = ""
-                        try? self.modelContext.save()
-                    } else {
-                        alertMessage = "Team named \(teamName) already exists"
-                        showingAlert = true
+                HStack {
+                    Image(systemName: "plus.square")
+                    Text("Add").onTapGesture {
+                        if !dups {
+                            let theTeam = Team(name:teamName, coach:coachName, details:teamInfo)
+                            modelContext.insert(theTeam)
+                            teamName = ""; coachName = ""; teamInfo = ""
+                            try? self.modelContext.save()
+                        } else {
+                            alertMessage = "Team named \(teamName) already exists"
+                            showingAlert = true
+                        }
                     }
                 }
-                .frame(width: 75, alignment:.center).border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
+                .frame(width: 75, height: 30, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(20)
             }
             ForEach(teams) { team in
                 NavigationLink(value: team) {
@@ -208,13 +211,5 @@ struct TeamView: View {
     }
 }
 
-#Preview {
-    do {
-        let previewer = try Previewer()
-        return TeamView()
-            .modelContainer(previewer.container)
-    } catch {
-        return Text("Failed to create preview: \(error.localizedDescription)")
-    }
-}
+
 

@@ -374,7 +374,7 @@ struct fielderButtons: View {
                 .resizable()
                 .scaledToFill()
                 .frame(width: 35, height: 35)
-                .position(x:0.5 * size.width, y:0.95 * size.height)
+                .position(x:0.5 * size.width, y:0.94 * size.height)
         }
     }
     func setflags() {

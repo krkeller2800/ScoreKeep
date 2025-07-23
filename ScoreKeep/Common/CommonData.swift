@@ -25,8 +25,8 @@ struct Common {
     init(
         atBats:[String] = ["","Single", "Double", "Triple", "Home Run","Fielder's Choice", "Ground Out", "Fly Out", "Line Out", "Foul Out", "Strikeout", "Strikeout Looking","Error"],
         hitresults:[String] = ["","Single", "Double", "Triple", "Home Run"],
-        onresults:[String] = ["","Hit By Pitch","Dropped 3rd Strike","Walk","Single", "Double", "Triple", "Home Run","Fielder's Choice"],
-        outresults:[String] = ["", "Ground Out", "Fly Out", "Line Out", "Foul Out","Strikeout", "Strikeout Looking", "Sacrifice Fly","Strikeout Looking","Sacrifice Bunt"],
+        onresults:[String] = ["","Hit By Pitch","Dropped 3rd Strike","Walk","Single", "Double", "Triple", "Home Run","Fielder's Choice","Error"],
+        outresults:[String] = ["", "Ground Out", "Fly Out", "Line Out", "Foul Out","Strikeout", "Strikeout Looking", "Sacrifice Fly","Sacrifice Bunt"],
         recOuts:[String] = ["", "Ground Out", "Fly Out", "Line Out","Foul Out", "Sacrifice Fly","Sacrifice Bunt","Fielder's Choice"],
         outabs:[String] = ["", "GO", "F", "L", "F","FO", "K","SF","ꓘ","SB"],
         battings:[String] = ["","Hit By Pitch","Dropped 3rd Strike","Walk","Single", "Double", "Triple", "Home Run", "Ground Out", "Fly Out", "Line Out", "Foul Out", "Strikeout","Strikeout Looking","Fielder's Choice","Sacrifice Fly","Sacrifice Bunt","Error"],
@@ -55,34 +55,41 @@ struct BoxScore {
     var type:String = ""
     var runs:Int = 0
     var hits:Int = 0
-    var errors:Int = 0
+    var stoleBase:Int = 0
     var strikeouts:Int = 0
     var walks:Int = 0
     var HR:Int = 0
 }
-struct PitchStats {
+struct PitchStats: Identifiable {
+    let id = UUID()
+    var pitcher:Pitcher?
     var runs:Int = 0
     var uruns:Int = 0
     var hits:Int = 0
     var HR:Int = 0
     var Ks:Int = 0
+    var Ksl:Int = 0
     var BB:Int = 0
     var singles:Int = 0
     var doubles:Int = 0
     var triples:Int = 0
     var innings:Int = 0
+    var hbp:Int = 0
     var ERA:CGFloat = 0
-    init(runs: Int = 0,uruns: Int = 0, hits: Int = 0, HR: Int = 0, Ks: Int = 0, BB: Int = 0, singles: Int = 0, doubles: Int = 0, triples: Int = 0, innings: Int = 0, ERA: CGFloat) {
+    init(pitcher: Pitcher? = nil, runs: Int = 0,uruns: Int = 0, hits: Int = 0, HR: Int = 0, Ks: Int = 0, Ksl: Int = 0, BB: Int = 0, singles: Int = 0, doubles: Int = 0, triples: Int = 0, innings: Int = 0, hbp: Int = 0, ERA: CGFloat) {
+        self.pitcher = pitcher
         self.runs = runs
         self.uruns = uruns
         self.hits = hits
         self.HR = HR
         self.Ks = Ks
+        self.Ksl = Ksl
         self.BB = BB
         self.singles = singles
         self.doubles = doubles
         self.triples = triples
         self.innings = innings
+        self.hbp = hbp
         self.ERA = ERA
     }
 }
@@ -137,6 +144,46 @@ struct LoadingView: View {
             .padding()
             .foregroundStyle(.black)
 //            .border(.red, width: 2)
+        }
+    }
+}
+struct MyPreferenceKey: PreferenceKey {
+    static var defaultValue: String = ""
+
+    static func reduce(value: inout String, nextValue: () -> String) {
+        value = nextValue()
+    }
+}
+struct InnStatus {
+    var outs:Int = 0
+    var onFirst:Bool = false
+    var onSecond:Bool = false
+    var onThird:Bool = false
+}
+struct SharePlayer: Identifiable, Codable {
+    var id = UUID()
+    let name: String
+    let number: String
+    let position: String
+    let batDir: String
+    let batOrder: Int
+    let photo: Data
+}
+enum DataError: Error, LocalizedError {
+    case savingData (dataType: String = "")
+    case insertingData (dataType: String = "")
+    case deletingData (dataType: String = "")
+    case SwiftDataError (error: Error)
+    var errorDescription: String? {
+        switch self {
+        case .savingData(dataType: let dataType):
+            return "Error while saving \(dataType)"
+        case .insertingData(dataType: let dataType):
+            return "Error Inserting \(dataType)"
+        case .deletingData(dataType: let dataType):
+            return "Error Deleting \(dataType)"
+        case .SwiftDataError(error: let error):
+            return "Swift Data Error: \(error.localizedDescription)"
         }
     }
 }

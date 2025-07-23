@@ -27,6 +27,7 @@ struct PasteView: View {
     @State private var pickId = 0
     @State private var alertMessage = ""
     @State private var showingAlert = false
+    @State private var showPlayers = false
 
     @State private var players:[String] = []
     @State private var playerComponents:[String] = []
@@ -53,7 +54,11 @@ struct PasteView: View {
         NavigationStack(path: $navigationPath) {
             VStack(spacing:0) {
                 HStack {
-                    Button("Add team", action: addTeam)
+                    Button {
+                        addTeam()
+                    } label: {
+                        Label("Add Team", systemImage: "plus.square")
+                    }
                         .foregroundColor(.blue).frame(width:150, alignment: .center).buttonStyle(.bordered)
                     Spacer()
                     if team != nil && selectPlayers.count > 0 {
@@ -61,7 +66,30 @@ struct PasteView: View {
                             .foregroundColor(.red).frame(maxWidth: 500,alignment: .center)
                     }
                     Spacer()
-                    Spacer()
+                    Button {
+                        showPlayers = false
+                        players.removeAll()
+                        team = nil
+                        lastNameIdx = 0
+                        firstNameIdx = 0
+                        numberIdx = 0
+                        batsDirIdx = 0
+                        positionIdx = 0
+                        batOrderIdx = 0
+                        delimeter = "Delimeter"
+                        pastedText = ""
+                        playerComponents.removeAll()
+                        number.removeAll()
+                        firstName.removeAll()
+                        lastName.removeAll()
+                        batsDirection.removeAll()
+                        position.removeAll()
+                        batOrder.removeAll()
+                        selectPlayers.removeAll()
+                    } label: {
+                        Label("Reset", systemImage: "arrow.clockwise")
+                    }
+                    .foregroundColor(.blue).frame(width:150, alignment: .center).buttonStyle(.bordered)
                 }
                 HStack {
                     Picker("Team", selection: $team) {
@@ -77,7 +105,12 @@ struct PasteView: View {
                     }
                     .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue)
                     .border(.gray).cornerRadius(10).padding().accentColor(.white)
-                    .onChange(of: team) { checkForPlayers() }
+                    .onChange(of: team) {
+                        if team != nil {
+                            checkForPlayers()
+                            showPlayers = true
+                        }
+                    }
                     Spacer()
                     Button {
                         let pasteboard = UIPasteboard.general
@@ -227,7 +260,7 @@ struct PasteView: View {
                     .onChange(of: batOrderIdx) {
                         var x = 0
                         for player in players {
-                            if batOrderIdx != 0 && batOrderIdx != player.components(separatedBy: delimeter).count+2  {
+                            if batOrderIdx != 0 && batOrderIdx != player.components(separatedBy: delimeter).count+2 {
                                 batOrder.insert(player.components(separatedBy: delimeter)[batOrderIdx-1], at: x)
                             } else if batOrderIdx != 0 {
                                 batOrder.insert(String(x+1), at: x)
@@ -286,7 +319,7 @@ struct PasteView: View {
                 VStack(alignment: .leading, spacing:0) {
                     if players.count > 0 {
                         ForEach(Array(players.enumerated()), id: \.1) { index, player in
-                            if index < 15 {
+                            if index < 20 {
                                 Text(player).frame(width: 170, alignment: .leading).lineLimit(1).padding(.leading, 10)
                             }
                         }
@@ -294,7 +327,7 @@ struct PasteView: View {
                     Spacer()
                 }
                 Spacer()
-                if team != nil {
+                if team != nil && showPlayers {
                     PlayersOnTeamView(team: team!, searchString: "", sortOrder: sortOrder)
                 }
             }
@@ -317,7 +350,7 @@ struct PasteView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Import Lineup")
+                    Text("Paste Lineup")
                         .font(.title2).bold()
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -369,6 +402,7 @@ struct PasteView: View {
                     } else {
                         let player = Player(name: Name ,number: num, position: pos, batDir: batdir, batOrder: bOrder, team: team)
                         modelContext.insert(player)
+                        try? modelContext.save()
                     }
                     x += 1
                 }
@@ -440,6 +474,14 @@ struct PasteView: View {
                     playerComponents = players[0].components(separatedBy: delimeter)
                     players.removeAll {
                         $0.components(separatedBy: delimeter).count < 3
+                    }
+                    let componentNum: Int = players[0].components(separatedBy: delimeter).count
+                    for player in players {
+                        if !(player.components(separatedBy: delimeter).count == componentNum) {
+                            alertMessage = "Inconsistant number of fields in pasted players"
+                            showingAlert.toggle()
+                            return
+                        }
                     }
                 } else {
                     alertMessage = "could not parse header row"

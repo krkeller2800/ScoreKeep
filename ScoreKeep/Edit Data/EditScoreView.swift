@@ -30,13 +30,16 @@ struct EditScoreView: View {
     @State private var homeSelected = false
     @State private var showAlert = false
     @State private var showReport = false
+    @State private var showPitchRpt = false
     @State private var shareReport = false
     @State private var isLoading = false
     @State private var alertText = ""
+    @State private var teamName = ""
     @State private var selectedOption = ""
     @State private var pdfURL:URL = URL.documentsDirectory.appending(path: "Stats.pdf")
     @State private var screenHeight = 0.0
     @State private var screenWidth = 0.0
+    @State private var preferenceValue: String = ""
 
     @FocusState private var focusedField: FocusField?
     
@@ -46,7 +49,12 @@ struct EditScoreView: View {
             ZStack {
                 VStack(spacing: 0) {
                     HStack {
-                        Text(game.location).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                        VStack{
+                            let firstWord = game.location.split(separator: " ").count > 0 ? game.location.split(separator: " ")[0] : ""
+                            let secondWord = game.location.split(separator: " ").count > 1 ? game.location.split(separator: " ")[1] : ""
+                            Text(firstWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                            Text(secondWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                        }
                         Spacer()
                         VStack (spacing: 5) {
                             Text("Select which team to score!").font(.headline).frame(maxWidth: .infinity,alignment: .center)
@@ -54,7 +62,6 @@ struct EditScoreView: View {
                                 ForEach([game.vteam?.name ?? "", game.hteam?.name ?? ""], id: \.self) { option in
                                     Button(action: {
                                         selectedOption = option
-                                        isLoading = true
                                         if option == game.vteam?.name ?? "" {
                                             isHomeTeam = false
                                         } else {
@@ -79,11 +86,15 @@ struct EditScoreView: View {
                                 }
                             }
                             .frame(width: 500)
+                            .lineLimit(1).minimumScaleFactor(0.3)
+                            .font(.largeTitle).italic(true)
                         }
                         .onAppear {
-                            team = game.vteam ?? Team(name:"",coach:"",details:"")
-                            theTeam = game.vteam?.name ?? ""
-                            selectedOption = game.vteam?.name ?? ""
+                            if !isHomeTeam {
+                                team = game.vteam ?? Team(name:"",coach:"",details:"")
+                                theTeam = game.vteam?.name ?? ""
+                                selectedOption = game.vteam?.name ?? ""
+                            }
                             print(modelContext.sqliteCommand)
                             
                         }
@@ -96,16 +107,31 @@ struct EditScoreView: View {
                                 team = game.vteam ?? Team(name:"",coach:"",details:"")
                             }
                         })
-                        .lineLimit(1).minimumScaleFactor(0.3)
-                        .font(.largeTitle).italic(true)
+
                         Spacer ()
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                        Text(date.formatted(date:.abbreviated, time: .shortened)).font(.title3).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
+                        VStack {
+                            Text(date.formatted(date:.abbreviated, time: .omitted)).font(.title3).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
+                                .lineLimit(1).minimumScaleFactor(0.60)
+                            Text(date.formatted(date:.omitted, time: .shortened)).font(.title3).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
+                                .lineLimit(1).minimumScaleFactor(0.60)
+                        }
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
-                    .overlay(drawBoxScore(game:game), alignment: .topTrailing)
                     Spacer()
                     PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading)
+                }
+                .onChange(of: showingDetail, {
+                    if isHomeTeam {
+                        team = game.hteam ?? Team(name:"",coach:"",details:"")
+                        theTeam = game.hteam?.name ?? ""
+                    } else {
+                        team = game.vteam ?? Team(name:"",coach:"",details:"")
+                        theTeam = game.vteam?.name ?? ""
+                    }
+                })
+                .fullScreenCover(isPresented: $showingDetail) {
+                    StartingLineupView(showingDetail: $showingDetail, passedGame: game, passedTeam: team, theTeam: theTeam, searchString: searchText,sortOrder: sortOrder)
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -118,14 +144,35 @@ struct EditScoreView: View {
                             ReplacementView(game: game, team: team)
                         }
                     }
-                    ToolbarItem(placement: .bottomBar) {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        Button(action: {
+                            showPitchRpt.toggle()
+                            isLoading = true
+                        }) {
+                            Text("Pitching Stats")
+                        }
+                        .fullScreenCover(isPresented: $showPitchRpt) {
+                            ShowPitchRptView(tName: team.name, isLoading: $isLoading)
+                        }
+                        Spacer()
                         Button(action: {
                             showPitchers.toggle()
                         }) {
                             Text("Add a Pitcher")
                         }
                         .fullScreenCover(isPresented: $showPitchers) {
-                            PitcherContentView(team: team, game: game)
+                            let opTeam = team == game.hteam ? game.vteam! : game.hteam!
+                            PitcherContentView(team: opTeam, game: game)
+                        }
+                        Spacer()
+                        Button(action: {
+                            showReport.toggle()
+                            isLoading = true
+                        }) {
+                            Text("Hitting Stats")
+                        }
+                        .fullScreenCover(isPresented: $showReport) {
+                            ShowReportView(tName: team.name, isLoading: $isLoading)
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -138,26 +185,10 @@ struct EditScoreView: View {
                                 Text("\(game.vteam?.name ?? "") Lineup")
                             }
                         }
-                        .onChange(of: showingDetail, {
-                            if isHomeTeam {
-                                team = game.hteam ?? Team(name:"",coach:"",details:"")
-                                theTeam = game.hteam?.name ?? ""
-                            } else {
-                                team = game.vteam ?? Team(name:"",coach:"",details:"")
-                                theTeam = game.vteam?.name ?? ""
-                            }
-                        })
-                        .fullScreenCover(isPresented: $showingDetail) {
-                            StartingLineupView(showingDetail: $showingDetail, passedGame: game, passedTeam: team, theTeam: theTeam, searchString: searchText,sortOrder: sortOrder)
-                        }
-                        //                    .sheet(isPresented: $showingDetail) {
-                        //                        StartingLineupView(showingDetail: $showingDetail, passedGame: game, passedTeam: team, theTeam: theTeam,sortOrder: sortOrder)
-                        //                    }
                     }
                     ToolbarItem(placement: .principal) {
                         Text("Score the Game")
                             .font(.title2)
-                        //                        .frame(width:300, alignment: .leading)
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -172,18 +203,6 @@ struct EditScoreView: View {
                         }
                     }
                 }
-                //            let bpos:CGFloat = UIScreen.screenWidth > 1300 ? 1250 : UIScreen.screenWidth > 1100 ? 1075 : 900
-                let bpos:CGFloat = screenWidth == 0 ? UIScreen.screenWidth * 0.9 : screenWidth * 0.9
-                Button("Show Stats", action: {
-                    showReport.toggle()
-                    isLoading = true
-                })
-                .foregroundColor(.white).bold().padding().frame(maxHeight: 35)
-                .background(Color.blue).cornerRadius(25)
-                .position(x: bpos, y: 0)
-                .fullScreenCover(isPresented: $showReport) {
-                    ShowReportView(tName: team.name, isLoading: $isLoading)
-                }
                 if isLoading {
                     LoadingView()
                         .position(x: geometry.size.width / 2, y: -25)
@@ -193,17 +212,8 @@ struct EditScoreView: View {
     }
     init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String) {
         game = pgame
+        teamName = ateam
         _navigationPath = pnavigationPath
     }
 }
 
-#Preview {
-    do {
-        let previewer = try Previewer()
-
-        return EditScoreView(pgame: previewer.game, pnavigationPath: .constant(NavigationPath()), ateam: previewer.game.vteam?.name ?? "")
-            .modelContainer(previewer.container)
-    } catch {
-        return Text("Failed to create preview: \(error.localizedDescription)")
-    }
-}

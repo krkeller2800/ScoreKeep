@@ -197,6 +197,7 @@ struct PlayersLineupView: View {
                 if player.batOrder != 99 {
                     modelContext.insert(atbat)
                     game.atbats.append(atbat)
+                    try? modelContext.save()
                 }
             }
         }

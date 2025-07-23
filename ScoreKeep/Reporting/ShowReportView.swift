@@ -57,10 +57,10 @@ struct ShowReportView: View {
             .font: UIFont.systemFont(ofSize: 12),
             .paragraphStyle: NSMutableParagraphStyle()
         ]
-        let detailAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 10),
-            .paragraphStyle: NSMutableParagraphStyle()
-        ]
+//        let detailAttributes: [NSAttributedString.Key: Any] = [
+//            .font: UIFont.systemFont(ofSize: 10),
+//            .paragraphStyle: NSMutableParagraphStyle()
+//        ]
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.italicSystemFont(ofSize: 16),
             .paragraphStyle: NSMutableParagraphStyle()
@@ -82,12 +82,10 @@ struct ShowReportView: View {
                 if currentY + textHeight > contentHeight + margin {
                     context.beginPage()
                     currentY = margin
+                    pagenum += 1
                     doHeader(headAttributes: headAttributes, titleAttributes: titleAttributes, textAttributes: textAttributes, currentY: currentY, contentWidth: contentWidth)
                     currentY += 80
-                    pagenum += 1
-                    attributedString = NSAttributedString(string: String("Page \(pagenum)"), attributes: detailAttributes)
-                    attributedString.draw(in: CGRect(x: 395, y: 575, width: 40, height: textHeight))
-                }
+                 }
 
                 let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
                 let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
@@ -252,7 +250,9 @@ struct ShowReportView: View {
         let pNumSize: CGSize = "Page \(pagenum)".size(withAttributes: [.font: UIFont.systemFont(ofSize: 10)])
         attributedString = NSAttributedString(string: String("Page \(pagenum)"), attributes: detailAttributes)
         attributedString.draw(in: CGRect(x: (800 - pNumSize.width) / 2, y: 575, width: 40, height: headHeight))
-        
+        attributedString = NSAttributedString(string: String("Report Created by IOS App ScoreKeep"), attributes: detailAttributes)
+        attributedString.draw(in: CGRect(x: 50, y: 575, width: 250, height: headHeight))
+
         attributedString = NSAttributedString(string: Date.now.formatted(date: .long, time: .omitted), attributes: topAttributes)
         attributedString.draw(in: CGRect(x: 50, y: currentY, width: 100, height: headHeight))
         attributedString = NSAttributedString(string:"Player Statistics", attributes: textAttributes)

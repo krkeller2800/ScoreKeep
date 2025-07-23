@@ -141,15 +141,7 @@ struct EditGameView: View {
         let team = Team(name: "", coach: "", details: "")
         modelContext.insert(team)
         navigationPath.append(team)
+        try? modelContext.save()
     }
 }
-#Preview {
-    do {
-        let previewer = try Previewer()
 
-        return EditGameView(game: previewer.game, navigationPath: .constant(NavigationPath()))
-            .modelContainer(previewer.container)
-    } catch {
-        return Text("Failed to create preview: \(error.localizedDescription)")
-    }
-}

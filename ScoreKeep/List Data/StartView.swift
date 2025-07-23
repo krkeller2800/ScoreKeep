@@ -10,87 +10,96 @@ import SwiftUI
 struct StartView: View {
     @Environment(\.modelContext) var modelContext
     @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
-    @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp"]
-    @State private var flags:[Bool] = [true,false,false,false,false,false]
+    @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers"]
+    @State private var flags:[Bool] = [true,false,false,false,false,false,false,false]
     @State private var navigationPath = NavigationPath()
+    @State private var importUrl: URL?
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack {
-            Button("\n\n\n\n\nGames") {
-                setFlags(flag: "presentGames")
-                columnVisibility = .doubleColumn
-            }
-            .foregroundColor(.black).bold().italic().font(.caption)
-            .background {
-                Image("bgame")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 75, height: 75)
+                Button("\n\n\n\n\nGames") {
+                    setFlags(flag: "presentGames")
+                    columnVisibility = .doubleColumn
                 }
-            Spacer()
-            Button("\n\n\n\n\nTeams") {
-                setFlags(flag: "presentTeams")
-                columnVisibility = .doubleColumn
-            }
-            .foregroundColor(.black).bold().italic().font(.caption)
-            .background {
-                Image("bteam")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 75, height: 75)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("bgame")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 75, height: 75)
+                    }
+                Spacer()
+                Button("\n\n\n\n\nTeams") {
+                    setFlags(flag: "presentTeams")
+                    columnVisibility = .doubleColumn
                 }
-//            Spacer()
-//            Button("\n\n\n\n\nPlayers") {
-//                setFlags(flag: "presentPlayers")
-//                columnVisibility = .doubleColumn
-//            }
-//            .foregroundColor(.black).bold().italic().font(.caption)
-//            .background {
-//                Image("Player 1")
-//                .resizable()
-//                .scaledToFill()
-//                .frame(width: 75, height: 75)
-//                }
-            Spacer()
-            Button("\n\n\n\n\nScore Games") {
-                setFlags(flag: "presentScoreGame")
-                columnVisibility = .detailOnly
-            }
-            .foregroundColor(.black).bold().italic().font(.caption)
-            .background {
-                Image("score")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 75, height: 75)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("bteam")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 75, height: 75)
+                    }
+                Spacer()
+                Button("\n\n\n\n\nScore Games") {
+                    setFlags(flag: "presentScoreGame")
+                    columnVisibility = .detailOnly
                 }
-            Spacer()
-            Button("\n\n\n\n\nPaste in Players") {
-                setFlags(flag: "presentPaste")
-                columnVisibility = .doubleColumn
-            }
-            .foregroundColor(.black).bold().italic().font(.caption)
-            .background {
-                Image("Paste")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 75, height: 75)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("score")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 75, height: 75)
+                    }
+                Spacer()
+                Button("\n\n\n\n\nPaste in Players") {
+                    setFlags(flag: "presentPaste")
+                    columnVisibility = .doubleColumn
                 }
-            Spacer()
-            Button("\n\n\n\n\nHelp Documentation") {
-                setFlags(flag: "presentHelp")
-                columnVisibility = .doubleColumn
-            }
-            .foregroundColor(.black).bold().italic().font(.caption)
-            .background {
-                Image("bhelp")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 75, height: 75)
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("Paste")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 75, height: 75)
+                    }
+                Spacer()
+                Button("\n\n\n\n\nHelp Documentation") {
+                    setFlags(flag: "presentHelp")
+                    columnVisibility = .doubleColumn
                 }
-            Spacer()
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image("bhelp")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 75, height: 75)
+                    }
+                Spacer()
+                Button("\n\n\n\n\nShare Lineup") {
+                    setFlags(flag: "presentShareLineup")
+                    columnVisibility = .doubleColumn
+                }
+                .foregroundColor(.black).bold().italic().font(.caption)
+                .background {
+                    Image(systemName: "square.and.arrow.up")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    }
+                Spacer()
             }
             .ignoresSafeArea(.keyboard, edges: .bottom )
+            .onOpenURL { url in
+                print(url)
+                importUrl = url
+                setFlags(flag: "importPlayers")
+                columnVisibility = .detailOnly
+            }
+//            .onContinueUserActivity(NSUserActivityPersistentIdentifier(importing: com.komakode.scorekeep.ScoreKeep_Players, contentType: <#T##UTType?#>), perform: <#T##(NSUserActivity) -> ()#>)
+
         } detail: {
             if flags[0] {
                 ContentView()
@@ -104,6 +113,12 @@ struct StartView: View {
                 PasteView()
             } else if flags[5] {
                 PdfView()
+            } else if flags[6] {
+                ShareContentView()
+            } else if flags[7] {
+                if let url = importUrl {
+                    ImportPlayersView(iURL: url, )
+                }
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom )

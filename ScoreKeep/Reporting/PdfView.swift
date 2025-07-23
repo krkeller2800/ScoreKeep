@@ -10,7 +10,7 @@ import PDFKit
 
 struct PdfView: View {
     
-    let url = Bundle.main.url(forResource: "Manual Reduced", withExtension: "pdf")!
+    let url = Bundle.main.url(forResource: "Manual", withExtension: "pdf")!
 
     var body: some View {
         VStack {
@@ -21,7 +21,11 @@ struct PdfView: View {
                 Text("ScoreKeep")
                     .font(.title)
             }
-
+            ToolbarItem(placement: .topBarTrailing) {
+                if let fileURL = Bundle.main.url(forResource: "Manual", withExtension: "pdf") {
+                    ShareLink("Share PDF", item: fileURL.absoluteString)
+                }
+            }
         }
     }
     struct PDFKitView: UIViewRepresentable {

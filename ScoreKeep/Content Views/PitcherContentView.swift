@@ -83,5 +83,6 @@ struct PitcherContentView: View {
         let  player = Player(name: "", number: "",  position: "", batDir: "", batOrder: 99,team: team)
         modelContext.insert(player)
         navigationPath.append(player)
+        try? modelContext.save()
     }
 }

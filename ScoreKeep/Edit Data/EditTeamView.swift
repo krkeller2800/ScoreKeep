@@ -49,7 +49,7 @@ struct EditTeamView: View {
     var body: some View {
         Form {
             HStack {
-                Text("Logo").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Logo").frame(width:185).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Text("Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Text("Coach Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Text("Notes").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
@@ -63,7 +63,7 @@ struct EditTeamView: View {
 //                            .scaledToFit()
 //                            .frame(maxWidth: 50, maxHeight: 50, alignment: .center)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
+                    .frame(width: 185, height: 40, alignment: .center)
                     .overlay(Divider().background(.black), alignment: .trailing)
                 } else {
                     Text("")
@@ -85,14 +85,26 @@ struct EditTeamView: View {
                 TextField("Details", text: $team.details).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
             }
-            HStack {
+            HStack(spacing:0) {
                 PhotosPicker(selection: $selectedItem, matching: .images) {
-                    Text("Select a logo")
+                    Text("Photos")
                 }
-                .onChange(of: selectedItem, loadLogo).frame(maxWidth:.infinity,alignment:.center)
-                Text("").frame(maxWidth:.infinity)
-                Text("").frame(maxWidth:.infinity)
-                Text("").frame(maxWidth:.infinity)
+                .frame(width: 75, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .onChange(of: selectedItem, loadLogo)
+                Text(" or ")
+                Button {
+                    let pasteboard = UIPasteboard.general
+                    if let image = pasteboard.image {
+                        team.logo = image.pngData()
+                    }
+                } label: {
+                    HStack(spacing:0) {
+                        Image(systemName: "doc.on.doc")
+                        Text("Paste").padding(.leading,5)
+                    }
+                }
+                .frame(width: 85, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                Spacer()
             }
         }
         .frame(maxWidth:.infinity, maxHeight: 175, alignment: .top)

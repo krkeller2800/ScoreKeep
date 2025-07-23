@@ -12,6 +12,8 @@ struct EditPitcherView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Bindable var pitcher:Pitcher
+    @Bindable var game:Game
+    @State   var delPitcher = false
     @State   var begInning:Int = 0
     @State   var begOuts:Int = 0
     @State   var endInning:Int = 0
@@ -23,21 +25,21 @@ struct EditPitcherView: View {
                 List {
                     HStack () {
                         Text("Num")
-                            .frame(width: 60,height: 50).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                            .frame(width: 60,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                         Text("Name")
-                            .frame(width: 200,height: 50).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                            .frame(width: 200,height: 55).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                         Text("Start\nInning")
-                            .frame(maxWidth:.infinity,maxHeight: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Start Outs")
-                            .frame(maxWidth:.infinity,maxHeight: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Num of\nBatters")
-                            .frame(maxWidth:.infinity,maxHeight: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("End\nInning")
-                            .frame(maxWidth:.infinity,maxHeight: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("End Outs")
-                            .frame(maxWidth:.infinity,maxHeight: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Num of\nBatters")
-                            .frame(maxWidth:.infinity,maxHeight: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .frame(maxWidth:.infinity,maxHeight: 55).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Spacer(minLength: 5)
                     }
                     HStack (spacing:0) {
@@ -94,12 +96,30 @@ struct EditPitcherView: View {
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
                     }
+                    .onDisappear() {
+                        if delPitcher {
+                            modelContext.delete(pitcher)
+                            do {
+                                try modelContext.save()
+                            }
+                            catch {
+                                print("Error deleting pitcher: \(error)")
+                            }
+                        }
+                    }
                     Spacer()
                 }
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        Text("Edit Innings Pitched")
+                        Text("Edit \(pitcher.player.name) Innings Pitched")
                             .font(.title2)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Remove \(pitcher.player.name)") {
+                            game.pitchers.removeAll() { $0 == pitcher }
+                            delPitcher = true
+                            dismiss()
+                        }
                     }
                 }
             }

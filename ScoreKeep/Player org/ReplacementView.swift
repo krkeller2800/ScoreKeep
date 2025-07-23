@@ -148,9 +148,10 @@ struct ReplacementView: View {
     }
     func addPlayers() {
 
-            let  player = Player(name: "", number: "", position: "", batDir: "", batOrder: 99, team: team)
-            modelContext.insert(player)
-            navigationPath.append(player)
+        let  player = Player(name: "", number: "", position: "", batDir: "", batOrder: 99, team: team)
+        modelContext.insert(player)
+        navigationPath.append(player)
+        try? modelContext.save()
     
 //        try? modelContext.save()
     }
@@ -190,10 +191,12 @@ struct ReplacementView: View {
             }
             print("Atbats = Name:\(atbat.player.name) Column:\(atbat.col) batOrder:\(atbat.batOrder) Seq:\(atbat.seq)")
             if atbat.player.name == rplPlayers[replacedIdx-1].name {
-                 let newatbat = Atbat(game: game, team: team, player: newPlayer, result: "Pitch Hitter", maxbase: "No Bases", batOrder: newPlayer.batOrder, outAt: "Safe",
+                let newatbat = Atbat(game: game, team: team, player: newPlayer, result: "Pitch Hitter", maxbase: "No Bases", batOrder: newPlayer.batOrder, outAt: "Safe",
                                       inning: atbat.inning, seq: newseq[atbat.col], col: atbat.col, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
-                 modelContext.insert(newatbat)
-                 print("newatbat = Name:\(newatbat.player.name) Column:\(newatbat.col) batOrder:\(newatbat.batOrder) Seq:\(newatbat.seq)")
+                modelContext.insert(newatbat)
+                game.atbats.append(newatbat)
+                try? modelContext.save()
+                print("newatbat = Name:\(newatbat.player.name) Column:\(newatbat.col) batOrder:\(newatbat.batOrder) Seq:\(newatbat.seq)")
              }
         }
         do {

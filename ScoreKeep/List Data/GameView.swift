@@ -45,7 +45,7 @@ struct GameView: View {
             }
             HStack {
                 Text("Game Date").frame(width: 225).border(.gray)
-                    .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
+                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Text("Field").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Text("All Hit").frame(maxWidth:60).border(.gray)
@@ -56,7 +56,7 @@ struct GameView: View {
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Text("Score").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
-                Text("").frame(maxWidth:70)
+                Text("").frame(maxWidth:90)
             }
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             HStack{
@@ -115,18 +115,21 @@ struct GameView: View {
                   Text("Not Played Yet")
                     .frame(maxWidth: .infinity)
                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                  Text("Add").onTapGesture {
-                    if vTeam != nil && hTeam != nil {
-                        let theGame = Game(date: theDate, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam:vTeam!, hteam:hTeam!)
-                        modelContext.insert(theGame)
-                        try? self.modelContext.save()
-                        field = ""; hTeam = nil; vTeam = nil; everyOneHits = false
-                    } else {
-                        alertMessage = "You must select a Home and Visiting Team!"
-                        showingAlert = true
+                HStack {
+                    Image(systemName: "plus.square")
+                    Text("Add").onTapGesture {
+                        if vTeam != nil && hTeam != nil {
+                            let theGame = Game(date: theDate, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam:vTeam!, hteam:hTeam!)
+                            modelContext.insert(theGame)
+                            try? self.modelContext.save()
+                            field = ""; hTeam = nil; vTeam = nil; everyOneHits = false
+                        } else {
+                            alertMessage = "You must select a Home and Visiting Team!"
+                            showingAlert = true
+                        }
                     }
                 }
-                .frame(width: 50, alignment:.center).border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
+                .frame(width: 70, height: 30, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10)
             }
             ForEach(games) { game in
                 NavigationLink(value: game) {
@@ -165,7 +168,7 @@ struct GameView: View {
                         let win = winner + " in the \(com.innAbr[inning])"
                         Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
                             .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                        Text("").frame(maxWidth: 45)
+                        Text("").frame(maxWidth: 70)
                     }
                 }
             }
