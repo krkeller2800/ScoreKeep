@@ -47,16 +47,27 @@ struct drawSingle: View {
     var body: some View {
         
         let com = Common()
-        Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
-        if !com.outabs.contains(abb) {
-            Path() {
-                myPath in
-                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+        if UIDevice.type == "iPhone" {
+            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            if com.onresults.contains(abb) {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.81 * size.height))
+                }
+                .stroke(Color.indigo, lineWidth: 5)
             }
-            .stroke(Color.indigo, lineWidth: 5)
+        } else {
+            Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
+            if com.onresults.contains(abb) {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                }
+                .stroke(Color.indigo, lineWidth: 5)
+            }
         }
-
     }
 }
 struct drawDouble: View {
@@ -65,14 +76,25 @@ struct drawDouble: View {
     var abb:String
     var body: some View {
         
-        Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
-        Path() {
-            myPath in
-            myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-            myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+        if UIDevice.type == "iPhone" {
+            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+            }
+            .stroke(Color.indigo, lineWidth: 5)
+        } else {
+            Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+            }
+            .stroke(Color.indigo, lineWidth: 5)
         }
-        .stroke(Color.indigo, lineWidth: 5)
     }
 }
 struct drawTriple: View {
@@ -81,15 +103,28 @@ struct drawTriple: View {
     var abb:String
     var body: some View {
         
-        Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
-        Path() {
-            myPath in
-            myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-            myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.70 * size.height))
+        if UIDevice.type == "iPhone" {
+            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.80 * size.height))
+            }
+            .stroke(Color.indigo, lineWidth: 5)
+        } else {
+            Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.70 * size.height))
+            }
+            .stroke(Color.indigo, lineWidth: 5)
+
         }
-        .stroke(Color.indigo, lineWidth: 5)
     }
 }
 struct drawHomeRun: View {
@@ -98,25 +133,18 @@ struct drawHomeRun: View {
     var abb:String
     var body: some View {
         
-        Path() {
-            myPath in
-            myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-            myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.90 * size.height))
-        }
-        .fill(Color.black)
-        Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65)).foregroundColor(.white)
-
-    }
-}
-struct drawRunning: View {
-    var size: CGSize
-    var atbat:Atbat
-    var abb:String
-    var body: some View {
-        if atbat.maxbase == "Home" {
+        if UIDevice.type == "iPhone" {
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.92 * size.height))
+            }
+            .fill(Color.black)
+            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+        } else {
             Path() {
                 myPath in
                 myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
@@ -127,20 +155,69 @@ struct drawRunning: View {
             }
             .fill(Color.black)
             Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65)).foregroundColor(.white)
-        } else {
-            Path() {
-                myPath in
-                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-                if atbat.maxbase == "Second" || atbat.maxbase == "Third" {
-                    myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-                    if atbat.maxbase == "Third" {
-                        myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+        }
+    }
+}
+struct drawRunning: View {
+    var size: CGSize
+    var atbat:Atbat
+    var abb:String
+    var body: some View {
+        
+        if UIDevice.type == "iPhone" {
+            if atbat.maxbase == "Home" {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                    myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.92 * size.height))
+                }
+                .fill(Color.black)
+                Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            } else {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                    if atbat.maxbase == "Second" || atbat.maxbase == "Third" {
+                        myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                        if atbat.maxbase == "Third" {
+                            myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
+                        }
                     }
                 }
+                .stroke(Color.indigo, lineWidth: 5)
+                Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
             }
-            .stroke(Color.indigo, lineWidth: 5)
-            Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
+        } else {
+            if atbat.maxbase == "Home" {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                    myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.90 * size.height))
+                }
+                .fill(Color.black)
+                Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65)).foregroundColor(.white)
+            } else {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                    if atbat.maxbase == "Second" || atbat.maxbase == "Third" {
+                        myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+                        if atbat.maxbase == "Third" {
+                            myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+                        }
+                    }
+                }
+                .stroke(Color.indigo, lineWidth: 5)
+                Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
+            }
         }
     }
 }
@@ -151,16 +228,27 @@ struct clearLines: View {
     var abb:String
     var body: some View {
         
-        Path() {
-            myPath in
-            myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-            myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
-            myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.90 * size.height))
+        if UIDevice.type == "iPhone" {
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.92 * size.height))
+            }
+            .stroke(Color.yellow.opacity(0.1),lineWidth: 6)
+        } else {
+            Path() {
+                myPath in
+                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+                myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.90 * size.height))
+            }
+            .stroke(Color.yellow.opacity(0.1),lineWidth: 6)
         }
-        .stroke(Color.white,lineWidth: 6)
-
     }
 }
 struct drawoutAt: View {
@@ -168,38 +256,77 @@ struct drawoutAt: View {
     var atbat:Atbat
     var abb:String
     var body: some View {
-        if atbat.outAt == "Home" {
-            Path() {
-                myPath in
-                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-               myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-                myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
-                myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.90 * size.height))
-            }
-            .stroke(Color.indigo, lineWidth: 5)
-            Text("X").position(x: 0.50 * size.width, y: 0.90 * size.height).font(.system(size: 35, weight: .bold))
-            
-            
-        } else {
-            Path() {
-                myPath in
-                myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
-                myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-                if atbat.outAt == "Second" || atbat.outAt == "Third" {
-                    myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-                    if atbat.outAt == "Third" {
-                        myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+        
+        if UIDevice.type == "iPhone" {
+            if atbat.outAt == "Home" {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                    myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.92 * size.height))
+                }
+                .stroke(Color.indigo, lineWidth: 5)
+                Text("X").position(x: 0.50 * size.width, y: 0.92 * size.height).font(.system(size: 25, weight: .regular))
+                
+                
+            } else {
+                Path() {
+                    myPath in
+     
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
+                    if atbat.outAt == "Second" || atbat.outAt == "Third" {
+                        myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
+                        if atbat.outAt == "Third" {
+                            myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
+                        }
                     }
                 }
+                .stroke(Color.indigo, lineWidth: 5)
+                if atbat.outAt == "First" {
+                    Text("X").position(x: 0.57 * size.width, y: 0.70 * size.height).font(.system(size: 25, weight: .regular))
+                } else if atbat.outAt == "Second" {
+                    Text("X").position(x: size.width/2, y: 0.7 * size.height).font(.system(size:25, weight: .regular))
+                } else if atbat.outAt == "Third" {
+                    Text("X").position(x: 0.43 * size.width, y: 0.8 * size.height).font(.system(size: 25, weight: .regular))
+                }
             }
-            .stroke(Color.indigo, lineWidth: 5)
-            if atbat.outAt == "First" {
-                Text("X").position(x: 0.75 * size.width, y: 0.70 * size.height).font(.system(size: 35, weight: .bold))
-            } else if atbat.outAt == "Second" {
-                Text("X").position(x: size.width/2, y: 0.5 * size.height).font(.system(size:35, weight: .bold))
-            } else if atbat.outAt == "Third" {
-                Text("X").position(x: 0.25 * size.width, y: 0.7 * size.height).font(.system(size: 35, weight: .bold))
+        } else {
+            if atbat.outAt == "Home" {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                    myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.90 * size.height))
+                }
+                .stroke(Color.indigo, lineWidth: 5)
+                Text("X").position(x: 0.50 * size.width, y: 0.90 * size.height).font(.system(size: 35, weight: .bold))
+                
+                
+            } else {
+                Path() {
+                    myPath in
+                    myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
+                    myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
+                    if atbat.outAt == "Second" || atbat.outAt == "Third" {
+                        myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
+                        if atbat.outAt == "Third" {
+                            myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
+                        }
+                    }
+                }
+                .stroke(Color.indigo, lineWidth: 5)
+                if atbat.outAt == "First" {
+                    Text("X").position(x: 0.75 * size.width, y: 0.70 * size.height).font(.system(size: 35, weight: .regular))
+                } else if atbat.outAt == "Second" {
+                    Text("X").position(x: size.width/2, y: 0.5 * size.height).font(.system(size:35, weight: .regular))
+                } else if atbat.outAt == "Third" {
+                    Text("X").position(x: 0.25 * size.width, y: 0.7 * size.height).font(.system(size: 35, weight: .regular))
+                }
             }
         }
     }
@@ -218,22 +345,24 @@ struct fielderButtons: View {
     @State var showShadow8 = false
     @State var showShadow9 = false
     var body: some View {
-        Button("\n\n\nLeft Fielder") {
+        let sz = UIDevice.type == "iPhone" ? 32.5: 45.0
+        let phone = UIDevice.type == "iPhone" ? true : false
+        Button("\n\n\nLeft") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-F7" : atbat.result == "Line Out" ? "-L7" : atbat.result == "Foul Out" ? "-FO7" : "-7"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "F7" : atbat.result == "Line Out" ? "L7" : atbat.result == "Foul Out" ? "FO7" : "7"
             }
         }
-        .foregroundColor(showShadow7 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.15 * size.width, y:0.4 * size.height)
+        .foregroundColor(showShadow7 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.33 :0.15) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         .shadow(color: Color.red, radius: showShadow7 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("outfielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.15 * size.width, y:0.4 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.33 :0.15) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         }
         .onChange (of: atbat.playRec) {
             setflags()
@@ -241,75 +370,75 @@ struct fielderButtons: View {
         .onAppear() {
             setflags()
         }
-        Button("\n\n\nCenter Fielder") {
+        Button("\n\n\nCenter") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-F8" : atbat.result == "Line Out" ? "-L8" : atbat.result == "Foul Out" ? "-FO8" : "-8"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "F8" : atbat.result == "Line Out" ? "L8" : atbat.result == "Foul Out" ? "FO8" : "8"
             }
         }
-        .foregroundColor(showShadow8 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.5 * size.width, y:0.35 * size.height)
+        .foregroundColor(showShadow8 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.5 :0.5) * size.width, y:(phone ? 0.5 : 0.35) * size.height)
         .shadow(color: Color.red, radius: showShadow8 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("outfielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.5 * size.width, y:0.35 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.5 :0.5) * size.width, y:(phone ? 0.5 : 0.35) * size.height)
         }
-        Button("\n\n\nRight Fielder") {
+        Button("\n\n\nRight") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-F9" : atbat.result == "Line Out" ? "-L9" : atbat.result == "Foul Out" ? "-FO9" : "-9"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "F9" : atbat.result == "Line Out" ? "L9" : atbat.result == "Foul Out" ? "FO9" : "9"
             }
         }
-        .foregroundColor(showShadow9 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.85 * size.width, y:0.4 * size.height)
+        .foregroundColor(showShadow9 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.67 :0.85) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         .shadow(color: Color.red, radius: showShadow9 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("outfielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.85 * size.width, y:0.4 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.67 :0.85) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         }
-        Button("\n\n\n3rd Base") {
+        Button("\n\n\n3rd") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-P5" : atbat.result == "Line Out" ? "-L5" : atbat.result == "Foul Out" ? "-FO5" : "-5"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "P5" : atbat.result == "Line Out" ? "L5" : atbat.result == "Foul Out" ? "FO5" : "5"
             }
         }
-        .foregroundColor(showShadow5 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.25 * size.width, y:0.59 * size.height)
+        .foregroundColor(showShadow5 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.40 : 0.25) * size.width, y:(phone ? 0.68 : 0.59) * size.height)
         .shadow(color: Color.red, radius: showShadow5 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("Infielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.25 * size.width, y:0.59 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.4 :0.25) * size.width, y:(phone ? 0.68 : 0.59) * size.height)
         }
-        Button("\n\n\nShortstop") {
+        Button("\n\n\nShort") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-P6" : atbat.result == "Line Out" ? "-L6" : atbat.result == "Foul Out" ? "-FO6" : "-6"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "P6" : atbat.result == "Line Out" ? "L6" : atbat.result == "Foul Out" ? "FO6" : "6"
             }
         }
-        .foregroundColor(showShadow6 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.36 * size.width, y:0.46 * size.height)
+        .foregroundColor(showShadow6 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.46 : 0.36) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         .shadow(color: Color.red, radius: showShadow6 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("Infielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.36 * size.width, y:0.46 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.46 : 0.36) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         }
-        Button("\n\n\n2nd Base") {
+        Button("\n\n\n2nd") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-P4" : atbat.result == "Line Out" ? "-L4" : atbat.result == "Foul Out" ? "-FO4" : "-4"
             } else {
@@ -317,49 +446,49 @@ struct fielderButtons: View {
             }
         }
         .foregroundColor(showShadow4 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.64 * size.width, y:0.46 * size.height)
+        .position(x:(phone ? 0.54 : 0.64) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         .shadow(color: Color.red, radius: showShadow4 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("Infielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.64 * size.width, y:0.46 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.54 : 0.64) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         }
-        Button("\n\n\n1st Base") {
+        Button("\n\n\n1st") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-P3" : atbat.result == "Line Out" ? "-L3" : atbat.result == "Foul Out" ? "-FO3" : "-3"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "P3" : atbat.result == "Line Out" ? "L3" : atbat.result == "Foul Out" ? "FO3" : "3"
             }        }
-        .foregroundColor(showShadow3 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.75 * size.width, y:0.59 * size.height)
+        .foregroundColor(showShadow3 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
         .shadow(color: Color.red, radius: showShadow3 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("Infielder")
                 .resizable()
                 .scaledToFill()
-                .frame(width: 45, height: 45)
-                .position(x:0.75 * size.width, y:0.59 * size.height)
+                .frame(width: sz, height: sz)
+                .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
         }
-        Button("\n\n\nPitcher") {
+        Button("\n\n\nPitch") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-P1" : atbat.result == "Line Out" ? "-L1" : atbat.result == "Foul Out" ? "-FO1" : "-1"
             } else {
                 atbat.playRec += atbat.result == "Fly Out" ? "P1" : atbat.result == "Line Out" ? "L1" : atbat.result == "Foul Out" ? "FO1" : "1"
             }
         }
-        .foregroundColor(showShadow1 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.5 * size.width, y:0.7 * size.height)
+        .foregroundColor(showShadow1 ? .red : .black).italic().font(.caption)
+        .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.77 : 0.7) * size.height)
         .shadow(color: Color.red, radius: showShadow1 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("pitcher")
                 .resizable()
                 .scaledToFill()
                 .frame(width: 55, height: 55)
-                .position(x:0.5 * size.width, y:0.7 * size.height)
+                .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.77 : 0.7) * size.height)
         }
-        Button("\n\nCatcher") {
+        Button("\n\nCatch") {
             if atbat.playRec.count > 0 {
                 atbat.playRec += atbat.result == "Fly Out" ? "-P2" : atbat.result == "Line Out" ? "-L2" : atbat.result == "Foul Out" ? "-FO2" : "-2"
             } else {
@@ -367,7 +496,7 @@ struct fielderButtons: View {
             }
         }
         .foregroundColor(showShadow2 ? .red : .black).bold().italic().font(.caption)
-        .position(x:0.5 * size.width, y:0.95 * size.height)
+        .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.93 : 0.94) * size.height)
         .shadow(color: Color.red, radius: showShadow2 ? 5 : 0, x: 0, y: 0)
         .background {
             Image("catcher")

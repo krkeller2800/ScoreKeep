@@ -18,7 +18,7 @@ struct ScoreGameView: View {
     @State private var recPlay: Bool = false
     @State private var delAtbat: Bool = false
     @State private var playRec: String = ""
-    @State private var onBase: String = ""
+    @State private var onBase: String = "Result"
     @State private var batOut: String = ""
 
     let com:Common = Common()
@@ -81,13 +81,13 @@ struct ScoreGameView: View {
                     }
                     HStack(spacing: 0) {
                         Spacer()
-                        Text("On Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 50)
+                        Text("On Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 30)
                         Spacer()
-                        Text("Batting Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 25)
+                        Text("Batting Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
                         Spacer()
-                        Text("Max Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 25)
+                        Text("Max Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
                         Spacer()
-                        Text("Basepath Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
+                        Text("Base path Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
                         Spacer()
                     }
                     HStack(spacing: 0) {
@@ -111,7 +111,7 @@ struct ScoreGameView: View {
                                  batOut = "Result"
                              }
                          }
-                         Spacer()
+                        Spacer()
                         Picker("Batting", selection: $batOut) {
                             Text("Result").tag("Result")
                             Divider()
@@ -153,7 +153,7 @@ struct ScoreGameView: View {
                          .border(.gray).cornerRadius(10).accentColor(.black)
                         Spacer()
                     }
-                    .padding(.leading, 15)
+                    .padding(.leading, 0)
                     .onChange(of: atbat.result) {
                         if atbat.result == "Result" {
                             if atbat.col != 1 {
@@ -239,6 +239,7 @@ struct ScoreGameView: View {
                     }
    
                 }
+                .background(RoundedRectangle(cornerRadius: 15).fill(Color.yellow.opacity(0.1)).stroke(.black, lineWidth: 8))
                 if recPlay {
                     fielderButtons(size: geometry.size, atbat: atbat)
                 }
@@ -246,22 +247,41 @@ struct ScoreGameView: View {
                     let abb = com.batAbbrevs[idx]
                     drawIt(size: geometry.size, atbat: atbat, abb: abb)
                 }
-                Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
-                    .position(x:0.75 * geometry.size.width, y:0.7 * geometry.size.height)
-                Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
-                    .position(x:0.5 * geometry.size.width, y:0.5 * geometry.size.height)
-                Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(47))
-                    .position(x:0.25 * geometry.size.width, y:0.7 * geometry.size.height)
-                Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 22)
-                    .position(x:0.5 * geometry.size.width, y:0.88 * geometry.size.height)
-                Path() {
-                    myPath in
-                    myPath.move(to: CGPoint(x: 0.475 * geometry.size.width, y: 0.9 * geometry.size.height))
-                    myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.92 * geometry.size.height))
-                    myPath.addLine(to: CGPoint(x: 0.525 * geometry.size.width, y: 0.90 * geometry.size.height))
-                    myPath.addLine(to: CGPoint(x: 0.48 * geometry.size.width, y: 0.90 * geometry.size.height))
+                if UIDevice.type == "iPhone" {
+                    Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 15).rotationEffect(.degrees(45))
+                        .position(x:0.57 * geometry.size.width, y:0.81 * geometry.size.height)
+                    Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 15).rotationEffect(.degrees(45))
+                        .position(x:0.5 * geometry.size.width, y:0.7 * geometry.size.height)
+                    Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 15).rotationEffect(.degrees(47))
+                        .position(x:0.43 * geometry.size.width, y:0.81 * geometry.size.height)
+//                    Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 11)
+//                        .position(x:0.5 * geometry.size.width, y:0.92 * geometry.size.height)
+//                    Path() {
+//                        myPath in
+//                        myPath.move(to: CGPoint(x: 0.487 * geometry.size.width, y: 0.93 * geometry.size.height))
+//                        myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.96 * geometry.size.height))
+//                        myPath.addLine(to: CGPoint(x: 0.512 * geometry.size.width, y: 0.93 * geometry.size.height))
+//                        myPath.addLine(to: CGPoint(x: 0.49 * geometry.size.width, y: 0.93 * geometry.size.height))
+//                    }
+//                    .fill(Color.gray.opacity(0.5))
+                } else {
+                    Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
+                         .position(x:0.75 * geometry.size.width, y:0.7 * geometry.size.height)
+                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
+                         .position(x:0.5 * geometry.size.width, y:0.5 * geometry.size.height)
+                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(47))
+                         .position(x:0.25 * geometry.size.width, y:0.7 * geometry.size.height)
+                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 22)
+                         .position(x:0.5 * geometry.size.width, y:0.88 * geometry.size.height)
+                     Path() {
+                         myPath in
+                         myPath.move(to: CGPoint(x: 0.475 * geometry.size.width, y: 0.9 * geometry.size.height))
+                         myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.92 * geometry.size.height))
+                         myPath.addLine(to: CGPoint(x: 0.525 * geometry.size.width, y: 0.90 * geometry.size.height))
+                         myPath.addLine(to: CGPoint(x: 0.48 * geometry.size.width, y: 0.90 * geometry.size.height))
+                     }
+                     .fill(Color.gray.opacity(0.5))
                 }
-                .fill(Color.gray.opacity(0.5))
             }
         }
     }

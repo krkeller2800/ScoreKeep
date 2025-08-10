@@ -168,28 +168,27 @@ struct PasteView: View {
                 HStack {
                     Text("Number").frame(maxWidth: 140,alignment: .center).bold().padding(.leading, 5)
                     Spacer()
-                    Text("First Name").frame(maxWidth: 140,alignment: .center).bold()
+                    Text("First").frame(maxWidth: 140,alignment: .center).bold()
                     Spacer()
-                    Text("Last Name").frame(maxWidth: 140,alignment: .center).bold()
+                    Text("Last").frame(maxWidth: 140,alignment: .center).bold()
                     Spacer()
-                    Text("Batting Order").frame(maxWidth: 170,alignment: .center).bold()
+                    Text("Order").frame(maxWidth: 140,alignment: .center).bold()
                     Spacer()
-                    Text("Batting Direction").frame(maxWidth: 170,alignment: .center).bold()
+                    Text("Direction").frame(maxWidth: 140,alignment: .center).bold()
                     Spacer()
                     Text("Position").frame(maxWidth: 140,alignment: .center).bold().padding(.trailing, 5)
-                    Spacer()
                 }
                 HStack {
                     Picker("Number", selection: $numberIdx) {
                         let fnames = playerComponents
-                        Text("Leave Blank").tag(0)
+                        Text("Void").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 5)
                     .onChange(of: numberIdx) {
                         if numberIdx != 0 {
@@ -205,14 +204,14 @@ struct PasteView: View {
                     Spacer()
                     Picker("First Name", selection: $firstNameIdx) {
                         let fnames = playerComponents
-                        Text("Leave Blank").tag(0)
+                        Text("Void").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: firstNameIdx) {
                         if firstNameIdx != 0 {
@@ -226,14 +225,14 @@ struct PasteView: View {
                     Spacer()
                     Picker("Last Name", selection: $lastNameIdx) {
                         let fnames = playerComponents
-                        Text("Leave Blank").tag(0)
+                        Text("Void").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: lastNameIdx) {
                         if lastNameIdx != 0 {
@@ -245,9 +244,9 @@ struct PasteView: View {
                         }
                     }
                     Spacer()
-                    Picker("Batting Order", selection: $batOrderIdx) {
+                    Picker("Order", selection: $batOrderIdx) {
                         let fnames = playerComponents
-                        Text("Leave Blank").tag(0)
+                        Text("Void").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
@@ -255,7 +254,7 @@ struct PasteView: View {
                         }
                         Text("Paste order").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 170,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: batOrderIdx) {
                         var x = 0
@@ -273,14 +272,14 @@ struct PasteView: View {
                     Spacer()
                     Picker("Batting Dir", selection: $batsDirIdx) {
                         let fnames = playerComponents
-                        Text("Leave Blank").tag(0)
+                        Text("Void").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
                     }
-                    .frame(maxWidth: 170,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black)
                     .onChange(of: batsDirIdx) {
                         if batsDirIdx != 0 {
@@ -294,14 +293,14 @@ struct PasteView: View {
                     Spacer()
                     Picker("Position", selection: $positionIdx) {
                         let fnames = playerComponents
-                        Text("Leave Blank").tag(0)
+                        Text("Void").tag(0)
                         ForEach(0 ..< fnames.count, id: \.self) {
                             if fnames[$0] != "" {
                                 Text(fnames[$0])
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.trailing, 5)
                     .onChange(of: positionIdx) {
                         if positionIdx != 0 {
@@ -319,8 +318,8 @@ struct PasteView: View {
                 VStack(alignment: .leading, spacing:0) {
                     if players.count > 0 {
                         ForEach(Array(players.enumerated()), id: \.1) { index, player in
-                            if index < 20 {
-                                Text(player).frame(width: 170, alignment: .leading).lineLimit(1).padding(.leading, 10)
+                            if index < (UIDevice.type == "iPhone" ? 4 : 20) {
+                                Text(player).frame(maxWidth: 170, alignment: .leading).lineLimit(1).padding(.leading, 10)
                             }
                         }
                     }
@@ -393,8 +392,9 @@ struct PasteView: View {
                         }
                     }
                     if let pidx = selectPlayers.firstIndex(where: { ($0.name.removeAccents().split(separator: " ").last == Name.split(separator: " ").last &&
-                                                                        (Name.split(separator: " ").first?.count == 1 || $0.name.split(separator: " ").first?.count == 1)) ||
-                                                                        $0.name.removeAccents() == Name}) {
+                                                                    ((Name.split(separator: " ").first?.count == 1 || $0.name.split(separator: " ").first?.count == 1) ||
+                                                                    (Name.split(separator: " ").first?.count == 2 || $0.name.split(separator: " ").first?.count == 2))) ||
+                                                                    $0.name.removeAccents() == Name}) {
                         selectPlayers[pidx].batOrder = bOrder == 99 ? selectPlayers[pidx].batOrder : bOrder
                         selectPlayers[pidx].position = pos == "" ? selectPlayers[pidx].position : pos
                         selectPlayers[pidx].number = num == "" ? selectPlayers[pidx].number : num
@@ -478,9 +478,9 @@ struct PasteView: View {
                     let componentNum: Int = players[0].components(separatedBy: delimeter).count
                     for player in players {
                         if !(player.components(separatedBy: delimeter).count == componentNum) {
-                            alertMessage = "Inconsistant number of fields in pasted players"
+                            alertMessage = "Removed \(player) Due to inonsistant number of fields"
                             showingAlert.toggle()
-                            return
+                            players.removeAll() { $0 == player }
                         }
                     }
                 } else {

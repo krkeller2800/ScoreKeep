@@ -51,17 +51,19 @@ struct Common {
     }
 }
     
-struct BoxScore {
+struct BoxScore: Hashable {
     var type:String = ""
     var runs:Int = 0
     var hits:Int = 0
+    var error:Int = 0
     var stoleBase:Int = 0
     var strikeouts:Int = 0
     var walks:Int = 0
     var HR:Int = 0
+    var inning:Int = 0
 }
 struct PitchStats: Identifiable {
-    let id = UUID()
+    var id = UUID()
     var pitcher:Pitcher?
     var runs:Int = 0
     var uruns:Int = 0
@@ -94,7 +96,7 @@ struct PitchStats: Identifiable {
     }
 }
 struct PlayerStats: Identifiable {
-    let id = UUID()
+    var id = UUID()
     var player:Player?
     var atbats:Int
     var runs:Int
@@ -160,15 +162,7 @@ struct InnStatus {
     var onSecond:Bool = false
     var onThird:Bool = false
 }
-struct SharePlayer: Identifiable, Codable {
-    var id = UUID()
-    let name: String
-    let number: String
-    let position: String
-    let batDir: String
-    let batOrder: Int
-    let photo: Data
-}
+
 enum DataError: Error, LocalizedError {
     case savingData (dataType: String = "")
     case insertingData (dataType: String = "")
@@ -186,4 +180,88 @@ enum DataError: Error, LocalizedError {
             return "Swift Data Error: \(error.localizedDescription)"
         }
     }
+}
+struct SharePlayer: Identifiable, Codable {
+    var id = UUID()
+    var name: String = ""
+    var number: String = ""
+    var position: String = ""
+    var batDir: String = ""
+    var batOrder: Int = 0
+    var team: ShareTeam?
+    var atbats: [ShareAtbat] = []
+    var photo: Data = Data()
+}
+struct ShareGame: Identifiable, Codable {
+    var id = UUID()
+    var date: String = ""
+    var location: String = ""
+    var highLights: String = ""
+    var hscore: Int = 0
+    var vscore: Int = 0
+    var everyOneHits: Bool = false
+    var numInnings: Int = 0
+    var vteam: ShareTeam
+    var hteam: ShareTeam
+    var players: [SharePlayer] = []
+    var atbats: [ShareAtbat] = []
+    var lineups: [ShareLineup] = []
+    var pitchers: [SharePitcher] = []
+    var replaced: [SharePlayer] = []
+    var incomings: [SharePlayer] = []
+}
+struct ShareTeam: Identifiable, Codable {
+    var id: UUID = UUID()
+    var name: String = ""
+    var coach: String = ""
+    var details: String = ""
+    var players = [SharePlayer]()
+    var games = [ShareGame]()
+    var logo: Data = Data()
+}
+struct ShareAtbat: Identifiable, Codable {
+    var id: UUID = UUID()
+    var game: ShareGame?
+    var team: ShareTeam
+    var player: SharePlayer
+    var result: String
+    var maxbase: String
+    var batOrder: Int
+    var outAt: String
+    var inning: CGFloat
+    var seq: Int
+    var col: Int
+    var rbis: Int
+    var outs: Int
+    var sacFly: Int
+    var sacBunt: Int
+    var stolenBases: Int
+    var earnedRun: Bool
+    var playRec: String
+    var endOfInning: Bool
+}
+struct ShareLineup: Identifiable, Codable {
+    var id: UUID = UUID()
+    var everyoneHits: Bool
+    var game: ShareGame?
+    var team: ShareTeam
+    var inning: Int
+    var players: [SharePlayer] = []
+}
+struct SharePitcher: Identifiable, Codable {
+    var id: UUID = UUID()
+    var player: SharePlayer
+    var team: ShareTeam
+    var game: ShareGame?
+    var startInn: Int
+    var sOuts: Int
+    var sBats: Int
+    var endInn: Int
+    var eOuts: Int
+    var eBats: Int
+    var strikeOuts: Int
+    var walks: Int
+    var hits: Int
+    var runs: Int
+    var won: Bool
 }

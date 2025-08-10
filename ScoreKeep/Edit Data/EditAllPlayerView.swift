@@ -95,11 +95,7 @@ struct EditAllPlayerView: View {
             HStack {
                 if let imageData = player.photo, let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
-                        .scaleImage(iHeight: 400, imageData: imageData)
-                        .cornerRadius(25)
-//                        .resizable()
-//                        .frame(maxWidth: 400, maxHeight: 400, alignment: .center)
-//                        .scaledToFit()
+                        .scaleImage(iHeight: 400, imageData: imageData).cornerRadius(25)
                 }
             }
             Text("\n\n")

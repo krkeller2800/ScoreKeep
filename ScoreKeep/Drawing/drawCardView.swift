@@ -297,6 +297,9 @@ struct drawTots: View {
         Text("\(box3.hits)")
             .position(x: placeBox.minX + (space.width * 0.75), y:0.25 * space.height + placeBox.minY)
             .font(.headline).foregroundColor(.black).background(.clear)
+ 
+        Text(".").position(x:from.minX + 500 + (space.width * 2.5), y:0.5 * space.height + y)
+
         if newCol < 13 {
             Text("Total >")
                 .font(.headline).foregroundColor(.black).frame(width: 90, alignment: .leading)
@@ -360,7 +363,9 @@ struct drawBoxScore: View {
     let com = Common()
     var body: some View {
         
-        let placeBox = CGRect(x: 0.20 * size.width, y: -130, width:150, height:100)
+        let adj:CGFloat = UIDevice.type == "iPhone" ? 5 : 0
+        let font:Font = UIDevice.type == "iPhone" ? .caption : .headline
+        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.175 : 0.20) * size.width, y: UIDevice.type == "iPhone" ? -90 : -130, width:150, height:100)
         let boxHome = doBoxScore(doTeam: "Home")
         let boxVisit = doBoxScore(doTeam: "Visit")
         let com = Common()
@@ -369,45 +374,45 @@ struct drawBoxScore: View {
         let v3outs = visitOuts % 3 == 0
         let h3outs = homeOuts % 3 == 0
         let vinning:Int = visitOuts / 3
-        let theInning = homeOuts < visitOuts && h3outs && v3outs ? "of \(com.innAbr[Int(vinning)])" :
-                        homeOuts <= visitOuts && !h3outs ? "of \(com.innAbr[Int(vinning)])" : "of \(com.innAbr[Int(vinning + 1)])"
-        let theHalf = homeOuts < visitOuts && v3outs ? "Bottom" : "Top"
+        let theInning = homeOuts < visitOuts && h3outs && v3outs ? "\(com.innAbr[Int(vinning)])" :
+                        homeOuts <= visitOuts && !h3outs ? "\(com.innAbr[Int(vinning)])" : "\(com.innAbr[Int(vinning + 1)])"
+        let theHalf = homeOuts < visitOuts && v3outs ? "Bot" : "Top"
 
         Text(game.vteam?.name ?? "")
-            .font(.headline).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-            .position(x: placeBox.minX - 55, y: placeBox.minY + 13)
+            .font(font).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+            .position(x: placeBox.minX - 55, y: placeBox.minY + 13).bold()
         Text(game.hteam?.name ?? "")
-            .font(.headline).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-            .position(x: placeBox.minX - 55, y: placeBox.minY + 38)
+            .font(font).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+            .position(x: placeBox.minX - 55, y: placeBox.minY + 38 - 2*adj).bold()
         Text("\(boxVisit.runs)")
-            .position(x: placeBox.minX + 56, y: placeBox.minY + 13)
-            .font(.headline).foregroundColor(.black).background(.clear)
+            .position(x: placeBox.minX + 56 - 4*adj, y: placeBox.minY + 13)
+            .font(font).foregroundColor(.black).background(.clear)
         Text("\(boxVisit.hits)")
-            .position(x: placeBox.minX + 93, y: placeBox.minY + 13)
-            .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(boxVisit.stoleBase)")
-            .position(x: placeBox.minX + 130, y: placeBox.minY + 13)
-            .font(.headline).foregroundColor(.black).background(.clear)
+            .position(x: placeBox.minX + 93 - 9*adj, y: placeBox.minY + 13)
+            .font(font).foregroundColor(.black).background(.clear)
+        Text("\(boxVisit.error)")
+            .position(x: placeBox.minX + 130 - 13*adj, y: placeBox.minY + 13)
+            .font(font).foregroundColor(.black).background(.clear)
         Text("\(boxHome.runs)")
-            .position(x: placeBox.minX + 56, y: placeBox.minY + 38)
-            .font(.headline).foregroundColor(.black).background(.clear)
+            .position(x: placeBox.minX + 56 - 4*adj, y: placeBox.minY + 38 - 2*adj)
+            .font(font).foregroundColor(.black).background(.clear)
         Text("\(boxHome.hits)")
-            .position(x: placeBox.minX + 93, y: placeBox.minY + 38)
-            .font(.headline).foregroundColor(.black).background(.clear)
-        Text("\(boxHome.stoleBase)")
-            .position(x: placeBox.minX + 130, y: placeBox.minY + 38)
-            .font(.headline).foregroundColor(.black).background(.clear)
-        Text("Inning  Runs   Hits   Errors")
-            .font(.caption).italic().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: placeBox.minX + 75, y:placeBox.minY - 10)
+            .position(x: placeBox.minX + 93 - 9*adj, y: placeBox.minY + 38 - 2*adj)
+            .font(font).foregroundColor(.black).background(.clear)
+        Text("\(boxHome.error)")
+            .position(x: placeBox.minX + 130 - 13*adj, y: placeBox.minY + 38 - 2*adj)
+            .font(font).foregroundColor(.black).background(.clear)
+        Text(UIDevice.type == "iPhone" ? "  Inn  R  H  E" : "Inning  Runs   Hits   Errors")
+            .font(.caption).italic().foregroundColor(.black).frame(width:150,alignment: .leading)
+            .position(x: placeBox.minX + 75, y:placeBox.minY - 10 + 2*adj)
         Text(theHalf)
             .font(.caption).italic().foregroundColor(.black).frame(width: 35, alignment: .center).lineLimit(1).minimumScaleFactor(0.1)
-            .position(x: placeBox.minX + 20, y:placeBox.minY + 15)
+            .position(x: placeBox.minX + 20 - 1*adj, y:placeBox.minY + 15)
         Text(theInning)
             .font(.caption).italic().foregroundColor(.black).frame(width: 35, alignment: .center).lineLimit(1).minimumScaleFactor(0.1)
-            .position(x: placeBox.minX + 20, y:placeBox.minY + 35)
+            .position(x: placeBox.minX + 20 - 1*adj, y:placeBox.minY + 35 - adj)
 
-        drawBox(start: placeBox)
+        drawBox(start: placeBox, adj:adj)
             .stroke(Color.gray, lineWidth: 1)
 
         
@@ -415,32 +420,34 @@ struct drawBoxScore: View {
     func doBoxScore(doTeam:String)->BoxScore {
         let com = Common()
         if doTeam == "Home" {
-            let runs = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
-            let hits = game.atbats.filter({com.hitresults.contains($0.result) && $0.team.name == game.hteam!.name}).count
-            
-            return BoxScore(type:"",runs: runs, hits: hits, stoleBase: 0, strikeouts:0, walks:0, HR:0)
+            let runs = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam?.name}).count
+            let hits = game.atbats.filter({com.hitresults.contains($0.result) && $0.team.name == game.hteam?.name}).count
+            let errors = game.atbats.filter({$0.result == "Error" && $0.team.name == game.vteam?.name}).count
+
+            return BoxScore(type:"",runs: runs, hits: hits, error: errors, strikeouts:0, walks:0, HR:0)
         } else {
-            let runs = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
-            let hits = game.atbats.filter({com.hitresults.contains($0.result) && $0.team.name == game.vteam!.name}).count
-            
-            return BoxScore(type:"",runs: runs, hits: hits, stoleBase: 0 , strikeouts:0, walks:0, HR:0)
+            let runs = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam?.name}).count
+            let hits = game.atbats.filter({com.hitresults.contains($0.result) && $0.team.name == game.vteam?.name}).count
+            let errors = game.atbats.filter({$0.result == "Error" && $0.team.name == game.hteam?.name}).count
+
+            return BoxScore(type:"",runs: runs, hits: hits, error: errors , strikeouts:0, walks:0, HR:0)
         }
    
      }
-    func drawBox(start: CGRect) -> Path {
+    func drawBox(start: CGRect, adj:CGFloat) -> Path {
         Path() {
             myPath in
-            myPath.move(to: CGPoint(x: start.minX, y: start.minY ))
-            myPath.addLine(to: CGPoint(x: start.minX, y:start.minY + (0.5 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (1 * start.width), y:start.minY + (0.5 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (1 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.25 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.25 * start.width), y:start.minY + (0.5 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.5 * start.width), y:start.minY + (0.5 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.5 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.75 * start.width), y:start.minY + (0 * start.height)))
-            myPath.addLine(to: CGPoint(x: start.minX + (0.75 * start.width), y:start.minY + (0.5 * start.height)))
+            myPath.move(to: CGPoint(x: start.minX, y: start.minY + 1.4*adj ))
+            myPath.addLine(to: CGPoint(x: start.minX, y:start.minY - 2.8*adj + (0.5 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 15*adj + (1 * start.width), y:start.minY - 2.8*adj + (0.5 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 15*adj + (1 * start.width), y:start.minY + 1.4*adj + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX + (0 * start.width), y:start.minY + 1.4*adj + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 2*adj + (0.25 * start.width), y:start.minY + 1.4*adj + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 2*adj + (0.25 * start.width), y:start.minY - 2.8*adj + (0.5 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 6.5*adj + (0.5 * start.width), y:start.minY - 2.8*adj + (0.5 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 6.5*adj + (0.5 * start.width), y:start.minY + 1.4*adj + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 11*adj + (0.75 * start.width), y:start.minY + 1.4*adj + (0 * start.height)))
+            myPath.addLine(to: CGPoint(x: start.minX - 11*adj + (0.75 * start.width), y:start.minY - 2.8*adj + (0.5 * start.height)))
         }
     }
 }
@@ -472,11 +479,13 @@ struct drawPitchers: View {
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
                     Text("ERA").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    if width > 1000 {
-                        Text("ER").frame(maxWidth:.infinity).border(.gray)
+                   
+                    Text("ER").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
+                
                         Text("UER").frame(maxWidth:.infinity).border(.gray)
                             .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    if width > 1000 {
                         Text("Hit").frame(maxWidth:.infinity).border(.gray)
                             .foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Ks").frame(maxWidth:.infinity).border(.gray)
@@ -494,7 +503,7 @@ struct drawPitchers: View {
                 let pitchers = fixInnings(pitchers: pitchs)
                 ForEach(Array(pitchers.enumerated()), id: \.offset) { index, pitcher in
                     NavigationLink(value: pitcher) {
-                        VStack {
+                        VStack(spacing:0) {
                             HStack{
                                 let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
                                 let sinn = String("\(pitcher.startInn)      \(pitcher.sOuts)      \(pitcher.sBats)")
@@ -509,11 +518,12 @@ struct drawPitchers: View {
                                     .foregroundColor(.black).frame(width: 250)
                                 Text(Double(stats.ERA), format: Int(stats.ERA) == 999 ? .number.rounded(increment: 1.0) : .number.rounded(increment: 0.01))
                                     .foregroundColor(.black).frame(maxWidth:.infinity)
-                                if width > 1000 {
-                                    Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
+                                
                                     Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
+                                if width > 1000 {
                                     Text(Double(stats.hits), format: .number.rounded(increment: 1.0)) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
                                     Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)) // 12 (whole number)
@@ -525,13 +535,14 @@ struct drawPitchers: View {
                                 }
                                 Image(systemName: "chevron.right").padding(.horizontal,20)
                             }
-                            Divider()
+//                            Divider()
                         }
                     }
                 }
                 .navigationDestination(for: Pitcher.self) { pitcher in
                     EditPitcherView(pitcher: pitcher, game: atbats[0].game)
                 }
+//                .hid
                 .onAppear() {
                     
                 }
@@ -542,12 +553,13 @@ struct drawPitchers: View {
     func doPitchers(oAtbats:[Atbat],pitcher: Pitcher)->PitchStats {
         if oAtbats.count > 0 {
             let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1 
-            let innings = CGFloat(oAtbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
-                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
-                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
+            let innings = CGFloat(oAtbats.filter({com.outresults.contains($0.result) &&
+                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
+                                                (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
             let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
-                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
-                 (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
+                                                                (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
+                                                                (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
             let uruns = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3)) && !$0.earnedRun}).count
@@ -589,10 +601,13 @@ struct drawPitchers: View {
 struct drawIndicator: View {
     var iStat:InnStatus
     var size:CGSize
+    var colbox:[BoxScore]
+    var space:CGRect
 
     var body: some View {
         
-        let placeBox = CGRect(x: 0.70 * size.width, y: -110, width:150, height:100)
+//        let com = Common()
+        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.76 : 0.70) * size.width, y: UIDevice.type == "iPhone" ? -50 : -110, width:150, height:100)
         Rectangle().fill(iStat.onThird && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
             .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX, y:placeBox.minY)
         Rectangle().fill(iStat.onSecond && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
@@ -600,8 +615,13 @@ struct drawIndicator: View {
         Rectangle().fill(iStat.onFirst && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
             .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX+34, y:placeBox.minY)
         Circle().fill(iStat.outs == 1 || iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
-            .position(x:placeBox.minX+10, y:placeBox.minY+24)
+            .position(x:placeBox.minX+13, y:placeBox.minY+15)
         Circle().fill(iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
-            .position(x:placeBox.minX+25, y:placeBox.minY+24)
+            .position(x:placeBox.minX+25, y:placeBox.minY+15)
+//        ForEach(Array(colbox.enumerated()), id: \.1) { index, colb in
+//            if colb.inning != 0 {
+//                Text(com.innAbr[colb.inning]).position(x:(CGFloat(index) * space.width) + space.minX + 0.5*space.width, y:space.minY-25)
+//            }
+//        }
     }
 }

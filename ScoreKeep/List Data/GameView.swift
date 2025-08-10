@@ -12,7 +12,7 @@ import Foundation
 struct GameView: View {
     @Environment(\.modelContext) var modelContext
     @Binding var navigationPath: NavigationPath
-    @State private var title: String
+    @Binding private var title: String
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var deleteIndexSet: IndexSet?
@@ -37,110 +37,118 @@ struct GameView: View {
     var body: some View {
         Form {
             if games.count > 0 {
-                if self.title == "Games" {
-                    Text("Select a Game to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundColor(.black).bold()
-                } else {
-                    Text("Select a Game to score or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundColor(.black).bold()
+                if self.title == "Edit a Game" {
+                    Text("Select a Game to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+                } else if self.title == "Score a Game"{
+                    Text("Select a Game to score or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
                 }
             }
             HStack {
-                Text("Game Date").frame(width: 225).border(.gray)
+                Text("Game Date").frame(width: UIDevice.type == "iPhone" && title.isEmpty ? 105 : 225).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Field").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).background(.yellow.opacity(0.3))
-                Text("All Hit").frame(maxWidth:60).border(.gray)
-                    .foregroundColor(.red).background(.yellow.opacity(0.3))
+                if !title.isEmpty {
+                    Text("Field").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("All Hit").frame(maxWidth:60).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                }
+     
                 Text("Visiting").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
                 Text("Home").frame(maxWidth:.infinity).border(.gray)
                     .foregroundColor(.red).background(.yellow.opacity(0.3))
-                Text("Score").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).background(.yellow.opacity(0.3))
-                Text("").frame(maxWidth:90)
+                if !title.isEmpty {
+                    Text("Score").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                }
+                Text("").frame(maxWidth:40)
             }
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            HStack{
-                DatePicker("", selection: $date)
-                    .onAppear {
-                        date = ISO8601DateFormatter().date(from: theDate) ?? Date()
-                    }
-                    .onChange(of: date) {
-                        theDate = date.ISO8601Format()
-                    }
-                    .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
-                    .frame(width: 205, alignment: .leading)
-                    .clipped()
-                 TextField("Field", text: $field)
-                    .frame(maxWidth: .infinity)
-                    .foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing)
-                    .focused($focusedField, equals: .field)
-//                    .onAppear {self.focusedField = .field}
-                    .autocapitalization(.words)
-                    .textContentType(.none)
-                Button(action:{everyOneHits.toggle()}){
-                    Text(everyOneHits ? "True" : "False")
-                        .frame(maxWidth:60,maxHeight:30)
+            if !title.isEmpty {
+                HStack{
+                    DatePicker("", selection: $date)
+                        .onAppear {
+                            date = ISO8601DateFormatter().date(from: theDate) ?? Date()
+                        }
+                        .onChange(of: date) {
+                            theDate = date.ISO8601Format()
+                        }
+                        .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
+                        .frame(width: 205, alignment: .leading)
+                        .clipped()
+                    TextField("Field", text: $field)
+                        .frame(maxWidth: .infinity)
                         .foregroundColor(.blue).bold()
-                        .background(Color.white)
-                }.buttonStyle(PlainButtonStyle())
-                .cornerRadius(10)
-                .overlay(Divider().background(.black), alignment: .trailing)
-                Picker("Visiting Team", selection: $vTeam) {
-                     Text("Pick").tag(Optional<Team>.none)
-                     if teams.isEmpty == false {
-                         Divider()
-                         ForEach(teams) { team in
-                             if team.name != "" {
-                                 Text(team.name).tag(Optional(team))
-                             }
-                         }
-                     }
-                 }
-                 .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                 .overlay(Divider().background(.black), alignment: .trailing)
-                  Picker("Home Team", selection: $hTeam) {
-                     Text("Pick").tag(Optional<Team>.none)
-                     if teams.isEmpty == false {
-                         Divider()
-                         ForEach(teams) { team in
-                             if team.name != "" {
-                                 Text(team.name).tag(Optional(team))
-                             }
-                         }
-                     }
-                 }
-                 .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                 .overlay(Divider().background(.black), alignment: .trailing)
-                  Text("Not Played Yet")
-                    .frame(maxWidth: .infinity)
-                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                HStack {
-                    Image(systemName: "plus.square")
-                    Text("Add").onTapGesture {
-                        if vTeam != nil && hTeam != nil {
-                            let theGame = Game(date: theDate, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam:vTeam!, hteam:hTeam!)
-                            modelContext.insert(theGame)
-                            try? self.modelContext.save()
-                            field = ""; hTeam = nil; vTeam = nil; everyOneHits = false
-                        } else {
-                            alertMessage = "You must select a Home and Visiting Team!"
-                            showingAlert = true
+                        .overlay(Divider().background(.black), alignment: .trailing)
+                        .focused($focusedField, equals: .field)
+                    //                    .onAppear {self.focusedField = .field}
+                        .autocapitalization(.words)
+                        .textContentType(.none)
+                    Button(action:{everyOneHits.toggle()}){
+                        Text(everyOneHits ? "True" : "False")
+                            .frame(maxWidth:60,maxHeight:30)
+                            .foregroundColor(.blue).bold()
+                            .background(Color.white)
+                    }.buttonStyle(PlainButtonStyle())
+                        .cornerRadius(10)
+                        .overlay(Divider().background(.black), alignment: .trailing)
+                    Picker("Visiting Team", selection: $vTeam) {
+                        Text("Pick").tag(Optional<Team>.none)
+                        if teams.isEmpty == false {
+                            Divider()
+                            ForEach(teams) { team in
+                                if team.name != "" {
+                                    Text(team.name).tag(Optional(team))
+                                }
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                    .overlay(Divider().background(.black), alignment: .trailing)
+                    Picker("Home Team", selection: $hTeam) {
+                        Text("Pick").tag(Optional<Team>.none)
+                        if teams.isEmpty == false {
+                            Divider()
+                            ForEach(teams) { team in
+                                if team.name != "" {
+                                    Text(team.name).tag(Optional(team))
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                    .overlay(Divider().background(.black), alignment: .trailing)
+                    Text("Not Played Yet")
+                        .frame(maxWidth: .infinity)
+                        .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                    HStack {
+                        Image(systemName: "plus")
+                            .onTapGesture {
+                                if vTeam != nil && hTeam != nil {
+                                    let theGame = Game(date: theDate, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam:vTeam!, hteam:hTeam!)
+                                    modelContext.insert(theGame)
+                                    try? self.modelContext.save()
+                                    field = ""; hTeam = nil; vTeam = nil; everyOneHits = false
+                                } else {
+                                    alertMessage = "You must select a Home and Visiting Team!"
+                                    showingAlert = true
+                                }
+                            }
+                    }
                 }
-                .frame(width: 70, height: 30, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10)
             }
             ForEach(games) { game in
                 NavigationLink(value: game) {
                     HStack {
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                        Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width: 220, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.5)
+                        Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width:UIDevice.type == "iPhone" && title.isEmpty ? 100 : 220, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.5)
                             .overlay(Divider().background(.black), alignment: .trailing)
-                        Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                        Text(game.everyOneHits ? "True" : "False").frame(maxWidth:60, alignment: .center).foregroundColor(.black).bold()
-                            .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                        if !title.isEmpty {
+                            Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
+                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                            Text(game.everyOneHits ? "True" : "False").frame(maxWidth:60, alignment: .center).foregroundColor(.black).bold()
+                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                        }
                         HStack {
                             if let imageData = game.vteam?.logo, let uiImage = UIImage(data: imageData) {
                                 Image(uiImage: uiImage)
@@ -159,16 +167,19 @@ struct GameView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                         .overlay(Divider().background(.black), alignment: .trailing)
-                        let hruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
-                        let vruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
-                        let outs = game.atbats.filter({$0.team.name == game.vteam!.name && (com.outresults.contains($0.result) || $0.outAt != "Safe" )}).count
-                        let inning = (outs / 3) + 1
-                        let score:String = "\(vruns) to \(hruns)"
-                        let winner:String = vruns > hruns ? (game.vteam?.name ?? " ") : vruns < hruns ? (game.hteam?.name ?? "") : "No winner yet"
-                        let win = winner + " in the \(com.innAbr[inning])"
-                        Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                        Text("").frame(maxWidth: 70)
+                        if !title.isEmpty {
+                            let hruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
+                            let vruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
+                            let outs = game.atbats.filter({$0.team.name == game.vteam!.name && (com.outresults.contains($0.result) || $0.outAt != "Safe" )}).count
+                            let inning = (outs / 3) + 1
+                            let score:String = "\(vruns) to \(hruns)"
+                            let winner:String = vruns > hruns ? (game.vteam?.name ?? " ") : vruns < hruns ? (game.hteam?.name ?? "") : "No winner yet"
+                            let fin = inning > 9 && winner != "No winner yet" ? " Final" : ""
+                            let win = winner + (fin != "" ? fin : " in the \(com.innAbr[inning])")
+                            Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
+                                .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
+                        }
+                        Spacer(minLength: 20)
                     }
                 }
             }
@@ -210,9 +221,9 @@ struct GameView: View {
         }
         .listRowSeparator(.hidden)
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:String, navigationPath: Binding<NavigationPath>) {
+    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>) {
         
-        self.title = title
+        _title = title
         _navigationPath = navigationPath
         
         _games = Query(filter: #Predicate { game in

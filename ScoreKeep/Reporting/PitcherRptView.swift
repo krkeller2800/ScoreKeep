@@ -19,15 +19,18 @@ struct PitcherRptView: View {
     @State  var showingAlert = false
     @State var sumedStats:[PitchStats] = []
     @State var atbats:[Atbat] = []
-
-    
+    @State var screenshotMaker: ScreenshotMaker?
+    @State var doShot = false
+    @State var hasChanged = false
+    @State var url:URL?
+ 
     @Query var pitchers: [Pitcher]
     
     var com:Common = Common()
 
     var body: some View {
-        ScrollView {
-            Section {
+        NavigationStack {
+            ScrollView {
                 VStack(spacing:50) {
                     HStack {
                         Text("Through \(Date.now.formatted(date: .long, time: .omitted))").padding(.leading,5)
@@ -45,35 +48,35 @@ struct PitcherRptView: View {
                     VStack(spacing:0) {
                         HStack {
                             Text("").frame(maxWidth:5)
-                            Text("Num").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("Num").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Pitcher").frame(width: 225).border(.gray).lineLimit(1)
+                            Text("Pitcher").frame(width: 150).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
-                            Text("ERA").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("ERA").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("INN").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("INN").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("ER").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("ER").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("UER").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("UER").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Ks").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("Ks").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("ꓘs").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("ꓘs").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("BB").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("BB").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("HBP").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("HBP").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("HR").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("HR").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("1B Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("1B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("2B Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("2B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("3B Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1)
+                            Text("3B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
                                 .foregroundColor(.red).background(.yellow.opacity(0.3))
                             Text("").frame(maxWidth:5)
                         }
@@ -82,35 +85,35 @@ struct PitcherRptView: View {
                             HStack {
                                 Text("").frame(maxWidth:5)
                                 Text("\(stats.pitcher?.player.number ?? "")")
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text("\(stats.pitcher?.player.name ?? "")")
-                                    .foregroundColor(.black).frame(width: 225,alignment: .leading)
+                                    .foregroundColor(.black).frame(width: 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.ERA), format: .number.rounded(increment: 0.01))
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.innings), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.hits), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.Ksl), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.BB), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.hbp), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.HR), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.singles), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.doubles), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.triples), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text("").frame(maxWidth:5)
                             }
                         }
@@ -136,24 +139,66 @@ struct PitcherRptView: View {
                     }
                     isLoading = false
                 }
+                .onChange(of: doShot) {
+                    if doShot {
+                        if let screenshotMaker = screenshotMaker {
+                            url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                            doShot.toggle()
+                        }
+                    }
+                }
                 .alert(alertMessage, isPresented: $showingAlert) {
                     Button("OK", role: .cancel) { }
                 }
-                Spacer()
-            } header: {
-                        HStack {
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Text("< Back").padding(.leading,10)
+                .toolbar {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.left")
+                                Text("Back")
                             }
-                            Spacer()
-                            Text("Pitching Statistics").frame(width:225, alignment:.leading).font(.title3).foregroundColor(.black).bold()
-                            Spacer()
                         }
+                    }
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        if UIDevice.type == "iPad" {
+                            Button {
+                                hasChanged = false
+                                doShot = true
+                            } label: {
+                                Text(" Screenshot")
+                            }
+                            .buttonStyle(ToolBarButtonStyle())
+                            if let shotURL = url {
+                                if hasChanged == false {
+                                    ShareLink("Share", item: shotURL)
                                 }
+                            }
+                        }
+                    }
+                    ToolbarItem(placement: .principal) {
+                        Text("Pitcher Statistics").font(.title2)
+                    }
+                }
 
-
+                Spacer()
+            }
+//            header: {
+//                        HStack {
+//                            Button(action: {
+//                                dismiss()
+//                            }) {
+//                                Text("< Back").padding(.leading,10)
+//                            }
+//                            Spacer()
+//                            Text("Pitching Statistics").frame(width:225, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+//                            Spacer()
+//                        }
+//                                }
+            .screenshotMaker { screenshotMaker in
+                     self.screenshotMaker = screenshotMaker
+            }
         }
     }
     
@@ -231,5 +276,31 @@ struct PitcherRptView: View {
             stats.hbp += thisStats.hbp
             stats.ERA = stats.innings == 0 ? 0.0 : (CGFloat(stats.runs) / CGFloat(stats.innings)) * 9
         }
+    }
+    func saveImage(uiimage: UIImage?)-> URL? {
+        
+        guard let data = uiimage?.jpegData(compressionQuality: 0.8) else {
+            print("Could not convert UIImage to Data.")
+            alertMessage = "Could not save image"
+            showingAlert = true
+            isLoading = false
+               return nil
+        }
+        
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = url.appendingPathComponent("\(tName) Pitching Stats.jpg")
+        
+        do {
+            try data.write(to: fileURL)
+            print("Image saved successfully to: \(fileURL.path)")
+            isLoading = false
+            return fileURL
+        } catch {
+            print("Error saving image: \(error.localizedDescription)")
+            alertMessage = "Could not save image"
+            showingAlert = true
+            isLoading = false
+        }
+        return nil
     }
 }

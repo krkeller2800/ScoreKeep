@@ -10,20 +10,44 @@ import SwiftData
 
 struct PlayerView: View {
     @Environment(\.modelContext) var modelContext
+    @Environment(\.dismiss) var dismiss
     @Binding var navigationPath: NavigationPath
     @State var pName: String = ""
     @State var pNum: String = ""
     @State var pPos: String = ""
     @State var pDir: String = ""
     @State var pOrder: Int = 0
-    @State var pTeam: Team?
+    @State var pTeam: Team
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var playerName = ""
     @State private var prevPName = ""
     @State private var dups = false
     @State private var checkForDups = true
+    @State private var isSearching = false
+    @Binding private var searchText:String
+    @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     
+    @AppStorage("selectedPlayerTCriteria") var selectedPlayerPCriteria: SortCriteria = .orderAsc
+    
+    enum SortCriteria: String, CaseIterable, Identifiable {
+        case nameAsc, nameDec, orderAsc, numAsc
+        var id: String { self.rawValue }
+    }
+    
+    var sortDescriptor: [SortDescriptor<Player>] {
+        switch selectedPlayerPCriteria {
+        case .nameAsc:
+            return [SortDescriptor(\Player.name, order: .forward)]
+        case .nameDec:
+            return [SortDescriptor(\Player.name, order: .reverse)]
+        case .orderAsc:
+            return [SortDescriptor(\Player.batOrder, order: .forward)]
+        case .numAsc:
+            return [SortDescriptor(\Player.number, order: .forward)]
+        }
+    }
+
     enum FocusField: Hashable {case field}
     
     @FocusState private var focusedField: FocusField?
@@ -33,146 +57,193 @@ struct PlayerView: View {
     ]) var teams: [Team]
 
     @Query var players: [Player]
-    
+//    @State var players: [Player] = []
+
     var body: some View {
-        GeometryReader { geometry in
-            Form {
-                let nameWidth = geometry.size.width/4
-                let smallWidth = geometry.size.width/15
-                let mediumWidth = geometry.size.width/10
-                Section {
-                    //            Text("Select a Player to Edit or Swipe to Delete").frame(maxWidth:.infinity, alignment: .center).font(.title)
-                    HStack {
-                        Text("Name")
-                            .frame(width: nameWidth).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                        Text("Num")
-                            .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Pos")
-                            .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Dir")
-                            .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Order")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Team")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("").frame(width:45)
-                    }
-                    HStack {
-                        TextField("Player", text: $pName, onEditingChanged: { (editingChanged) in
-                            if !editingChanged {
-                                checkForDup(pname:pName)
-                            }})
-                        .background(Color.white).frame(width: nameWidth)
-                        .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                        .focused($focusedField, equals: .field)
-                        //                        .onAppear {self.focusedField = .field}
-                        .autocapitalization(.words)
-                        .textContentType(.name)
-                        TextField("(00)", text: $pNum).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                        TextField("(1B)", text: $pPos).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                            .autocapitalization(.none)
-                            .textContentType(.none)
-                        TextField("(L)", text: $pDir).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                            .autocapitalization(.none)
-                            .textContentType(.none)
-                        Picker("Bat Order", selection: $pOrder) {
-                            let orders = ["Pick","1st","2nd","3rd","4th",
-                                          "5th","6th","7th","8th","9th",
-                                          "10th","11th","12th","13th","14th",
-                                          "15th","16th","17th","18th","19th"]
-                            ForEach(Array(orders.enumerated()), id: \.1) { index, order in
-                                Text(order).tag(index)
-                            }
-                            Text("Not Hitting").tag(99)
+        NavigationStack {
+            GeometryReader { geometry in
+                Form {
+                    let nameWidth = geometry.size.width/4
+                    let smallWidth = geometry.size.width/13
+                    let mediumWidth = geometry.size.width/10
+                    Section {
+                        //            Text("Select a Player to Edit or Swipe to Delete").frame(maxWidth:.infinity, alignment: .center).font(.title)
+                        HStack {
+                            Text("Name")
+                                .frame(width: nameWidth).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                            Text("Num")
+                                .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            Text("Pos")
+                                .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            Text("Dir")
+                                .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            Text("Order")
+                                .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            Text("").frame(width:45)
                         }
-                        .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                        Picker("Player Team", selection: $pTeam) {
-                            Text("Pick").tag(Optional<Team>.none)
-                            if teams.isEmpty == false {
-                                Divider()
-                                ForEach(teams) { nteam in
-                                    if nteam.name != "" {
-                                        Text(nteam.name).tag(Optional(nteam))
+                        HStack {
+                            TextField("Player", text: $pName, onEditingChanged: { (editingChanged) in
+                                if !editingChanged {
+                                    checkForDup(pname:pName)
+                                }})
+                            .background(Color.white).frame(width: nameWidth)
+                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                            .focused($focusedField, equals: .field)
+                            //                        .onAppear {self.focusedField = .field}
+                            .autocapitalization(.words)
+                            .textContentType(.name)
+                            TextField("(00)", text: $pNum).background(Color.white).frame(width:smallWidth)
+                                .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                            TextField("(1B)", text: $pPos).background(Color.white).frame(width:smallWidth)
+                                .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                                .autocapitalization(.none)
+                                .textContentType(.none)
+                            TextField("(R)", text: $pDir).background(Color.white).frame(width:smallWidth)
+                                .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                                .autocapitalization(.none)
+                                .textContentType(.none)
+                            Picker("Bat Order", selection: $pOrder) {
+                                let orders = ["Pick","1st","2nd","3rd","4th",
+                                              "5th","6th","7th","8th","9th",
+                                              "10th","11th","12th","13th","14th",
+                                              "15th","16th","17th","18th","19th"]
+                                ForEach(Array(orders.enumerated()), id: \.1) { index, order in
+                                    Text(order).tag(index)
+                                }
+                                Text("Not Hitting").tag(99)
+                            }
+                            .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                            HStack {
+                                Spacer(minLength: 75)
+                                Image(systemName: "plus")
+                                .onTapGesture {
+                                    if !dups && !pName.isEmpty {
+                                        let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:pTeam)
+                                        modelContext.insert(thisPlayer)
+                                        try? self.modelContext.save()
+                                        pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = "";
+                                    } else if dups {
+                                        alertMessage = "Player named \(pName) already exists on \(pTeam.name)"
+                                        showingAlert = true
+                                    } else {
+                                        alertMessage = "Be sure to input a name and select a team for the new player."
+                                        showingAlert = true
+                                    }
+                                }
+                            }
+                            .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
+                        }
+                        ForEach(players) { player in
+                            NavigationLink(value: player) {
+                                HStack {
+                                    Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).bold()
+                                        .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
+                                    Text(player.number).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
+                                        .overlay(Divider().background(.black), alignment: .trailing)
+                                    Text(player.position).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
+                                        .overlay(Divider().background(.black), alignment: .trailing)
+                                    Text(player.batDir).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
+                                        .overlay(Divider().background(.black), alignment: .trailing)
+                                    Text(Double(player.batOrder), format: .number.rounded(increment: 1.0))
+                                        .frame(width: mediumWidth, alignment: .center).foregroundColor(.black).bold()
+                                        .overlay(Divider().background(.black), alignment: .trailing)
+                                    Text("")
+                                        .frame(width:25)
+                                }
+                            }
+                        }
+                        .onDelete(perform: deletePlayer)
+                    }
+                    header: {
+                        if players.count > 0 {
+                            Text("Select a Player to edit").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundColor(.black).bold()
+                        }
+                    }
+
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.left")
+                                Text("Back")
+                            }
+                        }
+                    }
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                            Picker("Sort", selection: $selectedPlayerPCriteria) {
+                                ForEach(SortCriteria.allCases) { criteria in
+                                    if criteria == .nameAsc {
+                                        Text("Name (A-Z)").tag(criteria)
+                                    } else if criteria == .nameDec {
+                                        Text("Name (Z-A)").tag(criteria)
+                                    } else if criteria == .numAsc {
+                                        Text("Number (A-Z)").tag(criteria)
+                                    } else if criteria == .orderAsc {
+                                        Text("order (A-Z)").tag(criteria)
                                     }
                                 }
                             }
                         }
-                        .frame(width: mediumWidth, alignment: .center)
-                        .labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                        HStack {
-                            Image(systemName: "plus.square")
-                            Text("Add").onTapGesture {
-                                if !dups && pTeam != nil && !pName.isEmpty {
-                                    let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:pTeam)
-                                    modelContext.insert(thisPlayer)
-                                    try? self.modelContext.save()
-                                    pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = "";pTeam = nil
-                                } else if dups {
-                                    alertMessage = "Player named \(pName) already exists on \(pTeam!.name)"
-                                    showingAlert = true
-                                } else {
-                                    alertMessage = "Be sure to input a name and select a team for the new player."
-                                    showingAlert = true
+                    }
+                    ToolbarItem(placement: .principal) {
+                        Text("\(pTeam.name) Players")
+                            .font(.title2)
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        if UIDevice.type == "iPhone" {
+                            Button(action: {
+                                withAnimation {
+                                    isSearching.toggle()
                                 }
-                            }
-                        }
-                        .frame(width: 75, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10)
-                        .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                    }
-                    ForEach(players) { player in
-                        NavigationLink(value: player) {
-                            HStack {
-                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-                                                Text(player.number).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing)
-                                                Text(player.position).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing)
-                                                Text(player.batDir).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing)
-                                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0))
-                                    .frame(width: mediumWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing)
-                                                Text(player.team?.name ?? "").frame(width: mediumWidth).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing)
-                                Text("")
-                                    .frame(width:25)
+                            }) {
+                                Image(systemName: "magnifyingglass")
                             }
                         }
                     }
-                    .onDelete(perform: deletePlayer)
                 }
-                header: {
-                    if players.count > 0 {
-                        Text("Select a Player to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundColor(.black).bold()
+                .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+                .onAppear {
+                    if UIDevice.type == "iPhone" {
+                       isSearching = false
+                    } else {
+                        isSearching = true
                     }
                 }
-            }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Players")
-                        .font(.title2)
+                .onChange(of: isSearching) {
+                    if isSearching == false {
+                        searchText = "" // Clear the search text when the search field is dismissed
+                    }
+                }
+                .onChange(of: sortDescriptor) {
+                    sortOrder = sortDescriptor
+                }
+                .navigationDestination(for: Player.self) { player in
+                    EditPlayerView( player: player, team: pTeam, navigationPath: $navigationPath)
                 }
             }
         }
     }
     
-    init(searchString: String = "", sortOrder: [SortDescriptor<Player>] = [],navigationPath:Binding<NavigationPath>) {
+    init(team: Team, navigationPath:Binding<NavigationPath>, searchString: Binding<String>, sortOrder: [SortDescriptor<Player>] = []) {
         
         _navigationPath = navigationPath
-        _players = Query(filter: #Predicate { player in
-            if searchString.isEmpty {
-                true
-            } else {
-                player.name.localizedStandardContains(searchString)
-                || player.number.localizedStandardContains(searchString)
-            }
-        },  sort: sortOrder)
-    }
-    
+        self.pTeam = team
+        _searchText = searchString
+        let teamName = team.name
+          _players = Query(filter: #Predicate { player in
+              if searchText.isEmpty {
+                  player.team?.name == teamName
+              } else {
+                  player.team?.name == teamName &&
+                  (player.name.localizedStandardContains(searchText)
+                  || player.number.localizedStandardContains(searchText))
+              }
+          },  sort: self.sortDescriptor)
+      }
     func deletePlayer(at offsets: IndexSet) {
         for offset in offsets {
             let player = players[offset]
@@ -244,7 +315,7 @@ struct PlayerView: View {
         } else {
             checkForDups = true
         }
-        let teamName = pTeam?.name ?? ""
+        let teamName = pTeam.name
         let playName = pname
         prevPName = playName
         

@@ -4,7 +4,6 @@
 //
 //  Created by Karl Keller on 3/26/25.
 //
-
 import SwiftUI
 import SwiftData
 import AVFoundation
@@ -33,6 +32,7 @@ struct EditScoreView: View {
     @State private var showPitchRpt = false
     @State private var shareReport = false
     @State private var isLoading = false
+    @State private var isError = false
     @State private var alertText = ""
     @State private var teamName = ""
     @State private var selectedOption = ""
@@ -40,6 +40,10 @@ struct EditScoreView: View {
     @State private var screenHeight = 0.0
     @State private var screenWidth = 0.0
     @State private var preferenceValue: String = ""
+    @State var screenshotMaker: ScreenshotMaker?
+    @State var doShot = false
+    @State var hasChanged = false
+    @State var url:URL?
 
     @FocusState private var focusedField: FocusField?
     
@@ -50,10 +54,14 @@ struct EditScoreView: View {
                 VStack(spacing: 0) {
                     HStack {
                         VStack{
-                            let firstWord = game.location.split(separator: " ").count > 0 ? game.location.split(separator: " ")[0] : ""
-                            let secondWord = game.location.split(separator: " ").count > 1 ? game.location.split(separator: " ")[1] : ""
-                            Text(firstWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
-                            Text(secondWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                         if game.location.count < 15 {
+                                Text(game.location).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                            } else {
+                                let firstWord = game.location.split(separator: " ").count > 0 ? game.location.split(separator: " ")[0] : ""
+                                let secondWord = game.location.split(separator: " ").count > 1 ? game.location.split(separator: " ")[1] : ""
+                                Text(firstWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                                Text(secondWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                            }
                         }
                         Spacer()
                         VStack (spacing: 5) {
@@ -107,7 +115,9 @@ struct EditScoreView: View {
                                 team = game.vteam ?? Team(name:"",coach:"",details:"")
                             }
                         })
-
+                        .alert(alertText, isPresented: $isError) {
+                            Button("OK", role: .cancel) { }
+                        }
                         Spacer ()
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
                         VStack {
@@ -119,7 +129,7 @@ struct EditScoreView: View {
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
                     Spacer()
-                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading)
+                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged)
                 }
                 .onChange(of: showingDetail, {
                     if isHomeTeam {
@@ -133,6 +143,14 @@ struct EditScoreView: View {
                 .fullScreenCover(isPresented: $showingDetail) {
                     StartingLineupView(showingDetail: $showingDetail, passedGame: game, passedTeam: team, theTeam: theTeam, searchString: searchText,sortOrder: sortOrder)
                 }
+                .onChange(of: doShot) {
+                    if doShot {
+                        if let screenshotMaker = screenshotMaker {
+                            url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                            doShot.toggle()
+                        }
+                    }
+                }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: {
@@ -140,6 +158,7 @@ struct EditScoreView: View {
                         }) {
                             Text("Replace Players")
                         }
+                        .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $presentReplacements) {
                             ReplacementView(game: game, team: team)
                         }
@@ -172,23 +191,44 @@ struct EditScoreView: View {
                             Text("Hitting Stats")
                         }
                         .fullScreenCover(isPresented: $showReport) {
-                            ShowReportView(tName: team.name, isLoading: $isLoading)
+                            if UIDevice.type == "iPad" {
+                                ReportView(teamName: team.name, isLoading: $isLoading)
+                            } else {
+                                ShowReportView(tName: team.name, isLoading: $isLoading)
+                            }
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: {
                             self.showingDetail.toggle()
                         }) {
-                            if isHomeTeam {
-                                Text("\(game.hteam?.name ?? "") Lineup")
-                            } else {
-                                Text("\(game.vteam?.name ?? "") Lineup")
-                            }
+                            Text("Lineup")
+//                            if isHomeTeam {
+//                                Text("\(game.hteam?.name ?? "") Lineup")
+//                            } else {
+//                                Text("\(game.vteam?.name ?? "") Lineup")
+//                            }
                         }
                     }
                     ToolbarItem(placement: .principal) {
                         Text("Score the Game")
                             .font(.title2)
+                    }
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        if UIDevice.type == "iPad" {
+                            Button {
+                                hasChanged = false
+                                doShot = true
+                            } label: {
+                                Text(" Screenshot")
+                            }
+                            .buttonStyle(ToolBarButtonStyle())
+                            if let shotURL = url {
+                                if hasChanged == false {
+                                    ShareLink("Share", item: shotURL)
+                                }
+                            }
+                        }
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -208,12 +248,62 @@ struct EditScoreView: View {
                         .position(x: geometry.size.width / 2, y: -25)
                 }
             }
+            .screenshotMaker { screenshotMaker in
+                     self.screenshotMaker = screenshotMaker
+                 }
         }
+     
     }
     init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String) {
         game = pgame
         teamName = ateam
         _navigationPath = pnavigationPath
     }
+    func saveImage(uiimage: UIImage?)-> URL? {
+        
+        guard let data = uiimage?.jpegData(compressionQuality: 0.8) else {
+            print("Could not convert UIImage to Data.")
+            alertText = "Could not save image"
+            isError = true
+            isLoading = false
+               return nil
+        }
+        
+        let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = url.appendingPathComponent("\(theTeam) on \(date.formatted( date: .abbreviated, time: .omitted)).jpg")
+        
+        do {
+            try data.write(to: fileURL)
+            print("Image saved successfully to: \(fileURL.path)")
+            isLoading = false
+            return fileURL
+        } catch {
+            print("Error saving image: \(error.localizedDescription)")
+            alertText = "Could not save image"
+            isError = true
+            isLoading = false
+        }
+        return nil
+    }
 }
+extension View {
+    func takeScreenshotOfScrollView(origin: CGPoint, size: CGSize) -> UIImage? {
+        let window = UIWindow(frame: CGRect(origin: origin, size: size))
+        let hosting = UIHostingController(rootView: self)
+        hosting.view.frame = window.frame
+        window.addSubview(hosting.view)
+        window.makeKeyAndVisible()
 
+        // Ensure the view's layout is updated to reflect the full content size
+        hosting.view.layoutIfNeeded()
+
+        UIGraphicsBeginImageContextWithOptions(hosting.view.bounds.size, false, 0.0)
+        guard let context = UIGraphicsGetCurrentContext() else { return nil }
+        hosting.view.layer.render(in: context)
+        let capturedImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+
+        return capturedImage
+    }
+}

@@ -18,6 +18,20 @@
 			<key>NSUbiquitousDocumentUserActivityType</key>
 			<string>com.komakode.scorekeep</string>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>ScoreKeep Games</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.komakode.scorekeep.games</string>
+			</array>
+			<key>nNSUbiquitousDocumentUserActivityType</key>
+			<string>com.komakode.scorekeep.games</string>
+		</dict>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -55,6 +69,27 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>ScoreKeep_Players</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/octet-stream</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>ScoreKeep Games</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.komakode.scorekeep.games</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ScoreKeep_Games</string>
 				</array>
 				<key>public.mime-type</key>
 				<array>

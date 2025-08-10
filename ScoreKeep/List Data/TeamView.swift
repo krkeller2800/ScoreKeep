@@ -38,7 +38,7 @@ struct TeamView: View {
                     .background(.yellow.opacity(0.3))
                 Text("Team Info").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red)
                     .background(.yellow.opacity(0.3))
-                Spacer(minLength: 90)
+                Spacer(minLength: 30)
             }
             HStack {
                 TextField("Name", text: $teamName, onEditingChanged: { (editingChanged) in
@@ -56,8 +56,8 @@ struct TeamView: View {
                 TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
                 HStack {
-                    Image(systemName: "plus.square")
-                    Text("Add").onTapGesture {
+                    Image(systemName: "plus")
+                      .onTapGesture {
                         if !dups {
                             let theTeam = Team(name:teamName, coach:coachName, details:teamInfo)
                             modelContext.insert(theTeam)
@@ -69,7 +69,7 @@ struct TeamView: View {
                         }
                     }
                 }
-                .frame(width: 75, height: 30, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(20)
+                .accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(20).padding(.leading,5)
             }
             ForEach(teams) { team in
                 NavigationLink(value: team) {
@@ -78,19 +78,17 @@ struct TeamView: View {
                             if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
                                 Image(uiImage: uiImage)
                                     .scaleImage(iHeight: 30, imageData: imageData)
-//                                    .resizable()
-//                                    .scaledToFit()
-//                                    .frame(maxWidth: 30, maxHeight: 30, alignment: .center)
                             }
                             Text(team.name).lineLimit(2).minimumScaleFactor(0.5)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                         .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-                                Text(team.coach).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                        
+                        Text(team.coach).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                             .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                                Text(team.details).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                        Text(team.details).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                             .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                        Spacer(minLength: 60)
+                        Spacer(minLength: 15)
                     }
                 }
             }

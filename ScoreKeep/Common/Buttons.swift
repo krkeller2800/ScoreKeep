@@ -51,3 +51,14 @@ struct GlowButtonStyleLarge: ButtonStyle {
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0) // Adjust size on press
     }
 }
+struct ToolBarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(3)
+            .foregroundStyle(.tint)
+            .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue.opacity(0.2), in: Capsule())
+//            .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue)
+//            .foregroundColor(.white)
+//            .cornerRadius(8)
+    }
+}

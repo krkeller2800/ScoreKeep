@@ -4,29 +4,30 @@
 //
 //  Created by Karl Keller on 5/14/25.
 //
-
 import SwiftUI
 import SwiftData
 struct ReportView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     
-    @State  var navigationPath = NavigationPath()
     @State  var sortAtbat = [SortDescriptor(\Atbat.col), SortDescriptor(\Atbat.seq)]
     @State  var tName:String
     @Binding var isLoading: Bool
     @State  var alertMessage = ""
     @State  var showingAlert = false
     @State var sumedStats:[PlayerStats] = []
+    @State var screenshotMaker: ScreenshotMaker?
+    @State var doShot = false
+    @State var hasChanged = false
+    @State var url:URL?
 
-    
     @Query var atbats: [Atbat]
     
     var com:Common = Common()
 
     var body: some View {
-        ScrollView {
-            Section {
+        NavigationStack {
+            ScrollView {
                 GeometryReader { geometry in
                     VStack(spacing:50) {
                         HStack {
@@ -44,42 +45,42 @@ struct ReportView: View {
                         let avgSize = geometry.size.width / 31
                         VStack(spacing:0) {
                             HStack {
-                                Text("").frame(maxWidth:5)
-                                Text("Num").frame(width: avgSize,height: 30).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("Name").frame(width: avgSize * 5,height: 30, alignment: .leading).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
-                                Text("Bats").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
-                                Text("AVG").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("OBP").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("SLG").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("OPS").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("Run").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
-                                Text("Hit").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.75)
+//                                Text("").frame(maxWidth:5)
+                                Text("Num").frame(width: avgSize + 10,height: 30).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("Name").frame(width: avgSize * 4,height: 30, alignment: .leading).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
+                                    .lineLimit(1).minimumScaleFactor(0.50)
+                                Text("Bats").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
+                                    .lineLimit(1).minimumScaleFactor(0.50)
+                                Text("AVG").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("OBP").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("SLG").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("OPS").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("R").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("H").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
                                 Text("K").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("ꓘ").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("BB").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("HR").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("1B").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("2B").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("3B").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("SAC").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("SF").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("HBP").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("K23").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("FC").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.75)
+                                    .lineLimit(1).minimumScaleFactor(0.50)
                                 Spacer()
                             }
                             let summedStats = sumedStats.sorted { $0.player?.batOrder ?? 0 < $1.player?.batOrder ?? 0 }
@@ -90,57 +91,100 @@ struct ReportView: View {
                                                                                      (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
                                     let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) + (4 * stats.HR)) /
                                                                                     stats.atbats))
-                                    Text("").frame(maxWidth:10)
-                                    Text(stats.player?.number ?? "").foregroundColor(.black).bold().frame(width: avgSize - 5,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text(stats.player?.name ?? "").foregroundColor(.black).bold().frame(width: avgSize * 5,height: 30,alignment: .leading).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.atbats)").foregroundColor(.black).bold().frame(width: avgSize,height: 30).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text(String(format: "%03d", avg)).foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text(String(format: "%03d", obp)).foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
+//                                    Text("").frame(maxWidth:5)
+                                    Text(stats.player?.number ?? "").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text(stats.player?.name ?? "").foregroundColor(.black).bold().frame(width: avgSize * 4,height: 30,alignment: .leading).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.atbats)").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text(String(format: "%03d", avg)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text(String(format: "%03d", obp)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
                                     Text(String(format: "%03d", slg)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center)
-                                        .lineLimit(1).minimumScaleFactor(0.75)
+                                        .lineLimit(1).minimumScaleFactor(0.50)
                                     Text(String(format: "%03d", obp + slg)).foregroundColor(.black).bold().frame(width: avgSize + 15,height: 30,alignment: .center)
-                                        .lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.runs)").foregroundColor(.black).bold().frame(width: avgSize - 5,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.hits)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.strikeouts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.strikeoutl)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.BB)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.HR)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.single)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.double)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.triple)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.sacBunt)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.sacFly)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.hbp)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.dts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
-                                    Text("\(stats.fc)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.75)
+                                        .lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.runs)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.hits)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.strikeouts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.strikeoutl)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.BB)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.HR)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.single)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.double)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.triple)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.sacBunt)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.sacFly)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.hbp)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.dts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
+                                    Text("\(stats.fc)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
                                     Spacer()
                                 }
                             }
+                            .drawingGroup()
                         }
                     }
-                    .drawingGroup()
                     .onAppear() {
                         sumData()
                         isLoading = false
                     }
+                    .onChange(of: doShot) {
+                        if doShot {
+                            if let screenshotMaker = screenshotMaker {
+                                url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                                doShot.toggle()
+                            }
+                        }
+                    }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .topBarLeading) {
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                HStack {
+                                    Image(systemName: "chevron.left")
+                                    Text("Back")
+                                }
+                            }
+                        }
+                        ToolbarItemGroup(placement: .topBarLeading) {
+                            if UIDevice.type == "iPad" {
+                                Button {
+                                    hasChanged = false
+                                    doShot = true
+                                } label: {
+                                    Text(" Screenshot")
+                                }
+                                .buttonStyle(ToolBarButtonStyle())
+                                if let shotURL = url {
+                                    if hasChanged == false {
+                                        ShareLink("Share", item: shotURL)
+                                    }
+                                }
+                            }
+                        }
+                        ToolbarItem(placement: .principal) {
+                            Text("Player Statistics").font(.title2)
+                        }
+                    }
                     Spacer()
                 }
             }
-            header: {
-                HStack {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Text("< Back").padding(.leading,10)
-                    }
-                    Spacer()
-                    Text("Player Statistics").frame(width:225, alignment:.leading).font(.title3).foregroundColor(.black).bold()
-                    Spacer()
-                }
-                .alert(alertMessage, isPresented: $showingAlert) {
-                    Button("OK", role: .cancel) { }
-                }
+//            header: {
+//                HStack {
+//                    Button(action: {
+//                        dismiss()
+//                    }) {
+//                        Text("< Back").padding(.leading,10)
+//                    }
+//                    Spacer()
+//                    Text("Player Statistics").frame(width:225, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+//                    Spacer()
+//                }
+//
+//            }
+            .screenshotMaker { screenshotMaker in
+                     self.screenshotMaker = screenshotMaker
+            }
+            .alert(alertMessage, isPresented: $showingAlert) {
+                Button("OK", role: .cancel) { }
             }
         }
     }
@@ -183,6 +227,32 @@ struct ReportView: View {
             prevPlayer = atbat.player
         }
         sumedStats.append(doStats(player:prevPlayer))
+    }
+    func saveImage(uiimage: UIImage?)-> URL? {
+        
+        guard let data = uiimage?.jpegData(compressionQuality: 0.8) else {
+            print("Could not convert UIImage to Data.")
+            alertMessage = "Could not save image"
+            showingAlert = true
+            isLoading = false
+               return nil
+        }
+        
+        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileURL = url.appendingPathComponent("\(tName) Stats.jpg")
+        
+        do {
+            try data.write(to: fileURL)
+            print("Image saved successfully to: \(fileURL.path)")
+            isLoading = false
+            return fileURL
+        } catch {
+            print("Error saving image: \(error.localizedDescription)")
+            alertMessage = "Could not save image"
+            showingAlert = true
+            isLoading = false
+        }
+        return nil
     }
 }
 

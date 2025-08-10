@@ -16,6 +16,7 @@ struct PitcherContentView: View {
     @State var game:Game 
     @State private var navigationPath = NavigationPath()
     @State private var searchText = ""
+    @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Player.name)]
     @AppStorage("selectedPitcherCriteria") var selectedPitcherCriteria: SortCriteria = .nameAsc
     
@@ -42,14 +43,18 @@ struct PitcherContentView: View {
             VStack {
                 PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name)
                     .navigationDestination(for: Player.self) { player in
-//                        EditAllPlayerView(player: player, navigationPath: $navigationPath)
                         EditPlayerView(player: player, team: team, navigationPath: $navigationPath)
                 }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("< Back") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
                     }
                 }
                 ToolbarItemGroup(placement: .topBarLeading) {
@@ -70,13 +75,34 @@ struct PitcherContentView: View {
                     }
                     Button("Add Player", systemImage: "plus", action: addPlayers)
                 }
-
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if UIDevice.type == "iPhone" {
+                        Button(action: {
+                            withAnimation {
+                                isSearching.toggle()
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                        }
+                    }
+                }
             }
-            .searchable(text: $searchText, prompt: "Player name")
             .onChange(of: sortDescriptor) {
                 sortOrder = sortDescriptor
             }
-
+            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name")
+            .onAppear {
+                if UIDevice.type == "iPhone" {
+                   isSearching = false
+                } else {
+                    isSearching = true
+                }
+            }
+            .onChange(of: isSearching) {
+                if isSearching == false {
+                    searchText = "" // Clear the search text when the search field is dismissed
+                }
+            }
         }
     }
     func addPlayers() {

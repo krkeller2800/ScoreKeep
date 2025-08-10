@@ -13,11 +13,15 @@ import os.log
 struct ScoreKeepApp: App {
     var body: some Scene {
         WindowGroup {
-            StartView()
-                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            if UIDevice.type == "iPad" {
+                StartView()
+                    .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            } else if UIDevice.type == "iPhone" {
+                StartPhoneView()
+                    .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+             }
         }
         .modelContainer(for: Game.self)
         .handlesExternalEvents(matching: ["*"])
-        
     }
 }

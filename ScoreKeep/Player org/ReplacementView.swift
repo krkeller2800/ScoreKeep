@@ -28,10 +28,9 @@ struct ReplacementView: View {
     @State private var rplPlayers: [Player] = []
     @State private var incPlayers: [Player] = []
     @State private var searchText = ""
-
+    @State private var isSearching = false
 
     @Query var players: [Player]
-
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -75,7 +74,7 @@ struct ReplacementView: View {
                 }
                 HStack {
                     Spacer()
-                    PlayersOnTeamView(team: team, searchString: "", sortOrder: sortOrder)
+                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortOrder)
                         .navigationDestination(for: Player.self) { player in
                             EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
                         }
@@ -91,11 +90,16 @@ struct ReplacementView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Choose Pinch Hitters and Player Substitutions").font(.title2)
+                    Text("Choose Player Substitutions").font(.title2)
                 }
                 ToolbarItemGroup(placement: .topBarLeading) {
-                    Button("< Back") {
+                    Button(action: {
                         dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
                     }
                     Menu("Sort", systemImage: "arrow.up.arrow.down") {
                         Picker("Sort", selection: $sortOrder) {
@@ -113,8 +117,26 @@ struct ReplacementView: View {
                     }
                     Button("Add Player", systemImage: "plus", action: addPlayers)
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if UIDevice.type == "iPhone" {
+                        Button(action: {
+                            withAnimation {
+                                isSearching.toggle()
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                        }
+                    }
+                }
             }
-            .searchable(text: $searchText)
+            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+            .onAppear {
+                if UIDevice.type == "iPhone" {
+                   isSearching = false
+                } else {
+                    isSearching = true
+                }
+            }
         }
     }
     init (game:Game, team:Team) {
@@ -195,6 +217,9 @@ struct ReplacementView: View {
                                       inning: atbat.inning, seq: newseq[atbat.col], col: atbat.col, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
                 modelContext.insert(newatbat)
                 game.atbats.append(newatbat)
+                if atbat.col == 1 {
+                    game.players.append(newPlayer)
+                }
                 try? modelContext.save()
                 print("newatbat = Name:\(newatbat.player.name) Column:\(newatbat.col) batOrder:\(newatbat.batOrder) Seq:\(newatbat.seq)")
              }

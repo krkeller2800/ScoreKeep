@@ -14,6 +14,7 @@ struct TeamContentView: View {
     @Environment(\.dismiss) var dismiss
     @State private var path = NavigationPath()
 
+    @State private var isSearching = false
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Team.name)]
     @AppStorage("selectedTeamCriteria") var selectedTeamCriteria: SortCriteria = .nameAsc
@@ -52,8 +53,31 @@ struct TeamContentView: View {
                             }
                         }
                     }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        if UIDevice.type == "iPhone" {
+                            Button(action: {
+                                withAnimation {
+                                    isSearching.toggle()
+                                }
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                            }
+                        }
+                    }
                 }
-                .searchable(text: $searchText, prompt: "Team name")
+                .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Team Name")
+                .onAppear {
+                    if UIDevice.type == "iPhone" {
+                       isSearching = false
+                    } else {
+                        isSearching = true
+                    }
+                }
+                .onChange(of: isSearching) {
+                    if isSearching == false {
+                        searchText = "" // Clear the search text when the search field is dismissed
+                    }
+                }
                 .onChange(of: sortDescriptor) {
                     sortOrder = sortDescriptor
                 }

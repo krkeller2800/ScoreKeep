@@ -14,7 +14,9 @@ struct ContentView: View {
     @Environment(\.dismiss) var dismiss
     @State private var path = NavigationPath()
     
+    @State var title = "Games"
     @State private var searchText = ""
+    @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
     @AppStorage("selectedGameCriteria") var selectedGameCriteria: SortCriteria = .dateAsc
     
@@ -38,47 +40,67 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
-            GameView(searchString: searchText, sortOrder: sortDescriptor, title:"Games", navigationPath: $path)
+            GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path)
                 .navigationDestination(for: Game.self) { game in
                     EditGameView(game: game, navigationPath: $path)
-                }
-                .toolbar {
-                    ToolbarItemGroup(placement: .topBarLeading) {
-                        Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                            Picker("Sort", selection: $selectedGameCriteria) {
-                                ForEach(SortCriteria.allCases) { criteria in
-                                    if criteria == .dateAsc {
-                                        Text("Date (A-Z)").tag(criteria)
-                                    } else if criteria == .dateDec {
-                                        Text("Date (Z-A)").tag(criteria)
-                                    } else if criteria == .homeTeam {
-                                        Text("Home Team (A-Z)").tag(criteria)
-                                    } else if criteria == .visitorTeam {
-                                        Text("Visitor Team (A-Z)").tag(criteria)
-                                    }
+            }
+            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                        Picker("Sort", selection: $selectedGameCriteria) {
+                            ForEach(SortCriteria.allCases) { criteria in
+                                if criteria == .dateAsc {
+                                    Text("Date (A-Z)").tag(criteria)
+                                } else if criteria == .dateDec {
+                                    Text("Date (Z-A)").tag(criteria)
+                                } else if criteria == .homeTeam {
+                                    Text("Home Team (A-Z)").tag(criteria)
+                                } else if criteria == .visitorTeam {
+                                    Text("Visitor Team (A-Z)").tag(criteria)
                                 }
                             }
                         }
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Add a team") {
-                            let team = Team(name: "", coach: "", details: "")
-                            modelContext.insert(team)
-                            try? modelContext.save()
-                            path.append(team)
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Add a team") {
+                        let team = Team(name: "", coach: "", details: "")
+                        modelContext.insert(team)
+                        try? modelContext.save()
+                        path.append(team)
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if UIDevice.type == "iPhone" {
+                        Button(action: {
+                            withAnimation {
+                                isSearching.toggle()
+                            }
+                        }) {
+                            Image(systemName: "magnifyingglass")
                         }
                     }
                 }
-//                .searchable(text: $searchText)
-                .searchable(text: $searchText,  prompt: "YYYY-MM-DD or any text")
-
-                .onChange(of: sortDescriptor) {
-                    sortOrder = sortDescriptor
+            }
+            .onChange(of: isSearching) {
+                if isSearching == false {
+                    searchText = "" // Clear the search text when the search field is dismissed
                 }
-                .navigationDestination(for: Team.self) { team in
-                    EditTeamView(navigationPath: $path, team: team)
+            }
+            .onChange(of: sortDescriptor) {
+                sortOrder = sortDescriptor
+            }
+            .navigationDestination(for: Team.self) { team in
+                EditTeamView(navigationPath: $path, team: team)
+            }
+            .onAppear {
+                if UIDevice.type == "iPhone" {
+                   isSearching = false
+                } else {
+                    isSearching = true
                 }
-
+            }
         }
     }
     func addGame() {
@@ -88,6 +110,5 @@ struct ContentView: View {
         try? modelContext.save()
     }
 }
-
 
 

@@ -54,6 +54,29 @@ import UniformTypeIdentifiers
 
 extension UTType {
     static var myCustomFile: UTType {
-        UTType(exportedAs: "com.komakode.scorekeep.ScoreKeep_Players") // Replace with your custom UTI
+        UTType(exportedAs: "com.komakode.scorekeep.ScoreKeep_Players")
+    }
+}
+extension UIDevice {
+    static let type = UIDevice.current.localizedModel
+}
+extension View {
+
+    @ViewBuilder
+    func searchable(
+        if condition: Bool,
+        text: Binding<String>,
+        placement: SearchFieldPlacement = .automatic,
+        prompt: String
+    ) -> some View {
+        if condition {
+            self.searchable(
+                text: text,
+                placement: placement,
+                prompt: prompt
+            )
+        } else {
+            self
+        }
     }
 }

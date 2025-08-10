@@ -9,11 +9,12 @@ import SwiftUI
 
 struct StartView: View {
     @Environment(\.modelContext) var modelContext
-    @State private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
-    @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers"]
-    @State private var flags:[Bool] = [true,false,false,false,false,false,false,false]
+    @State var columnVisibility = NavigationSplitViewVisibility.doubleColumn
+    @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers","presentScreenShot"]
+    @State private var flags:[Bool] = [true,false,false,false,false,false,false,false,false]
     @State private var navigationPath = NavigationPath()
     @State private var importUrl: URL?
+    @State    var showImport = false
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -42,18 +43,18 @@ struct StartView: View {
                     .frame(width: 75, height: 75)
                     }
                 Spacer()
-                Button("\n\n\n\n\nScore Games") {
-                    setFlags(flag: "presentScoreGame")
-                    columnVisibility = .detailOnly
-                }
-                .foregroundColor(.black).bold().italic().font(.caption)
-                .background {
-                    Image("score")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 75, height: 75)
-                    }
-                Spacer()
+//                Button("\n\n\n\n\nScore Games") {
+//                    setFlags(flag: "presentScoreGame")
+//                    columnVisibility = .detailOnly
+//                }
+//                .foregroundColor(.black).bold().italic().font(.caption)
+//                .background {
+//                    Image("score")
+//                    .resizable()
+//                    .scaledToFill()
+//                    .frame(width: 75, height: 75)
+//                    }
+//                Spacer()
                 Button("\n\n\n\n\nPaste in Players") {
                     setFlags(flag: "presentPaste")
                     columnVisibility = .doubleColumn
@@ -90,6 +91,18 @@ struct StartView: View {
                     .frame(width: 50, height: 50)
                     }
                 Spacer()
+//                Button("\n\n\n\n\nScreen Shot") {
+//                    setFlags(flag: "presentScreenShot")
+//                    columnVisibility = .doubleColumn
+//                }
+//                .foregroundColor(.black).bold().italic().font(.caption)
+//                .background {
+//                    Image("Paste")
+//                    .resizable()
+//                    .scaledToFill()
+//                    .frame(width: 50, height: 50)
+//                    }
+//                Spacer()
             }
             .ignoresSafeArea(.keyboard, edges: .bottom )
             .onOpenURL { url in
@@ -98,17 +111,15 @@ struct StartView: View {
                 setFlags(flag: "importPlayers")
                 columnVisibility = .detailOnly
             }
-//            .onContinueUserActivity(NSUserActivityPersistentIdentifier(importing: com.komakode.scorekeep.ScoreKeep_Players, contentType: <#T##UTType?#>), perform: <#T##(NSUserActivity) -> ()#>)
-
         } detail: {
             if flags[0] {
-                ContentView()
+                ScoreContentView(columnVisibility: $columnVisibility)
             } else if flags[1] {
                 TeamContentView()
             } else if flags[2] {
                 PlayerContentView()
             } else if flags[3] {
-                ScoreContentView()
+                ScoreContentView(columnVisibility: $columnVisibility)
             } else if flags[4] {
                 PasteView()
             } else if flags[5] {
@@ -117,8 +128,10 @@ struct StartView: View {
                 ShareContentView()
             } else if flags[7] {
                 if let url = importUrl {
-                    ImportPlayersView(iURL: url, )
+                    ImportPlayersView(showingImport: $showImport, iURL: url,columnVisibility: $columnVisibility )
                 }
+            } else if flags[8] {
+                ScreenShotView()
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom )

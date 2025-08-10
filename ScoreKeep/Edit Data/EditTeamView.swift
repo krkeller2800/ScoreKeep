@@ -19,6 +19,7 @@ struct EditTeamView: View {
 
     @State private var AddPlayers: Bool = false
     @State private var searchText = ""
+    @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     @State private var alertMessage = "kk"
     @State private var showingAlert: Bool = false
@@ -26,6 +27,7 @@ struct EditTeamView: View {
     @State private var prevTName = ""
     @State private var dups = false
     @State private var checkForDups = true
+    @State private var presentPlayers: Bool = false
     @AppStorage("selectedPlayerTCriteria") var selectedPlayerTCriteria: SortCriteria = .orderAsc
     
     enum SortCriteria: String, CaseIterable, Identifiable {
@@ -49,25 +51,25 @@ struct EditTeamView: View {
     var body: some View {
         Form {
             HStack {
-                Text("Logo").frame(width:185).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Coach Name").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Notes").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Logo").frame(width:185,height:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Name").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Coach Name").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                Text("Notes").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
             }
             HStack {
                 if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
                     HStack {
                         Image(uiImage: uiImage)
-                            .scaleImage(iHeight: 50, imageData: imageData)
+                            .scaleImage(iHeight: 30, imageData: imageData)
 //                            .resizable()
 //                            .scaledToFit()
 //                            .frame(maxWidth: 50, maxHeight: 50, alignment: .center)
                     }
-                    .frame(width: 185, height: 40, alignment: .center)
+                    .frame(width: 185, height: 30, alignment: .center)
                     .overlay(Divider().background(.black), alignment: .trailing)
                 } else {
                     Text("")
-                        .frame(maxWidth: .infinity, maxHeight: 75, alignment: .center)
+                        .frame(width: 185, height: 30, alignment: .center)
                         .overlay(Divider().background(.black), alignment: .trailing)
                 }
                 TextField("team", text: $teamName, onEditingChanged: { (editingChanged) in
@@ -89,7 +91,7 @@ struct EditTeamView: View {
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Text("Photos")
                 }
-                .frame(width: 75, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .frame(width: 75, height:25, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
                 .onChange(of: selectedItem, loadLogo)
                 Text(" or ")
                 Button {
@@ -103,7 +105,7 @@ struct EditTeamView: View {
                         Text("Paste").padding(.leading,5)
                     }
                 }
-                .frame(width: 85, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .frame(width: 80,height:25, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
                 Spacer()
             }
         }
@@ -111,39 +113,75 @@ struct EditTeamView: View {
 
         Section() {
             VStack( ) {
-                PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
-                    .navigationDestination(for: Player.self) { player in
-                        EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
+                if UIDevice.type == "iPhone" {
+                    Button(action: {
+                        presentPlayers.toggle()
+                    }) {
+                        Text("See Players")
                     }
-                    .border(Color.gray)
-                    .toolbar {
-                        ToolbarItemGroup(placement: .topBarLeading) {
-                            Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                                Picker("Sort", selection: $selectedPlayerTCriteria) {
-                                    ForEach(SortCriteria.allCases) { criteria in
-                                        if criteria == .nameAsc {
-                                            Text("Name (A-Z)").tag(criteria)
-                                        } else if criteria == .nameDec {
-                                            Text("Name (Z-A)").tag(criteria)
-                                        } else if criteria == .numAsc {
-                                            Text("Number (A-Z)").tag(criteria)
-                                        } else if criteria == .orderAsc {
-                                            Text("order (A-Z)").tag(criteria)
-                                        }
+                    .fullScreenCover(isPresented: $presentPlayers) {
+//                        PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
+                        PlayerView(team: team, navigationPath: $navigationPath,searchString: $searchText)
+                    }
+                } else {
+                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
+                        .navigationDestination(for: Player.self) { player in
+                            EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
+                        }
+
+                }
+            }
+            .toolbar {
+                if UIDevice.type != "iPhone" {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                            Picker("Sort", selection: $selectedPlayerTCriteria) {
+                                ForEach(SortCriteria.allCases) { criteria in
+                                    if criteria == .nameAsc {
+                                        Text("Name (A-Z)").tag(criteria)
+                                    } else if criteria == .nameDec {
+                                        Text("Name (Z-A)").tag(criteria)
+                                    } else if criteria == .numAsc {
+                                        Text("Number (A-Z)").tag(criteria)
+                                    } else if criteria == .orderAsc {
+                                        Text("order (A-Z)").tag(criteria)
                                     }
                                 }
                             }
                         }
-                        ToolbarItem(placement: .principal) {
-                            Text("\(team.name)")
-                                .font(.title2)
-                            }
                     }
-                    .searchable(text: $searchText, prompt: "Player name or number")
-                    .onChange(of: sortDescriptor) {
-                        sortOrder = sortDescriptor
-                    }
-
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("\(team.name)")
+                        .font(.title2)
+                }
+//                ToolbarItem(placement: .navigationBarTrailing) {
+//                    if UIDevice.type == "iPhone" {
+//                        Button(action: {
+//                            withAnimation {
+//                                isSearching.toggle()
+//                            }
+//                        }) {
+//                            Image(systemName: "magnifyingglass")
+//                        }
+//                    }
+//                }
+            }
+            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+            .onAppear {
+                if UIDevice.type == "iPhone" {
+                   isSearching = false
+                } else {
+                    isSearching = true
+                }
+            }
+            .onChange(of: isSearching) {
+                if isSearching == false {
+                    searchText = "" // Clear the search text when the search field is dismissed
+                }
+            }
+            .onChange(of: sortDescriptor) {
+                sortOrder = sortDescriptor
             }
             .onDisappear() {
                 if dups || teamName.isEmpty {
@@ -174,6 +212,7 @@ struct EditTeamView: View {
             let  player = Player(name: "", number: "", position: "", batDir: "", batOrder: 99, team: team)
             modelContext.insert(player)
             navigationPath.append(player)
+
         }
     }
     func checkForDup() {

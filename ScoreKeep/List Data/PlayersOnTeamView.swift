@@ -33,29 +33,29 @@ struct PlayersOnTeamView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            Form {
+            List {
                 let nameWidth =  geometry.size.width/4
-                let smallWidth =  geometry.size.width/12
-                let mediumWidth =  geometry.size.width/8
+//                let smallWidth =  geometry.size.width/12
+                let mediumWidth =  geometry.size.width/9
                 
                 Section {
                     HStack {
                         Text("Order")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.6)
+                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.6).padding(.leading,10)
                         Text("Name")
-                            .frame(width:nameWidth).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                            .frame(width:nameWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Num")
-                            .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
+                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
                         Text("Pos")
-                            .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
+                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
                         Text("Dir")
-                            .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
+                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
                         Text("")
-                            .frame(width:70)
+                            .frame(width:20)
                     }
                     HStack {
                         Picker("Bat Order", selection: $pOrder) {
-                            let orders = ["Pick","1st","2nd","3rd","4th",
+                            let orders = ["?","1st","2nd","3rd","4th",
                                           "5th","6th","7th","8th","9th",
                                           "10th","11th","12th","13th","14th",
                                           "15th","16th","17th","18th","19th"]
@@ -64,31 +64,33 @@ struct PlayersOnTeamView: View {
                             }
                             Text("Not Hitting").tag(99)
                         }
-                        .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).accentColor(.blue).lineLimit(1).minimumScaleFactor(0.5)
+                        .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).accentColor(.blue).lineLimit(1)
+                            .minimumScaleFactor(0.5).padding(.leading,10)
                         TextField("Player", text: $pName, onEditingChanged: { (editingChanged) in
                             if !editingChanged {
                                 checkForDup(pname:pName)
                             }})
                         .background(Color.white).frame(width: nameWidth)
-                        .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        .textFieldStyle(.roundedBorder).foregroundColor(.blue) 
                         .focused($focusedField, equals: .field)
                         //                        .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.name)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                        TextField("(00)", text: $pNum).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                        TextField("(1B)", text: $pPos).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        TextField("(00)", text: $pNum).background(Color.white).frame(width:mediumWidth)
+                            .textFieldStyle(.roundedBorder).foregroundColor(.blue)
+                        TextField("(1B)", text: $pPos).background(Color.white).frame(width:mediumWidth)
+                            .textFieldStyle(.roundedBorder).foregroundColor(.blue)
                             .autocapitalization(.none)
                             .textContentType(.none)
-                        TextField("(L)", text: $pDir).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        TextField("(L)", text: $pDir).background(Color.white).frame(width:mediumWidth)
+                            .textFieldStyle(.roundedBorder).foregroundColor(.blue)
                             .autocapitalization(.none)
                             .textContentType(.none)
                         HStack {
-                            Image(systemName: "plus.square")
-                            Text("Add").onTapGesture {
+                            Spacer(minLength: 10)
+                            Image(systemName: "plus")
+                                .onTapGesture {
                                 if !dups && !pName.isEmpty {
                                     let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:team)
                                     modelContext.insert(thisPlayer)
@@ -103,34 +105,35 @@ struct PlayersOnTeamView: View {
                                 }
                             }
                         }
-                        .frame(width: 70, height: 30, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     }
                     ForEach(players) { player in
                         NavigationLink(value: player) {
                             HStack {
-                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:mediumWidth, alignment: .center).foregroundColor(.black).bold()
+                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
                                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).bold().lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).lineLimit(1).minimumScaleFactor(0.5)
                                     .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 0)
-                                Text(player.number).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
+                                Text(player.number).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
                                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.position).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
+                                Text(player.position).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
                                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.batDir).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
+                                Text(player.batDir).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
                                     .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text("").frame(width:50)
+                                Spacer(minLength: 5)
                             }
+                            .padding(.vertical, 0)
                         }
                     }
                     .onDelete(perform: deletePlayer)
                 }
                 header: {
                     if players.count > 0 && showHeader {
-                        Text("Select a Player to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundColor(.black).bold()
+                        Text("Select a Player to edit").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundColor(.black) 
                     }
                 }
             }
+            .listRowSpacing(0)
         }
     }
     

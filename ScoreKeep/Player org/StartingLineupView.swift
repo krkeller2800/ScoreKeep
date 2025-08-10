@@ -32,6 +32,7 @@ struct StartingLineupView: View {
     @State private var alertMessage = ""
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     @State var searchText:String = ""
+    @State private var isSearching = false
     @State private var playerName = ""
     @State private var prevPName = ""
     @State private var dups = false
@@ -49,69 +50,12 @@ struct StartingLineupView: View {
     var body: some View {
         GeometryReader { geometry in
             NavigationStack(path: $navigationPath) {
-                HStack {
-                    Spacer()
-                    Button(updDateLineup ? "Upd Lineup" :"Save Lineup") {
-                        if updDateLineup {
-                            showingUpdate = true
-                        } else {
-                            updDateLineup = true
-                            doLineup()
-                            dismiss()
-                        }
-                        
-                    }
-                    .frame(maxWidth: 135,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
-                    .alert(isPresented:$showingUpdate) {
-                        Alert(
-                            title: Text("Updating the Lineup"),
-                            message: Text("If the Lineup is updated, any at bats already recorded will be deleted and removed from the game. Take a picture or a screen shot of the game if you need to re-enter it after the update."),
-                            primaryButton: .destructive(Text("Update")) {
-                                for atbat in game.atbats {
-                                    if atbat.team == team {
-                                        modelContext.delete(atbat)
-                                        game.atbats.removeAll() {$0 == atbat}
-                                        game.replaced.removeAll {$0 == atbat.player}
-                                        game.incomings.removeAll {$0 == atbat.player}
-                                    }
-                                }
-                                doLineup()
-                                dismiss()
-                            },
-                            secondaryButton: .cancel()
-                        )
-                    }
-                    Spacer()
-                }
-                .onAppear {
-                    if let prevLineup = lineups.first(where: { $0.team == team && $0.game == game }) {
-                        updDateLineup = true
-                        lineup = prevLineup
-                        linePlayers = lineup.players.sorted(by: { $0.batOrder < $1.batOrder })
-                    } else {
-                        linePlayers = players.sorted(by: { $0.batOrder < $1.batOrder })
-                        updDateLineup = false
-                    }
-                    lineup.everyoneHits = game.everyOneHits
-                    if lineup.everyoneHits {
-                        numOfHitters = 99
-                    } else {
-                        numOfHitters = 9
-                    }
-                    for (index, player) in linePlayers.enumerated() {
-                        if index+1 <= numOfHitters || lineup.everyoneHits {
-                            player.batOrder = index+1
-                        } else if !lineup.everyoneHits {
-                            player.batOrder = 99
-                        }
-                    }
-                }
                 List {
                     let nameWidth = geometry.size.width/4
                     let smallWidth = geometry.size.width/11
 //                    let mediumWidth = geometry.size.width/10
-                    Text("Hold and drag Players to change the batting order or add a new Player if needed. Select a Player to make changes. Swipe left to delete a Player.").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+                    Text("Hold and drag Players to change the batting order or add a new Player if needed. Select a Player to make changes. Swipe left to delete a Player.")
+                        .frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPad" ? .title3 : .callout).foregroundColor(.black)
                     HStack () {
                         Text("Order")
                             .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
@@ -163,7 +107,9 @@ struct StartingLineupView: View {
                         TextField("(L)", text: $pBatDir).background(Color.white).frame(width:smallWidth)
                             .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
                             .focused($focusedField, equals: .field4)
-                        Text("Add").onTapGesture {
+                        Spacer(minLength: 75)
+                        Image(systemName: "plus")
+                            .onTapGesture {
                             checkForDup(pname: pName)
                             if !dups {
                                 thisPlayer = Player(name: pName, number: pNumber, position: pPosition, batDir: pBatDir, batOrder: pBatOrder, team: team)
@@ -180,7 +126,7 @@ struct StartingLineupView: View {
                                 try? self.modelContext.save()
                             }
                         }
-                        .frame(width: 75, alignment:.center).border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
+                        .border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
                     }
                     ForEach(linePlayers) { player in
                         NavigationLink(destination: EditPlayerView( player: player, team: team, navigationPath: $navigationPath)) { // Navigate to a DetailView
@@ -220,13 +166,60 @@ struct StartingLineupView: View {
                 .onChange(of: searchText) {
                     getPlayers()
                 }
+                .onAppear {
+                    if let prevLineup = lineups.first(where: { $0.team == team && $0.game == game }) {
+                        updDateLineup = true
+                        lineup = prevLineup
+                        linePlayers = lineup.players.sorted(by: { $0.batOrder < $1.batOrder })
+                    } else {
+                        linePlayers = players.sorted(by: { $0.batOrder < $1.batOrder })
+                        updDateLineup = false
+                    }
+                    lineup.everyoneHits = game.everyOneHits
+                    if lineup.everyoneHits {
+                        numOfHitters = 99
+                    } else {
+                        numOfHitters = 9
+                    }
+                    for (index, player) in linePlayers.enumerated() {
+                        if index+1 <= numOfHitters || lineup.everyoneHits {
+                            player.batOrder = index+1
+                        } else if !lineup.everyoneHits {
+                            player.batOrder = 99
+                        }
+                    }
+                }
+                .alert(isPresented:$showingUpdate) {
+                    Alert(
+                        title: Text("Updating the Lineup"),
+                        message: Text("If the Lineup is updated, any at bats already recorded will be deleted and removed from the game. Take a picture or a screen shot of the game if you need to re-enter it after the update."),
+                        primaryButton: .destructive(Text("Update")) {
+                            for atbat in game.atbats {
+                                if atbat.team == team {
+                                    modelContext.delete(atbat)
+                                    game.atbats.removeAll() {$0 == atbat}
+                                    game.replaced.removeAll {$0 == atbat.player}
+                                    game.incomings.removeAll {$0 == atbat.player}
+                                }
+                            }
+                            doLineup()
+                            dismiss()
+                        },
+                        secondaryButton: .cancel()
+                    )
+                }
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        Text("\(team.name) Starting Lineup").font(.title2)
+                        Text("\(team.name) Lineup").font(.title2)
                     }
                     ToolbarItemGroup(placement: .topBarLeading) {
-                        Button("< Back") {
+                        Button(action: {
                             dismiss()
+                        }) {
+                            HStack {
+                                Image(systemName: "chevron.left")
+                                Text("Back")
+                            }
                         }
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
                             Picker("Sort", selection: $sortOrder) {
@@ -241,8 +234,39 @@ struct StartingLineupView: View {
                             }
                         }
                     }
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(updDateLineup ? "Upd Lineup" :"Save Lineup") {
+                            if updDateLineup {
+                                showingUpdate = true
+                            } else {
+                                updDateLineup = true
+                                doLineup()
+                                dismiss()
+                            }
+                        }
+                        .frame(maxWidth: 135,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .border(.gray).cornerRadius(10).accentColor(.black).padding(.horizontal, 10)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if UIDevice.type == "iPhone" {
+                            Button(action: {
+                                withAnimation {
+                                    isSearching.toggle()
+                                }
+                            }) {
+                                Image(systemName: "magnifyingglass")
+                            }
+                        }
+                    }
                 }
-                .searchable(text: $searchText,  prompt:"Name or Number")
+                .searchable(if: isSearching, text: $searchText, placement: .automatic, prompt: "Player name or number")
+                .onAppear {
+                    if UIDevice.type == "iPhone" {
+                       isSearching = false
+                    } else {
+                        isSearching = true
+                    }
+                }
                 Spacer()
             }
         }
@@ -273,6 +297,7 @@ struct StartingLineupView: View {
                     let atbat = Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: player.batOrder, outAt: "Safe", inning: 1, seq:seq, col:1, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
                     modelContext.insert(atbat)
                     game.atbats.append(atbat)
+                    game.players.append(player)
                     try? modelContext.save()
                 }
             }

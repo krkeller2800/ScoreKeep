@@ -1,19 +1,18 @@
 //
-//  PlayersToScoreView.swift
+//  PlayersToTestView.swift
 //  ScoreKeep
 //
-//  Created by Karl Keller on 4/2/25.
+//  Created by Karl Keller on 7/29/25.
 //
-
 import SwiftUI
 import SwiftData
-struct PlayersToScoreView: View {
+
+struct PlayersToTestView: View {
     @Environment(\.modelContext) var modelContext
     @Query var atbats: [Atbat]
     @Binding var lAtbats: [Atbat]
     @Binding var game: Game
     @Binding var isLoading: Bool
-    @Binding var hasChanged: Bool
     @State var screenSize: CGSize = .zero
     @State var screenWidth = UIScreen.screenWidth
     @State var screenHeight = UIScreen.screenHeight
@@ -39,7 +38,6 @@ struct PlayersToScoreView: View {
                 drawIndicator(iStat:iStat,size:geometry.size,colbox:colbox,space:calcSpace())
                 drawBoxScore(game:game,size:geometry.size)
                 ScrollView() {
-                    ScrollView(.horizontal) {
                         ZStack {
                             VStack ( spacing: 0) {
                                 HStack(alignment: .top) {
@@ -52,105 +50,110 @@ struct PlayersToScoreView: View {
                                         if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                             let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
                                             let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
-                                            Text(atbat.player.number).frame(width: 30, alignment: .center).foregroundColor(.black)
+                                            Text(atbat.player.number).frame(width: 30, alignment: .center).foregroundColor(.black).bold()
                                                 .overlay(Divider().background(.black), alignment: .trailing)
-                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt)                                                .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-//                                                .lineLimit(1).minimumScaleFactor(0.6)
-                                            let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-                                            let bSize = screenWidth > 1100 ? 14 : 11
-                                            let newCol = bigCol?.col ?? 0 + 1
-                                            let maxCol = newCol < bSize ? bSize : newCol
-                                            ForEach((1...maxCol), id: \.self) {ind in
-                                                let bSize:CGFloat = screenWidth > 1200 ? 60 : 50
-                                                Button(action: {
-                                                    showingScoring.toggle()
-                                                    hasChanged = true
-                                                }, label: {
-                                                    Image("field").resizable().scaledToFit()
-                                                })
-                                                .frame(width: bSize, height: bSize)
-                                                .buttonStyle(GlowButtonStyle())
-                                                .simultaneousGesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                                                    .onEnded {
-                                                        let posx = Int(ind)
-                                                        let posy = Int(index+1)
-                                                        print("Changed \($0.location)")
-                                                        if let curratbat = atbats.firstIndex(where: {  $0.game == atbat.game &&
-                                                            $0.team == atbat.team &&
-                                                            $0.batOrder == posy &&
-                                                            $0.col == posx })
-                                                        {
-                                                            theAtbat = atbats[curratbat]
-                                                        } else {
-                                                            let newAtbat = Atbat(game: atbat.game, team: atbat.team, player: atbat.player, result: "Result",
-                                                                                 maxbase: "No Bases", batOrder: posy, outAt: "Safe", inning: 99, seq:99, col: posx, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
-                                                            modelContext.insert(newAtbat)
-                                                            game.atbats.append(newAtbat)
-                                                            
-                                                            do {
-                                                                try self.modelContext.save()
-                                                            }
-                                                            catch {
-                                                                print("Error saving new atbats: \(error)")
-                                                            }
-                                                            theAtbat = newAtbat
-                                                        }
-                                                    }
-                                                )
-                                            }
-//                                            Spacer(minLength: 50)
+                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).bold()
+                                                .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
+                                                .lineLimit(2).minimumScaleFactor(0.8).strikethrough(strikeIt)
+//                                            let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
+//                                            let bSize = screenWidth > 1100 ? 14 : 11
+//                                            let newCol = bigCol?.col ?? 0 + 1
+//                                            let maxCol = newCol < bSize ? bSize : newCol
+                                            Spacer()
                                         }
-                                        Spacer(minLength:150)
+                                        //                                    }
+                                        ScrollView(.horizontal) {
+                                            HStack {
+                                                ForEach((1...12), id: \.self) {ind in
+                                                    let bSize:CGFloat = screenWidth > 1200 ? 60 : 50
+                                                    Button(action: {
+                                                        showingScoring.toggle()
+                                                    }, label: {
+                                                        Image("field").resizable().scaledToFit()
+                                                    })
+                                                    .frame(width: bSize, height: bSize)
+                                                    .buttonStyle(GlowButtonStyle())
+                                                    .simultaneousGesture(DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                                                        .onEnded {
+                                                            let posx = Int(ind)
+                                                            let posy = Int(index+1)
+                                                            print("Changed \($0.location)")
+                                                            if let curratbat = atbats.firstIndex(where: {  $0.game == atbat.game &&
+                                                                $0.team == atbat.team &&
+                                                                $0.batOrder == posy &&
+                                                                $0.col == posx })
+                                                            {
+                                                                theAtbat = atbats[curratbat]
+                                                            } else {
+                                                                let newAtbat = Atbat(game: atbat.game, team: atbat.team, player: atbat.player, result: "Result",
+                                                                                     maxbase: "No Bases", batOrder: posy, outAt: "Safe", inning: 99, seq:99, col: posx, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
+                                                                modelContext.insert(newAtbat)
+                                                                game.atbats.append(newAtbat)
+                                                                
+                                                                do {
+                                                                    try self.modelContext.save()
+                                                                }
+                                                                catch {
+                                                                    print("Error saving new atbats: \(error)")
+                                                                }
+                                                                theAtbat = newAtbat
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                                
+                                            }
+                                        }
+                                    }
+                                    if atbats.count > 0 {
+                                        let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
+                                        let numOfPitchers = CGFloat(game.pitchers.filter { $0.team == opTeam }.count)
+                                        Spacer(minLength:numOfPitchers * 50 + 85)
                                     }
                                 }
-                                if atbats.count > 0 {
-                                    let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
-                                    let numOfPitchers = CGFloat(game.pitchers.filter { $0.team == opTeam }.count)
-                                    Spacer(minLength:numOfPitchers * 25 + 95)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
+                                .onAppear() {
+                                    lAtbats = atbats
                                 }
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
-                            .onAppear() {
-                                lAtbats = atbats
-                            }
-                            .onChange(of: atbats) {
-                                if firstTime {
+                                .onChange(of: atbats) {
+                                    if firstTime {
+                                        seqGame()
+                                        updMaxBases()
+                                        firstTime = false
+                                    }
+                                }
+                                .onChange(of: theAtbat.result) {
                                     seqGame()
                                     updMaxBases()
-                                    firstTime = false
                                 }
-                            }
-                            .onChange(of: theAtbat.result) {
-                                seqGame()
-                                updMaxBases()
-                            }
-                            .onChange(of: theAtbat.outAt) {
-                                seqGame()
-                                updMaxBases()
-                            }
-                            .onChange(of: atbats.count > 0 ? atbats[0].team.name : "") {
-                                seqGame()
-                                updMaxBases()
-                            }
-                            .onChange(of: theAtbat.sacFly) {
-                                seqGame()
-                                updMaxBases()
-                            }
-                            if !atbats.isEmpty {
-                                drawSing(space: calcSpace(), atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: screenWidth, isLoading: $isLoading)
-                                let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
-                                drawPitchers(space: calcSpace(), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam)
+                                .onChange(of: theAtbat.outAt) {
+                                    seqGame()
+                                    updMaxBases()
+                                }
+                                .onChange(of: atbats.count > 0 ? atbats[0].team.name : "") {
+                                    seqGame()
+                                    updMaxBases()
+                                }
+                                .onChange(of: theAtbat.sacFly) {
+                                    seqGame()
+                                    updMaxBases()
+                                }
+                                if !atbats.isEmpty {
+                                    drawSing(space: calcSpace(), atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: screenWidth, isLoading: $isLoading)
+                                    let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
+                                    drawPitchers(space: calcSpace(), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam)
+                                }
                             }
                         }
                     }
-                }
+//                }
             }
             .sheet(isPresented: $showingScoring) {ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring)
-//                    .overlay(
-//                        RoundedRectangle(cornerRadius: 16)
-//                            .stroke(.black, lineWidth: 8)
-//                            .fill(Color.yellow.opacity(0.1))
-//                    )
+                    .background(Color.yellow.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.black, lineWidth: 8)
+                    )
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -259,7 +262,7 @@ struct PlayersToScoreView: View {
                     allOuts += 1
                 }
                 atbat.inning = CGFloat(allOuts)/3.0
-                if (CGFloat(inning) > atbat.inning  && (atbat.col != 1 && atbat.result != "Pitch Hitter")) || (atbat.col == 1 && atbat.inning == 0 && com.onresults.contains(atbat.result)) {
+                if CGFloat(inning) > atbat.inning  && (atbat.col != 1 && atbat.result != "Pitch Hitter") {
                     atbat.inning += 0.1
                 }
                 atbat.outs = outs
@@ -307,11 +310,10 @@ struct PlayersToScoreView: View {
             }
         }
     }
-    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>, hasChanged: Binding<Bool>) {
+    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>) {
         _game = passedGame
         _lAtbats = theAtbats
         _isLoading = isLoading
-        _hasChanged = hasChanged
 
         let date = game.date
         let location = game.location
@@ -330,7 +332,6 @@ struct PlayersToScoreView: View {
         },  sort: sortOrder)
     }
 }
-
 
 
 
