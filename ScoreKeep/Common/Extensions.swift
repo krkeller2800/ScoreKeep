@@ -80,3 +80,18 @@ extension View {
         }
     }
 }
+extension String {
+    func noNum() -> String {
+        let theString = self.replacingOccurrences(of: "-", with: " ")
+        return theString.filter { !$0.isNumber }.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+extension UIColor {
+    func darker(by percentage: CGFloat = 0.2) -> UIColor {
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        if self.getHue(&h, saturation: &s, brightness: &b, alpha: &a) {
+            return UIColor(hue: h, saturation: s, brightness: b * (1 - percentage), alpha: a)
+        }
+        return self // Return original color if conversion fails
+    }
+}

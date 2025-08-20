@@ -54,8 +54,8 @@ struct PlayersToScoreView: View {
                                             let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
                                             Text(atbat.player.number).frame(width: 30, alignment: .center).foregroundColor(.black)
                                                 .overlay(Divider().background(.black), alignment: .trailing)
-                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt)                                                .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-//                                                .lineLimit(1).minimumScaleFactor(0.6)
+                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt).fixedSize(horizontal: false, vertical: true)
+                                                .overlay(Divider().background(.black), alignment: .trailing).padding(.leading,5).lineLimit(2)
                                             let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
                                             let bSize = screenWidth > 1100 ? 14 : 11
                                             let newCol = bigCol?.col ?? 0 + 1
@@ -98,7 +98,6 @@ struct PlayersToScoreView: View {
                                                     }
                                                 )
                                             }
-//                                            Spacer(minLength: 50)
                                         }
                                         Spacer(minLength:150)
                                     }
@@ -106,7 +105,7 @@ struct PlayersToScoreView: View {
                                 if atbats.count > 0 {
                                     let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
                                     let numOfPitchers = CGFloat(game.pitchers.filter { $0.team == opTeam }.count)
-                                    Spacer(minLength:numOfPitchers * 25 + 95)
+                                    Spacer(minLength:numOfPitchers * 25 + 100)
                                 }
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
@@ -220,10 +219,8 @@ struct PlayersToScoreView: View {
                     iStat.onFirst = true
                 }
             }
-        
         }
     }
-
     func seqGame() {
         var allOuts:Int = 0
         var outs:Int = 0

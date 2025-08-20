@@ -32,7 +32,7 @@ struct PitchersStaffView: View {
     @State private var editPitcher: Bool = false
     @State private var alertMessage = ""
     @State private var showingAlert = false
-   
+
     enum FocusField: Hashable {case field}
     @FocusState private var focusedField: FocusField?
 
@@ -266,17 +266,20 @@ struct PitchersStaffView: View {
         }
         Spacer()
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], passedGame: Game, passedTeam: Team, theTeam: String) {
+    init(searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], passedGame: Game, passedTeam: Team, theTeam: String,rpText: String = "", spText: String = "") {
         team = passedTeam
         game = passedGame
-
+        
         _players = Query(filter: #Predicate { player in
-            if searchString.isEmpty {
+            if searchString.isEmpty && rpText.isEmpty && spText.isEmpty
+            {
                 player.team?.name == theTeam
             } else {
                 player.team?.name == theTeam &&
                 (player.name.localizedStandardContains(searchString)
-                 || player.number.localizedStandardContains(searchString))
+                || player.position.localizedStandardContains(spText)
+                || player.position.localizedStandardContains(rpText)
+                || player.number.localizedStandardContains(searchString))
             }
         },  sort: sortOrder)
         

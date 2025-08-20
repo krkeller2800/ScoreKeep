@@ -88,12 +88,14 @@ struct ScoreContentView: View {
                         .pickerStyle(SegmentedPickerStyle())
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            withAnimation {
-                                isSearching.toggle()
+                        if UIDevice.type == "iPhone" {
+                            Button(action: {
+                                withAnimation {
+                                    isSearching.toggle()
+                                }
+                            }) {
+                                Image(systemName: "magnifyingglass")
                             }
-                        }) {
-                            Image(systemName: "magnifyingglass")
                         }
                     }
             }

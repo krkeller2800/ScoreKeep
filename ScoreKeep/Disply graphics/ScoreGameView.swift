@@ -19,7 +19,7 @@ struct ScoreGameView: View {
     @State private var delAtbat: Bool = false
     @State private var playRec: String = ""
     @State private var onBase: String = "Result"
-    @State private var batOut: String = ""
+    @State private var batOut: String = "Result"
 
     let com:Common = Common()
     
@@ -254,16 +254,18 @@ struct ScoreGameView: View {
                         .position(x:0.5 * geometry.size.width, y:0.7 * geometry.size.height)
                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 15).rotationEffect(.degrees(47))
                         .position(x:0.43 * geometry.size.width, y:0.81 * geometry.size.height)
-//                    Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 11)
-//                        .position(x:0.5 * geometry.size.width, y:0.92 * geometry.size.height)
-//                    Path() {
-//                        myPath in
-//                        myPath.move(to: CGPoint(x: 0.487 * geometry.size.width, y: 0.93 * geometry.size.height))
-//                        myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.96 * geometry.size.height))
-//                        myPath.addLine(to: CGPoint(x: 0.512 * geometry.size.width, y: 0.93 * geometry.size.height))
-//                        myPath.addLine(to: CGPoint(x: 0.49 * geometry.size.width, y: 0.93 * geometry.size.height))
-//                    }
-//                    .fill(Color.gray.opacity(0.5))
+                    if com.onresults.contains(atbat.result) || atbat.result == "Result" {
+                        Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 11)
+                            .position(x:0.5 * geometry.size.width, y:0.92 * geometry.size.height)
+                        Path() {
+                            myPath in
+                            myPath.move(to: CGPoint(x: 0.487 * geometry.size.width, y: 0.93 * geometry.size.height))
+                            myPath.addLine(to: CGPoint(x: 0.50 * geometry.size.width, y: 0.96 * geometry.size.height))
+                            myPath.addLine(to: CGPoint(x: 0.512 * geometry.size.width, y: 0.93 * geometry.size.height))
+                            myPath.addLine(to: CGPoint(x: 0.49 * geometry.size.width, y: 0.93 * geometry.size.height))
+                        }
+                        .fill(Color.gray.opacity(0.5))
+                    }
                 } else {
                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 30, height: 30).rotationEffect(.degrees(45))
                          .position(x:0.75 * geometry.size.width, y:0.7 * geometry.size.height)

@@ -34,13 +34,16 @@ struct ImportPlayersView: View {
         NavigationStack(path: $navigationPath) {
             VStack {
                 HStack {
-                    Text("Which " + (fileType.components(separatedBy: "_").last ?? "") + " shouldn't have non-blank fields overwritten?").italic().lineLimit(1).minimumScaleFactor(0.5)
-                        .bold().italic()
-                    Button("Imported") {
-                        let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0] : ""
-                        if fileType == "ScoreKeep_Players" {
+                    let dataType = (fileType.components(separatedBy: "_").last ?? "")
+                    if dataType.localizedStandardContains("Players") {
+                        Text("Which " + dataType + " shouldn't have non-blank fields overwritten?").italic().lineLimit(1).minimumScaleFactor(0.5)
+                            .bold().italic()
+                    }
+                    Button(dataType.localizedStandardContains("Players") ? "Imported" : "Get Game") {
+                        let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
+                        if fileType.localizedStandardContains("ScoreKeep_Players") {
                             sharedPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
-                        } else if fileType == "ScoreKeep_Games" {
+                        } else if fileType.localizedStandardContains("ScoreKeep_Games") {
                             sharedGamesBoss(shareGames: shareGames)
                         }
                         if !showingAlert {
@@ -50,36 +53,31 @@ struct ImportPlayersView: View {
                      
                     }
                     .foregroundColor(.blue).buttonStyle(.bordered)
-                    Text(" or ")
-                    Button("Current") {
-                        let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0] : ""
-                        if fileType == "ScoreKeep_Players" {
-                            currentPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
-                        } else if fileType == "ScoreKeep_Games" {
-                            currentGamesBoss(shareGames: shareGames)
+                    if dataType.localizedStandardContains("Players") {
+                        Text(" or ")
+                        Button("Current") {
+                            let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
+                            if fileType.localizedStandardContains("ScoreKeep_Players") {
+                                currentPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
+                            }
+                            if !showingAlert {
+                                alertMessage = "Import Complete"
+                                showingAlert = true
+                            }
+                            
                         }
-                        if !showingAlert {
-                            alertMessage = "Import Complete"
-                            showingAlert = true
-                        }
-
+                        .foregroundColor(.blue).buttonStyle(.bordered)
                     }
-                    .foregroundColor(.blue).buttonStyle(.bordered)
                 }
                 Text("")
                 HStack {
-                    let tName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0] : "Unknown"
-                    let teampName = tName.components(separatedBy: "-").first ?? tName
-                    let teamName = teampName.count == 1 ? tName : teampName
-                    let tm = teams.first(where: { $0.name == teamName }) != nil ? teams.first(where: { $0.name == teamName })! : Team(name: teamName, coach: "", details: "")
-//                    let gName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0] : "Unknown"
-//                    let gametName = gName.components(separatedBy: "-").first ?? gName
-//                    let gameName = gametName.count == 1 ? gName : gametName
+                    let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
+                    let tm = teams.first(where: { $0.name == teamName }) ?? Team(name: teamName, coach: "", details: "")
+
                     VStack {
-                        Text(fileType == "ScoreKeep_Players" ? "Imported \(teamName) Players" : "Imported Game") .bold().italic()
+                        Text(fileType.localizedStandardContains("ScoreKeep_Players") ? "Imported \(teamName) Players" : "Imported Game") .bold().italic()
                         
-//                            .padding(5).background(Color.yellow.opacity(0.3)).cornerRadius(10).foregroundColor(.red).border(.black, width: 1)
-                        if fileType == "ScoreKeep_Players" {
+                        if fileType.localizedStandardContains("ScoreKeep_Players") {
                             showSharedPlayers(sharePlayers: $sharePlayers, searchText: searchText)
                         } else {
                             if shareGames.count > 0 {
@@ -89,10 +87,10 @@ struct ImportPlayersView: View {
                         Spacer()
                     }
                     VStack {
-                        if fileType == "ScoreKeep_Players" {
+                        if fileType.localizedStandardContains("ScoreKeep_Players") {
                             Text("Current \(teamName) Players").bold().italic()
-                            PlayersOnTeamView(showHeader: true, team: team, searchString: searchText, sortOrder: sortOrder)
-                        } else if fileType == "ScoreKeep_Games" {
+                            PlayersOnTeamView(showHeader: true, team: tm, searchString: searchText, sortOrder: sortOrder)
+                        } else if fileType.localizedStandardContains("ScoreKeep_Games") {
                             Text("Current Games").bold().italic()
                             GameView(searchString: searchText, title: $title, navigationPath: $navigationPath)
                                 .navigationDestination(for: Game.self) { game in
@@ -100,10 +98,6 @@ struct ImportPlayersView: View {
                             }
                         }
                         Spacer()
-                    }
-                
-                    .alert(alertMessage, isPresented: $showingAlert) {
-                        Button("OK", role: .cancel) { }
                     }
                     .navigationDestination(for: Player.self) { player in
                         EditPlayerView( player: player, team: tm, navigationPath: $navigationPath)
@@ -114,9 +108,9 @@ struct ImportPlayersView: View {
                     .onAppear() {
                         columnVisibility = .detailOnly
                         fileType = importURL.lastPathComponent.components(separatedBy: ".").last ?? ""
-                        if fileType == "ScoreKeep_Players" {
+                        if fileType.localizedStandardContains("ScoreKeep_Players") {
                             sharePlayers = decodePlayers()
-                        } else if fileType == "ScoreKeep_Games"  {
+                        } else if fileType.localizedStandardContains("ScoreKeep_Games")  {
                             shareGames = decodeGame()
                         } else {
                             alertMessage = "Could not identify the file coming in"
@@ -152,13 +146,16 @@ struct ImportPlayersView: View {
                             }
                         }
                     }
-                    .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: fileType == "ScoreKeep_Players" ? "Player name or number" : "Team name or game date")
+                    .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: fileType.localizedStandardContains("ScoreKeep_Players") ? "Player name or number" : "Team name or game date")
                     .onAppear {
                         if UIDevice.type == "iPhone" {
                            isSearching = false
                         } else {
                             isSearching = true
                         }
+                    }
+                    .alert(alertMessage, isPresented: $showingAlert) {
+                        Button("OK", role: .cancel) { }
                     }
                 }
             }
@@ -183,7 +180,8 @@ struct ImportPlayersView: View {
             let decoder = JSONDecoder()
             
             guard let loadedFile = try? decoder.decode([SharePlayer].self, from: data) else {
-                fatalError("Failed to decode \(importURL)")
+                
+                throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Invalid user data"))
             }
             return loadedFile.sorted { $0.batOrder < $1.batOrder }
         }
@@ -207,7 +205,7 @@ struct ImportPlayersView: View {
             let decoder = JSONDecoder()
             
             guard let loadedFile = try? decoder.decode(ShareGame.self, from: data) else {
-                fatalError("Failed to decode \(importURL)")
+                throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Invalid user data"))
             }
             return [loadedFile]
         }
@@ -246,7 +244,6 @@ struct ImportPlayersView: View {
     }
     func currentPlayersBoss (sharedPlayers: [SharePlayer],teamName: String) {
         
-        let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0] : ""
         let players = getCurrentPlayers(teamName: teamName)
         for sharePlayer in sharedPlayers {
             if let currPlayer = players.first(where: { $0.name == sharePlayer.name ||
@@ -256,7 +253,7 @@ struct ImportPlayersView: View {
                 currPlayer.batOrder = currPlayer.batOrder > 50 ? sharePlayer.batOrder : currPlayer.batOrder
                 currPlayer.batDir = currPlayer.batDir.isEmpty ? sharePlayer.batDir : currPlayer.batDir
                 currPlayer.position = currPlayer.position.isEmpty ? sharePlayer.position : currPlayer.position
-                currPlayer.photo = currPlayer.photo?.isEmpty ?? true ? sharePlayer.photo : currPlayer.photo
+                currPlayer.photo = (currPlayer.photo?.isEmpty ?? true) ? sharePlayer.photo : currPlayer.photo
             }
             else {
                 let newPlayer = Player(name: sharePlayer.name, number: sharePlayer.number, position: sharePlayer.position,
@@ -268,7 +265,7 @@ struct ImportPlayersView: View {
             try modelContext.save()
         }
         catch {
-            alertMessage = "Error saving data"
+            alertMessage = "Error saving data: \(error.localizedDescription)"
             showingAlert = true
             print("SwiftData Error: \(error)")
         }
@@ -277,33 +274,10 @@ struct ImportPlayersView: View {
         for shareGame in shareGames {
             sharedPlayersBoss(sharedPlayers: shareGame.vteam.players, teamName: shareGame.vteam.name)
             sharedPlayersBoss(sharedPlayers: shareGame.hteam.players, teamName: shareGame.hteam.name)
-            let x = games.filter { $0.vteam?.name == shareGame.vteam.name &&
+            let matchingGameCount = games.filter { $0.vteam?.name == shareGame.vteam.name &&
                                    $0.hteam?.name == shareGame.hteam.name &&
                                    $0.date == shareGame.date}.count
-            if x > 0 {
-                alertMessage = "Matching game already exists.  Delete it (swipe left) to import new data."
-                showingAlert = true
-            } else {
-                let homeTeam = teams.first(where: {$0.name == shareGame.hteam.name} )
-                let visitTeam = teams.first(where: {$0.name == shareGame.vteam.name} )
-                let currentGame = Game(date: shareGame.date, location: shareGame.location, highLights: shareGame.highLights, hscore: shareGame.hscore, vscore: shareGame.vscore,
-                                       everyOneHits: shareGame.everyOneHits, numInnings: shareGame.numInnings, vteam: visitTeam, hteam: homeTeam)
-                doAtbats(shareAtbats:shareGame.atbats, currentGame: currentGame)
-                doLineups(shareLineups: shareGame.lineups, currentGame: currentGame)
-                doPitchers(sharePitchers:shareGame.pitchers, currentGame: currentGame)
-                doReplaced(shareReplaced:shareGame.replaced, currentGame: currentGame)
-                doIncomings(shareIncomings:shareGame.incomings, currentGame: currentGame)
-            }
-        }
-    }
-    func currentGamesBoss (shareGames: [ShareGame]) {
-        for shareGame in shareGames {
-            currentPlayersBoss(sharedPlayers: shareGame.vteam.players, teamName: shareGame.vteam.name)
-            currentPlayersBoss(sharedPlayers: shareGame.hteam.players, teamName: shareGame.hteam.name)
-            let x = games.filter { $0.vteam?.name == shareGame.vteam.name &&
-                                   $0.hteam?.name == shareGame.hteam.name &&
-                                   $0.date == shareGame.date}.count
-            if x > 0 {
+            if matchingGameCount > 0 {
                 alertMessage = "Matching game already exists.  Delete it (swipe left) to import new data."
                 showingAlert = true
             } else {
@@ -334,7 +308,7 @@ struct ImportPlayersView: View {
             try modelContext.save()
         }
         catch {
-            alertMessage = "Error saving game data"
+            alertMessage = "Error saving game data: \(error.localizedDescription)"
             showingAlert = true
             print("SwiftData Error: \(error)")
         }
@@ -356,7 +330,7 @@ struct ImportPlayersView: View {
             try modelContext.save()
         }
         catch {
-            alertMessage = "Error saving game data"
+            alertMessage = "Error saving game data: \(error.localizedDescription)"
             showingAlert = true
             print("SwiftData Error: \(error)")
         }
@@ -384,7 +358,7 @@ struct ImportPlayersView: View {
             try modelContext.save()
         }
         catch {
-            alertMessage = "Error saving game data"
+            alertMessage = "Error saving game data: \(error.localizedDescription)"
             showingAlert = true
             print("SwiftData Error: \(error)")
         }
@@ -435,7 +409,7 @@ struct ImportPlayersView: View {
         }
         catch {
             print("SwiftData Error: \(error)")
-            alertMessage = "Error reading data"
+            alertMessage = "Error reading data \(error.localizedDescription)"
             showingAlert = true
             return []
         }

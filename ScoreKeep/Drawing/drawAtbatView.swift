@@ -48,18 +48,20 @@ struct drawSingle: View {
         
         let com = Common()
         if UIDevice.type == "iPhone" {
-            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
-            if com.onresults.contains(abb) {
+            if com.onresults.contains(atbat.result) {
+                Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
                     myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.81 * size.height))
                 }
                 .stroke(Color.indigo, lineWidth: 5)
+            } else {
+                Text(abb).position(x: 0.65 * size.width, y: 0.91 * size.height).font(.system(size: 45))
             }
         } else {
             Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
-            if com.onresults.contains(abb) {
+            if com.onresults.contains(atbat.result) {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
@@ -77,7 +79,7 @@ struct drawDouble: View {
     var body: some View {
         
         if UIDevice.type == "iPhone" {
-            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
             Path() {
                 myPath in
                 myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
@@ -104,7 +106,7 @@ struct drawTriple: View {
     var body: some View {
         
         if UIDevice.type == "iPhone" {
-            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
             Path() {
                 myPath in
                 myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
@@ -143,7 +145,7 @@ struct drawHomeRun: View {
                 myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.92 * size.height))
             }
             .fill(Color.black)
-            Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+            Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30)).foregroundColor(.white)
         } else {
             Path() {
                 myPath in
@@ -175,7 +177,7 @@ struct drawRunning: View {
                     myPath.addLine(to: CGPoint(x: 0.50 * size.width, y: 0.92 * size.height))
                 }
                 .fill(Color.black)
-                Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+                Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30)).foregroundColor(.white)
             } else {
                 Path() {
                     myPath in
@@ -189,7 +191,7 @@ struct drawRunning: View {
                     }
                 }
                 .stroke(Color.indigo, lineWidth: 5)
-                Text(abb).position(x: 0.7 * size.width, y: 0.91 * size.height).font(.system(size: 65))
+                Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
             }
         } else {
             if atbat.maxbase == "Home" {
@@ -286,7 +288,7 @@ struct drawoutAt: View {
                 }
                 .stroke(Color.indigo, lineWidth: 5)
                 if atbat.outAt == "First" {
-                    Text("X").position(x: 0.57 * size.width, y: 0.70 * size.height).font(.system(size: 25, weight: .regular))
+                    Text("X").position(x: 0.57 * size.width, y: 0.8 * size.height).font(.system(size: 25, weight: .regular))
                 } else if atbat.outAt == "Second" {
                     Text("X").position(x: size.width/2, y: 0.7 * size.height).font(.system(size:25, weight: .regular))
                 } else if atbat.outAt == "Third" {

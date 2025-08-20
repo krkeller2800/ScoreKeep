@@ -152,6 +152,18 @@ struct EditScoreView: View {
                     }
                 }
                 .toolbar {
+                    ToolbarItemGroup(placement: .topBarLeading) {
+                        Button {
+                            let generatePDF = PDFGenerator()
+                            url = generatePDF.generatePDFData(game: game, team: team, title: "Test PDF", body: "This is a test")
+                        } label: {
+                            Text("Create PDF")
+                        }
+                        .buttonStyle(ToolBarButtonStyle())
+                        if let pdfURL = url {
+                            ShareLink("Share", item: pdfURL)
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button(action: {
                             presentReplacements.toggle()
@@ -214,22 +226,22 @@ struct EditScoreView: View {
                         Text("Score the Game")
                             .font(.title2)
                     }
-                    ToolbarItemGroup(placement: .topBarLeading) {
-                        if UIDevice.type == "iPad" {
-                            Button {
-                                hasChanged = false
-                                doShot = true
-                            } label: {
-                                Text(" Screenshot")
-                            }
-                            .buttonStyle(ToolBarButtonStyle())
-                            if let shotURL = url {
-                                if hasChanged == false {
-                                    ShareLink("Share", item: shotURL)
-                                }
-                            }
-                        }
-                    }
+//                    ToolbarItemGroup(placement: .topBarLeading) {
+//                        if UIDevice.type == "iPad" {
+//                            Button {
+//                                hasChanged = false
+//                                doShot = true
+//                            } label: {
+//                                Text(" Screenshot")
+//                            }
+//                            .buttonStyle(ToolBarButtonStyle())
+//                            if let shotURL = url {
+//                                if hasChanged == false {
+//                                    ShareLink("Share", item: shotURL)
+//                                }
+//                            }
+//                        }
+//                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                     
@@ -285,25 +297,5 @@ struct EditScoreView: View {
             isLoading = false
         }
         return nil
-    }
-}
-extension View {
-    func takeScreenshotOfScrollView(origin: CGPoint, size: CGSize) -> UIImage? {
-        let window = UIWindow(frame: CGRect(origin: origin, size: size))
-        let hosting = UIHostingController(rootView: self)
-        hosting.view.frame = window.frame
-        window.addSubview(hosting.view)
-        window.makeKeyAndVisible()
-
-        // Ensure the view's layout is updated to reflect the full content size
-        hosting.view.layoutIfNeeded()
-
-        UIGraphicsBeginImageContextWithOptions(hosting.view.bounds.size, false, 0.0)
-        guard let context = UIGraphicsGetCurrentContext() else { return nil }
-        hosting.view.layer.render(in: context)
-        let capturedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        return capturedImage
     }
 }

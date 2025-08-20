@@ -91,7 +91,8 @@ struct StartPhoneView: View {
     }
     func handleIncomingURL(_ url: URL) {
         let dataType = url.lastPathComponent.components(separatedBy: ".").last ?? ""
-        if dataType == "ScoreKeep_Players" || dataType == "ScoreKeep_Games" {
+        if dataType.localizedStandardContains("ScoreKeep_Players") ||
+           dataType.localizedStandardContains("ScoreKeep_Games") {
             print(url)
             importURL = url
             showImport = true

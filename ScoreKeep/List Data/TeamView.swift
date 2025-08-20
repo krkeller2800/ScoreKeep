@@ -119,18 +119,16 @@ struct TeamView: View {
             if teamOnGame(team:team) {
                 showingAlert = true
                 alertMessage = "\(team.name) is associated with game(s). Cannot delete."
-            } else if playersOnTeam(team:team) {
-                showingAlert = true
-                alertMessage = "\(team.name) has players on it. Cannot delete."
             } else {
+                delPlayersOnTeam(team:team)
                 modelContext.delete(team)
+                try? self.modelContext.save()
             }
         }
     }
-    func playersOnTeam(team:Team)->Bool {
+    func delPlayersOnTeam(team:Team) {
         
 
-        var exist = false
         let tName = team.name
 
         if !tName.isEmpty {
@@ -142,15 +140,15 @@ struct TeamView: View {
             do {
                 let existPlayers = try self.modelContext.fetch(fetchDescriptor)
                 if existPlayers.first != nil {
-                    exist = true
-                } else {
-                    exist = false
+                    for player in existPlayers {
+                        self.modelContext.delete(player)
+                    }
+                    try? self.modelContext.save()
                 }
             } catch {
-                print("SwiftData Error fetching Players: \(error)")
+                print("SwiftData Error fetching and deleting \(tName)'s Players: \(error)")
             }
         }
-        return exist
     }
 
     func teamOnGame(team:Team)->Bool {
@@ -162,7 +160,7 @@ struct TeamView: View {
             
             var fetchDescriptor = FetchDescriptor<Game>()
             
-            fetchDescriptor.predicate = #Predicate { $0.hteam?.name == tName || $0.hteam?.name == tName }
+            fetchDescriptor.predicate = #Predicate { $0.hteam?.name == tName || $0.vteam?.name == tName }
             
             do {
                 let existGames = try self.modelContext.fetch(fetchDescriptor)

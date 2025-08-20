@@ -107,7 +107,6 @@ struct ShowPitchRptView: View {
                     doHeader(headAttributes: headAttributes, titleAttributes: titleAttributes, textAttributes: textAttributes, currentY: currentY, contentWidth: contentWidth)
                     currentY += 80
                  }
-  
                 attributedString = NSAttributedString(string: String(stats.pitcher?.player.number ?? ""), attributes: textAttributes)
                 attributedString.draw(in: CGRect(x: margin + 5, y: currentY, width: 20, height: textHeight))
                 

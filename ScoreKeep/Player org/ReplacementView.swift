@@ -83,8 +83,22 @@ struct ReplacementView: View {
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .onAppear() {
-                    rplPlayers = players.filter { $0.batOrder < 99 }
-                    incPlayers = players.filter { $0.batOrder >= 99 }
+                    let startAtbats = game.atbats.filter { $0.col == 1 && $0.batOrder < 50 && $0.team.id == team.id}
+                    var foundRPL = false
+                    for player in players {
+                        player.batOrder = 99
+                        for atbat in startAtbats {
+                            if player.id == atbat.player.id {
+                                player.batOrder = atbat.batOrder
+                                rplPlayers.append(player)
+                                foundRPL = true
+                            }
+                        }
+                        if !foundRPL {
+                            incPlayers.append(player)
+                        }
+                        foundRPL = false
+                    }
                 }
                 Spacer()
             }
@@ -132,7 +146,7 @@ struct ReplacementView: View {
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
             .onAppear {
                 if UIDevice.type == "iPhone" {
-                   isSearching = false
+                    isSearching = false
                 } else {
                     isSearching = true
                 }

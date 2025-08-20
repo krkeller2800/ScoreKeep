@@ -33,11 +33,12 @@ struct StartingLineupView: View {
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     @State var searchText:String = ""
     @State private var isSearching = false
-    @State private var playerName = ""
-    @State private var prevPName = ""
     @State private var dups = false
     @State private var checkForDups = true
     @State var navigationPath: NavigationPath = NavigationPath()
+    @State private var playerName = ""
+    @State private var prevPName = ""
+
 
     enum FocusField: Hashable {case field1, field2, field3, field4}
     

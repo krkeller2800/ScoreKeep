@@ -79,7 +79,7 @@ struct StartView: View {
                     .frame(width: 75, height: 75)
                     }
                 Spacer()
-                Button("\n\n\n\n\nShare Lineup") {
+                Button("\n\n\n\n\nShare Data") {
                     setFlags(flag: "presentShareLineup")
                     columnVisibility = .doubleColumn
                 }

@@ -58,7 +58,7 @@ struct ShareContentView: View {
             GeometryReader { geometry in
                 VStack {
                     if showText {
-                        Text("Select a team from the dropdown. If you want to share these players so they can be added to the ScoreKeep app on another iPad/iPhone - hit the share button.  A share pane will displayed so the lineup file can be sent to another iPad.  Once received, the recipient can simply touch the file and it will be sent to ScoreKeep's import screen.")
+                        Text("Select a team from the dropdown. If you want to share these players so they can be added to the ScoreKeep app on another iPad/iPhone - hit the share button.  A share pane will displayed so the lineup file can be sent to another ios device.  Once received, the saved file can be touched and it will be sent to ScoreKeep's import screen.")
                             .padding().italic()
                     }
                     HStack {
@@ -81,11 +81,12 @@ struct ShareContentView: View {
                                 .opacity(doShare == "Team" ? 1 : 0)
                                 .allowsHitTesting(doShare == "Team" ? true : false)
                             }
+                            let srtedGames = games.sorted { $0.date > $1.date }
                             Picker("Game", selection: $game) {
                                 Text("Select Game").tag(Optional<Game>.none)
                                 if games.isEmpty == false {
                                     Divider()
-                                    ForEach(games) { game in
+                                    ForEach(srtedGames) { game in
                                         if game.location != "" {
                                             let vTeam = game.vteam?.name ?? "Unkown"
                                             let hTeam = game.hteam?.name ?? "Unkown"

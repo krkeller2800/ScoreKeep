@@ -16,6 +16,9 @@ struct PitcherContentView: View {
     @State var game:Game 
     @State private var navigationPath = NavigationPath()
     @State private var searchText = ""
+    @State private var rpText = ""
+    @State private var spText = ""
+    @State private var whichPlayers = "All Players"
     @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Player.name)]
     @AppStorage("selectedPitcherCriteria") var selectedPitcherCriteria: SortCriteria = .nameAsc
@@ -41,7 +44,7 @@ struct PitcherContentView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack {
-                PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name)
+                PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name, rpText: rpText, spText: spText)
                     .navigationDestination(for: Player.self) { player in
                         EditPlayerView(player: player, team: team, navigationPath: $navigationPath)
                 }
@@ -75,7 +78,16 @@ struct PitcherContentView: View {
                     }
                     Button("Add Player", systemImage: "plus", action: addPlayers)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    let options = ["Pitchers","All Players"]
+                    Picker("Select Option", selection: $whichPlayers) {
+                        ForEach(options, id: \.self) { option in
+                            Text(option)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     if UIDevice.type == "iPhone" {
                         Button(action: {
                             withAnimation {
@@ -86,12 +98,23 @@ struct PitcherContentView: View {
                         }
                     }
                 }
+
+            }
+            .onChange(of: whichPlayers) {
+                if whichPlayers == "Pitchers" {
+                    rpText = "RP"
+                    spText = "SP"
+                } else {
+                    rpText = ""
+                    spText = ""
+                }
             }
             .onChange(of: sortDescriptor) {
                 sortOrder = sortDescriptor
             }
-            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name")
+            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
             .onAppear {
+                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.3)
                 if UIDevice.type == "iPhone" {
                    isSearching = false
                 } else {
