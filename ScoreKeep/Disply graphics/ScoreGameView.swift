@@ -40,7 +40,7 @@ struct ScoreGameView: View {
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.green.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
                         Spacer()
-                        Text("\(atbat.player.team!.name) Batting").font(.title2)
+                        Text("\(atbat.player.team?.name ?? "") Batting").font(.title2)
                         Spacer()
                         Button("Delete At Bat", action: {
                             showingScoring.toggle()

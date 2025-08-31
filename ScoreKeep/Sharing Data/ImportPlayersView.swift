@@ -72,7 +72,7 @@ struct ImportPlayersView: View {
                 Text("")
                 HStack {
                     let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
-                    let tm = teams.first(where: { $0.name == teamName }) ?? Team(name: teamName, coach: "", details: "")
+                    let tm = teams.first(where: { $0.name == teamName }) ?? Team(name: teamName, coach: "", details: "",logo: sharePlayers.count > 0 ? sharePlayers[0].team?.logo : Data())
 
                     VStack {
                         Text(fileType.localizedStandardContains("ScoreKeep_Players") ? "Imported \(teamName) Players" : "Imported Game") .bold().italic()
@@ -107,6 +107,7 @@ struct ImportPlayersView: View {
                     }
                     .onAppear() {
                         columnVisibility = .detailOnly
+                        print(importURL)
                         fileType = importURL.lastPathComponent.components(separatedBy: ".").last ?? ""
                         if fileType.localizedStandardContains("ScoreKeep_Players") {
                             sharePlayers = decodePlayers()
@@ -123,14 +124,12 @@ struct ImportPlayersView: View {
                                 .font(.title2)
                         }
                         ToolbarItem(placement: .topBarLeading) {
-                            if UIDevice.type == "iPhone" {
-                                Button(action: {
-                                    dismiss()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "chevron.left")
-                                        Text("Back")
-                                    }
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                HStack {
+                                    Image(systemName: "chevron.left")
+                                    Text("Back")
                                 }
                             }
                         }
@@ -384,7 +383,8 @@ struct ImportPlayersView: View {
     func getCurrentPlayers(teamName: String) -> [Player] {
           
         if !teams.contains(where: { $0.name == teamName }) {
-            let theTeam = Team(name: teamName, coach: "", details: "")
+            let theTeam = Team(name: teamName, coach: sharePlayers[0].team?.coach ?? "", details: sharePlayers[0].team?.details ?? "",
+                               logo: sharePlayers[0].team?.logo ?? Data())
             modelContext.insert(theTeam)
             try? modelContext.save()
             team = theTeam
@@ -405,6 +405,11 @@ struct ImportPlayersView: View {
         
         do {
             let players = try self.modelContext.fetch(fetchDescriptor)
+            if team.logo == nil {
+                if let firstPlayer = players.first {
+                    team.logo = firstPlayer.team?.logo ?? Data()
+                }
+            }
             return players
         }
         catch {

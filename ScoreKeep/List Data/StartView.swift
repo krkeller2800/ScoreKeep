@@ -106,7 +106,7 @@ struct StartView: View {
             }
             .ignoresSafeArea(.keyboard, edges: .bottom )
             .onOpenURL { url in
-                print(url)
+//                print(url)
                 importUrl = url
                 setFlags(flag: "importPlayers")
                 columnVisibility = .detailOnly

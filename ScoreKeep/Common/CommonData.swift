@@ -22,6 +22,8 @@ struct Common {
     var keySym:[String]
     var keyWord:[String]
     var recOuts:[String]
+    var position:[String]
+    var posAbbrev:[String]
     init(
         atBats:[String] = ["","Single", "Double", "Triple", "Home Run","Fielder's Choice", "Ground Out", "Fly Out", "Line Out", "Foul Out", "Strikeout", "Strikeout Looking","Error"],
         hitresults:[String] = ["","Single", "Double", "Triple", "Home Run"],
@@ -34,7 +36,9 @@ struct Common {
         innAbr:[String] = ["0","1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th","13th","14th","15th","16th","17th","18th"],
         outAbr:[String] = ["0","1 Out","2 Out","3 out"],
         keySym:[String] = ["`","~","!","@","#","$","%","^","&","*","(",")","( )","-","_","=","+","[]","[","]","{ }","{","}","\\","/","|",";",":",#"'"#,#"""#,",",".","<>","<",">","?"],
-        keyWord:[String] = ["Grave","Tilde","Exclamation","At sign","Pound","Dollar sign","Percent","Carat","Ampersand","Asterisk","Open paren","Close paren","Round brackets","Hyphen","Underscore","Equal sign","Plus sign","Square brackets","Open bracket","Close bracket","Curly brackets","Open brace","Close brace","Backslash","Slash","Pipe","Semicolon","Colon","Apostrophe","Double quotes","Comma","Period","Angle brackets","Less than","Greater than","Question mark"]
+        keyWord:[String] = ["Grave","Tilde","Exclamation","At sign","Pound","Dollar sign","Percent","Carat","Ampersand","Asterisk","Open paren","Close paren","Round brackets","Hyphen","Underscore","Equal sign","Plus sign","Square brackets","Open bracket","Close bracket","Curly brackets","Open brace","Close brace","Backslash","Slash","Pipe","Semicolon","Colon","Apostrophe","Double quotes","Comma","Period","Angle brackets","Less than","Greater than","Question mark"],
+        position:[String] = ["Starting Pitcher", "Relief Pitcher", "Catcher", "First Baseman", "Second Baseman", "Shortstop", "Third Baseman", "Left Fielder", "Center Fielder", "Right Fielder","Designated Hitter"],
+        posAbbrev:[String] = ["SP","RP","C","1B","2B","SS","3B","LF","CF","RF","DH","??"]
     ) {
         self.atBats = atBats
         self.hitresults = hitresults
@@ -48,6 +52,8 @@ struct Common {
         self.keySym = keySym
         self.keyWord = keyWord
         self.recOuts = recOuts
+        self.position = position
+        self.posAbbrev = posAbbrev
     }
 }
     

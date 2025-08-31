@@ -328,7 +328,7 @@ struct drawTots: View {
             .stroke(Color.gray.opacity(0.5), lineWidth: 1)
         drawBox(start: placeBox)
             .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-        drawBox(start:CGRect(x: space.minX, y: 0.1 * space.height + newy, width:space.width, height:space.height))
+        drawBox(start:CGRect(x: space.minX + 2, y: 0.1 * space.height + newy, width:space.width, height:space.height))
             .stroke(Color.gray.opacity(0.5), lineWidth: 1)
  
         if atbat.col == 1 && atbat.batOrder == 1 {
@@ -365,7 +365,7 @@ struct drawBoxScore: View {
         
         let adj:CGFloat = UIDevice.type == "iPhone" ? 5 : 0
         let font:Font = UIDevice.type == "iPhone" ? .caption : .headline
-        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.175 : 0.20) * size.width, y: UIDevice.type == "iPhone" ? -90 : -130, width:150, height:100)
+        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.195 : 0.20) * size.width, y: UIDevice.type == "iPhone" ? -90 : -130, width:150, height:100)
         let boxHome = doBoxScore(doTeam: "Home")
         let boxVisit = doBoxScore(doTeam: "Visit")
         let com = Common()
@@ -473,7 +473,7 @@ struct drawPitchers: View {
                     Text("").frame(maxWidth:5)
                     Text("Num").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("Pitcher").frame(width: 225).border(.gray)
+                    Text("Pitcher").frame(width: 200).border(.gray)
                         .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
                     Text("Inn Outs Bats    Inn Outs Bats").frame(width: 250).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
@@ -513,7 +513,7 @@ struct drawPitchers: View {
                                 Text("\(pitcher.player.number)")
                                     .foregroundColor(.black).frame(maxWidth:.infinity)
                                 Text("\(pitcher.player.name)")
-                                    .foregroundColor(.black).frame(width: 225,alignment: .leading)
+                                    .foregroundColor(.black).frame(width: 200,alignment: .leading)
                                 Text("\(sinn)    to   \(einn)")
                                     .foregroundColor(.black).frame(width: 250)
                                 Text(Double(stats.ERA), format: Int(stats.ERA) == 999 ? .number.rounded(increment: 1.0) : .number.rounded(increment: 0.01))
@@ -603,11 +603,11 @@ struct drawIndicator: View {
     var size:CGSize
     var colbox:[BoxScore]
     var space:CGRect
-
+    
     var body: some View {
         
-//        let com = Common()
-        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.76 : 0.70) * size.width, y: UIDevice.type == "iPhone" ? -50 : -110, width:150, height:100)
+        //        let com = Common()
+        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.76 : 0.70) * size.width, y: UIDevice.type == "iPhone" ? -60 : -110, width:150, height:100)
         Rectangle().fill(iStat.onThird && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
             .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX, y:placeBox.minY)
         Rectangle().fill(iStat.onSecond && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
@@ -618,10 +618,54 @@ struct drawIndicator: View {
             .position(x:placeBox.minX+13, y:placeBox.minY+15)
         Circle().fill(iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
             .position(x:placeBox.minX+25, y:placeBox.minY+15)
-//        ForEach(Array(colbox.enumerated()), id: \.1) { index, colb in
-//            if colb.inning != 0 {
-//                Text(com.innAbr[colb.inning]).position(x:(CGFloat(index) * space.width) + space.minX + 0.5*space.width, y:space.minY-25)
-//            }
-//        }
+        //        ForEach(Array(colbox.enumerated()), id: \.1) { index, colb in
+        //            if colb.inning != 0 {
+        //                Text(com.innAbr[colb.inning]).position(x:(CGFloat(index) * space.width) + space.minX + 0.5*space.width, y:space.minY-25)
+        //            }
+        //        }
+    }
+}
+struct drawInnings: View {
+    var game:Game
+    var atbats:[Atbat]
+    var space:CGRect
+    var body: some View {
+        let com = Common()
+
+        ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
+            if atbat.result != "Result" && atbat.endOfInning {
+                let x = CGFloat(atbat.col) * space.width + space.minX
+                let outs = atbat.outs
+                let inning = outs != 0 ? atbat.inning.rounded(.up) : atbat.inning + 1
+                if inning < 99 {
+                    Text(com.innAbr[Int(inning)] + " Inn")
+                        .font(.system(size: 10)).bold().foregroundColor(.black)
+                        .position(x: 0.5 * space.width + x + 190, y: space.minY + 4)
+                }
+            }
+        }
+        let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
+        let bSize = UIScreen.screenWidth > 1100 ? 14 : 11
+        let newCol = bigCol?.col ?? 0 + 1
+        let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
+        let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX + 190, y: space.minY+3,width:0, height:0)
+        Text("Runs")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * -0.5), y:space.minY + 4)
+        Text("Hits")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 0.1), y:space.minY + 4)
+        Text("HR")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 0.7), y:space.minY + 4)
+        Text("BB")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 1.3), y:space.minY + 4)
+        Text("Ks")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 1.9), y:space.minY + 4)
+        Text("SB")
+            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+            .position(x: from.minX + (space.width * 2.5), y:space.minY + 4)
     }
 }

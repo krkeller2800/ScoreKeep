@@ -242,7 +242,7 @@ struct PlayerView: View {
                   (player.name.localizedStandardContains(searchText)
                   || player.number.localizedStandardContains(searchText))
               }
-          },  sort: self.sortDescriptor)
+          },  sort: sortOrder)
       }
     func deletePlayer(at offsets: IndexSet) {
         for offset in offsets {

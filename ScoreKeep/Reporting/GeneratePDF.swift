@@ -384,17 +384,17 @@ class PDFGenerator {
         }
         let box2 = totbox[0]
         var boxString = NSAttributedString(string: "\(box2.runs)", attributes: bodyATTR)
-        boxString.draw(at: CGPoint(x: 625, y: 393))
+        boxString.draw(at: CGPoint(x: 625, y: 125 + (numOfPlayers * 30)))
         boxString = NSAttributedString(string: "\(box2.hits)", attributes: bodyATTR)
-        boxString.draw(at: CGPoint(x: 645, y: 393))
+        boxString.draw(at: CGPoint(x: 645, y: 125 + (numOfPlayers * 30)))
         boxString = NSAttributedString(string: "\(box2.HR)", attributes: bodyATTR)
-        boxString.draw(at: CGPoint(x: 665, y: 393))
+        boxString.draw(at: CGPoint(x: 665, y: 125 + (numOfPlayers * 30)))
         boxString = NSAttributedString(string: "\(box2.walks)", attributes: bodyATTR)
-        boxString.draw(at: CGPoint(x: 685, y: 393))
+        boxString.draw(at: CGPoint(x: 685, y: 125 + (numOfPlayers * 30)))
         boxString = NSAttributedString(string: "\(box2.strikeouts)", attributes: bodyATTR)
-        boxString.draw(at: CGPoint(x: 705, y: 393))
+        boxString.draw(at: CGPoint(x: 705, y: 125 + (numOfPlayers * 30)))
         boxString = NSAttributedString(string: "\(box2.stoleBase)", attributes: bodyATTR)
-        boxString.draw(at: CGPoint(x: 725, y: 393))
+        boxString.draw(at: CGPoint(x: 725, y: 125 + (numOfPlayers * 30)))
     }
     func drawColTots(colbox: [BoxScore], atbats: [Atbat], bodyATTR: [NSAttributedString.Key : Any]) {
         let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
