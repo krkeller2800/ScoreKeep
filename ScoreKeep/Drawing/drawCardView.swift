@@ -214,8 +214,10 @@ struct drawTots: View {
     var body: some View {
 
         let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-        let bSize = sWidth > 1100 ? 14 : 11
-        let newCol = bigCol?.col ?? 0 + 1
+//        let bSize = sWidth > 1100 ? 14 : 9
+        let gridSz = CGFloat(sWidth > 1100 ? 60 : 50)
+        let bSize = Int(((sWidth - (sWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
+        let newCol = (bigCol?.col ?? 0) + 1
         let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
         let yoffset = UIScreen.screenWidth > 1200 &&  UIScreen.screenWidth < 1400 ? 1.0 : 1.0
         let y = (Double(atbat.batOrder) - yoffset) * space.height + space.minY
@@ -458,6 +460,7 @@ struct drawPitchers: View {
     var inning:Int
     var game:Game
     var team:Team
+    var width: CGFloat
     @State var showPitchers:Bool = false
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     let com = Common()
@@ -465,27 +468,25 @@ struct drawPitchers: View {
     var body: some View {
         
         GeometryReader { geometry in
-            let width = geometry.size.width
+//            let w = geometry.size.width
+//            let width = UIScreen.screenWidth
             VStack {
                 Spacer()
                 Text("\(team.name) Pitching Stats For This Game").font(.title2).frame(maxWidth:.infinity, alignment: .center).italic()
                 HStack {
-                    Text("").frame(maxWidth:5)
-                    Text("Num").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("Pitcher").frame(width: 200).border(.gray)
-                        .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
-                    Text("Inn Outs Bats    Inn Outs Bats").frame(width: 250).border(.gray)
+//                    Text("Num").frame(maxWidth:.infinity).border(.gray)
+//                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("Pitcher").frame(width: UIDevice.type == "iPhone" ? 125 : 150).border(.gray)
+                        .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("Inn Outs Bats       Inn Outs Bats").frame(width: 250).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
                     Text("ERA").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
-                   
                     Text("ER").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
-                
+                    if width > 1000 {
                         Text("UER").frame(maxWidth:.infinity).border(.gray)
                             .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    if width > 1000 {
                         Text("Hit").frame(maxWidth:.infinity).border(.gray)
                             .foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Ks").frame(maxWidth:.infinity).border(.gray)
@@ -495,35 +496,41 @@ struct drawPitchers: View {
                         Text("HR").frame(maxWidth:.infinity).border(.gray)
                             .foregroundColor(.red).background(.yellow.opacity(0.3))
                     }
-                    Text("").frame(maxWidth:70)
+                    Text("").frame(width:15)
                 }
                 let oTHit = game.atbats.filter({$0.team == atbats[0].team})
                 let oTHitting = oTHit.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
                 let pitchs = game.pitchers.filter({$0.team != atbats[0].team})
-                let pitchers = fixInnings(pitchers: pitchs)
+                let pitchers = fixInnings(pitchers: pitchs, atbats: oTHitting)
                 ForEach(Array(pitchers.enumerated()), id: \.offset) { index, pitcher in
                     NavigationLink(value: pitcher) {
                         VStack(spacing:0) {
                             HStack{
                                 let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
-                                let sinn = String("\(pitcher.startInn)      \(pitcher.sOuts)      \(pitcher.sBats)")
-                                let einn = pitcher.endInn == 0 ? String("\(stats.innings + pitcher.startInn)      \(pitcher.eOuts)      \(pitcher.eBats)") :
-                                String("\(pitcher.endInn)      \(pitcher.eOuts)      \(pitcher.eBats)")
-                                Text("").frame(maxWidth:5)
-                                Text("\(pitcher.player.number)")
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
-                                Text("\(pitcher.player.name)")
-                                    .foregroundColor(.black).frame(width: 200,alignment: .leading)
-                                Text("\(sinn)    to   \(einn)")
-                                    .foregroundColor(.black).frame(width: 250)
-                                Text(Double(stats.ERA), format: Int(stats.ERA) == 999 ? .number.rounded(increment: 1.0) : .number.rounded(increment: 0.01))
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                let lName = pitcher.player.name.split(separator: " ").last ?? ""
+                                Text(lName).lineLimit(1).minimumScaleFactor(0.6)
+                                    .foregroundColor(.black).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading)
+                                Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    .foregroundColor(.black).frame(width:30.0).padding(.leading, 10)
+                                Text(Double(pitcher.sOuts), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    .foregroundColor(.black).frame(width:30.0)
+                                Text(Double(pitcher.sBats), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    .foregroundColor(.black).frame(width:25.0)
+                                Text("to").foregroundColor(.black)
+                                Text(Double(pitcher.endInn), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    .foregroundColor(.black).frame(width:25.0)
+                                Text(Double(pitcher.eOuts), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    .foregroundColor(.black).frame(width:30.0)
+                                Text(Double(pitcher.eBats), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    .foregroundColor(.black).frame(width:30.0)
+                                Text(Double(stats.ERA), format: Int(stats.ERA) > 99 ? .number.rounded(increment: 1.0) :
+                                                                stats.ERA > 9.99 ? .number.rounded(increment: 0.1) : .number.rounded(increment: 0.01))
+                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.8)
                                 Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                        .foregroundColor(.black).frame(maxWidth:.infinity)
-                                
+                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                if width > 1000 {
                                     Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
-                                if width > 1000 {
                                     Text(Double(stats.hits), format: .number.rounded(increment: 1.0)) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
                                     Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)) // 12 (whole number)
@@ -533,7 +540,7 @@ struct drawPitchers: View {
                                     Text(Double(stats.HR), format: .number.rounded(increment: 1.0)) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
                                 }
-                                Image(systemName: "chevron.right").padding(.horizontal,20)
+                                Image(systemName: "chevron.right").padding(.horizontal,0)
                             }
 //                            Divider()
                         }
@@ -585,15 +592,35 @@ struct drawPitchers: View {
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
             
-            let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
+            let ERA = innings == 0 ? 999 : CGFloat(runs) / innings * 9
             return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
      
     }
-    func fixInnings(pitchers:[Pitcher])->[Pitcher] {
-        let pitchs = pitchers.sorted {( ($0.startInn, $0.sBats) < ($1.startInn, $1.eBats) )}
+    func fixInnings(pitchers:[Pitcher], atbats:[Atbat])->[Pitcher] {
+        let pitchs = pitchers.sorted {( ($0.startInn, $0.sOuts, $0.sBats) < ($1.startInn, $1.eOuts, $1.eBats) )}
+        if let currbatter = atbats.filter({$0.result != "Result"}).last {
+            if currbatter.seq == 1 && currbatter.col == 1 {
+                if let currPitch = pitchs.last {
+                    currPitch.startInn = 1
+                }
+            } else {
+                for pitch in pitchs {
+                    if pitch.startInn == 0 {
+                        pitch.startInn = Int(currbatter.inning.rounded(.up))
+                        pitch.sOuts = currbatter.outs
+                        pitch.sBats = currbatter.seq
+                    }
+                }
+            }
+            if let currPitch = pitchs.last {
+                currPitch.endInn = Int(currbatter.inning.rounded(.up))
+                currPitch.eOuts = currbatter.outs
+                currPitch.eBats = currbatter.seq
+            }
+        }
         return pitchs
     }
 }
@@ -625,47 +652,4 @@ struct drawIndicator: View {
         //        }
     }
 }
-struct drawInnings: View {
-    var game:Game
-    var atbats:[Atbat]
-    var space:CGRect
-    var body: some View {
-        let com = Common()
 
-        ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
-            if atbat.result != "Result" && atbat.endOfInning {
-                let x = CGFloat(atbat.col) * space.width + space.minX
-                let outs = atbat.outs
-                let inning = outs != 0 ? atbat.inning.rounded(.up) : atbat.inning + 1
-                if inning < 99 {
-                    Text(com.innAbr[Int(inning)] + " Inn")
-                        .font(.system(size: 10)).bold().foregroundColor(.black)
-                        .position(x: 0.5 * space.width + x + 190, y: space.minY + 4)
-                }
-            }
-        }
-        let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-        let bSize = UIScreen.screenWidth > 1100 ? 14 : 11
-        let newCol = bigCol?.col ?? 0 + 1
-        let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
-        let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX + 190, y: space.minY+3,width:0, height:0)
-        Text("Runs")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * -0.5), y:space.minY + 4)
-        Text("Hits")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 0.1), y:space.minY + 4)
-        Text("HR")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 0.7), y:space.minY + 4)
-        Text("BB")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 1.3), y:space.minY + 4)
-        Text("Ks")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 1.9), y:space.minY + 4)
-        Text("SB")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 2.5), y:space.minY + 4)
-    }
-}

@@ -14,11 +14,11 @@ struct StartPhoneView: View {
     @State private var selectedTab = 0
     @State private var showImport = false
     @State private var importURL:URL?
-
+    
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack {
-                ScoreContentView(columnVisibility: $columnVisibility)
+                ScoreContentView(columnVisability: $columnVisibility)
             }
             .tabItem {
                 Image("pgame")

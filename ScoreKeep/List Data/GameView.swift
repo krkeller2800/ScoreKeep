@@ -13,6 +13,7 @@ struct GameView: View {
     @Environment(\.modelContext) var modelContext
     @Binding var navigationPath: NavigationPath
     @Binding private var title: String
+    @Binding var columnVisibility: NavigationSplitViewVisibility
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var deleteIndexSet: IndexSet?
@@ -37,9 +38,9 @@ struct GameView: View {
     var body: some View {
         Form {
             if games.count > 0 {
-                if self.title == "Edit a Game" {
+                if self.title == "Edit a Game" && UIDevice.type == "iPad" {
                     Text("Select a Game to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
-                } else if self.title == "Score a Game"{
+                } else if self.title == "Score a Game" && UIDevice.type == "iPad" {
                     Text("Select a Game to score or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
                 }
             }
@@ -118,9 +119,9 @@ struct GameView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
                     .overlay(Divider().background(.black), alignment: .trailing)
-                    Text("Not Played Yet")
+                    Text("Not Played")
                         .frame(maxWidth: .infinity)
-                        .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                        .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
                     HStack {
                         Image(systemName: "plus")
                             .onTapGesture {
@@ -145,7 +146,7 @@ struct GameView: View {
                             .overlay(Divider().background(.black), alignment: .trailing)
                         if !title.isEmpty {
                             Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
                             Text(game.everyOneHits ? "True" : "False").frame(maxWidth:60, alignment: .center).foregroundColor(.black).bold()
                                 .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
                         }
@@ -154,7 +155,7 @@ struct GameView: View {
                                 Image(uiImage: uiImage)
                                     .scaleImage(iHeight: 30, imageData: imageData)
                             }
-                            Text(game.vteam?.name ?? "").lineLimit(1).minimumScaleFactor(0.5)
+                            Text(game.vteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.5)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                         .overlay(Divider().background(.black), alignment: .trailing)
@@ -163,7 +164,7 @@ struct GameView: View {
                                 Image(uiImage: uiImage)
                                     .scaleImage(iHeight: 30, imageData: imageData)
                             }
-                            Text(game.hteam?.name ?? "").lineLimit(1).minimumScaleFactor(0.5)
+                            Text(game.hteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.5)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                         .overlay(Divider().background(.black), alignment: .trailing)
@@ -173,9 +174,11 @@ struct GameView: View {
                             let outs = game.atbats.filter({$0.team.name == game.vteam!.name && (com.outresults.contains($0.result) || $0.outAt != "Safe" )}).count
                             let inning = (outs / 3) + 1
                             let score:String = "\(vruns) to \(hruns)"
-                            let winner:String = vruns > hruns ? (game.vteam?.name ?? " ") : vruns < hruns ? (game.hteam?.name ?? "") : "No winner yet"
-                            let fin = inning > 9 && winner != "No winner yet" ? " Final" : ""
-                            let win = winner + (fin != "" ? fin : " in the \(com.innAbr[inning])")
+                            let hteam = game.hteam!.name.components(separatedBy: " ").last ?? ""
+                            let vteam = game.vteam!.name.components(separatedBy: " ").last ?? ""
+                            let winner:String = vruns > hruns ? vteam : vruns < hruns ? hteam : ""
+                            let fin = inning >= 9 && winner != "" ? " Final" : ""
+                            let win = winner + (fin != "" ? fin : " in \(com.innAbr[inning])")
                             Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
                                 .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
                         }
@@ -221,10 +224,11 @@ struct GameView: View {
         }
         .listRowSeparator(.hidden)
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>) {
+    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>) {
         
         _title = title
         _navigationPath = navigationPath
+        _columnVisibility = columnVisability
         
         _games = Query(filter: #Predicate { game in
             if !searchString.isEmpty {

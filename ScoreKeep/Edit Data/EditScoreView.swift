@@ -12,6 +12,7 @@ struct EditScoreView: View {
     @Environment(\.modelContext) var modelContext
     @State var game: Game
     @Binding var navigationPath: NavigationPath
+    @Binding var columnVisibility:NavigationSplitViewVisibility
     @State var team: Team = Team(name: "", coach: "", details: "")
     @State var isHomeTeam: Bool = false
     @State var theTeam: String = ""
@@ -93,9 +94,7 @@ struct EditScoreView: View {
                                     }
                                 }
                             }
-                            .frame(width: 500)
-                            .lineLimit(1).minimumScaleFactor(0.3)
-                            .font(.largeTitle).italic(true)
+                            .frame(width: 500).lineLimit(1).minimumScaleFactor(0.3).font(.largeTitle).italic(true)
                         }
                         .onAppear {
                             if !isHomeTeam {
@@ -129,7 +128,7 @@ struct EditScoreView: View {
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
                     Spacer()
-                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged)
+                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged,columnVisability: $columnVisibility)
                 }
                 .onChange(of: showingDetail, {
                     if isHomeTeam {
@@ -252,6 +251,7 @@ struct EditScoreView: View {
                         withAnimation {
                             screenHeight = UIScreen.main.bounds.height
                             screenWidth = UIScreen.main.bounds.width
+                            columnVisibility = .detailOnly
                         }
                     }
                 }
@@ -266,10 +266,11 @@ struct EditScoreView: View {
         }
      
     }
-    init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String) {
+    init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String, columnVisability: Binding<NavigationSplitViewVisibility>) {
         game = pgame
         teamName = ateam
         _navigationPath = pnavigationPath
+        _columnVisibility = columnVisability
     }
     func saveImage(uiimage: UIImage?)-> URL? {
         

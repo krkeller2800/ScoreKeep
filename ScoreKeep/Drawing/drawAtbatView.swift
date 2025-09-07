@@ -17,6 +17,8 @@ struct drawIt: View {
         switch atbat.result {
         case "Dropped 3rd Strike":
             drawSingle(size: size, atbat: atbat, abb: abb)
+        case "Catcher Interference":
+            drawSingle(size: size, atbat: atbat, abb: abb)
         case "Walk":
             drawSingle(size: size, atbat: atbat, abb: abb)
         case "Error":

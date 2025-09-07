@@ -13,7 +13,7 @@ struct ContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @State private var path = NavigationPath()
-    
+    @State var columnVisability = NavigationSplitViewVisibility.detailOnly
     @State var title = "Games"
     @State private var searchText = ""
     @State private var isSearching = false
@@ -40,7 +40,7 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
-            GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path)
+            GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path, columnVisability: $columnVisability)
                 .navigationDestination(for: Game.self) { game in
                     EditGameView(game: game, navigationPath: $path)
             }

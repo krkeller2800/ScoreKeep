@@ -27,9 +27,9 @@ struct ReportView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            VStack(spacing: 0) {
                 GeometryReader { geometry in
-                    VStack(spacing:50) {
+                    ScrollView {
                         HStack {
                             Text("\(Date.now.formatted(date: .long, time: .omitted))").padding(.leading,5)
                             Spacer()
@@ -42,11 +42,11 @@ struct ReportView: View {
                             }
                             Spacer()
                             Text("\(Date.now.formatted(date: .long, time: .omitted))").foregroundColor(.white).padding(.trailing,5)                        }
-                        let avgSize = geometry.size.width / 31
+                        let avgSize = geometry.size.width / 32
                         VStack(spacing:0) {
                             HStack {
-//                                Text("").frame(maxWidth:5)
-                                Text("Num").frame(width: avgSize + 10,height: 30).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
+                                Text("Num").frame(width: avgSize + 10,height: 30, alignment: .center).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3), ignoresSafeAreaEdges: [])
+                                    .lineLimit(1).minimumScaleFactor(0.50).padding(.leading,5)
                                 Text("Name").frame(width: avgSize * 4,height: 30, alignment: .leading).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
                                     .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("Bats").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
@@ -80,20 +80,20 @@ struct ReportView: View {
                                 Text("K23").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
                                     .lineLimit(1).minimumScaleFactor(0.50)
                                 Text("FC").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Spacer()
+                                    .lineLimit(1).minimumScaleFactor(0.50).padding(.trailing,5)
                             }
                             let summedStats = sumedStats.sorted { $0.player?.batOrder ?? 0 < $1.player?.batOrder ?? 0 }
                             ForEach(summedStats) { stats in
                                 HStack {
                                     let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
                                     let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
-                                                                                     (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
-                                    let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) + (4 * stats.HR)) /
-                                                                                    stats.atbats))
-//                                    Text("").frame(maxWidth:5)
-                                    Text(stats.player?.number ?? "").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text(stats.player?.name ?? "").foregroundColor(.black).bold().frame(width: avgSize * 4,height: 30,alignment: .leading).lineLimit(1).minimumScaleFactor(0.50)
+                                                                                            (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
+                                    let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) +
+                                                                                           (4 * stats.HR)) / stats.atbats))
+                                    let nm = (stats.player?.name ?? "").components(separatedBy: " ")
+                                    let name = nm.count > 1 && UIDevice.type == "iPhone" ? nm[1] : nm.count == 1 ? nm[0] : nm.count > 1 ? nm[0] + " " + nm[1] : "Unknown"
+                                    Text(stats.player?.number ?? "").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50).padding(.leading,5)
+                                    Text(name).foregroundColor(.black).bold().frame(width: avgSize * 4,height: 30,alignment: .leading).lineLimit(1).minimumScaleFactor(0.50)
                                     Text("\(stats.atbats)").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30).lineLimit(1).minimumScaleFactor(0.50)
                                     Text(String(format: "%03d", avg)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
                                     Text(String(format: "%03d", obp)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
@@ -114,72 +114,58 @@ struct ReportView: View {
                                     Text("\(stats.sacFly)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
                                     Text("\(stats.hbp)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
                                     Text("\(stats.dts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.fc)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Spacer()
+                                    Text("\(stats.fc)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50).padding(.trailing,5)
                                 }
                             }
-                            .drawingGroup()
+                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                         }
-                    }
-                    .onAppear() {
-                        sumData()
-                        isLoading = false
-                    }
-                    .onChange(of: doShot) {
-                        if doShot {
-                            if let screenshotMaker = screenshotMaker {
-                                url = saveImage(uiimage: screenshotMaker.screenshot()!)
-                                doShot.toggle()
-                            }
+                        .onAppear() {
+                            sumData()
+                            isLoading = false
                         }
-                    }
-                    .toolbar {
-                        ToolbarItemGroup(placement: .topBarLeading) {
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                HStack {
-                                    Image(systemName: "chevron.left")
-                                    Text("Back")
+                        .onChange(of: doShot) {
+                            if doShot {
+                                if let screenshotMaker = screenshotMaker {
+                                    url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                                    doShot.toggle()
                                 }
                             }
                         }
-                        ToolbarItemGroup(placement: .topBarLeading) {
-                            if UIDevice.type == "iPad" {
-                                Button {
-                                    hasChanged = false
-                                    doShot = true
-                                } label: {
-                                    Text(" Screenshot")
-                                }
-                                .buttonStyle(ToolBarButtonStyle())
-                                if let shotURL = url {
-                                    if hasChanged == false {
-                                        ShareLink("Share", item: shotURL)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .topBarLeading) {
+                                Button(action: {
+                                    dismiss()
+                                }) {
+                                    HStack {
+                                        Image(systemName: "chevron.left")
+                                        Text("Back")
                                     }
                                 }
                             }
+                            ToolbarItemGroup(placement: .topBarLeading) {
+                                if UIDevice.type == "iPad" {
+                                    Button {
+                                        hasChanged = false
+                                        doShot = true
+                                    } label: {
+                                        Text(" Screenshot")
+                                    }
+                                    .buttonStyle(ToolBarButtonStyle())
+                                    if let shotURL = url {
+                                        if hasChanged == false {
+                                            ShareLink("Share", item: shotURL)
+                                        }
+                                    }
+                                }
+                            }
+                            ToolbarItem(placement: .principal) {
+                                Text("Player Statistics").font(.title2)
+                            }
                         }
-                        ToolbarItem(placement: .principal) {
-                            Text("Player Statistics").font(.title2)
-                        }
+                        Spacer()
                     }
-                    Spacer()
                 }
             }
-//            header: {
-//                HStack {
-//                    Button(action: {
-//                        dismiss()
-//                    }) {
-//                        Text("< Back").padding(.leading,10)
-//                    }
-//                    Spacer()
-//                    Text("Player Statistics").frame(width:225, alignment:.leading).font(.title3).foregroundColor(.black).bold()
-//                    Spacer()
-//                }
-//
-//            }
             .screenshotMaker { screenshotMaker in
                      self.screenshotMaker = screenshotMaker
             }

@@ -15,7 +15,7 @@ struct StartView: View {
     @State private var navigationPath = NavigationPath()
     @State private var importUrl: URL?
     @State    var showImport = false
-
+  
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack {
@@ -113,13 +113,13 @@ struct StartView: View {
             }
         } detail: {
             if flags[0] {
-                ScoreContentView(columnVisibility: $columnVisibility)
+                ScoreContentView(columnVisability: $columnVisibility)
             } else if flags[1] {
                 TeamContentView()
             } else if flags[2] {
                 PlayerContentView()
             } else if flags[3] {
-                ScoreContentView(columnVisibility: $columnVisibility)
+                ScoreContentView(columnVisability: $columnVisibility)
             } else if flags[4] {
                 PasteView()
             } else if flags[5] {

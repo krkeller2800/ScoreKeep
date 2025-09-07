@@ -92,7 +92,7 @@ struct ImportPlayersView: View {
                             PlayersOnTeamView(showHeader: true, team: tm, searchString: searchText, sortOrder: sortOrder)
                         } else if fileType.localizedStandardContains("ScoreKeep_Games") {
                             Text("Current Games").bold().italic()
-                            GameView(searchString: searchText, title: $title, navigationPath: $navigationPath)
+                            GameView(searchString: searchText, title: $title, navigationPath: $navigationPath, columnVisability: $columnVisibility)
                                 .navigationDestination(for: Game.self) { game in
                                     EditGameView(game: game, navigationPath: $navigationPath)
                             }

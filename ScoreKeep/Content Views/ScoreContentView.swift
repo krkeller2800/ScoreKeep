@@ -11,7 +11,7 @@ import SwiftData
 struct ScoreContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
-    @Binding var columnVisibility:NavigationSplitViewVisibility
+    @Binding var columnVisability:NavigationSplitViewVisibility
     @State private var path = NavigationPath()
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
@@ -20,6 +20,15 @@ struct ScoreContentView: View {
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
     @AppStorage("selectedGameCriteria") var selectedSortCriteria: SortCriteria = .dateAsc
+    var compileDate:Date
+    {
+        let bundleName = Bundle.main.infoDictionary!["CFBundleName"] as? String ?? "Info.plist"
+        if let infoPath = Bundle.main.path(forResource: bundleName, ofType: nil),
+           let infoAttr = try? FileManager.default.attributesOfItem(atPath: infoPath),
+           let infoDate = infoAttr[FileAttributeKey.creationDate] as? Date
+        { return infoDate }
+        return Date()
+    }
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
@@ -41,12 +50,12 @@ struct ScoreContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
-             GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path)
+             GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path, columnVisability: $columnVisability)
                 .navigationDestination(for: Game.self) { game in
                     if addAGame || game.date == "" || game.hteam?.name ?? "" == "" || game.hteam?.name ?? "" == "" || doGame == "Edit" {
                         EditGameView(game: game, navigationPath: $path)
                     } else {
-                        EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "")
+                        EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: $columnVisability)
                     }
                 }
                 .onAppear() {
@@ -87,7 +96,7 @@ struct ScoreContentView: View {
                         }
                         .pickerStyle(SegmentedPickerStyle())
                     }
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         if UIDevice.type == "iPhone" {
                             Button(action: {
                                 withAnimation {
@@ -98,14 +107,19 @@ struct ScoreContentView: View {
                             }
                         }
                     }
+                    ToolbarItem(placement: .bottomBar) {
+                        if UIDevice.type == "iPad" || (UIDevice.type == "iPhone" && doGame == "Edit") {
+                            Text("This app was compiled on " + compileDate.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundColor(.gray).italic()
+                        }
+                    }
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
             .onAppear {
                 UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.3)
                 if doGame == "Score" {
-                    columnVisibility = .detailOnly
+                    columnVisability = .detailOnly
                 } else {
-                    columnVisibility = .doubleColumn
+                    columnVisability = .doubleColumn
                 }
             }
             .onChange(of: sortDescriptor) {
@@ -114,9 +128,9 @@ struct ScoreContentView: View {
             .onChange(of: doGame) {
                 title = "\(doGame) a Game"
                 if doGame == "Score" {
-                    columnVisibility = .detailOnly
+                    columnVisability = .detailOnly
                 } else {
-                    columnVisibility = .doubleColumn
+                    columnVisability = .doubleColumn
                 }
             }
             .navigationDestination(for: Team.self) { team in

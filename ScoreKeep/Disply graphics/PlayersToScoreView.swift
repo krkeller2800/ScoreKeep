@@ -14,6 +14,7 @@ struct PlayersToScoreView: View {
     @Binding var game: Game
     @Binding var isLoading: Bool
     @Binding var hasChanged: Bool
+    @Binding var columnVisability:NavigationSplitViewVisibility
     @State var screenSize: CGSize = .zero
     @State var screenWidth = UIScreen.screenWidth
     @State var screenHeight = UIScreen.screenHeight
@@ -37,12 +38,13 @@ struct PlayersToScoreView: View {
     var body: some View {
         Section {
             GeometryReader { geometry in
+                let gWidth = geometry.size.width
                 drawIndicator(iStat:iStat,size:geometry.size,colbox:colbox,space:calcSpace())
                 drawBoxScore(game:game,size:geometry.size)
                 VStack ( spacing: 0) {
                     HStack(alignment: .top) {
-                        Text("Num").frame(maxWidth:30, alignment:.center).font(.caption).foregroundColor(.black).bold().padding(.leading, 3)
-                        Text("Name").frame(maxWidth:50, alignment:.leading).font(.caption).foregroundColor(.black).bold()
+                        Text("Num").frame(width:30, height: 15, alignment:.center).font(.caption).foregroundColor(.black).bold().padding(.leading, 3)
+                        Text("Name").frame(width:50, height: 15, alignment:.leading).font(.caption).foregroundColor(.black).bold()
                         Spacer()
                     }
                     ScrollView() {
@@ -51,14 +53,13 @@ struct PlayersToScoreView: View {
                                 ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
                                     HStack(spacing: 0) {
                                         if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
-                                            let bSiz:CGFloat = screenWidth > 1200 ? 60 : 50
+                                            let bSiz:CGFloat = screenWidth > 1100 ? 60 : 50
                                             let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
                                             let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
                                             Text(atbat.player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundColor(.black)
                                                 .overlay(Divider().background(.black), alignment: .trailing)
-                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt).fixedSize(horizontal: false, vertical: true)
-                                                .padding(.leading,5).lineLimit(2)
-//                                                .overlay(Divider().background(.black), alignment: .trailing)
+                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt)
+                                                .fixedSize(horizontal: false, vertical: true).padding(.leading,5).lineLimit(2)
                                         }
                                     }
                                 }
@@ -67,17 +68,18 @@ struct PlayersToScoreView: View {
                             ScrollView(.horizontal) {
                                 ZStack {
                                     let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-                                    let bSize = screenWidth > 1100 ? 14 : 11
-                                    let newCol = bigCol?.col ?? 1
+//                                    let bSize = screenWidth > 1100 ? 14 : 9
+                                    let gridSz = CGFloat(gWidth > 1100 ? 60 : 50)
+                                    let bSize = Int(((gWidth - (gWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
+                                    let newCol = (bigCol?.col ?? 1) + 1
                                     let maxCol = newCol < bSize ? bSize : newCol
-//                                    drawInnings(game:game,atbats: atbats, space: calcSpace())
                                     VStack (spacing: 0) {
                                         Spacer(minLength: 13)
                                         ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
                                             HStack(spacing: 0) {
                                                 if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                                     ForEach((1...maxCol), id: \.self) {ind in
-                                                        let bSiz:CGFloat = screenWidth > 1200 ? 60 : 50
+                                                        let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
                                                         Button(action: {
                                                             showingScoring.toggle()
                                                             hasChanged = true
@@ -89,7 +91,8 @@ struct PlayersToScoreView: View {
                                                         .buttonStyle(GlowButtonStyle())
                                                     }
                                                 }
-                                                Spacer(minLength:200)
+                                                let mCol = Double(gWidth) - 200 - (Double(maxCol+1) * gridSz)
+                                                Spacer(minLength:mCol < 0 ? 0 : mCol)
                                             }
                                         }
                                         if atbats.count > 0 {
@@ -99,9 +102,9 @@ struct PlayersToScoreView: View {
                                         }
                                     }
                                     if !atbats.isEmpty {
-                                        drawSing(space: calcSpace(), atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: screenWidth, isLoading: $isLoading)
+                                        drawSing(space: calcSpace(), atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: gWidth, isLoading: $isLoading)
                                         let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
-                                        drawPitchers(space: calcSpace(), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam)
+                                        drawPitchers(space: calcSpace(), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam, width: gWidth)
                                     }
                                   
                                 }
@@ -109,11 +112,11 @@ struct PlayersToScoreView: View {
                             }
                         }
                     }
-
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
                 .onAppear() {
                     lAtbats = atbats
+ //                   screenWidth = geometry.size.width
                 }
                 .onChange(of: atbats) {
                     if firstTime {
@@ -140,33 +143,27 @@ struct PlayersToScoreView: View {
                 }
 
             }
-            .sheet(isPresented: $showingScoring) {ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring)
-//                    .overlay(
-//                        RoundedRectangle(cornerRadius: 16)
-//                            .stroke(.black, lineWidth: 8)
-//                            .fill(Color.yellow.opacity(0.1))
-//                    )
-            }
+            .sheet(isPresented: $showingScoring) { ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring) }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 
             // Give a moment for the screen boundaries to change after
             // the device is rotated
             Task { @MainActor in
-                try await Task.sleep(for: .seconds(0.1))
+                try await Task.sleep(for: .seconds(0.2))
                 withAnimation {
                     screenHeight = UIScreen.main.bounds.height
                     screenWidth = UIScreen.main.bounds.width
+                    columnVisability = .detailOnly
                 }
             }
         }
     }
     func calcSpace() -> CGRect {
-        let bSize:CGFloat = screenWidth > 1200 ? 60 : 50
-        let newx:CGFloat = screenWidth > 1300 ? -62 : -52
-        return CGRect(x: newx, y: 10, width: bSize, height: bSize)
+        let bSize:CGFloat = screenWidth > 1100 ? 60 : 50
+        let newx:CGFloat = screenWidth > 1100 ? -60 : -50
+        return CGRect(x: newx, y: 12, width: bSize, height: bSize)
     }
-    
     func updMaxBases() {
         let usedAtbats = atbats.filter {$0.result != "Result"}
         let inning = usedAtbats.last?.inning.rounded(.up) ?? 0
@@ -182,13 +179,15 @@ struct PlayersToScoreView: View {
     
             let theMaxBase = maxbases.firstIndex(of: theBase.maxbase) ?? -1
             var theMaxHit = maxHits.firstIndex(of: theBase.result) ?? -1
-            theMaxHit = (theBase.result == "Walk") ? 0 : (theBase.result == "Dropped 3rd Strike") ? 0 : (theBase.result == "Hit By Pitch") ? 0 : theMaxHit
+            theMaxHit = (theBase.result == "Walk") ? 0 : (theBase.result == "Dropped 3rd Strike") ? 0 : (theBase.result == "Hit By Pitch") ? 0 :
+                        (theBase.result == "Catcher Interference") ? 0 : theMaxHit
             
             if theBase.maxbase == "No Bases" || theMaxHit > theMaxBase {
                 theBase.maxbase =   (theBase.result == "Dropped 3rd Strike") ? "First" :
                                     (theBase.result == "Walk") ? "First" :
                                     (theBase.result == "Error") ? "First" :
                                     (theBase.result == "Fielder's Choice") ? "First" :
+                                    (theBase.result == "Catcher Interference") ? "First" :
                                     (theBase.result == "Hit By Pitch") ? "First" :
                                     (theBase.result == "Single") ? "First" :
                                     (theBase.result == "Double") ? "Second" :
@@ -300,11 +299,12 @@ struct PlayersToScoreView: View {
             }
         }
     }
-    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>, hasChanged: Binding<Bool>) {
+    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>, hasChanged: Binding<Bool>, columnVisability: Binding<NavigationSplitViewVisibility>) {
         _game = passedGame
         _lAtbats = theAtbats
         _isLoading = isLoading
         _hasChanged = hasChanged
+        _columnVisability = columnVisability
 
         let date = game.date
         let location = game.location
@@ -325,7 +325,7 @@ struct PlayersToScoreView: View {
     func doAtbat(ind:Int, index:Int, atbat:Atbat) {
         let posx = Int(ind)
         let posy = Int(index+1)
-//                                                    print("Changed \($0.location)")
+        
         if let curratbat = atbats.firstIndex(where: {  $0.game == atbat.game &&
             $0.team == atbat.team &&
             $0.batOrder == posy &&
