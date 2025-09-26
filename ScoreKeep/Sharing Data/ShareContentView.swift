@@ -153,8 +153,9 @@ struct ShareContentView: View {
                             
                             Picker("Down", selection: $down) {
                                 Text("Select Team").tag("Select Team")
-                                if fNames.isEmpty == false {
-                                    ForEach (fNames, id: \.self) { name in
+                                let fileNames = fNames.sorted{($0 < $1)}
+                                if fileNames.isEmpty == false {
+                                    ForEach (fileNames, id: \.self) { name in
                                         (name != "") ? Text(name).tag(name): nil
                                     }
                                 }
@@ -334,7 +335,7 @@ struct ShareContentView: View {
             } else {
                 isSearching = true
             }
-            UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.3)
+            UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)
         }
         .onChange(of: isSearching) {
             if isSearching == false {

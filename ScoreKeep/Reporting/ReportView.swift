@@ -27,151 +27,152 @@ struct ReportView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                GeometryReader { geometry in
-                    ScrollView {
+            GeometryReader { geometry in
+//                let avgSize = geometry.size.width / 32
+                VStack (spacing: 10) {
+                    HStack {
+                        Text(Date.now.formatted(date: .abbreviated, time: .omitted)).padding(.leading,10)
+                        Spacer()
                         HStack {
-                            Text("\(Date.now.formatted(date: .long, time: .omitted))").padding(.leading,5)
-                            Spacer()
                             if atbats.count > 0 {
                                 if let imageData = atbats[0].team.logo, let uiImage = UIImage(data: imageData) {
                                     Image(uiImage: uiImage)
-                                        .scaleImage(iHeight: 50, imageData: imageData)
+                                        .scaleImage(iHeight: 30, imageData: imageData)
                                 }
-                                Text("\(tName) Hitting").font(.largeTitle).foregroundColor(.black).bold().italic().frame(alignment: .center)
-                            }
-                            Spacer()
-                            Text("\(Date.now.formatted(date: .long, time: .omitted))").foregroundColor(.white).padding(.trailing,5)                        }
-                        let avgSize = geometry.size.width / 32
-                        VStack(spacing:0) {
-                            HStack {
-                                Text("Num").frame(width: avgSize + 10,height: 30, alignment: .center).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3), ignoresSafeAreaEdges: [])
-                                    .lineLimit(1).minimumScaleFactor(0.50).padding(.leading,5)
-                                Text("Name").frame(width: avgSize * 4,height: 30, alignment: .leading).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("Bats").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("AVG").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
-                                Text("OBP").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
-                                Text("SLG").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
-                                Text("OPS").frame(width: avgSize + 10,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
-                                Text("R").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
-                                Text("H").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.50)
-                                Text("K").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("ꓘ").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("BB").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("HR").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("1B").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("2B").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("3B").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("SAC").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("SF").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("HBP").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("K23").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50)
-                                Text("FC").frame(width: avgSize,height: 30).border(.gray).lineLimit(1).foregroundColor(.red).background(.yellow.opacity(0.3))
-                                    .lineLimit(1).minimumScaleFactor(0.50).padding(.trailing,5)
-                            }
-                            let summedStats = sumedStats.sorted { $0.player?.batOrder ?? 0 < $1.player?.batOrder ?? 0 }
-                            ForEach(summedStats) { stats in
-                                HStack {
-                                    let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
-                                    let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
-                                                                                            (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
-                                    let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) +
-                                                                                           (4 * stats.HR)) / stats.atbats))
-                                    let nm = (stats.player?.name ?? "").components(separatedBy: " ")
-                                    let name = nm.count > 1 && UIDevice.type == "iPhone" ? nm[1] : nm.count == 1 ? nm[0] : nm.count > 1 ? nm[0] + " " + nm[1] : "Unknown"
-                                    Text(stats.player?.number ?? "").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50).padding(.leading,5)
-                                    Text(name).foregroundColor(.black).bold().frame(width: avgSize * 4,height: 30,alignment: .leading).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.atbats)").foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text(String(format: "%03d", avg)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text(String(format: "%03d", obp)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text(String(format: "%03d", slg)).foregroundColor(.black).bold().frame(width: avgSize + 10,height: 30,alignment: .center)
-                                        .lineLimit(1).minimumScaleFactor(0.50)
-                                    Text(String(format: "%03d", obp + slg)).foregroundColor(.black).bold().frame(width: avgSize + 15,height: 30,alignment: .center)
-                                        .lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.runs)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.hits)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.strikeouts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.strikeoutl)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.BB)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.HR)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.single)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.double)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.triple)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.sacBunt)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.sacFly)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.hbp)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.dts)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50)
-                                    Text("\(stats.fc)").foregroundColor(.black).bold().frame(width: avgSize,height: 30,alignment: .center).lineLimit(1).minimumScaleFactor(0.50).padding(.trailing,5)
-                                }
-                            }
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        }
-                        .onAppear() {
-                            sumData()
-                            isLoading = false
-                        }
-                        .onChange(of: doShot) {
-                            if doShot {
-                                if let screenshotMaker = screenshotMaker {
-                                    url = saveImage(uiimage: screenshotMaker.screenshot()!)
-                                    doShot.toggle()
-                                }
-                            }
-                        }
-                        .toolbar {
-                            ToolbarItemGroup(placement: .topBarLeading) {
-                                Button(action: {
-                                    dismiss()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "chevron.left")
-                                        Text("Back")
-                                    }
-                                }
-                            }
-                            ToolbarItemGroup(placement: .topBarLeading) {
-                                if UIDevice.type == "iPad" {
-                                    Button {
-                                        hasChanged = false
-                                        doShot = true
-                                    } label: {
-                                        Text(" Screenshot")
-                                    }
-                                    .buttonStyle(ToolBarButtonStyle())
-                                    if let shotURL = url {
-                                        if hasChanged == false {
-                                            ShareLink("Share", item: shotURL)
-                                        }
-                                    }
-                                }
-                            }
-                            ToolbarItem(placement: .principal) {
-                                Text("Player Statistics").font(.title2)
+                                Text("\(tName) Hitting").font(.headline).foregroundColor(.black).bold().italic().frame(alignment: .center)
                             }
                         }
                         Spacer()
+                        Text(Date.now.formatted(date: .abbreviated, time: .omitted)).foregroundColor(.white).padding(.trailing,10)
+                    }
+                    HStack {
+                        Text("").frame(maxWidth:5)
+                        Text("Nm").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3),ignoresSafeAreaEdges: [])
+                        Text("Name").frame(width:125).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("Bat").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("avg").frame(width: 30).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("obp").frame(width: 30).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("slg").frame(width: 30).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("ops").frame(width: 30).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("R").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("H").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("K").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("ꓘ").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("BB").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("HR").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("1B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("2B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("3B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("SB").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("SF").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3),ignoresSafeAreaEdges: [])
+                        Text("").frame(maxWidth:5)
+                    }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            let summedStats = sumedStats.sorted { $0.player?.batOrder ?? 0 < $1.player?.batOrder ?? 0 }
+                            ForEach(summedStats) { stats in
+                                HStack {
+                                    Text("").frame(maxWidth:5)
+                                    let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
+                                    let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
+                                                                                     (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
+                                    let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) +
+                                                                                            (4 * stats.HR)) / stats.atbats))
+                                    let nm = (stats.player?.name ?? "").components(separatedBy: " ")
+                                    let name = nm.count > 1 && UIDevice.type == "iPhone" ? nm[1] : nm.count == 1 ? nm[0] : nm.count > 1 ? nm[0] + " " + nm[1] : "Unknown"
+                                    Text(stats.player?.number ?? "").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text(name).foregroundColor(.black).frame(width: 125,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.atbats)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text(String(format: "%03d", avg)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text(String(format: "%03d", obp)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text(String(format: "%03d", slg)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text(String(format: "%03d", obp + slg)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.runs)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.hits)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.strikeouts)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.strikeoutl)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.BB)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.HR)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.single)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.double)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.triple)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.sacBunt)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("\(stats.sacFly)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    Text("").frame(maxWidth:5)
+                                }
+                            }
+                            Spacer()
+                        }
                     }
                 }
             }
-            .screenshotMaker { screenshotMaker in
-                     self.screenshotMaker = screenshotMaker
+            .onAppear() {
+                sumData()
+                isLoading = false
             }
-            .alert(alertMessage, isPresented: $showingAlert) {
-                Button("OK", role: .cancel) { }
+            .onChange(of: doShot) {
+                if doShot {
+                    if let screenshotMaker = screenshotMaker {
+                        url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                        doShot.toggle()
+                    }
+                }
             }
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                    }
+                }
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    if UIDevice.type == "iPad" {
+                        Button {
+                            hasChanged = false
+                            doShot = true
+                        } label: {
+                            Text(" Screenshot")
+                        }
+                        .buttonStyle(ToolBarButtonStyle())
+                        if let shotURL = url {
+                            if hasChanged == false {
+                                ShareLink("Share", item: shotURL)
+                            }
+                        }
+                    }
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("Player Statistics").font(.title2)
+                }
+            }
+        }
+        .screenshotMaker { screenshotMaker in
+             self.screenshotMaker = screenshotMaker
+        }
+        .alert(alertMessage, isPresented: $showingAlert) {
+        Button("OK", role: .cancel) { }
         }
     }
     

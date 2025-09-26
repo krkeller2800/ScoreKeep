@@ -38,7 +38,7 @@ struct PasteView: View {
     @State private var position:[String] = []
     @State private var batOrder:[String] = []
     @State private var navigationPath = NavigationPath()
-    @State private var team:Team?
+    @State private var team = Team(name: "" ,coach: "",details: "")
     @State private var selectedColor = 0
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     @State private var selectPlayers:[Player] = []
@@ -61,7 +61,7 @@ struct PasteView: View {
                     }
                         .foregroundColor(.blue).frame(width:150, alignment: .center).buttonStyle(.bordered)
                     Spacer()
-                    if team != nil && selectPlayers.count > 0 {
+                    if !team.name.isEmpty && selectPlayers.count > 0 {
                         Text("Found \(selectPlayers.count) players on the \(selectPlayers[0].team?.name ?? "(team name not found)"). Pasted players will update or add to these players")
                             .foregroundColor(.red).frame(maxWidth: 500,alignment: .center)
                     }
@@ -69,7 +69,7 @@ struct PasteView: View {
                     Button {
                         showPlayers = false
                         players.removeAll()
-                        team = nil
+                        team = Team(name: "" ,coach: "",details: "")
                         lastNameIdx = 0
                         firstNameIdx = 0
                         numberIdx = 0
@@ -93,12 +93,12 @@ struct PasteView: View {
                 }
                 HStack {
                     Picker("Team", selection: $team) {
-                        Text("Select Team").tag(Optional<Team>.none)
+                        Text("Select Team").tag(Team(name: "" ,coach: "",details: ""))
                         if teams.isEmpty == false {
                             Divider()
-                            ForEach(teams) { team in
+                            ForEach(teams, id: \.self) { team in
                                 if team.name != "" {
-                                    Text(team.name).tag(Optional(team))
+                                    Text(team.name).tag(team)
                                 }
                             }
                         }
@@ -106,7 +106,7 @@ struct PasteView: View {
                     .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue)
                     .border(.gray).cornerRadius(10).padding().accentColor(.white)
                     .onChange(of: team) {
-                        if team != nil {
+                        if !team.name.isEmpty {
                             checkForPlayers()
                             showPlayers = true
                         }
@@ -115,7 +115,7 @@ struct PasteView: View {
                     Button {
                         let pasteboard = UIPasteboard.general
                         if let string = pasteboard.string {
-                            pastedText = string.replacingOccurrences(of: " Jr.", with: "_Jr.")
+                            pastedText = string.replacingOccurrences(of: " Jr.", with: "")
                             cleanPaste()
                         } else {
                             alertMessage = "No Text found on clipboard"
@@ -188,7 +188,7 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
+                    .frame(width: 130, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 5)
                     .onChange(of: numberIdx) {
                         if numberIdx != 0 {
@@ -326,15 +326,15 @@ struct PasteView: View {
                     Spacer()
                 }
                 Spacer()
-                if team != nil && showPlayers {
-                    PlayersOnTeamView(team: team!, searchString: "", sortOrder: sortOrder)
+                if !team.name.isEmpty && showPlayers {
+                    PlayersOnTeamView(team: team, searchString: "", sortOrder: sortOrder)
                 }
             }
             .navigationDestination(for: Team.self) { team in
                 EditTeamView(navigationPath: $navigationPath, team: team)
             }
             .navigationDestination(for: Player.self) { player in
-                EditPlayerView( player: player, team: team!, navigationPath: $navigationPath)
+                EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
             }
             .onChange(of: delimeter) {
                 if delimeter == "Type in" {
@@ -368,7 +368,7 @@ struct PasteView: View {
         }
     }
     func importPlayers() {
-        if team != nil {
+        if !team.name.isEmpty {
             if numberIdx == 0 && positionIdx == 0 && firstNameIdx == 0 && lastNameIdx == 0 && batsDirIdx == 0 && batOrderIdx == 0 {
                 alertMessage = "Please indicate where the fields are in the column headers"
                 showingAlert = true
@@ -418,6 +418,7 @@ struct PasteView: View {
         let team = Team(name: "", coach: "", details: "")
         modelContext.insert(team)
         try? modelContext.save()
+        self.team = team
         navigationPath.append(team)
     }
     init() {
@@ -428,7 +429,7 @@ struct PasteView: View {
     }
     func checkForPlayers () {
         
-        let teamName = team?.name ?? ""
+        let teamName = team.name
         
         if !teamName.isEmpty {
             if delimeter == "Delimeter" {
@@ -446,9 +447,6 @@ struct PasteView: View {
                     print("SwiftData Error: \(error)")
                 }
             }
-        } else {
-            showingAlert = true
-            alertMessage = "Please select a team."
         }
     }
     func cleanPaste() {

@@ -45,12 +45,12 @@ struct GameView: View {
                 }
             }
             HStack {
-                Text("Game Date").frame(width: UIDevice.type == "iPhone" && title.isEmpty ? 105 : 225).border(.gray)
+                Text("Game Date").frame(width: UIDevice.type == "iPhone" && title.isEmpty ? 105 : 235).border(.gray)
                     .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 if !title.isEmpty {
                     Text("Field").frame(maxWidth:.infinity).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("All Hit").frame(maxWidth:60).border(.gray)
+                    Text("All Hit").frame(maxWidth:50).border(.gray)
                         .foregroundColor(.red).background(.yellow.opacity(0.3))
                 }
      
@@ -75,7 +75,7 @@ struct GameView: View {
                             theDate = date.ISO8601Format()
                         }
                         .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
-                        .frame(width: 205, alignment: .leading)
+                        .frame(width: 220, alignment: .leading)
                         .clipped()
                     TextField("Field", text: $field)
                         .frame(maxWidth: .infinity)
@@ -87,7 +87,7 @@ struct GameView: View {
                         .textContentType(.none)
                     Button(action:{everyOneHits.toggle()}){
                         Text(everyOneHits ? "True" : "False")
-                            .frame(maxWidth:60,maxHeight:30)
+                            .frame(maxWidth:50,maxHeight:30)
                             .foregroundColor(.blue).bold()
                             .background(Color.white)
                     }.buttonStyle(PlainButtonStyle())
@@ -110,7 +110,7 @@ struct GameView: View {
                         Text("Pick").tag(Optional<Team>.none)
                         if teams.isEmpty == false {
                             Divider()
-                            ForEach(teams) { team in
+                            ForEach(teams, id: \.self) { team in
                                 if team.name != "" {
                                     Text(team.name).tag(Optional(team))
                                 }
@@ -142,20 +142,20 @@ struct GameView: View {
                 NavigationLink(value: game) {
                     HStack {
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                        Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width:UIDevice.type == "iPhone" && title.isEmpty ? 100 : 220, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.5)
+                        Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width:UIDevice.type == "iPhone" && title.isEmpty ? 100 : 230, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.8)
                             .overlay(Divider().background(.black), alignment: .trailing)
                         if !title.isEmpty {
                             Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                            Text(game.everyOneHits ? "True" : "False").frame(maxWidth:60, alignment: .center).foregroundColor(.black).bold()
-                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.8)
+                            Text(game.everyOneHits ? "True" : "False").frame(maxWidth:50, alignment: .center).foregroundColor(.black).bold()
+                                .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.8)
                         }
                         HStack {
                             if let imageData = game.vteam?.logo, let uiImage = UIImage(data: imageData) {
                                 Image(uiImage: uiImage)
                                     .scaleImage(iHeight: 30, imageData: imageData)
                             }
-                            Text(game.vteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.5)
+                            Text(game.vteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                         .overlay(Divider().background(.black), alignment: .trailing)
@@ -164,7 +164,7 @@ struct GameView: View {
                                 Image(uiImage: uiImage)
                                     .scaleImage(iHeight: 30, imageData: imageData)
                             }
-                            Text(game.hteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.5)
+                            Text(game.hteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                         .overlay(Divider().background(.black), alignment: .trailing)
@@ -180,7 +180,7 @@ struct GameView: View {
                             let fin = inning >= 9 && winner != "" ? " Final" : ""
                             let win = winner + (fin != "" ? fin : " in \(com.innAbr[inning])")
                             Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
+                                .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.7)
                         }
                         Spacer(minLength: 20)
                     }

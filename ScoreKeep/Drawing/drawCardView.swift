@@ -225,35 +225,35 @@ struct drawTots: View {
         let box2 = totbox[0]
         let box3 = colbox[atbat.col]
         let newy = (CGFloat(atbats.filter({$0.col == 1}).count) * space.height) + space.minY
-        let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX, y: space.minY+3,width:0, height:0)
+        let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX, y: space.minY,width:0, height:0)
         let to = CGRect(x: (( maxCol + 2) * space.width) + space.minX, y: space.height + newy-15,width:0, height:0)
-        let eachLine = CGRect(x: (( maxCol  + 2) * space.width) + space.minX, y: space.height + y+3, width:0, height:0)
+        let eachLine = CGRect(x: (( maxCol  + 2) * space.width) + space.minX, y: space.height + y, width:0, height:0)
         let x = CGFloat(atbat.col) * space.width + space.minX
         let placeBox = CGRect(x: x - (0 * space.width), y: 0.1 * space.height + newy, width:space.width, height:space.height)
         
-        if inning < 99 {
-            Text(com.innAbr[inning] + " Inn")
-                .font(.system(size: 10)).bold().foregroundColor(.black)
-                .position(x: 0.5 * space.width + x, y: space.minY - 7)
-        }
-        Text("Runs")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * -0.5), y:space.minY - 7)
-        Text("Hits")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 0.1), y:space.minY - 7)
-        Text("HR")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 0.7), y:space.minY - 7)
-        Text("BB")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 1.3), y:space.minY - 7)
-        Text("Ks")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 1.9), y:space.minY - 7)
-        Text("SB")
-            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
-            .position(x: from.minX + (space.width * 2.5), y:space.minY - 7)
+//        if inning < 99 {
+//            Text(com.innAbr[inning] + " Inn")
+//                .font(.system(size: 10)).bold().foregroundColor(.black)
+//                .position(x: 0.5 * space.width + x, y: space.minY - 7)
+//        }
+//        Text("Runs")
+//            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+//            .position(x: from.minX + (space.width * -0.5), y:space.minY - 7)
+//        Text("Hits")
+//            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+//            .position(x: from.minX + (space.width * 0.1), y:space.minY - 7)
+//        Text("HR")
+//            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+//            .position(x: from.minX + (space.width * 0.7), y:space.minY - 7)
+//        Text("BB")
+//            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+//            .position(x: from.minX + (space.width * 1.3), y:space.minY - 7)
+//        Text("Ks")
+//            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+//            .position(x: from.minX + (space.width * 1.9), y:space.minY - 7)
+//        Text("SB")
+//            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
+//            .position(x: from.minX + (space.width * 2.5), y:space.minY - 7)
         Text("  R   H ")
             .foregroundColor(.black).frame(alignment: .leading)
             .position(x: space.minX + (0.5 * space.width), y: 0.35 * space.height + newy)
@@ -367,7 +367,7 @@ struct drawBoxScore: View {
         
         let adj:CGFloat = UIDevice.type == "iPhone" ? 5 : 0
         let font:Font = UIDevice.type == "iPhone" ? .caption : .headline
-        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.195 : 0.20) * size.width, y: UIDevice.type == "iPhone" ? -90 : -130, width:150, height:100)
+        let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.195 : 0.20) * size.width, y: UIDevice.type == "iPhone" ? -87 : -130, width:150, height:100)
         let boxHome = doBoxScore(doTeam: "Home")
         let boxVisit = doBoxScore(doTeam: "Visit")
         let com = Common()
@@ -384,7 +384,7 @@ struct drawBoxScore: View {
             .font(font).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
             .position(x: placeBox.minX - 55, y: placeBox.minY + 13).bold()
         Text(game.hteam?.name ?? "")
-            .font(font).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+            .font(font).foregroundColor(.black).background(.white, ignoresSafeAreaEdges: []).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
             .position(x: placeBox.minX - 55, y: placeBox.minY + 38 - 2*adj).bold()
         Text("\(boxVisit.runs)")
             .position(x: placeBox.minX + 56 - 4*adj, y: placeBox.minY + 13)
@@ -478,28 +478,39 @@ struct drawPitchers: View {
 //                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                     Text("Pitcher").frame(width: UIDevice.type == "iPhone" ? 125 : 150).border(.gray)
                         .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
-                    Text("Inn Outs Bats       Inn Outs Bats").frame(width: 250).border(.gray)
-                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Inn").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("Outs").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("Bats").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer(minLength: 30)
+                    Text("Inn").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("Outs").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("Bats").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                     Text("ERA").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                     Text("ER").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text("UER").frame(maxWidth:.infinity).border(.gray)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                     if width > 1000 {
-                        Text("UER").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
                         Text("Hit").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                         Text("Ks").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                         Text("BB").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                         Text("HR").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                            .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
                     }
                     Text("").frame(width:15)
                 }
                 let oTHit = game.atbats.filter({$0.team == atbats[0].team})
-                let oTHitting = oTHit.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+                let oTHitting = oTHit.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) }
                 let pitchs = game.pitchers.filter({$0.team != atbats[0].team})
                 let pitchers = fixInnings(pitchers: pitchs, atbats: oTHitting)
                 ForEach(Array(pitchers.enumerated()), id: \.offset) { index, pitcher in
@@ -509,35 +520,35 @@ struct drawPitchers: View {
                                 let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
                                 let lName = pitcher.player.name.split(separator: " ").last ?? ""
                                 Text(lName).lineLimit(1).minimumScaleFactor(0.6)
-                                    .foregroundColor(.black).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading)
-                                Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(width:30.0).padding(.leading, 10)
-                                Text(Double(pitcher.sOuts), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(width:30.0)
-                                Text(Double(pitcher.sBats), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(width:25.0)
+                                    .foregroundColor(.black).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
+                                Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                Text(Double(pitcher.sOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                Text(Double(pitcher.sBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth: .infinity)
                                 Text("to").foregroundColor(.black)
-                                Text(Double(pitcher.endInn), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(width:25.0)
-                                Text(Double(pitcher.eOuts), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(width:30.0)
-                                Text(Double(pitcher.eBats), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(width:30.0)
+                                Text(Double(pitcher.endInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                Text(Double(pitcher.eOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                Text(Double(pitcher.eBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth: .infinity)
                                 Text(Double(stats.ERA), format: Int(stats.ERA) > 99 ? .number.rounded(increment: 1.0) :
-                                                                stats.ERA > 9.99 ? .number.rounded(increment: 0.1) : .number.rounded(increment: 0.01))
+                                                                stats.ERA > 9.99 ? .number.rounded(increment: 0.1) : .number.rounded(increment: 0.01)).lineLimit(1).minimumScaleFactor(0.8)
                                     .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.8)
-                                Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                Text(Double(stats.runs), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                     .foregroundColor(.black).frame(maxWidth:.infinity)
                                 if width > 1000 {
-                                    Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    Text(Double(stats.hits), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
-                                    Text(Double(stats.hits), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
-                                    Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    Text(Double(stats.BB), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
-                                    Text(Double(stats.BB), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                        .foregroundColor(.black).frame(maxWidth:.infinity)
-                                    Text(Double(stats.HR), format: .number.rounded(increment: 1.0)) // 12 (whole number)
+                                    Text(Double(stats.HR), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundColor(.black).frame(maxWidth:.infinity)
                                 }
                                 Image(systemName: "chevron.right").padding(.horizontal,0)
@@ -559,11 +570,13 @@ struct drawPitchers: View {
     }
     func doPitchers(oAtbats:[Atbat],pitcher: Pitcher)->PitchStats {
         if oAtbats.count > 0 {
-            let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1 
-            let innings = CGFloat(oAtbats.filter({(com.outresults.contains($0.result) || $0.outAt != "Safe") &&
-                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
-                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
-                                                (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
+            let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1
+            let pitchOuts = ((pitcher.endInn - pitcher.startInn) * 3) + (pitcher.eOuts - pitcher.sOuts)
+            let innings:CGFloat = CGFloat(pitchOuts) / 3.0
+//            let innings = CGFloat(oAtbats.filter({(com.outresults.contains($0.result) || $0.outAt != "Safe") &&
+//                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
+//                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
+//                                                (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
             let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
                                                                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                                                                 (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
@@ -600,7 +613,7 @@ struct drawPitchers: View {
      
     }
     func fixInnings(pitchers:[Pitcher], atbats:[Atbat])->[Pitcher] {
-        let pitchs = pitchers.sorted {( ($0.startInn, $0.sOuts, $0.sBats) < ($1.startInn, $1.eOuts, $1.eBats) )}
+        let pitchs = pitchers.sorted { ($0.startInn, $0.sOuts, $0.sBats) < ($1.startInn, $1.sOuts, $1.sBats) }
         if let currbatter = atbats.filter({$0.result != "Result"}).last {
             if currbatter.seq == 1 && currbatter.col == 1 {
                 if let currPitch = pitchs.last {
@@ -609,16 +622,29 @@ struct drawPitchers: View {
             } else {
                 for pitch in pitchs {
                     if pitch.startInn == 0 {
-                        pitch.startInn = Int(currbatter.inning.rounded(.up))
-                        pitch.sOuts = currbatter.outs
-                        pitch.sBats = currbatter.seq
+                        if currbatter.outs == 3 {
+                            pitch.startInn = Int(currbatter.inning.rounded(.up)) + 1
+                            pitch.sOuts = 0
+                            pitch.sBats = 0
+                        } else {
+                            pitch.startInn = Int(currbatter.inning.rounded(.up))
+                            pitch.sOuts = currbatter.outs
+                            pitch.sBats = currbatter.seq
+                        }
                     }
                 }
             }
             if let currPitch = pitchs.last {
-                currPitch.endInn = Int(currbatter.inning.rounded(.up))
-                currPitch.eOuts = currbatter.outs
-                currPitch.eBats = currbatter.seq
+                if currbatter.outs == 3 {
+                    currPitch.endInn = Int(currbatter.inning.rounded(.up)) + 1
+                    currPitch.eOuts = 0
+                    currPitch.eBats = 0
+                } else {
+                    currPitch.endInn = Int(currbatter.inning.rounded(.up))
+                    currPitch.eOuts = currbatter.outs
+                    currPitch.eBats = currbatter.seq
+                }
+              
             }
         }
         return pitchs
@@ -652,4 +678,53 @@ struct drawIndicator: View {
         //        }
     }
 }
-
+struct drawInnings: View {
+    var game:Game
+    var atbats:[Atbat]
+    var space:CGRect
+    var offset:CGFloat
+    var gWidth:CGFloat
+    var body: some View {
+        let com = Common()
+        let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
+        let fix = bigCol?.col ?? 0 > 1 ? 185.0 : 192.0
+        ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
+            if atbat.result != "Result" && (atbat.seq == 1 || (atbat.seq > 10 && atbat.outs == 3)) {
+                let x = CGFloat(atbat.col) * space.width + space.minX
+                let outs = atbat.outs
+                let inning = outs != 0 ? atbat.inning.rounded(.up) : atbat.inning + 1
+                let xVal = ((0.5 * space.width + x + 185) - offset)
+                if inning < 99 && xVal > 185 {
+                    Text(com.innAbr[Int(inning)] + " Inn")
+                        .font(.system(size: 10)).bold().foregroundColor(.black)
+                        .position(x: (0.5 * space.width + x + fix) - offset, y: space.minY + 10)
+                }
+            }
+        }
+        if bigCol?.col ?? 0 > 0 {
+            let gridSz = CGFloat(gWidth > 1100 ? 60 : 50)
+            let bSize = Int(((gWidth - (gWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
+            let newCol = (bigCol?.col ?? 1) + 1
+            let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
+            let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX + fix, y: space.minY+3,width:0, height:0)
+            Text("Runs")
+                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .position(x: (from.minX + (space.width * -0.5)) - offset, y:space.minY + 10)
+            Text("Hits")
+                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .position(x: (from.minX + (space.width * 0.1)) - offset, y:space.minY + 10)
+            Text("HR")
+                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .position(x: (from.minX + (space.width * 0.7)) - offset, y:space.minY + 10)
+            Text("BB")
+                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .position(x: (from.minX + (space.width * 1.3)) - offset, y:space.minY + 10)
+            Text("Ks")
+                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .position(x: (from.minX + (space.width * 1.9)) - offset, y:space.minY + 10)
+            Text("SB")
+                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .position(x: (from.minX + (space.width * 2.5)) - offset, y:space.minY + 10)
+        }
+    }
+}

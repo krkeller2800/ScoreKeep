@@ -22,11 +22,10 @@ struct SelectButton: View {
         }
     }
 }
-
 struct GlowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-//            .frame(width: bSize, height: bSize)
+
             .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue) // button's background
             .foregroundColor(.white) // text color
             .overlay(
@@ -56,9 +55,59 @@ struct ToolBarButtonStyle: ButtonStyle {
         configuration.label
             .padding(3)
             .foregroundStyle(.tint)
-            .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue.opacity(0.2), in: Capsule())
+            .background(configuration.isPressed ? Color.blue.opacity(0.8) : Color.blue.opacity(0.075), in: Capsule())
 //            .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue)
 //            .foregroundColor(.white)
 //            .cornerRadius(8)
+    }
+}
+struct UniversalButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        // Use #available to determine the appropriate view to return
+        if #available(iOS 26.0, *) {
+            return AnyView(
+                iOS26Button(configuration: configuration)
+            )
+        } else {
+            return AnyView(
+                iOS18Button(configuration: configuration)
+            )
+        }
+    }
+    
+    // Private helper for the iOS 26+ style
+    private struct iOS26Button: View {
+        let configuration: UniversalButtonStyle.Configuration
+        
+        var body: some View {
+            configuration.label
+                .padding()
+                .background(
+                    // New iOS 26 liquid glass background
+                    ContainerRelativeShape()
+                        .fill(.regularMaterial)
+                        .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+                        .animation(.spring(), value: configuration.isPressed)
+                )
+                .foregroundStyle(.primary)
+                .clipShape(ContainerRelativeShape())
+                .frame(maxWidth: .infinity)
+//                .tint(.blue.opacity(0.075))
+        }
+    }
+    // Private helper for the iOS 18 style
+    private struct iOS18Button: View {
+        let configuration: UniversalButtonStyle.Configuration
+        
+        var body: some View {
+            configuration.label
+                .padding(3)
+                .background(
+                    Capsule()
+                        .fill(Color.blue)
+                        .opacity(configuration.isPressed ? 0.5 : 0.075)
+                )
+                .foregroundStyle(.blue)
+        }
     }
 }

@@ -30,57 +30,59 @@ struct PitcherRptView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing:50) {
-                    HStack {
-                        Text("Through \(Date.now.formatted(date: .long, time: .omitted))").padding(.leading,5)
-                        Spacer()
-                        if pitchers.count > 0 {
+            VStack(spacing:10) {
+                HStack {
+                    Text("Through \(Date.now.formatted(date: .abbreviated, time: .omitted))").padding(.leading,10)
+                    Spacer()
+                    if pitchers.count > 0 {
+                        HStack {
                             if let imageData = pitchers[0].team.logo, let uiImage = UIImage(data: imageData) {
                                 Image(uiImage: uiImage)
-                                    .scaleImage(iHeight: 50, imageData: imageData)
+                                    .scaleImage(iHeight: 30, imageData: imageData)
                             }
-                            Text("\(tName) Pitching Stats").font(.largeTitle).foregroundColor(.black).bold().italic().frame(alignment: .center)
+                            Text("\(tName) Pitching Stats").font(.headline).foregroundColor(.black).bold().italic().frame(alignment: .center)
                         }
-                        Spacer()
-                        Text("\(Date.now.formatted(date: .long, time: .omitted))").foregroundColor(.white).padding(.trailing,5)
                     }
-                    VStack(spacing:0) {
-                        HStack {
-                            Text("").frame(maxWidth:5)
-                            Text("Num").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Pitcher").frame(width: 150).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
-                            Text("ERA").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("INN").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("ER").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("UER").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Ks").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("ꓘs").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("BB").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("HBP").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("HR").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("1B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("2B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("3B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("").frame(maxWidth:5)
-                        }
-                        let summedStats = sumedStats.sorted { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
+                    Spacer()
+                    Text("Through \(Date.now.formatted(date: .abbreviated, time: .omitted))").foregroundColor(.white).padding(.trailing,10)
+                }
+                HStack {
+                    Text("").frame(maxWidth:5)
+                    Text("Num").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Pitcher").frame(width: 150).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).bold().padding(.leading,0).background(.yellow.opacity(0.3))
+                    Text("ERA").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("INN").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("ER").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("UER").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Hit").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("Ks").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("ꓘs").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("BB").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("HBP").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("HR").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("1B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("2B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("3B").frame(maxWidth:.infinity).border(.gray).lineLimit(1).minimumScaleFactor(0.5)
+                        .foregroundColor(.red).background(.yellow.opacity(0.3))
+                    Text("").frame(maxWidth:5)
+                }
+                ScrollView {
+                    let summedStats = sumedStats.sorted { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(summedStats) { stats in
                             HStack {
                                 Text("").frame(maxWidth:5)
@@ -197,7 +199,7 @@ struct PitcherRptView: View {
 //                        }
 //                                }
             .screenshotMaker { screenshotMaker in
-                     self.screenshotMaker = screenshotMaker
+                 self.screenshotMaker = screenshotMaker
             }
         }
     }

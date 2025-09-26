@@ -353,9 +353,9 @@ struct fielderButtons: View {
         let phone = UIDevice.type == "iPhone" ? true : false
         Button("\n\n\nLeft") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-F7" : atbat.result == "Line Out" ? "-L7" : atbat.result == "Foul Out" ? "-FO7" : "-7"
+                atbat.playRec += atbat.result == "Fly Out" ? "-F7" : atbat.result == "Line Out" ? "-L7" : "-7"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "F7" : atbat.result == "Line Out" ? "L7" : atbat.result == "Foul Out" ? "FO7" : "7"
+                atbat.playRec += atbat.result == "Fly Out" ? "F7" : atbat.result == "Line Out" ? "L7" : "7"
             }
         }
         .foregroundColor(showShadow7 ? .red : .black).italic().font(.caption)
@@ -376,9 +376,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\nCenter") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-F8" : atbat.result == "Line Out" ? "-L8" : atbat.result == "Foul Out" ? "-FO8" : "-8"
+                atbat.playRec += atbat.result == "Fly Out" ? "-F8" : atbat.result == "Line Out" ? "-L8" : "-8"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "F8" : atbat.result == "Line Out" ? "L8" : atbat.result == "Foul Out" ? "FO8" : "8"
+                atbat.playRec += atbat.result == "Fly Out" ? "F8" : atbat.result == "Line Out" ? "L8" : "8"
             }
         }
         .foregroundColor(showShadow8 ? .red : .black).italic().font(.caption)
@@ -393,9 +393,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\nRight") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-F9" : atbat.result == "Line Out" ? "-L9" : atbat.result == "Foul Out" ? "-FO9" : "-9"
+                atbat.playRec += atbat.result == "Fly Out" ? "-F9" : atbat.result == "Line Out" ? "-L9" : "-9"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "F9" : atbat.result == "Line Out" ? "L9" : atbat.result == "Foul Out" ? "FO9" : "9"
+                atbat.playRec += atbat.result == "Fly Out" ? "F9" : atbat.result == "Line Out" ? "L9" : "9"
             }
         }
         .foregroundColor(showShadow9 ? .red : .black).italic().font(.caption)
@@ -410,9 +410,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\n3rd") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P5" : atbat.result == "Line Out" ? "-L5" : atbat.result == "Foul Out" ? "-FO5" : "-5"
+                atbat.playRec += atbat.result == "Fly Out" ? "-P5" : atbat.result == "Line Out" ? "-L5" : "-5"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P5" : atbat.result == "Line Out" ? "L5" : atbat.result == "Foul Out" ? "FO5" : "5"
+                atbat.playRec += atbat.result == "Fly Out" ? "P5" : atbat.result == "Line Out" ? "L5": "5"
             }
         }
         .foregroundColor(showShadow5 ? .red : .black).italic().font(.caption)
@@ -427,9 +427,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\nShort") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P6" : atbat.result == "Line Out" ? "-L6" : atbat.result == "Foul Out" ? "-FO6" : "-6"
+                atbat.playRec += atbat.result == "Fly Out" ? "-P6" : atbat.result == "Line Out" ? "-L6" : "-6"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P6" : atbat.result == "Line Out" ? "L6" : atbat.result == "Foul Out" ? "FO6" : "6"
+                atbat.playRec += atbat.result == "Fly Out" ? "P6" : atbat.result == "Line Out" ? "L6" : "6"
             }
         }
         .foregroundColor(showShadow6 ? .red : .black).italic().font(.caption)
@@ -444,9 +444,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\n2nd") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P4" : atbat.result == "Line Out" ? "-L4" : atbat.result == "Foul Out" ? "-FO4" : "-4"
+                atbat.playRec += atbat.result == "Fly Out" ? "-P4" : atbat.result == "Line Out" ? "-L4" : "-4"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P4" : atbat.result == "Line Out" ? "L4" : atbat.result == "Foul Out" ? "FO4" : "4"
+                atbat.playRec += atbat.result == "Fly Out" ? "P4" : atbat.result == "Line Out" ? "L4" : "4"
             }
         }
         .foregroundColor(showShadow4 ? .red : .black).bold().italic().font(.caption)
@@ -461,9 +461,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\n1st") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P3" : atbat.result == "Line Out" ? "-L3" : atbat.result == "Foul Out" ? "-FO3" : "-3"
+                atbat.playRec += atbat.result == "Fly Out" ? "-P3" : atbat.result == "Line Out" ? "-L3" : "-3"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P3" : atbat.result == "Line Out" ? "L3" : atbat.result == "Foul Out" ? "FO3" : "3"
+                atbat.playRec += atbat.result == "Fly Out" ? "P3" : atbat.result == "Line Out" ? "L3" : "3"
             }        }
         .foregroundColor(showShadow3 ? .red : .black).italic().font(.caption)
         .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
@@ -477,9 +477,9 @@ struct fielderButtons: View {
         }
         Button("\n\n\nPitch") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P1" : atbat.result == "Line Out" ? "-L1" : atbat.result == "Foul Out" ? "-FO1" : "-1"
+                atbat.playRec += atbat.result == "Fly Out" ? "-P1" : atbat.result == "Line Out" ? "-L1" : "-1"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P1" : atbat.result == "Line Out" ? "L1" : atbat.result == "Foul Out" ? "FO1" : "1"
+                atbat.playRec += atbat.result == "Fly Out" ? "P1" : atbat.result == "Line Out" ? "L1" : "1"
             }
         }
         .foregroundColor(showShadow1 ? .red : .black).italic().font(.caption)
@@ -494,9 +494,9 @@ struct fielderButtons: View {
         }
         Button("\n\nCatch") {
             if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P2" : atbat.result == "Line Out" ? "-L2" : atbat.result == "Foul Out" ? "-FO2" : "-2"
+                atbat.playRec += atbat.result == "Fly Out" ? "-P2" : atbat.result == "Line Out" ? "-L2" : "-2"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P2" : atbat.result == "Line Out" ? "L2" : atbat.result == "Foul Out" ? "FO2" : "2"
+                atbat.playRec += atbat.result == "Fly Out" ? "P2" : atbat.result == "Line Out" ? "L2" : "2"
             }
         }
         .foregroundColor(showShadow2 ? .red : .black).bold().italic().font(.caption)

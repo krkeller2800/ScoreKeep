@@ -200,6 +200,7 @@ struct ScoreGameView: View {
                             onBase = "Result"
                             batOut = "Result"
                         }
+                        earnedRun = atbat.earnedRun
                     }
                     .onDisappear {
                         setEndOfInning()
@@ -295,7 +296,7 @@ struct ScoreGameView: View {
      
         var inning = 0
         var outs = 0
-        let bats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" }.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        let bats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" }.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
         for atbat in bats {
             atbat.endOfInning = false
             inning += outs % 3 == 0 ? 1 : 0
@@ -314,7 +315,7 @@ struct ScoreGameView: View {
             for inning in 1...innings {
                 if inning <= innings || out == 0 {
                     let gAtbats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" && $0.result != "Pitch Hitter" &&
-                        ($0.inning >= CGFloat(inning-1) && $0.inning <= CGFloat(inning)) }.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+                        ($0.inning >= CGFloat(inning-1) && $0.inning <= CGFloat(inning)) }.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
                     gAtbats.last?.endOfInning = true
                 }
             }

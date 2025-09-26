@@ -45,7 +45,7 @@ struct PitchersStaffView: View {
                 .italic().frame(maxWidth:.infinity).multilineTextAlignment(.center).padding(.top,10)
             HStack (spacing:0) {
                 Text("Num")
-                    .frame(width: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3), ignoresSafeAreaEdges: [])
+                    .frame(width: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3), ignoresSafeAreaEdges: []).padding(.leading,10)
                 Text("Name")
                     .frame(width: 150).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                 Text("Pos")
@@ -67,7 +67,7 @@ struct PitchersStaffView: View {
             .minimumScaleFactor(0.8).lineLimit(1)
             HStack (spacing:0) {
                 Text(pNum).frame(width:50, alignment: .center).foregroundColor(.black).minimumScaleFactor(0.5).lineLimit(1)
-                    .overlay(Divider().background(.black), alignment: .trailing)
+                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading,10)
                 Text(pName).frame(width:150, alignment: .leading).foregroundColor(.black).minimumScaleFactor(0.5).lineLimit(1)
                     .overlay(Divider().background(.black), alignment: .trailing)
                 Text(pPos).frame(width:45, alignment: .center).foregroundColor(.black).minimumScaleFactor(0.5).lineLimit(1)
@@ -152,10 +152,11 @@ struct PitchersStaffView: View {
                     }
                 }
             }
-            Text("Select which player will pitch!").frame(maxWidth: .infinity, maxHeight: 20, alignment: .bottomLeading).font(UIDevice.type == "iPad" ? .title3 : .caption).italic()
+            Text("Select which player will pitch!").frame(maxWidth: .infinity, maxHeight: 20, alignment: .bottomLeading).font(UIDevice.type == "iPad" ? .callout : .caption)
+                .italic().padding(.leading,10)
             HStack (spacing:0) {
                 Text("Num")
-                    .frame(width: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3), ignoresSafeAreaEdges: [])
+                    .frame(width: 50).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3), ignoresSafeAreaEdges: []).padding(.leading,10)
                 Text("Name")
                     .frame(width: 150).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
                 Text("Pos")
@@ -177,6 +178,7 @@ struct PitchersStaffView: View {
             .minimumScaleFactor(0.8).lineLimit(1)
             ForEach(players, id: \.self) { player in
                 HStack(spacing:0) {
+                    Spacer(minLength: 10).background(.white)
                     HStack(spacing: 0) {
                         Text(player.number).frame(width: 50, alignment: .center).foregroundColor(.black)
                             .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
@@ -294,6 +296,7 @@ struct PitchersStaffView: View {
             modelContext.delete(pitch)
             pNum = ""
             pName = "Not Selected Yet"
+            pPos = ""
             startInn = 0
             sOuts = 0
             endInn = 0
@@ -305,8 +308,19 @@ struct PitchersStaffView: View {
                 print("Error deleting pitcher: \(error)")
             }
         } else {
-            alertMessage = "No pitcher selected"
-            showingAlert = true
+            if selection != nil {
+                selection = nil
+                pNum = ""
+                pName = "Not Selected Yet"
+                pPos = ""
+                startInn = 0
+                sOuts = 0
+                endInn = 0
+                eOuts = 0
+            } else {
+                alertMessage = "No pitcher selected"
+                showingAlert = true
+            }
         }
     }
     func cleanupPitchers() {

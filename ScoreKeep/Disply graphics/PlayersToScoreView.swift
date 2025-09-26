@@ -23,7 +23,8 @@ struct PlayersToScoreView: View {
     @State var teamName = ""
     @State var playerName = ""
     var com:Common = Common()
-    @State private var scrollID: String?
+
+    @State private var offset = CGFloat.zero
 
     @State var colbox:[BoxScore] = Array(repeating: BoxScore(), count: 20)
     @State var batbox:[BoxScore] = Array(repeating: BoxScore(), count: 20)
@@ -39,8 +40,9 @@ struct PlayersToScoreView: View {
         Section {
             GeometryReader { geometry in
                 let gWidth = geometry.size.width
-                drawIndicator(iStat:iStat,size:geometry.size,colbox:colbox,space:calcSpace())
+                drawIndicator(iStat:iStat,size:geometry.size,colbox:colbox,space:calcSpace(gWidth: gWidth))
                 drawBoxScore(game:game,size:geometry.size)
+                drawInnings(game: game, atbats: atbats, space: calcSpace(gWidth: gWidth),offset: offset,gWidth: gWidth)
                 VStack ( spacing: 0) {
                     HStack(alignment: .top) {
                         Text("Num").frame(width:30, height: 15, alignment:.center).font(.caption).foregroundColor(.black).bold().padding(.leading, 3)
@@ -51,15 +53,16 @@ struct PlayersToScoreView: View {
                         HStack {
                             VStack (spacing: 0){
                                 ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
-                                    HStack(spacing: 0) {
+                                    HStack(spacing: 2) {
                                         if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
-                                            let bSiz:CGFloat = screenWidth > 1100 ? 60 : 50
+                                            let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
                                             let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
                                             let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
                                             Text(atbat.player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundColor(.black)
                                                 .overlay(Divider().background(.black), alignment: .trailing)
                                             Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt)
-                                                .fixedSize(horizontal: false, vertical: true).padding(.leading,5).lineLimit(2)
+                                                .fixedSize(horizontal: true, vertical: true).padding(.leading,5).lineLimit(2)
+
                                         }
                                     }
                                 }
@@ -68,13 +71,11 @@ struct PlayersToScoreView: View {
                             ScrollView(.horizontal) {
                                 ZStack {
                                     let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
-//                                    let bSize = screenWidth > 1100 ? 14 : 9
                                     let gridSz = CGFloat(gWidth > 1100 ? 60 : 50)
                                     let bSize = Int(((gWidth - (gWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
                                     let newCol = (bigCol?.col ?? 1) + 1
                                     let maxCol = newCol < bSize ? bSize : newCol
                                     VStack (spacing: 0) {
-                                        Spacer(minLength: 13)
                                         ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
                                             HStack(spacing: 0) {
                                                 if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
@@ -91,7 +92,7 @@ struct PlayersToScoreView: View {
                                                         .buttonStyle(GlowButtonStyle())
                                                     }
                                                 }
-                                                let mCol = Double(gWidth) - 200 - (Double(maxCol+1) * gridSz)
+                                                let mCol = Double(gWidth) - 150 - (Double(maxCol+1) * gridSz)
                                                 Spacer(minLength:mCol < 0 ? 0 : mCol)
                                             }
                                         }
@@ -101,22 +102,26 @@ struct PlayersToScoreView: View {
                                             Spacer(minLength:numOfPitchers * 25 + 100)
                                         }
                                     }
-                                    if !atbats.isEmpty {
-                                        drawSing(space: calcSpace(), atbats: atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )},colbox: colbox,batbox: batbox, totbox: totbox,sWidth: gWidth, isLoading: $isLoading)
-                                        let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
-                                        drawPitchers(space: calcSpace(), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam, width: gWidth)
+                                    .background(GeometryReader {
+                                        Color.clear.preference(key: ViewOffsetKey.self, value: -$0.frame(in: .named("scroll")).origin.x)
+                                    })
+                                    .onPreferenceChange(ViewOffsetKey.self) {
+                                        offset = $0
                                     }
-                                  
+                                    if !atbats.isEmpty {
+                                        drawSing(space: calcSpace(gWidth:gWidth), atbats: atbats.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) },colbox: colbox,batbox: batbox, totbox: totbox,sWidth: gWidth, isLoading: $isLoading)
+                                        let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
+                                        drawPitchers(space: calcSpace(gWidth:gWidth), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam, width: gWidth)
+                                    }
                                 }
-       
                             }
+                            .coordinateSpace(name: "scroll")
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
                 .onAppear() {
                     lAtbats = atbats
- //                   screenWidth = geometry.size.width
                 }
                 .onChange(of: atbats) {
                     if firstTime {
@@ -150,19 +155,23 @@ struct PlayersToScoreView: View {
             // Give a moment for the screen boundaries to change after
             // the device is rotated
             Task { @MainActor in
-                try await Task.sleep(for: .seconds(0.2))
-                withAnimation {
-                    screenHeight = UIScreen.main.bounds.height
-                    screenWidth = UIScreen.main.bounds.width
-                    columnVisability = .detailOnly
+                do {
+                    try await Task.sleep(for: .seconds(0.2))
+                    withAnimation {
+                        screenHeight = UIScreen.main.bounds.height
+                        screenWidth = UIScreen.main.bounds.width
+                        columnVisability = .detailOnly
+                    }
+                } catch {
+                    print("Error: \(error.localizedDescription)")
                 }
             }
         }
     }
-    func calcSpace() -> CGRect {
-        let bSize:CGFloat = screenWidth > 1100 ? 60 : 50
-        let newx:CGFloat = screenWidth > 1100 ? -60 : -50
-        return CGRect(x: newx, y: 12, width: bSize, height: bSize)
+    func calcSpace(gWidth:CGFloat) -> CGRect {
+        let bSize:CGFloat = gWidth > 1100 ? 60 : 50
+        let newx:CGFloat = gWidth > 1100 ? -60 : -50
+        return CGRect(x: newx, y: 0, width: bSize, height: bSize)
     }
     func updMaxBases() {
         let usedAtbats = atbats.filter {$0.result != "Result"}
@@ -171,7 +180,7 @@ struct PlayersToScoreView: View {
         var currMaxBase = 0
         let maxbases:[String] = ["First","Second","Third","Home"]
         let maxHits:[String] = ["Single","Double","Triple","Home Run"]
-        let atbatsToUpdSorted = atbatsToUpd.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        let atbatsToUpdSorted = atbatsToUpd.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) }
         
         iStat = InnStatus(outs: usedAtbats.last?.outs ?? 0)
         
@@ -230,7 +239,7 @@ struct PlayersToScoreView: View {
         batbox = Array(repeating: BoxScore(), count: 20)
         totbox = Array(repeating: BoxScore(), count: 5)
         
-        let atbatsSoFar = atbats.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        let atbatsSoFar = atbats.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) }
 
         for (_, atbat) in atbatsSoFar.enumerated() {
             if atbat.result != "Result" {
@@ -348,7 +357,13 @@ struct PlayersToScoreView: View {
         }
     }
 }
-
+struct ViewOffsetKey: PreferenceKey {
+    typealias Value = CGFloat
+    static var defaultValue = CGFloat.zero
+    static func reduce(value: inout Value, nextValue: () -> Value) {
+        value += nextValue()
+    }
+}
 
 
 

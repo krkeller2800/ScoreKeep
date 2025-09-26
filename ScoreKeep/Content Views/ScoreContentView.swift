@@ -20,15 +20,6 @@ struct ScoreContentView: View {
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
     @AppStorage("selectedGameCriteria") var selectedSortCriteria: SortCriteria = .dateAsc
-    var compileDate:Date
-    {
-        let bundleName = Bundle.main.infoDictionary!["CFBundleName"] as? String ?? "Info.plist"
-        if let infoPath = Bundle.main.path(forResource: bundleName, ofType: nil),
-           let infoAttr = try? FileManager.default.attributesOfItem(atPath: infoPath),
-           let infoDate = infoAttr[FileAttributeKey.creationDate] as? Date
-        { return infoDate }
-        return Date()
-    }
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
@@ -80,11 +71,25 @@ struct ScoreContentView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("Add a team") {
-                            let team = Team(name: "", coach: "", details: "")
-                            modelContext.insert(team)
-                            try? modelContext.save()
-                            path.append(team)
+                        if #available(iOS 26.0, *) {
+                            Button {
+                                let team = Team(name: "", coach: "", details: "")
+                                modelContext.insert(team)
+                                try? modelContext.save()
+                                path.append(team)
+                            } label: {
+                                Text("Add Team")
+                                    .frame(maxWidth: .infinity).foregroundColor(.blue)
+                            }
+                            .buttonStyle(.glassProminent).tint(.blue.opacity(0.075))
+                        } else {
+                            Button("Add Team") {
+                                let team = Team(name: "", coach: "", details: "")
+                                modelContext.insert(team)
+                                try? modelContext.save()
+                                path.append(team)
+                            }
+                            .buttonStyle(ToolBarButtonStyle())
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
@@ -94,7 +99,7 @@ struct ScoreContentView: View {
                                 Text(option)
                             }
                         }
-                        .pickerStyle(SegmentedPickerStyle())
+                        .pickerStyle(SegmentedPickerStyle()).frame(maxWidth: 100)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         if UIDevice.type == "iPhone" {
@@ -107,15 +112,15 @@ struct ScoreContentView: View {
                             }
                         }
                     }
-                    ToolbarItem(placement: .bottomBar) {
-                        if UIDevice.type == "iPad" || (UIDevice.type == "iPhone" && doGame == "Edit") {
-                            Text("This app was compiled on " + compileDate.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundColor(.gray).italic()
-                        }
-                    }
+//                    ToolbarItem(placement: .bottomBar) {
+//                        if UIDevice.type == "iPad" || (UIDevice.type == "iPhone" && doGame == "Edit") {
+//                            Text("Compiled on " + compileDate.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundColor(.gray).italic()
+//                        }
+//                    }
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
             .onAppear {
-                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.3)
+                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)
                 if doGame == "Score" {
                     columnVisability = .detailOnly
                 } else {

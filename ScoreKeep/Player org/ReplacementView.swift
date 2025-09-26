@@ -83,6 +83,8 @@ struct ReplacementView: View {
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .onAppear() {
+                    incPlayers = []
+                    rplPlayers = []
                     let startAtbats = game.atbats.filter { $0.col == 1 && $0.batOrder < 50 && $0.team.id == team.id}
                     var foundRPL = false
                     for player in players {
@@ -188,9 +190,7 @@ struct ReplacementView: View {
         modelContext.insert(player)
         navigationPath.append(player)
         try? modelContext.save()
-    
-//        try? modelContext.save()
-    }
+        }
     func doSubs() {
         
         var newseq = Array(repeating: 999, count: 20)

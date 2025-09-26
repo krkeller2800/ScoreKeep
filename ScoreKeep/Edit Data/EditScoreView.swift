@@ -58,6 +58,7 @@ struct EditScoreView: View {
                          if game.location.count < 15 {
                                 Text(game.location).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
                             } else {
+                                Text("")
                                 let firstWord = game.location.split(separator: " ").count > 0 ? game.location.split(separator: " ")[0] : ""
                                 let secondWord = game.location.split(separator: " ").count > 1 ? game.location.split(separator: " ")[1] : ""
                                 Text(firstWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
@@ -103,6 +104,7 @@ struct EditScoreView: View {
                                 selectedOption = game.vteam?.name ?? ""
                             }
                             print(modelContext.sqliteCommand)
+                            print(NSHomeDirectory())
                             
                         }
                         .onChange(of: isHomeTeam, {
@@ -152,55 +154,72 @@ struct EditScoreView: View {
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
+                        Button(action: {
+                            showPitchers.toggle()
+                        }) {
+                            Text("Add Pitcher")
+                        }
+                        .frame(width: 120)
+                        .buttonStyle(ToolBarButtonStyle())
+                        .fullScreenCover(isPresented: $showPitchers) {
+                            let opTeam = team == game.hteam ? game.vteam! : game.hteam!
+                            PitcherContentView(team: opTeam, game: game)
+                        }
                         Button {
                             let generatePDF = PDFGenerator()
                             url = generatePDF.generatePDFData(game: game, team: team, title: "Test PDF", body: "This is a test")
                         } label: {
-                            Text("Create PDF")
+                            Text("PDF")
                         }
+                        .frame(width: 40)
                         .buttonStyle(ToolBarButtonStyle())
                         if let pdfURL = url {
                             ShareLink("Share", item: pdfURL)
                         }
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
                         Button(action: {
                             presentReplacements.toggle()
                         }) {
                             Text("Replace Players")
                         }
+                        .frame(width: 140)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $presentReplacements) {
                             ReplacementView(game: game, team: team)
                         }
+                        Button(action: {
+                            self.showingDetail.toggle()
+                        }) {
+                            Text("Lineup")
+                        }
+                        .buttonStyle(ToolBarButtonStyle())
                     }
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button(action: {
                             showPitchRpt.toggle()
                             isLoading = true
                         }) {
-                            Text("Pitching Stats")
+                            Text("Pitch Stats")
                         }
+                        .frame(width: 100)
+                        .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showPitchRpt) {
-                            ShowPitchRptView(tName: team.name, isLoading: $isLoading)
-                        }
-                        Spacer()
-                        Button(action: {
-                            showPitchers.toggle()
-                        }) {
-                            Text("Add a Pitcher")
-                        }
-                        .fullScreenCover(isPresented: $showPitchers) {
-                            let opTeam = team == game.hteam ? game.vteam! : game.hteam!
-                            PitcherContentView(team: opTeam, game: game)
+                            if UIDevice.type == "iPad" {
+                                ShowPitchRptView(tName: team.name, isLoading: $isLoading)
+                            } else {
+                                PitcherRptView(teamName: team.name, isLoading: $isLoading)
+                            }
                         }
                         Spacer()
                         Button(action: {
                             showReport.toggle()
                             isLoading = true
                         }) {
-                            Text("Hitting Stats")
+                            Text("Hit Stats")
                         }
+                        .frame(width: 100)
+                        .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showReport) {
                             if UIDevice.type == "iPad" {
                                 ReportView(teamName: team.name, isLoading: $isLoading)
@@ -209,38 +228,11 @@ struct EditScoreView: View {
                             }
                         }
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(action: {
-                            self.showingDetail.toggle()
-                        }) {
-                            Text("Lineup")
-//                            if isHomeTeam {
-//                                Text("\(game.hteam?.name ?? "") Lineup")
-//                            } else {
-//                                Text("\(game.vteam?.name ?? "") Lineup")
-//                            }
-                        }
-                    }
+ 
                     ToolbarItem(placement: .principal) {
                         Text("Score the Game")
                             .font(.title2)
                     }
-//                    ToolbarItemGroup(placement: .topBarLeading) {
-//                        if UIDevice.type == "iPad" {
-//                            Button {
-//                                hasChanged = false
-//                                doShot = true
-//                            } label: {
-//                                Text(" Screenshot")
-//                            }
-//                            .buttonStyle(ToolBarButtonStyle())
-//                            if let shotURL = url {
-//                                if hasChanged == false {
-//                                    ShareLink("Share", item: shotURL)
-//                                }
-//                            }
-//                        }
-//                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                     

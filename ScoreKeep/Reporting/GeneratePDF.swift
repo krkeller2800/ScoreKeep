@@ -136,7 +136,7 @@ class PDFGenerator {
             .font: UIFont.systemFont(ofSize: 11),
             .foregroundColor: UIColor.black,
             .strikethroughStyle: NSUnderlineStyle.single.rawValue]
-        let atbats = game.atbats.filter { $0.team == theTeam && $0.col == 1}.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        let atbats = game.atbats.filter { $0.team == theTeam && $0.col == 1}.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
         var x = 0
         for atbat in atbats {
         
@@ -182,7 +182,7 @@ class PDFGenerator {
     }
     func drawAtbats (game:Game, theTeam: Team, bodyATTR: [NSAttributedString.Key : Any],  smallCenterATTR: [NSAttributedString.Key : Any]) {
         let com = Common()
-        let atbats = game.atbats.filter { $0.team == theTeam && $0.result != "Result"}.sorted {( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        let atbats = game.atbats.filter { $0.team == theTeam && $0.result != "Result"}.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
         var abb = ""
         var colbox = Array(repeating: BoxScore(), count: 20)
         var batbox = Array(repeating: BoxScore(), count: 20)
@@ -191,6 +191,8 @@ class PDFGenerator {
             
             if let xx = com.battings.firstIndex(where: { $0 == atbat.result }) {
                 abb = com.batAbbrevs[xx]
+            } else {
+                abb = ""
             }
             let abbString = NSAttributedString(string: abb, attributes: bodyATTR)
             abbString.draw(in: CGRect(x: CGFloat(130 + (atbat.col * 30)), y: CGFloat(130 + ((atbat.batOrder - 1) * 30)), width: 30, height: 30) )
@@ -250,7 +252,7 @@ class PDFGenerator {
             aPath.lineWidth = 1
             aPath.stroke()
         }
-        if atbat.inning.rounded(.up) > 0 {
+        if atbat.inning.rounded(.up) > 0 && atbat.result != "Pitch Hitter" {
             let inn = com.innAbr[Int(atbat.inning.rounded(.up))]
             var abbString = NSAttributedString(string: "\(inn) Inn", attributes: smallCenterATTR)
             abbString.draw(in: CGRect(x: CGFloat(130 + (atbat.col * 30)), y: 110, width: 30, height: 30))
@@ -497,7 +499,7 @@ class PDFGenerator {
         let atbatsToUpd = atbats.filter {($0.inning.rounded(.up) == inning || ($0.inning.rounded(.up) == 0 && inning == 1)) && com.onresults.contains($0.result) }
         
         for (_, theBase) in atbatsToUpd.reversed().enumerated() {
-            if theBase.outAt == "Safe" {
+            if theBase.outAt == "Safe" && iStat.outs < 3 {
                 if theBase.maxbase == "Third" {
                     iStat.onThird = true
                 } else if theBase.maxbase == "Second" {
@@ -545,9 +547,24 @@ class PDFGenerator {
         makeNewRect(rec: CGRect(x:90, y: (numOfPlayers * 30) + 190, width: 150, height: 15), fillColor: .yellow, lineColor: .gray)
         pitchString = NSAttributedString(string: "Pitcher", attributes: pitchATTR)
         pitchString.draw(in: CGRect(x: 90, y: (numOfPlayers * 30) + 175, width: 150, height: 15))
-        makeNewRect(rec: CGRect(x:245, y: (numOfPlayers * 30) + 190, width: 200, height: 15), fillColor: .yellow, lineColor: .gray)
-        pitchString = NSAttributedString(string: "Inn  Outs  Bats   Inn  Outs  Bats", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 245, y: (numOfPlayers * 30) + 175, width: 200, height: 15))
+        makeNewRect(rec: CGRect(x:255, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString = NSAttributedString(string: "Inn", attributes: pitchATTR)
+        pitchString.draw(in: CGRect(x: 255, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
+        makeNewRect(rec: CGRect(x:285, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString = NSAttributedString(string: "Outs", attributes: pitchATTR)
+        pitchString.draw(in: CGRect(x: 285, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
+        makeNewRect(rec: CGRect(x:315, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString = NSAttributedString(string: "Bats", attributes: pitchATTR)
+        pitchString.draw(in: CGRect(x: 315, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
+        makeNewRect(rec: CGRect(x:350, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString = NSAttributedString(string: "Inn", attributes: pitchATTR)
+        pitchString.draw(in: CGRect(x: 350, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
+        makeNewRect(rec: CGRect(x:380, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString = NSAttributedString(string: "Outs", attributes: pitchATTR)
+        pitchString.draw(in: CGRect(x: 380, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
+        makeNewRect(rec: CGRect(x:410, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString = NSAttributedString(string: "Bats", attributes: pitchATTR)
+        pitchString.draw(in: CGRect(x: 410, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
         makeNewRect(rec: CGRect(x:450, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
         pitchString = NSAttributedString(string: "ERA", attributes: pitchATTR)
         pitchString.draw(in: CGRect(x: 450, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
@@ -610,7 +627,7 @@ class PDFGenerator {
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
             
-            let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
+            let ERA = innings == 0 ? 999 : CGFloat(runs) / innings * 9
             return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
@@ -693,21 +710,34 @@ class PDFGenerator {
             .foregroundColor: UIColor.black]
 
         let oTHit = game.atbats.filter({$0.team == team})
-        let oTHitting = oTHit.sorted{( ($0.col, $0.seq) < ($1.col, $1.seq) )}
+        let oTHitting = oTHit.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) }
         let pitchs = game.pitchers.filter({$0.team != team})
         let pitchers = fixInnings(pitchers: pitchs)
         for (index, pitcher) in pitchers.enumerated() {
             let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
-            let sinn = String("\(pitcher.startInn)      \(pitcher.sOuts)      \(pitcher.sBats)")
-            let einn = pitcher.endInn == 0 ? String("\(stats.innings + pitcher.startInn)      \(pitcher.eOuts)      \(pitcher.eBats)") :
-            String("\(pitcher.endInn)      \(pitcher.eOuts)      \(pitcher.eBats)")
             var pitchString = NSAttributedString(string: "\(pitcher.player.number)", attributes: pitchATTR)
             pitchString.draw(in: CGRect(x: 35, y: (numOfPlayers * 30) + 190 + (index * 15), width: 50, height: 15))
             pitchString = NSAttributedString(string: "\(pitcher.player.name)", attributes: hitATTR)
             pitchString.draw(in: CGRect(x: 90, y: (numOfPlayers * 30) + 190 + (index * 15), width: 150, height: 15))
-            pitchString = NSAttributedString(string: "\(sinn)    to   \(einn)", attributes: pitchATTR)
-            pitchString.draw(in: CGRect(x: 245, y: (numOfPlayers * 30) + 190 + (index * 15), width: 200, height: 15))
-            pitchString = NSAttributedString(string: decmatter.string(for: stats.ERA) ?? "0.00", attributes: pitchATTR)
+            pitchString = NSAttributedString(string: "\(pitcher.startInn)", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 255, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
+            pitchString = NSAttributedString(string: "\(pitcher.sOuts)", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 285, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
+            pitchString = NSAttributedString(string: "\(pitcher.sBats)", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 315, y: (numOfPlayers * 30) + 190 + (index * 15), width: 20, height: 15))
+            pitchString = NSAttributedString(string: "to", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 330, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
+            pitchString = NSAttributedString(string: "\(pitcher.endInn)", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 350, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
+            pitchString = NSAttributedString(string: "\(pitcher.eOuts)", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 380, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
+            pitchString = NSAttributedString(string: "\(pitcher.eBats)", attributes: pitchATTR)
+            pitchString.draw(in: CGRect(x: 410, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
+            if stats.ERA > 99.99 {
+                pitchString = NSAttributedString(string: wholematter.string(for: stats.ERA) ?? "000", attributes: pitchATTR)
+            } else {
+                pitchString = NSAttributedString(string: decmatter.string(for: stats.ERA) ?? "0.00", attributes: pitchATTR)
+            }
             pitchString.draw(in: CGRect(x: 450, y: (numOfPlayers * 30) + 190 + (index * 15), width: 50, height: 15))
             pitchString = NSAttributedString(string: wholematter.string(for: stats.runs) ?? "0", attributes: pitchATTR)
             pitchString.draw(in: CGRect(x: 505, y: (numOfPlayers * 30) + 190 + (index * 15), width: 50, height: 15))

@@ -95,6 +95,7 @@ struct PlayersOnTeamView: View {
                                     let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:team)
                                     modelContext.insert(thisPlayer)
                                     try? self.modelContext.save()
+                                    renumOrder(players: players.sorted{($0.batOrder < $1.batOrder)}, player: thisPlayer, order: thisPlayer.batOrder)
                                     pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = ""
                                 } else if dups {
                                     alertMessage = "Player named \(pName) already exists on \(team.name)"
@@ -123,6 +124,9 @@ struct PlayersOnTeamView: View {
                                 Spacer(minLength: 5)
                             }
                             .padding(.vertical, 0)
+                        }
+                        .onChange(of: player.batOrder) {
+                            renumOrder(players: players.sorted{($0.batOrder < $1.batOrder)}, player: player, order: player.batOrder)
                         }
                     }
                     .onDelete(perform: deletePlayer)
@@ -237,29 +241,43 @@ struct PlayersOnTeamView: View {
         let playName = pname
         prevPName = playName
         
-        if !teamName.isEmpty && !playName.isEmpty && checkForDups{
-            
-            var fetchDescriptor = FetchDescriptor<Player>()
-            
-            fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName && $0.name == playName}
-            
-            do {
-                let existPlayers = try self.modelContext.fetch(fetchDescriptor)
+        if !checkForDups {
+            if !teamName.isEmpty && !playName.isEmpty {
                 
-                if existPlayers.first != nil {
-                    dups = true
-                    showingAlert = true
-                    alertMessage = "\(pname) is already on the team."
-                } else {
-                    dups = false
+                var fetchDescriptor = FetchDescriptor<Player>()
+                
+                fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName && $0.name == playName}
+                
+                do {
+                    let existPlayers = try self.modelContext.fetch(fetchDescriptor)
+                    
+                    if existPlayers.first != nil {
+                        dups = true
+                        showingAlert = true
+                        alertMessage = "\(pname) is already on the team."
+                    } else {
+                        dups = false
+                    }
+                } catch {
+                    print("SwiftData Error: \(error)")
                 }
-            } catch {
-                print("SwiftData Error: \(error)")
+            } else {
+                if teamName.isEmpty && !playName.isEmpty {
+                    showingAlert = true
+                    alertMessage = "Please select a team so we can check if \(playName) is on already on it."
+                }
             }
-        } else {
-            if teamName.isEmpty && !playName.isEmpty {
-                showingAlert = true
-                alertMessage = "Please select a team so we can check if \(playName) is on already on it."
+        }
+    }
+    func renumOrder(players:[Player], player:Player,order:Int) {
+        for (index, oldPlayer) in players.enumerated() {
+            if index+1 == order && oldPlayer.batOrder < 99 {
+                oldPlayer.batOrder = index+2
+            } else if index+1 > order && oldPlayer.batOrder < 99 {
+                oldPlayer.batOrder = index+1
+            }
+            if oldPlayer.name == player.name {
+                oldPlayer.batOrder = order
             }
         }
     }

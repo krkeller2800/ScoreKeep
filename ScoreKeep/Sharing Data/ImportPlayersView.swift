@@ -215,6 +215,7 @@ struct ImportPlayersView: View {
         return []
     }
     func sharedPlayersBoss (sharedPlayers: [SharePlayer],teamName: String) {
+        self.sharePlayers = sharedPlayers
         let players = getCurrentPlayers(teamName: teamName)
         for sharePlayer in sharedPlayers {
             if let currPlayer = players.first(where: { $0.name == sharePlayer.name ||
@@ -405,10 +406,13 @@ struct ImportPlayersView: View {
         
         do {
             let players = try self.modelContext.fetch(fetchDescriptor)
-            if team.logo == nil {
+            if team.logo?.count == 0 {
                 if let firstPlayer = players.first {
                     team.logo = firstPlayer.team?.logo ?? Data()
+                } else if shareGames.count > 0 {
+                    team.logo = shareGames.first?.hteam.name == team.name ? shareGames.first?.hteam.logo : shareGames.first?.vteam.logo
                 }
+                
             }
             return players
         }

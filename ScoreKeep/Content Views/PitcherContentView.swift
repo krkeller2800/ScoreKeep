@@ -114,7 +114,7 @@ struct PitcherContentView: View {
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
             .onAppear {
-                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.3)
+                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)
                 if UIDevice.type == "iPhone" {
                    isSearching = false
                 } else {

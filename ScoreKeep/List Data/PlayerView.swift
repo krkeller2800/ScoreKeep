@@ -121,6 +121,7 @@ struct PlayerView: View {
                                         let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:pTeam)
                                         modelContext.insert(thisPlayer)
                                         try? self.modelContext.save()
+                                        renumOrder(players: players.sorted{($0.batOrder < $1.batOrder)}, player: thisPlayer, order: thisPlayer.batOrder)
                                         pName = ""; pOrder = 0; pNum = ""; pDir = ""; pPos = "";
                                     } else if dups {
                                         alertMessage = "Player named \(pName) already exists on \(pTeam.name)"
@@ -150,6 +151,9 @@ struct PlayerView: View {
                                     Text("")
                                         .frame(width:25)
                                 }
+                            }
+                            .onChange(of: player.batOrder) {
+                                renumOrder(players: players.sorted{($0.batOrder < $1.batOrder)}, player: player, order: player.batOrder)
                             }
                         }
                         .onDelete(perform: deletePlayer)
@@ -345,7 +349,18 @@ struct PlayerView: View {
             }
         }
     }
-
+    func renumOrder(players:[Player], player:Player,order:Int) {
+        for (index, oldPlayer) in players.enumerated() {
+            if index+1 == order && oldPlayer.batOrder < 99 {
+                oldPlayer.batOrder = index+2
+            } else if index+1 > order && oldPlayer.batOrder < 99 {
+                oldPlayer.batOrder = index+1
+            }
+            if oldPlayer.name == player.name {
+                oldPlayer.batOrder = order
+            }
+        }
+    }
 }
 
 

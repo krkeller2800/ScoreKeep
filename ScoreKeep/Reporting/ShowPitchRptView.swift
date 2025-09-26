@@ -25,13 +25,14 @@ struct ShowPitchRptView: View {
     var com:Common = Common()
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             PitcherRptView(teamName: tName, isLoading: $isLoading)
             Button("Generate PDF") {
                 if let pdfData = generatePDF() {
                     pdfURL = savePDF(data: pdfData, fileName: "pitchStats")
                 }
             }
+            .padding(0)
             .onAppear() {
                 getPitchers()
                 if !pitchers.isEmpty {
