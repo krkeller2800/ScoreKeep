@@ -689,7 +689,7 @@ struct drawInnings: View {
         let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
         let fix = bigCol?.col ?? 0 > 1 ? 185.0 : 192.0
         ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
-            if atbat.result != "Result" && (atbat.seq == 1 || (atbat.seq > 10 && atbat.outs == 3)) {
+            if atbat.result != "Result" && (atbat.seq == 1 || (atbat.seq >= 10 && atbat.outs == 3)) {
                 let x = CGFloat(atbat.col) * space.width + space.minX
                 let outs = atbat.outs
                 let inning = outs != 0 ? atbat.inning.rounded(.up) : atbat.inning + 1
