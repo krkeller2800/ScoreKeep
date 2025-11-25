@@ -40,9 +40,18 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
-            GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path, columnVisability: $columnVisability)
-                .navigationDestination(for: Game.self) { game in
-                    EditGameView(game: game, navigationPath: $path)
+            GameView(
+                searchString: searchText,
+                sortOrder: sortDescriptor,
+                title: $title,
+                navigationPath: $path,
+                columnVisability: $columnVisability,
+                createGame: { dateISO, field, everyOneHits, vTeam, hTeam in
+                    createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+                }
+            )
+            .navigationDestination(for: Game.self) { game in
+                EditGameView(game: game, navigationPath: $path)
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
             .toolbar {
@@ -103,6 +112,15 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {
+        let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
+        modelContext.insert(theGame)
+        try? modelContext.save()
+        // If you want to navigate to EditGameView after creation, uncomment the next line:
+        // path.append(theGame)
+    }
+    
     func addGame() {
         let game = Game(date: "" ,location: "",highLights: "",hscore: 0, vscore: 0)
         modelContext.insert(game)
@@ -110,5 +128,4 @@ struct ContentView: View {
         try? modelContext.save()
     }
 }
-
 

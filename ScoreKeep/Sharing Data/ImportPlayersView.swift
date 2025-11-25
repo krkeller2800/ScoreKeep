@@ -92,7 +92,17 @@ struct ImportPlayersView: View {
                             PlayersOnTeamView(showHeader: true, team: tm, searchString: searchText, sortOrder: sortOrder)
                         } else if fileType.localizedStandardContains("ScoreKeep_Games") {
                             Text("Current Games").bold().italic()
-                            GameView(searchString: searchText, title: $title, navigationPath: $navigationPath, columnVisability: $columnVisibility)
+                            GameView(
+                                searchString: searchText,
+                                title: $title,
+                                navigationPath: $navigationPath,
+                                columnVisability: $columnVisibility,
+                                createGame: { dateISO, field, everyOneHits, vTeam, hTeam in
+                                    let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
+                                    modelContext.insert(theGame)
+                                    try? modelContext.save()
+                                }
+                            )
                                 .navigationDestination(for: Game.self) { game in
                                     EditGameView(game: game, navigationPath: $navigationPath)
                             }

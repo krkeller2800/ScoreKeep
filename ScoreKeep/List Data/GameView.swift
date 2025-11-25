@@ -24,6 +24,9 @@ struct GameView: View {
     @State private var vTeam: Team?
     @State private var hTeam: Team?
 
+    // New: closure to delegate creation to parent (ScoreContentView)
+    var createGame: (String, String, Bool, Team, Team) -> Void
+
     enum FocusField: Hashable {case field}
     
     @FocusState private var focusedField: FocusField?
@@ -82,7 +85,6 @@ struct GameView: View {
                         .foregroundColor(.blue).bold()
                         .overlay(Divider().background(.black), alignment: .trailing)
                         .focused($focusedField, equals: .field)
-                    //                    .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.none)
                     Button(action:{everyOneHits.toggle()}){
@@ -125,11 +127,11 @@ struct GameView: View {
                     HStack {
                         Image(systemName: "plus")
                             .onTapGesture {
-                                if vTeam != nil && hTeam != nil {
-                                    let theGame = Game(date: theDate, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam:vTeam!, hteam:hTeam!)
-                                    modelContext.insert(theGame)
-                                    try? self.modelContext.save()
-                                    field = ""; hTeam = nil; vTeam = nil; everyOneHits = false
+                                if let vTeam, let hTeam {
+                                    // Route through parent so freeCreatesRemaining can be decremented if needed
+                                    createGame(theDate, field, everyOneHits, vTeam, hTeam)
+                                    // reset UI fields
+                                    field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
                                 } else {
                                     alertMessage = "You must select a Home and Visiting Team!"
                                     showingAlert = true
@@ -224,11 +226,12 @@ struct GameView: View {
         }
         .listRowSeparator(.hidden)
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>) {
+    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Team, Team) -> Void) {
         
         _title = title
         _navigationPath = navigationPath
         _columnVisibility = columnVisability
+        self.createGame = createGame
         
         _games = Query(filter: #Predicate { game in
             if !searchString.isEmpty {
@@ -242,10 +245,11 @@ struct GameView: View {
         },  sort: sortOrder)
     }
     func deleteGame(at offsets: IndexSet) {
- 
+
         for offset in offsets {
             let game = games[offset]
             modelContext.delete(game)
         }
     }
 }
+

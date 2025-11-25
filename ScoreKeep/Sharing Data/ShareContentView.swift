@@ -13,6 +13,8 @@ struct ShareContentView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) var openURL
     
+    // Keychain-backed MLB download counter
+    @StateObject private var mlbCounter = KeychainBackedCounter(key: "mlbDownloadCountKC", defaultValue: 0)
     
     @State private var team:Team?
     @State private var game:Game?
@@ -50,6 +52,8 @@ struct ShareContentView: View {
     @FocusState private var focusedField: FocusField?
     
     @AppStorage("selectedShareCriteria") var selectedShareCriteria: SortCriteria = .orderAsc
+    @AppStorage("isUpgraded") var isUpgraded: Bool = false
+    @State private var showPaywall: Bool = false
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case nameAsc, nameDec, orderAsc, numAsc
@@ -70,8 +74,6 @@ struct ShareContentView: View {
     }
     
     var body: some View {
-        //        NavigationStack(path: $path) {
-        //            GeometryReader { geometry in
         VStack {
             let options = ["Download MLB Teams","Share Your Games","Share Your Teams"]
             Picker("Select Option", selection: $doShare) {
@@ -129,28 +131,8 @@ struct ShareContentView: View {
                         .border(.gray).cornerRadius(10).accentColor(.black)
                     }
                     if doDown {
-                        Text("If you want a different team...").padding(.leading,10).font(.caption2).frame(maxWidth: .infinity, alignment: .leading)
                         HStack {
-                            TextField("Add team to download", text: $newTeam)
-                                .frame(maxWidth: 200)
-                                .padding(3) // Add internal padding
-                                .cornerRadius(8) // Apply rounded corners
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(.gray, lineWidth: 1)
-                                )
-                                .shadow(radius: 2) // Add a subtle shadow
-                                .offset(x: 10)
-                                .focused($focusedField, equals: .field)
-                            //                                        .onAppear {self.focusedField = .field}
-                            Button {
-                                sendEmail(openUrl: openURL)
-                            } label: {
-                                Label("Request", systemImage: "plus.square")
-                            }
-                            .foregroundColor(.blue).frame(width:150, alignment: .center).buttonStyle(.bordered)
                             Spacer()
-                            
                             Picker("Down", selection: $down) {
                                 Text("Select Team").tag("Select Team")
                                 let fileNames = fNames.sorted{($0 < $1)}
@@ -162,11 +144,42 @@ struct ShareContentView: View {
                             }
                             .frame(maxWidth: 150,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
                             .border(.gray).cornerRadius(10).accentColor(.black)
+                            .disabled(!isUpgraded && mlbCounter.value >= 4)
                             Spacer()
                         }
+                        // Counter or Unlimited text based on upgrade status
+                        if isUpgraded {
+                            Text("Unlimited downloads active")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 4)
+                        } else {
+                            Text("Downloads used: \(mlbCounter.value) of 4")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 4)
+                        }
+                        // Upgrade button with badge when limit reached
+                        Button("Upgrade") {
+                            showPaywall = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
+                        .padding(.top, 4)
+                        .overlay(alignment: .topTrailing) {
+                            if !isUpgraded && mlbCounter.value >= 4 {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 10, height: 10)
+                                    .offset(x: 6, y: -6)
+                                    .accessibilityLabel("Limit reached")
+                            }
+                        }
+                        
                         if url != nil {
                             Text("Importing \(url!.lastPathComponent)")
                         }
+                        Spacer()
                     }
                 }
                 Spacer()
@@ -221,6 +234,14 @@ struct ShareContentView: View {
             .onChange(of: down) {
                 let downTeam = DownloadFiles()
                 Task {
+                    // Gate: block if free limit reached
+                    if !isUpgraded && mlbCounter.value >= 4 {
+                        showingAlert = true
+                        alertMessage = "You’ve reached your 4 free downloads. Upgrade to continue."
+                        showPaywall = true
+                        return
+                    }
+                    
                     do {
                         let destinationFileName = "\(down).ScoreKeep_Players"
                         try await downTeam.downloadFile(from: "https://komakode.com/Teams/\(destinationFileName)", to: destinationFileName)
@@ -229,6 +250,10 @@ struct ShareContentView: View {
                         url = documentsDirectory.appendingPathComponent(destinationFileName) // Example file
                         if url != nil {
                             doImport = true
+                            // Increment usage after successful download if not upgraded
+                            if !isUpgraded {
+                                mlbCounter.increment()
+                            }
                         }
                     } catch {
                         print("Error downloading file: \(error.localizedDescription)")
@@ -236,7 +261,6 @@ struct ShareContentView: View {
                 }
             }
             if team != nil && doTeam {
-                //                        PlayerView(team: team!, navigationPath: $path,searchString: $searchText, sortOrder: sortOrder)
                 PlayersOnTeamView(team: team!, searchString: searchText, sortOrder: sortOrder)
             }
             Spacer()
@@ -251,9 +275,10 @@ struct ShareContentView: View {
                 ImportPlayersView(showingImport: $showImport, iURL: url1, columnVisibility: $columnVisibility)
             }
         }
-        //                .navigationDestination(for: Player.self) { player in
-        //                    EditPlayerView( player: player, team: team!, navigationPath: $path)
-        //                }
+        // Paywall presentation:
+        // - iPhone: full screen
+        // - iPad: largest sheet possible
+        .modifier(PaywallPresentation(isPresented: $showPaywall))
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Share")
@@ -297,15 +322,6 @@ struct ShareContentView: View {
                     }
                 }
             }
-            //                    ToolbarItem(placement: .topBarTrailing) {
-            //                        let options = ["Game","Team"]
-            //                        Picker("Select Option", selection: $doShare) {
-            //                            ForEach(options, id: \.self) { option in
-            //                                Text(option)
-            //                            }
-            //                        }
-            //                        .pickerStyle(SegmentedPickerStyle())
-            //                    }
             ToolbarItem(placement: .topBarLeading) {
                 if let playerURL = playerURL {
                     ShareLink(item: playerURL) {
@@ -327,7 +343,12 @@ struct ShareContentView: View {
         .onChange(of: sortDescriptor) {
             sortOrder = sortDescriptor
         }
-        //            }
+        // Optional: auto-dismiss paywall if local isUpgraded flips true
+        .onChange(of: isUpgraded) {
+            if isUpgraded {
+                showPaywall = false
+            }
+        }
         .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
         .onAppear {
             if UIDevice.type == "iPhone" {
@@ -342,7 +363,6 @@ struct ShareContentView: View {
                 searchText = "" // Clear the search text when the search field is dismissed
             }
         }
-        //        }
     }
     init() {
         
@@ -518,4 +538,24 @@ struct ShareContentView: View {
     }
 }
 
+// Helper view modifier to present Paywall as sheet on iPad, full screen on iPhone
+private struct PaywallPresentation: ViewModifier {
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        if UIDevice.type == "iPad" {
+            content
+                .sheet(isPresented: $isPresented) {
+                    PaywallView()
+                        .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
+                }
+        } else {
+            content
+                .fullScreenCover(isPresented: $isPresented) {
+                    PaywallView()
+                }
+        }
+    }
+}
 

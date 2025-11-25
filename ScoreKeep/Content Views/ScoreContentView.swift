@@ -11,7 +11,10 @@ import SwiftData
 struct ScoreContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
-    @Binding var columnVisability:NavigationSplitViewVisibility
+    @EnvironmentObject var purchaseManager: PurchaseManager
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Binding var columnVisability: NavigationSplitViewVisibility
+
     @State private var path = NavigationPath()
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
@@ -20,12 +23,26 @@ struct ScoreContentView: View {
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
     @AppStorage("selectedGameCriteria") var selectedSortCriteria: SortCriteria = .dateAsc
-    
+
+    // Free tier: remaining game creations for non‑premium users (Keychain-backed)
+    @StateObject private var freeCreates = KeychainBackedCounter(key: "freeGameCreatesRemainingKC", defaultValue: 2)
+    @State private var showPaywall: Bool = false
+    @State private var pendingCreation: PendingCreation?
+
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
         var id: String { self.rawValue }
     }
-    
+
+    // Used to pass a create intent from GameView back to here so we can enforce limits
+    struct PendingCreation {
+        let dateISO: String
+        let field: String
+        let everyOneHits: Bool
+        let vTeam: Team
+        let hTeam: Team
+    }
+
     var sortDescriptor: [SortDescriptor<Game>] {
         switch selectedSortCriteria {
         case .dateAsc:
@@ -38,85 +55,163 @@ struct ScoreContentView: View {
             return [SortDescriptor(\Game.vteam!.name, order: .forward)]
         }
     }
-    
+
+    var isPremium: Bool { purchaseManager.isSeasonPassActive }
+
+    // Small extracted pieces to reduce type-checking pressure
+    private var scoreEditOptions: [String] { ["Score", "Edit"] }
+
+    private var premiumBadgeView: some View {
+        Text("Season Pass")
+            .font(hSizeClass == .compact ? .caption2 : .caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.green.opacity(0.15), in: Capsule())
+            .foregroundColor(.green)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .layoutPriority(1)
+            .accessibilityLabel("Season Pass active")
+    }
+
+    private var freeCounterView: some View {
+        Text(hSizeClass == .compact ? "Free games: \(freeCreates.value)" : "Free games: \(freeCreates.value)")
+            .font(hSizeClass == .compact ? .caption2 : .caption)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 4)
+            .foregroundColor(.black)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .layoutPriority(1)
+            .accessibilityLabel("Free games remaining \(freeCreates.value)")
+    }
+
     var body: some View {
+        // Precompute arguments to help the compiler
+        let currentSearchText: String = searchText
+        let currentSortOrder: [SortDescriptor<Game>] = sortDescriptor
+        let titleBinding: Binding<String> = $title
+        let navBinding: Binding<NavigationPath> = $path
+        let columnBinding: Binding<NavigationSplitViewVisibility> = $columnVisability
+        let requestUpgrade: () -> Void = { showPaywall = true }
+        let requestCreateGame: (String, String, Bool, Team, Team) -> Void = { dateISO, field, everyOneHits, vTeam, hTeam in
+            handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+        }
+
         NavigationStack(path: $path) {
-             GameView(searchString: searchText, sortOrder: sortDescriptor, title:$title, navigationPath: $path, columnVisability: $columnVisability)
-                .navigationDestination(for: Game.self) { game in
-                    if addAGame || game.date == "" || game.hteam?.name ?? "" == "" || game.hteam?.name ?? "" == "" || doGame == "Edit" {
-                        EditGameView(game: game, navigationPath: $path)
+            GameView(
+                searchString: currentSearchText,
+                sortOrder: currentSortOrder,
+                title: titleBinding,
+                navigationPath: navBinding,
+                columnVisability: columnBinding,
+                createGame: requestCreateGame
+            )
+            .navigationDestination(for: Game.self) { game in
+                destinationView(for: game)
+            }
+            .onAppear {
+                addAGame = false
+            }
+            .toolbar {
+                // Leading: Sort menu
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                        Picker("Sort", selection: $selectedSortCriteria) {
+                            ForEach(SortCriteria.allCases) { criteria in
+                                if criteria == .dateAsc {
+                                    Text("Date (A-Z)").tag(criteria)
+                                } else if criteria == .dateDec {
+                                    Text("Date (Z-A)").tag(criteria)
+                                } else if criteria == .homeTeam {
+                                    Text("Home Team (A-Z)").tag(criteria)
+                                } else if criteria == .visitorTeam {
+                                    Text("Visitor Team (A-Z)").tag(criteria)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Leading: Add Team
+                ToolbarItem(placement: .topBarLeading) {
+                    if #available(iOS 26.0, *) {
+                        Button {
+                            let team = Team(name: "", coach: "", details: "")
+                            modelContext.insert(team)
+                            try? modelContext.save()
+                            path.append(team)
+                        } label: {
+                            Text("Add Team")
+                                .frame(maxWidth: .infinity)
+                                .foregroundColor(.blue)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .tint(.blue.opacity(0.075))
                     } else {
-                        EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: $columnVisability)
+                        Button("Add Team") {
+                            let team = Team(name: "", coach: "", details: "")
+                            modelContext.insert(team)
+                            try? modelContext.save()
+                            path.append(team)
+                        }
+                        .buttonStyle(ToolBarButtonStyle())
                     }
                 }
-                .onAppear() {
-                    addAGame = false
-                }
-                .toolbar {
-                    ToolbarItemGroup(placement: .topBarLeading) {
-                        Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                            Picker("Sort", selection: $selectedSortCriteria) {
-                                ForEach(SortCriteria.allCases) { criteria in
-                                    if criteria == .dateAsc {
-                                        Text("Date (A-Z)").tag(criteria)
-                                    } else if criteria == .dateDec {
-                                        Text("Date (Z-A)").tag(criteria)
-                                    } else if criteria == .homeTeam {
-                                        Text("Home Team (A-Z)").tag(criteria)
-                                    } else if criteria == .visitorTeam {
-                                        Text("Visitor Team (A-Z)").tag(criteria)
-                                    }
-                                }
-                            }
+
+                // Leading: Score/Edit segmented control placed immediately to the right of Add Team
+                ToolbarItem(placement: .topBarLeading) {
+                    Picker("Select Option", selection: $doGame) {
+                        ForEach(scoreEditOptions, id: \.self) { option in
+                            Text(option)
                         }
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                        if #available(iOS 26.0, *) {
-                            Button {
-                                let team = Team(name: "", coach: "", details: "")
-                                modelContext.insert(team)
-                                try? modelContext.save()
-                                path.append(team)
-                            } label: {
-                                Text("Add Team")
-                                    .frame(maxWidth: .infinity).foregroundColor(.blue)
+                    .modifier(SegmentedSizingModifier())
+                }
+
+                // Trailing: search icon on iPhone only
+                ToolbarItem(placement: .topBarTrailing) {
+                    if UIDevice.type == "iPhone" {
+                        Button(action: {
+                            withAnimation {
+                                isSearching.toggle()
                             }
-                            .buttonStyle(.glassProminent).tint(.blue.opacity(0.075))
+                        }) {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        .accessibilityLabel("Search")
+                    }
+                }
+
+                // Trailing: Always-visible premium counter (compact-aware)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Group {
+                        if isPremium {
+                            premiumBadgeView
                         } else {
-                            Button("Add Team") {
-                                let team = Team(name: "", coach: "", details: "")
-                                modelContext.insert(team)
-                                try? modelContext.save()
-                                path.append(team)
-                            }
-                            .buttonStyle(ToolBarButtonStyle())
+                            freeCounterView
                         }
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        let options = ["Score","Edit"]
-                        Picker("Select Option", selection: $doGame) {
-                            ForEach(options, id: \.self) { option in
-                                Text(option)
-                            }
+                }
+
+                // Trailing: Always-visible Upgrade button (compact-aware)
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !isPremium {
+                        Button {
+                            requestUpgrade()
+                        } label: {
+                            Text("Upgrade")
                         }
-                        .pickerStyle(SegmentedPickerStyle()).frame(maxWidth: 100)
+                        .buttonStyle(ToolBarButtonStyle())
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
+                        .accessibilityLabel("Upgrade to Season Pass")
+                    } else {
+                        EmptyView()
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        if UIDevice.type == "iPhone" {
-                            Button(action: {
-                                withAnimation {
-                                    isSearching.toggle()
-                                }
-                            }) {
-                                Image(systemName: "magnifyingglass")
-                            }
-                        }
-                    }
-//                    ToolbarItem(placement: .bottomBar) {
-//                        if UIDevice.type == "iPad" || (UIDevice.type == "iPhone" && doGame == "Edit") {
-//                            Text("Compiled on " + compileDate.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundColor(.gray).italic()
-//                        }
-//                    }
+                }
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
             .onAppear {
@@ -143,11 +238,65 @@ struct ScoreContentView: View {
             }
             .onChange(of: isSearching) {
                 if isSearching == false {
-                    searchText = "" // Clear the search text when the search field is dismissed
+                    searchText = ""
                 }
             }
         }
+        .sheet(isPresented: $showPaywall) {
+            paywallSheetContent()
+        }
     }
+
+    // Extracted to reduce type-checking pressure
+    @ViewBuilder
+    private func destinationView(for game: Game) -> some View {
+        if addAGame || game.date == "" || game.hteam?.name ?? "" == "" || game.hteam?.name ?? "" == "" || doGame == "Edit" {
+            EditGameView(game: game, navigationPath: $path)
+        } else {
+            EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: columnVisabilityProxy)
+        }
+    }
+
+    // Proxy binding to match EditScoreView’s expected name in init
+    private var columnVisabilityProxy: Binding<NavigationSplitViewVisibility> {
+        $columnVisability
+    }
+
+    // MARK: - Paywall sheet content (extracted)
+    @ViewBuilder
+    private func paywallSheetContent() -> some View {
+        PaywallView()
+            .environmentObject(purchaseManager)
+            // Force the largest detent so the sheet opens tall and avoids cramped scrolling
+            .presentationDetents([.large])
+            // Optional: hide the drag indicator to reduce accidental collapsing (iOS 16+)
+            .modifier(PresentationDragIndicatorHidden())
+    }
+
+    // MARK: - Creation gating
+
+    private func handleCreateGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {
+        if isPremium {
+            createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+            return
+        }
+
+        guard freeCreates.value > 0 else {
+            showPaywall = true
+            return
+        }
+
+        createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+        // Decrement remaining free creates for non-premium
+        freeCreates.set(freeCreates.value - 1)
+    }
+
+    private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {
+        let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
+        modelContext.insert(theGame)
+        try? self.modelContext.save()
+    }
+
     func addGame() {
         let game = Game(date: "" ,location: "",highLights: "",hscore: 0, vscore: 0)
         modelContext.insert(game)
@@ -158,4 +307,29 @@ struct ScoreContentView: View {
     }
 }
 
+// A small modifier to encapsulate the iOS-version-conditional sizing/styling
+private struct SegmentedSizingModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .pickerStyle(.segmented)
+                .controlSize(.regular)
+                .frame(minWidth: 120) // ensure “Score” and “Edit” fit
+        } else {
+            content
+                .pickerStyle(SegmentedPickerStyle())
+        }
+    }
+}
 
+// Wrap the drag indicator to avoid availability and inference issues
+private struct PresentationDragIndicatorHidden: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            // Use SwiftUI.Visibility
+            return content.presentationDragIndicator(Visibility.hidden)
+        } else {
+            return content
+        }
+    }
+}
