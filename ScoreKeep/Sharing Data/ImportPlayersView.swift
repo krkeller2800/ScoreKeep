@@ -97,7 +97,10 @@ struct ImportPlayersView: View {
                                 title: $title,
                                 navigationPath: $navigationPath,
                                 columnVisability: $columnVisibility,
-                                createGame: { dateISO, field, everyOneHits, vTeam, hTeam in
+                                createGame: { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
+                                    // Treat imports from this UI as non-seeded user creations by default.
+                                    // If you want imports to NEVER count against a free counter, set isSeeded to true here
+                                    // and ensure the parent that enforces limits respects it.
                                     let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
                                     modelContext.insert(theGame)
                                     try? modelContext.save()

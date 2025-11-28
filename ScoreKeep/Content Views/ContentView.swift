@@ -46,7 +46,8 @@ struct ContentView: View {
                 title: $title,
                 navigationPath: $path,
                 columnVisability: $columnVisability,
-                createGame: { dateISO, field, everyOneHits, vTeam, hTeam in
+                createGame: { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
+                    // This ContentView path represents normal user creation; treat as non-seeded.
                     createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
                 }
             )

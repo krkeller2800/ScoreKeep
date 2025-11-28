@@ -94,8 +94,8 @@ struct ScoreContentView: View {
         let navBinding: Binding<NavigationPath> = $path
         let columnBinding: Binding<NavigationSplitViewVisibility> = $columnVisability
         let requestUpgrade: () -> Void = { showPaywall = true }
-        let requestCreateGame: (String, String, Bool, Team, Team) -> Void = { dateISO, field, everyOneHits, vTeam, hTeam in
-            handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+        let requestCreateGame: (String, String, Bool, Team, Team, Bool) -> Void = { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
+            handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam, isSeeded: isSeeded)
         }
 
         NavigationStack(path: $path) {
@@ -112,6 +112,12 @@ struct ScoreContentView: View {
             }
             .onAppear {
                 addAGame = false
+                // DEBUG-only: give ourselves a large budget for testing
+                #if DEBUG
+                if freeCreates.value != 50 {
+                    freeCreates.set(50)
+                }
+                #endif
             }
             .toolbar {
                 // Leading: Sort menu
@@ -275,8 +281,14 @@ struct ScoreContentView: View {
 
     // MARK: - Creation gating
 
-    private func handleCreateGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {
+    private func handleCreateGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team, isSeeded: Bool) {
         if isPremium {
+            createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+            return
+        }
+
+        // If this is a seeded creation, do not decrement free counter
+        if isSeeded {
             createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
             return
         }
@@ -287,7 +299,7 @@ struct ScoreContentView: View {
         }
 
         createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
-        // Decrement remaining free creates for non-premium
+        // Decrement remaining free creates for non-premium (user-initiated only)
         freeCreates.set(freeCreates.value - 1)
     }
 
@@ -333,3 +345,4 @@ private struct PresentationDragIndicatorHidden: ViewModifier {
         }
     }
 }
+
