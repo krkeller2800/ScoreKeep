@@ -61,19 +61,6 @@ struct ScoreContentView: View {
     // Small extracted pieces to reduce type-checking pressure
     private var scoreEditOptions: [String] { ["Score", "Edit"] }
 
-    private var premiumBadgeView: some View {
-        Text("Season Pass")
-            .font(hSizeClass == .compact ? .caption2 : .caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.green.opacity(0.15), in: Capsule())
-            .foregroundColor(.green)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .layoutPriority(1)
-            .accessibilityLabel("Season Pass active")
-    }
-
     private var freeCounterView: some View {
         Text(hSizeClass == .compact ? "Free games: \(freeCreates.value)" : "Free games: \(freeCreates.value)")
             .font(hSizeClass == .compact ? .caption2 : .caption)
@@ -194,29 +181,29 @@ struct ScoreContentView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Group {
                         if isPremium {
-                            premiumBadgeView
+                            PremiumBadgeView(isCompact: hSizeClass == .compact)
                         } else {
                             freeCounterView
                         }
                     }
                 }
 
-                // Trailing: Always-visible Upgrade button (compact-aware)
+                // Trailing: Single Upgrade/Manage button based on premium state
                 ToolbarItem(placement: .topBarTrailing) {
-                    if !isPremium {
-                        Button {
+                    Button {
+                        if isPremium {
+                            Task { await purchaseManager.manageSubscriptions() }
+                        } else {
                             requestUpgrade()
-                        } label: {
-                            Text("Upgrade")
                         }
-                        .buttonStyle(ToolBarButtonStyle())
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .layoutPriority(1)
-                        .accessibilityLabel("Upgrade to Season Pass")
-                    } else {
-                        EmptyView()
+                    } label: {
+                        Text(isPremium ? "Manage" : "Upgrade")
                     }
+                    .buttonStyle(ToolBarButtonStyle())
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
+                    .accessibilityLabel(isPremium ? "Manage Subscription" : "Upgrade to Season Pass")
                 }
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")

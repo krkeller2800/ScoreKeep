@@ -41,6 +41,11 @@ struct PaywallView: View {
                             // Price + CTA
                             priceAndCTA(compact: true, extraCompact: extraCompact)
 
+                            // If already premium, show manage entry point
+                            if purchaseManager.isSeasonPassActive {
+                                manageSection(compact: true, extraCompact: extraCompact)
+                            }
+
                             // Benefits grid
                             benefitsGrid(compact: true, extraCompact: extraCompact)
 
@@ -58,6 +63,9 @@ struct PaywallView: View {
                         VStack(spacing: 24) {
                             header(compact: false, extraCompact: false, showInlineTitle: false)
                             priceAndCTA(compact: false, extraCompact: false)
+                            if purchaseManager.isSeasonPassActive {
+                                manageSection(compact: false, extraCompact: false)
+                            }
                             benefitsList
                             legalLinks(compact: false, extraCompact: false)
                         }
@@ -72,11 +80,10 @@ struct PaywallView: View {
                     Button("Close") { dismiss() }
                 }
             }
-            // Hide nav title on iPhone to reclaim vertical space
             .navigationTitle(UIDevice.type == "iPhone" ? "Upgrade" : "Upgrade")
             .navigationBarTitleDisplayMode(.inline)
-            .onReceive(purchaseManager.$isSeasonPassActive) { active in
-                if active { dismiss() }
+            .onReceive(purchaseManager.$isSeasonPassActive) { _ in
+                // Keep open; user may want Manage
             }
             .onChange(of: purchaseManager.lastErrorMessage) {
                 showingError = (purchaseManager.lastErrorMessage?.isEmpty == false)
@@ -170,6 +177,29 @@ struct PaywallView: View {
     }
 
     @ViewBuilder
+    private func manageSection(compact: Bool, extraCompact: Bool) -> some View {
+        VStack(spacing: compact ? (extraCompact ? 6 : 8) : 10) {
+            Text("Season Pass is active")
+                .font(compact ? (extraCompact ? .caption : .footnote) : .callout)
+                .foregroundStyle(.secondary)
+
+            Button {
+                Task { await purchaseManager.manageSubscriptions() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape.fill")
+                    Text("Manage Subscription")
+                        .bold()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, compact ? (extraCompact ? 8 : 10) : 12)
+                .background(Color.gray.opacity(0.15), in: Capsule())
+            }
+        }
+        .padding(.top, compact ? (extraCompact ? 4 : 6) : 8)
+    }
+
+    @ViewBuilder
     private func benefitsGrid(compact: Bool, extraCompact: Bool) -> some View {
         let compactBenefits = [
             "Unlimited scoring & stats",
@@ -243,3 +273,4 @@ struct PaywallView: View {
         }
     }
 }
+

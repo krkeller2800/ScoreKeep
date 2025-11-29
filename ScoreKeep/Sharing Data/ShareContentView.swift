@@ -12,6 +12,7 @@ struct ShareContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) var openURL
+    @EnvironmentObject var purchaseManager: PurchaseManager
     
     // Keychain-backed MLB download counter
     @StateObject private var mlbCounter = KeychainBackedCounter(key: "mlbDownloadCountKC", defaultValue: 0)
@@ -34,9 +35,9 @@ struct ShareContentView: View {
     @State private var players:[Player] = []
     @State private var sharePlayers:[SharePlayer] = []
     @State var doShare = "Share Your Teams"
-    @State var doTeam = true
+    @State var doTeam = false
     @State var doGame = false
-    @State var doDown = false
+    @State var doDown = true
     @State var doImport = false
     @State var fNames:[String] = []
     @State var down:String = "Select Team"
@@ -48,11 +49,9 @@ struct ShareContentView: View {
     @State var errorMessage: String?
     
     enum FocusField: Hashable {case field}
-    
     @FocusState private var focusedField: FocusField?
     
     @AppStorage("selectedShareCriteria") var selectedShareCriteria: SortCriteria = .orderAsc
-    @AppStorage("isUpgraded") var isUpgraded: Bool = false
     @State private var showPaywall: Bool = false
     
     enum SortCriteria: String, CaseIterable, Identifiable {
@@ -72,6 +71,8 @@ struct ShareContentView: View {
             return [SortDescriptor(\Player.number, order: .forward)]
         }
     }
+    
+    var isPremium: Bool { purchaseManager.isSeasonPassActive }
     
     var body: some View {
         VStack {
@@ -144,30 +145,45 @@ struct ShareContentView: View {
                             }
                             .frame(maxWidth: 150,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
                             .border(.gray).cornerRadius(10).accentColor(.black)
-                            .disabled(!isUpgraded && mlbCounter.value >= 4)
+                            .disabled(!isPremium && mlbCounter.value >= 4)
                             Spacer()
                         }
                         // Counter or Unlimited text based on upgrade status
-                        if isUpgraded {
+                        if isPremium {
+                            PremiumBadgeView(isCompact: false)
                             Text("Unlimited downloads active")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 4)
                         } else {
+                            // Hint
+                            HStack {
+                                Image(systemName: "info.circle")
+                                    .imageScale(.small)
+                                Text("Tip: Pick a MLB team, then add it to your teams to score.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 6)
+                            }
                             Text("Downloads used: \(mlbCounter.value) of 4")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 4)
                         }
-                        // Upgrade button with badge when limit reached
-                        Button("Upgrade") {
-                            showPaywall = true
+                        // Upgrade/Manage button
+                        Button(isPremium ? "Manage" : "Upgrade") {
+                            if isPremium {
+                                // Use system manage subscriptions; do not present Paywall here
+                                Task { await purchaseManager.manageSubscriptions() }
+                            } else {
+                                showPaywall = true
+                            }
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
                         .padding(.top, 4)
                         .overlay(alignment: .topTrailing) {
-                            if !isUpgraded && mlbCounter.value >= 4 {
+                            if !isPremium && mlbCounter.value >= 4 {
                                 Circle()
                                     .fill(Color.red)
                                     .frame(width: 10, height: 10)
@@ -235,7 +251,7 @@ struct ShareContentView: View {
                 let downTeam = DownloadFiles()
                 Task {
                     // Gate: block if free limit reached
-                    if !isUpgraded && mlbCounter.value >= 4 {
+                    if !isPremium && mlbCounter.value >= 4 {
                         showingAlert = true
                         alertMessage = "You’ve reached your 4 free downloads. Upgrade to continue."
                         showPaywall = true
@@ -251,7 +267,7 @@ struct ShareContentView: View {
                         if url != nil {
                             doImport = true
                             // Increment usage after successful download if not upgraded
-                            if !isUpgraded {
+                            if !isPremium {
                                 mlbCounter.increment()
                             }
                         }
@@ -274,6 +290,9 @@ struct ShareContentView: View {
             if let url1 = url {
                 ImportPlayersView(showingImport: $showImport, iURL: url1, columnVisibility: $columnVisibility)
             }
+        }
+        .onAppear{
+           doShare = "Download MLB Teams"
         }
         // Paywall presentation:
         // - iPhone: full screen
@@ -343,9 +362,9 @@ struct ShareContentView: View {
         .onChange(of: sortDescriptor) {
             sortOrder = sortDescriptor
         }
-        // Optional: auto-dismiss paywall if local isUpgraded flips true
-        .onChange(of: isUpgraded) {
-            if isUpgraded {
+        // Optional: auto-dismiss paywall if premium flips true
+        .onReceive(purchaseManager.$isSeasonPassActive) { active in
+            if active {
                 showPaywall = false
             }
         }
@@ -536,6 +555,7 @@ struct ShareContentView: View {
             }
         }
     }
+
 }
 
 // Helper view modifier to present Paywall as sheet on iPad, full screen on iPhone

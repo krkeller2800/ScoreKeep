@@ -161,6 +161,45 @@ final class PurchaseManager: ObservableObject {
         }
     }
 
+    /// Presents the system manage subscriptions UI for this app.
+    func manageSubscriptions() async {
+        // Prefer the native sheet if available
+        if #available(iOS 15.0, *) {
+            #if canImport(UIKit)
+            // Find a suitable UIWindowScene to present from
+            guard let windowScene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first(where: { $0.activationState == .foregroundActive }) ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
+            else {
+                // Fallback to the App Store subscriptions URL if we can't find a scene
+                openSubscriptionsURLFallback()
+                return
+            }
+            do {
+                try await AppStore.showManageSubscriptions(in: windowScene)
+            } catch {
+                // Fallback to the App Store subscriptions URL if the sheet fails
+                openSubscriptionsURLFallback()
+            }
+            #else
+            openSubscriptionsURLFallback()
+            #endif
+        } else {
+            // Fallback for older systems
+            openSubscriptionsURLFallback()
+        }
+    }
+
+    private func openSubscriptionsURLFallback() {
+        guard let url = URL(string: "https://apps.apple.com/account/subscriptions") else { return }
+        // Open via UIApplication on main thread
+        DispatchQueue.main.async {
+            #if canImport(UIKit)
+            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            #endif
+        }
+    }
+
     // MARK: - Private helpers
 
     private func startListeningForTransactions() {
@@ -197,3 +236,4 @@ final class PurchaseManager: ObservableObject {
         }
     }
 }
+
