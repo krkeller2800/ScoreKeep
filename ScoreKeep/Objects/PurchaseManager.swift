@@ -19,7 +19,15 @@ final class PurchaseManager: ObservableObject {
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
-    private let seasonPassProductID = "com.komakode.ScoreKeep.seasonpass.annual"
+    // Option B: Build product IDs by convention from the calendar year.
+    // We attempt the current year first, then fall back to last year if needed.
+    // Keep the prefix stable and ensure App Store Connect has the product approved in advance.
+    private let productIDPrefix = "com.komakode.ScoreKeep.SeasonPass"
+
+    // Local entitlement storage (Keychain)
+    private let keychain = KeychainService()
+    // Store the single "max expiration" date across any purchases
+    private let entitlementKey = "seasonPassMaxExpirationISO8601" // Data stored as ISO8601 string
 
     // Keep a reference to the updates listening task so it can live with the manager
     private var updatesTask: Task<Void, Never>?
@@ -36,31 +44,37 @@ final class PurchaseManager: ObservableObject {
     // MARK: - Public API
 
     func loadProducts() async {
+        lastErrorMessage = nil
+
+        // Build candidate IDs: current year, then last year as a safety fallback
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let candidates = [
+            "\(productIDPrefix)\(currentYear)",
+            "\(productIDPrefix)\(currentYear - 1)"
+        ]
+
+        // Try to load the first available product among candidates
         do {
-            let products = try await Product.products(for: [seasonPassProductID])
-            // If StoreKit returns empty (can happen transiently), retry once shortly after
-            if let first = products.first {
-                self.seasonPassProduct = first
+            if let product = try await loadFirstAvailableProduct(from: candidates) {
+                self.seasonPassProduct = product
+                self.lastErrorMessage = nil
+                return
+            }
+            // Retry once after a short delay
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            if let product = try await loadFirstAvailableProduct(from: candidates) {
+                self.seasonPassProduct = product
                 self.lastErrorMessage = nil
             } else {
-                // Retry once after a short delay
-                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-                let retry = try await Product.products(for: [seasonPassProductID])
-                if let firstRetry = retry.first {
-                    self.seasonPassProduct = firstRetry
-                    self.lastErrorMessage = nil
-                } else {
-                    self.seasonPassProduct = nil
-                    self.lastErrorMessage = "We couldn’t load purchase options. Please try again in a moment."
-                }
+                self.seasonPassProduct = nil
+                self.lastErrorMessage = "We couldn’t load purchase options. Please try again in a moment."
             }
         } catch {
             // Retry once on transient errors
             do {
                 try await Task.sleep(nanoseconds: 500_000_000)
-                let retry = try await Product.products(for: [seasonPassProductID])
-                if let firstRetry = retry.first {
-                    self.seasonPassProduct = firstRetry
+                if let product = try await loadFirstAvailableProduct(from: candidates) {
+                    self.seasonPassProduct = product
                     self.lastErrorMessage = nil
                 } else {
                     self.seasonPassProduct = nil
@@ -73,41 +87,24 @@ final class PurchaseManager: ObservableObject {
         }
     }
 
-    /// Existing convenience purchase for the single season pass product.
+    /// Convenience purchase for the single season pass product.
     func purchaseSeasonPass() async {
         guard let product = seasonPassProduct else { return }
         await purchase(product: product)
     }
 
-    /// Existing restore convenience.
+    /// Restore flow note: Non-renewing subscriptions are not restored via AppStore.sync.
     func restore() async {
         await restorePurchases()
     }
 
-    /// Recalculate entitlement state from current entitlements.
+    /// Recalculate entitlement state from locally stored expiration.
     /// Call at app launch and when app returns to foreground.
     func refreshEntitlements() async {
-        var active = false
-
-        for await result in Transaction.currentEntitlements {
-            if let transaction = try? checkVerified(result) {
-                // Only consider our product ID
-                if transaction.productID == seasonPassProductID {
-                    // Auto-renewable subscription: confirm not expired as of now
-                    if let expiration = transaction.expirationDate {
-                        active = expiration > Date()
-                    } else {
-                        // If StoreKit doesn’t provide an expiration for some reason, be conservative
-                        active = true
-                    }
-                }
-            }
-        }
-
-        self.isSeasonPassActive = active
+        self.isSeasonPassActive = (loadLocalMaxExpiration() ?? .distantPast) > Date()
     }
 
-    // MARK: - New wrappers for PaywallView
+    // MARK: - Purchase
 
     /// Purchases a specific StoreKit Product and updates entitlement state.
     func purchase(product: Product) async {
@@ -121,6 +118,12 @@ final class PurchaseManager: ObservableObject {
             case .success(let verificationResult):
                 // Verify the transaction
                 if let transaction = try? checkVerified(verificationResult) {
+                    // Non-renewing: compute end-of-year expiration from productID suffix and store max
+                    if let year = extractYear(fromProductID: transaction.productID) {
+                        let expiration = endOfYear(for: year)
+                        saveLocalMaxExpiration(expiration)
+                    }
+
                     // Finish the transaction and refresh entitlements
                     await transaction.finish()
                     await refreshEntitlements()
@@ -128,21 +131,20 @@ final class PurchaseManager: ObservableObject {
                     self.lastErrorMessage = "We couldn’t verify the purchase with the App Store."
                 }
             case .userCancelled:
-                // Friendly, non-error state
                 self.lastErrorMessage = "Purchase was cancelled."
             case .pending:
-                // The purchase is pending (e.g., Ask to Buy). Entitlement will update later.
                 self.lastErrorMessage = "Your purchase is pending approval. You’ll get access automatically once it’s approved."
             @unknown default:
                 self.lastErrorMessage = "An unknown purchase result occurred."
             }
         } catch {
-            // Provide a friendly message
             self.lastErrorMessage = "We couldn’t complete the purchase. Please try again."
         }
     }
 
     /// Restores purchases and refreshes entitlements.
+    /// Note: Non‑renewing subscriptions do not restore automatically with App Store.
+    /// This keeps the button behavior but clarifies to the user.
     func restorePurchases() async {
         lastErrorMessage = nil
         isPurchasing = true
@@ -150,49 +152,25 @@ final class PurchaseManager: ObservableObject {
 
         do {
             try await AppStore.sync()
-            // After sync, entitlements may change; refresh them
+            // AppStore.sync does not make non‑renewing subscriptions active.
             await refreshEntitlements()
-            // If still not active, let user know
             if !isSeasonPassActive {
-                self.lastErrorMessage = "No previous purchases were found for this Apple ID."
+                self.lastErrorMessage = "Non‑renewing purchases can’t be restored automatically. If you changed devices, please contact support."
             }
         } catch {
             self.lastErrorMessage = "We couldn’t restore purchases. Please try again."
         }
     }
 
-    /// Presents the system manage subscriptions UI for this app.
+    /// Presents the system manage subscriptions UI.
+    /// Not applicable for non‑renewing subscriptions; open the subscriptions URL as a fallback or show support.
     func manageSubscriptions() async {
-        // Prefer the native sheet if available
-        if #available(iOS 15.0, *) {
-            #if canImport(UIKit)
-            // Find a suitable UIWindowScene to present from
-            guard let windowScene = UIApplication.shared.connectedScenes
-                .compactMap({ $0 as? UIWindowScene })
-                .first(where: { $0.activationState == .foregroundActive }) ?? UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first
-            else {
-                // Fallback to the App Store subscriptions URL if we can't find a scene
-                openSubscriptionsURLFallback()
-                return
-            }
-            do {
-                try await AppStore.showManageSubscriptions(in: windowScene)
-            } catch {
-                // Fallback to the App Store subscriptions URL if the sheet fails
-                openSubscriptionsURLFallback()
-            }
-            #else
-            openSubscriptionsURLFallback()
-            #endif
-        } else {
-            // Fallback for older systems
-            openSubscriptionsURLFallback()
-        }
+        // For non‑renewing, system sheet won’t manage this purchase. Use fallback.
+        openSubscriptionsURLFallback()
     }
 
     private func openSubscriptionsURLFallback() {
         guard let url = URL(string: "https://apps.apple.com/account/subscriptions") else { return }
-        // Open via UIApplication on main thread
         DispatchQueue.main.async {
             #if canImport(UIKit)
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
@@ -206,7 +184,6 @@ final class PurchaseManager: ObservableObject {
         updatesTask = Task.detached(priority: .background) { [weak self] in
             guard let self else { return }
             for await update in Transaction.updates {
-                // Hop back to main actor to verify and process
                 await self.handle(transactionUpdate: update)
             }
         }
@@ -215,8 +192,11 @@ final class PurchaseManager: ObservableObject {
     @MainActor
     private func handle(transactionUpdate update: VerificationResult<Transaction>) async {
         if let transaction = try? checkVerified(update) {
-            // Only react to our product
-            if transaction.productID == seasonPassProductID {
+            // Non‑renewing product: compute/store expiration when we see a verified transaction
+            if let year = extractYear(fromProductID: transaction.productID) {
+                let expiration = endOfYear(for: year)
+                saveLocalMaxExpiration(expiration)
+
                 await transaction.finish()
                 await refreshEntitlements()
             } else {
@@ -229,11 +209,69 @@ final class PurchaseManager: ObservableObject {
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
-            // Throwing here stops processing unverified transactions
             throw error
         case .verified(let signedType):
             return signedType
         }
     }
-}
 
+    // MARK: - Product loading helpers
+
+    private func loadFirstAvailableProduct(from candidateIDs: [String]) async throws -> Product? {
+        // Query all candidates in one call; StoreKit will return only those that exist
+        let products = try await Product.products(for: candidateIDs)
+        // Prefer current year if present; otherwise return any available (e.g., last year)
+        // Maintain the order of candidates as preference
+        for id in candidateIDs {
+            if let match = products.first(where: { $0.id == id }) {
+                return match
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Year handling
+
+    private func extractYear(fromProductID productID: String) -> Int? {
+        // Expect last 4 characters to be the year (e.g., ...SeasonPass2026)
+        guard productID.count >= 4 else { return nil }
+        let suffix = String(productID.suffix(4))
+        return Int(suffix)
+    }
+
+    private func endOfYear(for year: Int) -> Date {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = 12
+        comps.day = 31
+        comps.hour = 23
+        comps.minute = 59
+        comps.second = 59
+        // Use the current calendar/time zone (local end of year)
+        return Calendar.current.date(from: comps) ?? Date.distantPast
+    }
+
+    // MARK: - Entitlement persistence (Keychain)
+
+    private func saveLocalMaxExpiration(_ newDate: Date) {
+        let existing = loadLocalMaxExpiration() ?? .distantPast
+        let maxDate = max(existing, newDate)
+        let formatter = ISO8601DateFormatter()
+        let str = formatter.string(from: maxDate)
+        if let data = str.data(using: .utf8) {
+            try? keychain.set(data, for: entitlementKey)
+        }
+    }
+
+    private func loadLocalMaxExpiration() -> Date? {
+        do {
+            if let data = try keychain.get(entitlementKey),
+               let str = String(data: data, encoding: .utf8) {
+                return ISO8601DateFormatter().date(from: str)
+            }
+        } catch {
+            // ignore and treat as inactive
+        }
+        return nil
+    }
+}

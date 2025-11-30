@@ -18,7 +18,7 @@ struct ScoreContentView: View {
     @State private var path = NavigationPath()
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
-    @State var doGame = "Edit"
+    @State var doGame = "Score"
     @State var title = "Edit a Game"
     @State private var searchText = ""
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]

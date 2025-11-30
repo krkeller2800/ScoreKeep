@@ -13,7 +13,25 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
 
-    var title: String = "ScoreKeep Season Pass"
+    // These will be driven by the loaded product's year
+    private var productYear: String {
+        
+        if let id = purchaseManager.seasonPassProduct?.id, id.count >= 4 {
+            return String(id.suffix(4))
+        }
+        // Fallback to current year if product not yet loaded
+        let yr = Calendar.current.component(.year, from: Date())
+        return String(yr)
+    }
+
+    private var dynamicTitle: String {
+        "ScoreKeep \(productYear) Season Pass"
+    }
+
+    private var dynamicSubtitle: String {
+        "Unlimited Downloads and Scoring Games Through \(productYear)"
+    }
+
     var benefits: [String] = [
         "Unlimited scoring and stats",
         "Share and import teams/games",
@@ -35,21 +53,11 @@ struct PaywallView: View {
                         let extraCompact = h < 720
 
                         VStack(spacing: extraCompact ? 10 : 14) {
-                            // Header (no inline nav title to save space)
                             header(compact: true, extraCompact: extraCompact, showInlineTitle: false)
-
-                            // Price + CTA
                             priceAndCTA(compact: true, extraCompact: extraCompact)
 
-                            // If already premium, show manage entry point
-                            if purchaseManager.isSeasonPassActive {
-                                manageSection(compact: true, extraCompact: extraCompact)
-                            }
-
-                            // Benefits grid
+                            // Non-renewing: no manage UI
                             benefitsGrid(compact: true, extraCompact: extraCompact)
-
-                            // Legal links
                             legalLinks(compact: true, extraCompact: extraCompact)
                         }
                         .padding(.horizontal, extraCompact ? 12 : 16)
@@ -63,9 +71,7 @@ struct PaywallView: View {
                         VStack(spacing: 24) {
                             header(compact: false, extraCompact: false, showInlineTitle: false)
                             priceAndCTA(compact: false, extraCompact: false)
-                            if purchaseManager.isSeasonPassActive {
-                                manageSection(compact: false, extraCompact: false)
-                            }
+                            // Non-renewing: no manage UI
                             benefitsList
                             legalLinks(compact: false, extraCompact: false)
                         }
@@ -83,7 +89,7 @@ struct PaywallView: View {
             .navigationTitle(UIDevice.type == "iPhone" ? "Upgrade" : "Upgrade")
             .navigationBarTitleDisplayMode(.inline)
             .onReceive(purchaseManager.$isSeasonPassActive) { _ in
-                // Keep open; user may want Manage
+                // Keep open; user may want to read benefits; or dismiss automatically if you prefer
             }
             .onChange(of: purchaseManager.lastErrorMessage) {
                 showingError = (purchaseManager.lastErrorMessage?.isEmpty == false)
@@ -113,13 +119,13 @@ struct PaywallView: View {
                 .font(.system(size: compact ? (extraCompact ? 32 : 36) : 48))
                 .foregroundStyle(.blue)
 
-            Text(title)
+            Text(dynamicTitle)
                 .font(compact ? (extraCompact ? .headline.bold() : .title3.bold()) : .title2.bold())
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
 
-            Text("Unlimited Downloads and Scoring Games for 1 year")
+            Text(dynamicSubtitle)
                 .font(compact ? (extraCompact ? .footnote : .subheadline) : .body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -163,6 +169,7 @@ struct PaywallView: View {
             }
             .disabled(purchaseManager.isPurchasing)
 
+            // Keep Restore button but clarify behavior via manager message
             Button {
                 Task { await purchaseManager.restorePurchases() }
             } label: {
@@ -174,29 +181,6 @@ struct PaywallView: View {
             }
             .disabled(purchaseManager.isPurchasing)
         }
-    }
-
-    @ViewBuilder
-    private func manageSection(compact: Bool, extraCompact: Bool) -> some View {
-        VStack(spacing: compact ? (extraCompact ? 6 : 8) : 10) {
-            Text("Season Pass is active")
-                .font(compact ? (extraCompact ? .caption : .footnote) : .callout)
-                .foregroundStyle(.secondary)
-
-            Button {
-                Task { await purchaseManager.manageSubscriptions() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "gearshape.fill")
-                    Text("Manage Subscription")
-                        .bold()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, compact ? (extraCompact ? 8 : 10) : 12)
-                .background(Color.gray.opacity(0.15), in: Capsule())
-            }
-        }
-        .padding(.top, compact ? (extraCompact ? 4 : 6) : 8)
     }
 
     @ViewBuilder

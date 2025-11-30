@@ -11,7 +11,36 @@
   },
   "identifier" : "F66FCA8E",
   "nonRenewingSubscriptions" : [
-
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6755932610",
+      "localizations" : [
+        {
+          "description" : "Score games through 2025 with full MLB download access",
+          "displayName" : "ScoreKeep 2025 Season Pass",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.komakode.ScoreKeep.SeasonPass2025",
+      "referenceName" : "ScoreKeep 2025 Season Pass",
+      "type" : "NonRenewingSubscription"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6755930909",
+      "localizations" : [
+        {
+          "description" : "Score games Through 2026 with full MLB download access ",
+          "displayName" : "ScoreKeep 2026 Season Pass",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.komakode.ScoreKeep.SeasonPass2026",
+      "referenceName" : "ScoreKeep 2026 Season Pass",
+      "type" : "NonRenewingSubscription"
+    }
   ],
   "products" : [
 
@@ -24,7 +53,7 @@
     "_developerTeamID" : "7U8E86JT3B",
     "_disableDialogs" : false,
     "_failTransactionsEnabled" : false,
-    "_lastSynchronizedDate" : 785790593.43197405,
+    "_lastSynchronizedDate" : 786207940.60824394,
     "_locale" : "en_US",
     "_renewalBillingIssuesEnabled" : false,
     "_storefront" : "USA",
@@ -34,43 +63,7 @@
     "_timeRate" : 0
   },
   "subscriptionGroups" : [
-    {
-      "id" : "21841130",
-      "localizations" : [
 
-      ],
-      "name" : "Baseball Season Pass",
-      "subscriptions" : [
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "7.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "6755692222",
-          "introductoryOffer" : null,
-          "localizations" : [
-            {
-              "description" : "Unlimited Downloads and Scoring For 1 Year",
-              "displayName" : "2026 baseball Season Pass",
-              "locale" : "en_US"
-            }
-          ],
-          "productID" : "com.komakode.ScoreKeep.seasonpass.annual",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Season Pass 2026",
-          "subscriptionGroupID" : "21841130",
-          "type" : "RecurringSubscription",
-          "winbackOffers" : [
-
-          ]
-        }
-      ]
-    }
   ],
   "version" : {
     "major" : 4,
