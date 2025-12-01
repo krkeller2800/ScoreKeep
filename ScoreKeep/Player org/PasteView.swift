@@ -53,19 +53,46 @@ struct PasteView: View {
         let com = Common()
         NavigationStack(path: $navigationPath) {
             VStack(spacing:0) {
-                HStack {
+                // Header row
+                HStack(alignment: .center) {
                     Button {
                         addTeam()
                     } label: {
                         Label("Add Team", systemImage: "plus.square")
+                            .frame(maxWidth: 150)
                     }
-                        .foregroundColor(.blue).frame(width:150, alignment: .center).buttonStyle(.bordered)
+                    .foregroundColor(.blue)
+                    .buttonStyle(.bordered)
+                    .frame(width:150, height: 44, alignment: .center)
+
                     Spacer()
+
                     if !team.name.isEmpty && selectPlayers.count > 0 {
                         Text("Found \(selectPlayers.count) players on the \(selectPlayers[0].team?.name ?? "(team name not found)"). Pasted players will update or add to these players")
-                            .foregroundColor(.red).frame(maxWidth: 500,alignment: .center)
+                            .foregroundColor(.red)
+                            .frame(maxWidth: 500,alignment: .center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                    }
+
+                    Spacer()
+                    HStack {
+                        // Inline tip with info icon
+                        Label {
+                            Text("Tip: Tab is usually the delimiter for spreadsheet clipboard copying.")
+                                .font(.footnote).foregroundColor(.red)
+                        } icon: {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                        }
+                        .frame(height: 34, alignment: .center)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, 8)
                     }
                     Spacer()
+
                     Button {
                         showPlayers = false
                         players.removeAll()
@@ -88,12 +115,18 @@ struct PasteView: View {
                         selectPlayers.removeAll()
                     } label: {
                         Label("Reset", systemImage: "arrow.clockwise")
+                            .frame(maxWidth: 150)
                     }
-                    .foregroundColor(.blue).frame(width:150, alignment: .center).buttonStyle(.bordered)
+                    .foregroundColor(.blue)
+                    .buttonStyle(.bordered)
+                    .frame(width:150, height: 44, alignment: .center)
                 }
-                HStack {
+
+                // Controls row with consistent heights
+                HStack(alignment: .center) {
                     Picker("Team", selection: $team) {
-                        Text("Select Team").tag(Team(name: "" ,coach: "",details: ""))
+                        // Tag with the exact same instance as the current selection default
+                        Text("Select Team").tag(team)
                         if teams.isEmpty == false {
                             Divider()
                             ForEach(teams, id: \.self) { team in
@@ -103,15 +136,22 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue)
-                    .border(.gray).cornerRadius(10).padding().accentColor(.white)
+                    .pickerStyle(.menu) // ensure label shows
+                    .frame(width: 140, height: 34, alignment:.center)
+                    .background(.blue)
+                    .border(.gray)
+                    .cornerRadius(10)
+                    .padding()
+                    .accentColor(.white)
                     .onChange(of: team) {
                         if !team.name.isEmpty {
                             checkForPlayers()
                             showPlayers = true
                         }
                     }
+
                     Spacer()
+
                     Button {
                         let pasteboard = UIPasteboard.general
                         if let string = pasteboard.string {
@@ -122,11 +162,18 @@ struct PasteView: View {
                             showingAlert = true
                         }
                     } label: {
-                               Label("Paste", systemImage: "doc.on.doc")
+                        Label("Paste", systemImage: "doc.on.doc")
+                            .frame(minWidth: 120)
                     }
-                    .foregroundColor(.white).bold().padding().frame(maxHeight: 35)
-                    .background(Color.blue).cornerRadius(20)
+                    .foregroundColor(.white)
+                    .bold()
+                    .frame(height: 34)
+                    .padding(.horizontal)
+                    .background(Color.blue)
+                    .cornerRadius(22)
+
                     Spacer()
+
                     Picker("delimeter", selection: $delimeter) {
                         Text("Delimeter").tag("Delimeter")
                         ForEach(0 ..< dels.count, id: \.self) {
@@ -135,8 +182,13 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140,maxHeight: 50, alignment:.center).background(.blue)
-                    .border(.gray).cornerRadius(10).padding(.leading, 15).padding().accentColor(.white)
+                    .frame(width: 140, height: 34, alignment:.center)
+                    .background(.blue)
+                    .border(.gray)
+                    .cornerRadius(10)
+                    .padding(.leading, 15)
+                    .padding()
+                    .accentColor(.white)
                     .alert("Enter your Delimeter", isPresented: $addDelimeter) {
                         TextField("", text: $delim).disableAutocorrection(true).autocapitalization(.none)
                         Button("OK") {
@@ -144,11 +196,11 @@ struct PasteView: View {
                                 dels.append("Reset")
                                 tgs.append("Reset")
                             }
-                            del = delim
+                            var display = delim
                             if let xx = com.keySym.firstIndex(where: { $0 == delim }) {
-                                del = com.keyWord[xx]
+                                display = com.keyWord[xx]
                             }
-                            dels.insert(del, at: dels.count-2)
+                            dels.insert(display, at: dels.count-2)
                             tgs.insert(delim, at: tgs.count-2)
                             delimeters = dels.joined(separator: "\n")
                             theTags = tgs.joined(separator: "\n")
@@ -361,8 +413,8 @@ struct PasteView: View {
                         Text("Add or update Players")
                     }
                     .alert(alertMessage, isPresented: $showingAlert) {
-                               Button("OK", role: .cancel) { }
-                           }
+                        Button("OK", role: .cancel) { }
+                    }
                 }
             }
         }
@@ -381,9 +433,9 @@ struct PasteView: View {
                     let num = numberIdx == 0 ? "" : number[x]
                     let pos = positionIdx == 0 ? "" : position[x]
                     var Name = firstNameIdx == 0 ? lastName[x]: ""
-                        Name = lastNameIdx == 0 ? Name :  firstNameIdx == 0 ? lastName[x] : String("\(firstName[x]) \(lastName[x])")
-                        Name = Name.removeAccents()
-                        Name = Name.split(separator: " ").count > 2 ? String(Name.split(separator: " ").first! + " " + Name.split(separator: " ").last!) : Name
+                    Name = lastNameIdx == 0 ? Name :  firstNameIdx == 0 ? lastName[x] : String("\(firstName[x]) \(lastName[x])")
+                    Name = Name.removeAccents()
+                    Name = Name.split(separator: " ").count > 2 ? String(Name.split(separator: " ").first! + " " + Name.split(separator: " ").last!) : Name
                     let batdir = batsDirIdx == 0 ? "" : batsDirection[x]
                     let bOrder:Int = batOrder.count > 0 ? Int(batOrder[x]) ?? 99 : 99
                     if bOrder < 20 {
@@ -393,8 +445,8 @@ struct PasteView: View {
                     }
                     if let pidx = selectPlayers.firstIndex(where: { ($0.name.removeAccents().split(separator: " ").last == Name.split(separator: " ").last &&
                                                                     ((Name.split(separator: " ").first?.count == 1 || $0.name.split(separator: " ").first?.count == 1) ||
-                                                                    (Name.split(separator: " ").first?.count == 2 || $0.name.split(separator: " ").first?.count == 2))) ||
-                                                                    $0.name.removeAccents() == Name}) {
+                                                                     (Name.split(separator: " ").first?.count == 2 || $0.name.split(separator: " ").first?.count == 2))) ||
+                                                           $0.name.removeAccents() == Name}) {
                         selectPlayers[pidx].batOrder = bOrder == 99 ? selectPlayers[pidx].batOrder : bOrder
                         selectPlayers[pidx].position = pos == "" ? selectPlayers[pidx].position : pos
                         selectPlayers[pidx].number = num == "" ? selectPlayers[pidx].number : num
@@ -422,25 +474,19 @@ struct PasteView: View {
         navigationPath.append(team)
     }
     init() {
-        
         _teams = Query(filter: #Predicate { team in
-                true
+            true
         })
     }
     func checkForPlayers () {
-        
         let teamName = team.name
-        
         if !teamName.isEmpty {
             if delimeter == "Delimeter" {
                 alertMessage = "Please pick a Delimeter"
                 showingAlert = true
             } else {
-                
                 var fetchDescriptor = FetchDescriptor<Player>()
-                
                 fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }
-                
                 do {
                     selectPlayers = try self.modelContext.fetch(fetchDescriptor)
                 } catch {
@@ -493,4 +539,3 @@ struct PasteView: View {
         }
     }
 }
-

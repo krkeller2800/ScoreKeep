@@ -188,27 +188,26 @@ struct ScoreContentView: View {
                     }
                 }
 
-                // Trailing: Single Upgrade/Manage button based on premium state
+                // Trailing: Upgrade button (only show when not premium)
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        if isPremium {
-                            Task { await purchaseManager.manageSubscriptions() }
-                        } else {
+                    if !isPremium {
+                        Button {
                             requestUpgrade()
+                        } label: {
+                            Text("Upgrade")
                         }
-                    } label: {
-                        Text(isPremium ? "Manage" : "Upgrade")
+                        .buttonStyle(ToolBarButtonStyle())
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .layoutPriority(1)
+                        .accessibilityLabel("Upgrade to Season Pass")
                     }
-                    .buttonStyle(ToolBarButtonStyle())
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .layoutPriority(1)
-                    .accessibilityLabel(isPremium ? "Manage Subscription" : "Upgrade to Season Pass")
                 }
             }
             .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
             .onAppear {
-                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)
+                UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.2)
+                title = "\(doGame) a Game"
                 if doGame == "Score" {
                     columnVisability = .detailOnly
                 } else {
@@ -332,4 +331,3 @@ private struct PresentationDragIndicatorHidden: ViewModifier {
         }
     }
 }
-

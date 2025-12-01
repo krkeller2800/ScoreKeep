@@ -44,8 +44,207 @@ struct GameView: View {
     
     @Query var games: [Game]
     var body: some View {
-        VStack(spacing: 6) {
-            // Space-conscious seeded hint
+        ZStack {
+            // Stable grouped background to avoid white flash
+            Color(.systemGroupedBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 6) {
+                // NOTE: Hint removed from layout — now shown via overlay below.
+
+                Form {
+                    if games.count > 0 {
+                        if self.title == "Edit a Game" && UIDevice.type == "iPad" {
+                            Text("Select a Game to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+                        } else if self.title == "Score a Game" && UIDevice.type == "iPad" {
+                            Text("Select a Game to score or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+                        }
+                    }
+                    HStack {
+                        Text("Game Date").frame(width: UIDevice.type == "iPhone" && title.isEmpty ? 105 : 235).border(.gray)
+                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        if !title.isEmpty {
+                            Text("Field").frame(maxWidth:.infinity).border(.gray)
+                                .foregroundColor(.red).background(.yellow.opacity(0.3))
+                            Text("All Hit").frame(maxWidth:50).border(.gray)
+                                .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        }
+             
+                        Text("Visiting").frame(maxWidth:.infinity).border(.gray)
+                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        Text("Home").frame(maxWidth:.infinity).border(.gray)
+                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        if !title.isEmpty {
+                            Text("Score").frame(maxWidth:.infinity).border(.gray)
+                                .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        }
+                        Text("").frame(maxWidth:40)
+                    }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    if !title.isEmpty {
+                        HStack{
+                            DatePicker("", selection: $date)
+                                .onAppear {
+                                    date = ISO8601DateFormatter().date(from: theDate) ?? Date()
+                                }
+                                .onChange(of: date) {
+                                    theDate = date.ISO8601Format()
+                                }
+                                .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
+                                .frame(width: 220, alignment: .leading)
+                                .clipped()
+                            TextField("Field", text: $field)
+                                .frame(maxWidth: .infinity)
+                                .foregroundColor(.blue).bold()
+                                .overlay(Divider().background(.black), alignment: .trailing)
+                                .focused($focusedField, equals: .field)
+                                .autocapitalization(.words)
+                                .textContentType(.none)
+                            Button(action:{everyOneHits.toggle()}){
+                                Text(everyOneHits ? "True" : "False")
+                                    .frame(maxWidth:50,maxHeight:30)
+                                    .foregroundColor(.blue).bold()
+                                    .background(Color.white)
+                            }.buttonStyle(PlainButtonStyle())
+                                .cornerRadius(10)
+                                .overlay(Divider().background(.black), alignment: .trailing)
+                            Picker("Visiting Team", selection: $vTeam) {
+                                Text("Pick").tag(Optional<Team>.none)
+                                if teams.isEmpty == false {
+                                    Divider()
+                                    ForEach(teams) { team in
+                                        if team.name != "" {
+                                            Text(team.name).tag(Optional(team))
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                            .overlay(Divider().background(.black), alignment: .trailing)
+                            Picker("Home Team", selection: $hTeam) {
+                                Text("Pick").tag(Optional<Team>.none)
+                                if teams.isEmpty == false {
+                                    Divider()
+                                    ForEach(teams, id: \.self) { team in
+                                        if team.name != "" {
+                                            Text(team.name).tag(Optional(team))
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                            .overlay(Divider().background(.black), alignment: .trailing)
+                            Text("Not Played")
+                                .frame(maxWidth: .infinity)
+                                .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
+                            HStack {
+                                Image(systemName: "plus")
+                                    .onTapGesture {
+                                        if let vTeam, let hTeam {
+                                            // User-initiated creation: isSeeded = false
+                                            createGame(theDate, field, everyOneHits, vTeam, hTeam, false)
+                                            // reset UI fields
+                                            field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
+                                        } else {
+                                            alertMessage = "You must select a Home and Visiting Team!"
+                                            showingAlert = true
+                                        }
+                                    }
+                            }
+                        }
+                    }
+                    ForEach(games) { game in
+                        NavigationLink(value: game) {
+                            HStack {
+                                let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
+                                Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width:UIDevice.type == "iPhone" && title.isEmpty ? 100 : 230, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.8)
+                                    .overlay(Divider().background(.black), alignment: .trailing)
+                                if !title.isEmpty {
+                                    Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
+                                        .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.8)
+                                    Text(game.everyOneHits ? "True" : "False").frame(maxWidth:50, alignment: .center).foregroundColor(.black).bold()
+                                        .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.8)
+                                }
+                                HStack {
+                                    if let imageData = game.vteam?.logo, let uiImage = UIImage(data: imageData) {
+                                        Image(uiImage: uiImage)
+                                            .scaleImage(iHeight: 30, imageData: imageData)
+                                    }
+                                    Text(game.vteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                                .overlay(Divider().background(.black), alignment: .trailing)
+                                HStack {
+                                    if let imageData = game.hteam?.logo, let uiImage = UIImage(data: imageData) {
+                                        Image(uiImage: uiImage)
+                                            .scaleImage(iHeight: 30, imageData: imageData)
+                                    }
+                                    Text(game.hteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
+                                .overlay(Divider().background(.black), alignment: .trailing)
+                                if !title.isEmpty {
+                                    let hruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
+                                    let vruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
+                                    let outs = game.atbats.filter({$0.team.name == game.vteam!.name && (com.outresults.contains($0.result) || $0.outAt != "Safe" )}).count
+                                    let inning = (outs / 3) + 1
+                                    let score:String = "\(vruns) to \(hruns)"
+                                    let hteam = game.hteam!.name.components(separatedBy: " ").last ?? ""
+                                    let vteam = game.vteam!.name.components(separatedBy: " ").last ?? ""
+                                    let winner:String = vruns > hruns ? vteam : vruns < hruns ? hteam : ""
+                                    let fin = inning >= 9 && winner != "" ? " Final" : ""
+                                    let win = winner + (fin != "" ? fin : " in \(com.innAbr[inning])")
+                                    Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
+                                        .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.7)
+                                }
+                                Spacer(minLength: 20)
+                            }
+                        }
+                    }
+                    .onDelete(perform: { indexSet in
+                        self.showingAlert = true
+                        self.deleteIndexSet = indexSet
+                    })
+                    .alert(isPresented:$showingAlert) {
+                        Alert(
+                            title: Text("Deleting a Game"),
+                            message: Text("If a game is deleted all asssociated at bats and pitches will also be deleted and removed from the stats"),
+                            primaryButton: .destructive(Text("Delete")) {
+                                let indexSet = self.deleteIndexSet!
+                                for index in indexSet {
+                                    let game = games[index]
+                                    for atbat in game.atbats {
+                                        modelContext.delete(atbat)
+                                    }
+                                    for pitcher in game.pitchers {
+                                        modelContext.delete(pitcher)
+                                    }
+                                    for lineup in game.lineups {
+                                        modelContext.delete(lineup)
+                                    }
+                                }
+                                deleteGame(at: indexSet)
+                                print("Deleting...")
+                            },
+                            secondaryButton: .cancel()
+                        )
+                    }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
+                // Keep the list background hidden so the grouped background shows through
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        Text(self.title)
+                            .font(.title2)
+                        }
+                }
+                .listRowSeparator(.hidden)
+            }
+        }
+        // Top overlay banner (no layout space taken)
+        .overlay(alignment: .top) {
             if hasSeededInitialGame && !hasDismissedSeedHint_Game {
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle")
@@ -56,7 +255,9 @@ struct GameView: View {
                         .minimumScaleFactor(0.8)
                         .foregroundColor(.red)
                     Button {
-                        hasDismissedSeedHint_Game = true
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            hasDismissedSeedHint_Game = true
+                        }
                     } label: {
                         Image(systemName: "xmark")
                             .font(.caption2)
@@ -65,199 +266,14 @@ struct GameView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .background(Color.blue.opacity(0.08), in: Capsule())
                 .foregroundColor(.blue)
-                .accessibilityLabel("Sample game added. Try scoring it and check out the stats. Dismiss.")
+                .padding(.top, 8) // breathing room from safe area
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .animation(.easeInOut(duration: 0.25), value: hasDismissedSeedHint_Game)
             }
-
-            Form {
-                if games.count > 0 {
-                    if self.title == "Edit a Game" && UIDevice.type == "iPad" {
-                        Text("Select a Game to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
-                    } else if self.title == "Score a Game" && UIDevice.type == "iPad" {
-                        Text("Select a Game to score or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
-                    }
-                }
-                HStack {
-                    Text("Game Date").frame(width: UIDevice.type == "iPhone" && title.isEmpty ? 105 : 235).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    if !title.isEmpty {
-                        Text("Field").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("All Hit").frame(maxWidth:50).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    }
-         
-                    Text("Visiting").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    Text("Home").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    if !title.isEmpty {
-                        Text("Score").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                    }
-                    Text("").frame(maxWidth:40)
-                }
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                if !title.isEmpty {
-                    HStack{
-                        DatePicker("", selection: $date)
-                            .onAppear {
-                                date = ISO8601DateFormatter().date(from: theDate) ?? Date()
-                            }
-                            .onChange(of: date) {
-                                theDate = date.ISO8601Format()
-                            }
-                            .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
-                            .frame(width: 220, alignment: .leading)
-                            .clipped()
-                        TextField("Field", text: $field)
-                            .frame(maxWidth: .infinity)
-                            .foregroundColor(.blue).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing)
-                            .focused($focusedField, equals: .field)
-                            .autocapitalization(.words)
-                            .textContentType(.none)
-                        Button(action:{everyOneHits.toggle()}){
-                            Text(everyOneHits ? "True" : "False")
-                                .frame(maxWidth:50,maxHeight:30)
-                                .foregroundColor(.blue).bold()
-                                .background(Color.white)
-                        }.buttonStyle(PlainButtonStyle())
-                            .cornerRadius(10)
-                            .overlay(Divider().background(.black), alignment: .trailing)
-                        Picker("Visiting Team", selection: $vTeam) {
-                            Text("Pick").tag(Optional<Team>.none)
-                            if teams.isEmpty == false {
-                                Divider()
-                                ForEach(teams) { team in
-                                    if team.name != "" {
-                                        Text(team.name).tag(Optional(team))
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                        .overlay(Divider().background(.black), alignment: .trailing)
-                        Picker("Home Team", selection: $hTeam) {
-                            Text("Pick").tag(Optional<Team>.none)
-                            if teams.isEmpty == false {
-                                Divider()
-                                ForEach(teams, id: \.self) { team in
-                                    if team.name != "" {
-                                        Text(team.name).tag(Optional(team))
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                        .overlay(Divider().background(.black), alignment: .trailing)
-                        Text("Not Played")
-                            .frame(maxWidth: .infinity)
-                            .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                        HStack {
-                            Image(systemName: "plus")
-                                .onTapGesture {
-                                    if let vTeam, let hTeam {
-                                        // User-initiated creation: isSeeded = false
-                                        createGame(theDate, field, everyOneHits, vTeam, hTeam, false)
-                                        // reset UI fields
-                                        field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
-                                    } else {
-                                        alertMessage = "You must select a Home and Visiting Team!"
-                                        showingAlert = true
-                                    }
-                                }
-                        }
-                    }
-                }
-                ForEach(games) { game in
-                    NavigationLink(value: game) {
-                        HStack {
-                            let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                            Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width:UIDevice.type == "iPhone" && title.isEmpty ? 100 : 230, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.8)
-                                .overlay(Divider().background(.black), alignment: .trailing)
-                            if !title.isEmpty {
-                                Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                    .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.8)
-                                Text(game.everyOneHits ? "True" : "False").frame(maxWidth:50, alignment: .center).foregroundColor(.black).bold()
-                                    .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.8)
-                            }
-                            HStack {
-                                if let imageData = game.vteam?.logo, let uiImage = UIImage(data: imageData) {
-                                    Image(uiImage: uiImage)
-                                        .scaleImage(iHeight: 30, imageData: imageData)
-                                }
-                                Text(game.vteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing)
-                            HStack {
-                                if let imageData = game.hteam?.logo, let uiImage = UIImage(data: imageData) {
-                                    Image(uiImage: uiImage)
-                                        .scaleImage(iHeight: 30, imageData: imageData)
-                                }
-                                Text(game.hteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing)
-                            if !title.isEmpty {
-                                let hruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
-                                let vruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
-                                let outs = game.atbats.filter({$0.team.name == game.vteam!.name && (com.outresults.contains($0.result) || $0.outAt != "Safe" )}).count
-                                let inning = (outs / 3) + 1
-                                let score:String = "\(vruns) to \(hruns)"
-                                let hteam = game.hteam!.name.components(separatedBy: " ").last ?? ""
-                                let vteam = game.vteam!.name.components(separatedBy: " ").last ?? ""
-                                let winner:String = vruns > hruns ? vteam : vruns < hruns ? hteam : ""
-                                let fin = inning >= 9 && winner != "" ? " Final" : ""
-                                let win = winner + (fin != "" ? fin : " in \(com.innAbr[inning])")
-                                Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.7)
-                            }
-                            Spacer(minLength: 20)
-                        }
-                    }
-                }
-                .onDelete(perform: { indexSet in
-                    self.showingAlert = true
-                    self.deleteIndexSet = indexSet
-                })
-                .alert(isPresented:$showingAlert) {
-                    Alert(
-                        title: Text("Deleting a Game"),
-                        message: Text("If a game is deleted all asssociated at bats and pitches will also be deleted and removed from the stats"),
-                        primaryButton: .destructive(Text("Delete")) {
-                            let indexSet = self.deleteIndexSet!
-                            for index in indexSet {
-                                let game = games[index]
-                                for atbat in game.atbats {
-                                    modelContext.delete(atbat)
-                                }
-                                for pitcher in game.pitchers {
-                                    modelContext.delete(pitcher)
-                                }
-                                for lineup in game.lineups {
-                                    modelContext.delete(lineup)
-                                }
-                            }
-                            deleteGame(at: indexSet)
-                            print("Deleting...")
-                        },
-                        secondaryButton: .cancel()
-                    )
-                }
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-            }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(self.title)
-                        .font(.title2)
-                    }
-            }
-            .listRowSeparator(.hidden)
         }
     }
     init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Team, Team, Bool) -> Void) {
@@ -286,4 +302,3 @@ struct GameView: View {
         }
     }
 }
-

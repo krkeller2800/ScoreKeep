@@ -6,7 +6,7 @@ struct PremiumBadgeView: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "crown.fill")
+            Image(systemName: "crown")
                 .imageScale(isCompact ? .small : .medium)
                 .foregroundStyle(.red)
 

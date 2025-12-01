@@ -170,25 +170,22 @@ struct ShareContentView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 4)
                         }
-                        // Upgrade/Manage button
-                        Button(isPremium ? "Manage" : "Upgrade") {
-                            if isPremium {
-                                // Use system manage subscriptions; do not present Paywall here
-                                Task { await purchaseManager.manageSubscriptions() }
-                            } else {
+                        // Upgrade button: only show when not premium
+                        if !isPremium {
+                            Button("Upgrade") {
                                 showPaywall = true
                             }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-                        .padding(.top, 4)
-                        .overlay(alignment: .topTrailing) {
-                            if !isPremium && mlbCounter.value >= 4 {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 10, height: 10)
-                                    .offset(x: 6, y: -6)
-                                    .accessibilityLabel("Limit reached")
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+                            .padding(.top, 4)
+                            .overlay(alignment: .topTrailing) {
+                                if mlbCounter.value >= 4 {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 10, height: 10)
+                                        .offset(x: 6, y: -6)
+                                        .accessibilityLabel("Limit reached")
+                                }
                             }
                         }
                         
@@ -578,4 +575,3 @@ private struct PaywallPresentation: ViewModifier {
         }
     }
 }
-
