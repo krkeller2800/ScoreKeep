@@ -43,6 +43,36 @@ struct GameView: View {
     ]) var teams: [Team]
     
     @Query var games: [Game]
+    
+    // Hide seed hint if the user has added their own content
+    private var hasUserContent: Bool {
+        // Heuristics: if there's more than the initial seeded game or more than the initial seeded teams
+        // Adjust thresholds if your seed data differs
+        let userHasExtraGames = games.count > 1
+        let userHasExtraTeams = teams.count > 2
+        return userHasExtraGames || userHasExtraTeams
+    }
+    
+    // If there is exactly one game and it's not the seeded date (Dec 15, 2025), suppress the banner
+    private var singleNonSeededGameExists: Bool {
+        guard games.count == 1, let only = games.first else { return false }
+        let formatter = ISO8601DateFormatter()
+        guard let gameDate = formatter.date(from: only.date) else { return false }
+
+        var comps = DateComponents()
+        comps.year = 2025
+        comps.month = 11
+        comps.day = 1
+        let cal = Calendar.current
+        var tzComps = comps
+        tzComps.calendar = cal
+        tzComps.timeZone = cal.timeZone
+        guard let target = cal.date(from: tzComps) else { return false }
+
+        // Compare by just the calendar day in the user's locale/time zone
+        return !cal.isDate(gameDate, inSameDayAs: target)
+    }
+    
     var body: some View {
         ZStack {
             // Stable grouped background to avoid white flash
@@ -244,8 +274,9 @@ struct GameView: View {
             }
         }
         // Top overlay banner (no layout space taken)
-        .overlay(alignment: .top) {
-            if hasSeededInitialGame && !hasDismissedSeedHint_Game {
+        .overlay(alignment: .topTrailing) {
+            let _ = print(" \(hasSeededInitialGame) \(!hasDismissedSeedHint_Game) \(!hasUserContent) \(!singleNonSeededGameExists)")
+            if hasSeededInitialGame && !hasDismissedSeedHint_Game && !hasUserContent && !singleNonSeededGameExists {
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle")
                         .imageScale(.small)
@@ -271,6 +302,7 @@ struct GameView: View {
                 .background(Color.blue.opacity(0.08), in: Capsule())
                 .foregroundColor(.blue)
                 .padding(.top, 8) // breathing room from safe area
+                .padding(.trailing, 20)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .animation(.easeInOut(duration: 0.25), value: hasDismissedSeedHint_Game)
             }
@@ -302,3 +334,4 @@ struct GameView: View {
         }
     }
 }
+

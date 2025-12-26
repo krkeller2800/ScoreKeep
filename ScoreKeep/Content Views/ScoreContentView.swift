@@ -99,10 +99,10 @@ struct ScoreContentView: View {
             }
             .onAppear {
                 addAGame = false
-                // DEBUG-only: give ourselves a large budget for testing
+                // DEBUG-only: give ourselves a budget for testing
                 #if DEBUG
-                if freeCreates.value != 50 {
-                    freeCreates.set(50)
+                if freeCreates.value != 2 {
+                    freeCreates.set(2)
                 }
                 #endif
             }

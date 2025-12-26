@@ -34,39 +34,72 @@ struct ImportPlayersView: View {
         NavigationStack(path: $navigationPath) {
             VStack {
                 HStack {
-                    let dataType = (fileType.components(separatedBy: "_").last ?? "")
-                    if dataType.localizedStandardContains("Players") {
-                        Text("Which " + dataType + " shouldn't have non-blank fields overwritten?").italic().lineLimit(1).minimumScaleFactor(0.5)
-                            .bold().italic()
+                    let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
+                    let teamExists = teams.contains { $0.name == teamName }
+                    let gameExists = fileType.localizedStandardContains("ScoreKeep_Games") && (shareGames.first.map { sg in
+                        games.contains { $0.vteam?.name == sg.vteam.name && $0.hteam?.name == sg.hteam.name && $0.date == sg.date }
+                    } ?? false)
+
+                    // Show overwrite-choice prompt only when importing players for an existing team
+                    if fileType.localizedStandardContains("ScoreKeep_Players") && teamExists {
+                        Text("Which Players shouldn't have non-blank fields overwritten?")
+                            .italic()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                            .bold()
+                            .italic()
                     }
-                    Button(dataType.localizedStandardContains("Players") ? "Imported" : "Get Game") {
-                        let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
-                        if fileType.localizedStandardContains("ScoreKeep_Players") {
-                            sharedPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
-                        } else if fileType.localizedStandardContains("ScoreKeep_Games") {
-                            sharedGamesBoss(shareGames: shareGames)
-                        }
-                        if !showingAlert {
-                            alertMessage = "Import Complete"
-                            showingAlert = true
-                        }
-                     
-                    }
-                    .foregroundColor(.blue).buttonStyle(.bordered)
-                    if dataType.localizedStandardContains("Players") {
-                        Text(" or ")
-                        Button("Current") {
-                            let teamName = importURL.lastPathComponent.count > 0 ? importURL.lastPathComponent.components(separatedBy: ".")[0].noNum() : "Unknown"
-                            if fileType.localizedStandardContains("ScoreKeep_Players") {
-                                currentPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
+
+                    if fileType.localizedStandardContains("ScoreKeep_Players") {
+                        if teamExists {
+                            Button("Imported") {
+                                if fileType.localizedStandardContains("ScoreKeep_Players") {
+                                    sharedPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
+                                }
+                                if !showingAlert {
+                                    alertMessage = "Import Complete"
+                                    showingAlert = true
+                                }
                             }
+                            .foregroundColor(.blue)
+                            .buttonStyle(.bordered)
+
+                            Text(" or ")
+
+                            Button("Current") {
+                                if fileType.localizedStandardContains("ScoreKeep_Players") {
+                                    currentPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
+                                }
+                                if !showingAlert {
+                                    alertMessage = "Import Complete"
+                                    showingAlert = true
+                                }
+                            }
+                            .foregroundColor(.blue)
+                            .buttonStyle(.bordered)
+                        } else {
+                            // Team does not yet exist — single Import button
+                            Button("Import") {
+                                sharedPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
+                                if !showingAlert {
+                                    alertMessage = "Import Complete"
+                                    showingAlert = true
+                                }
+                            }
+                            .foregroundColor(.blue)
+                            .buttonStyle(.bordered)
+                        }
+                    } else if fileType.localizedStandardContains("ScoreKeep_Games") {
+                        // For games, show 'Import' if the game doesn't exist yet; otherwise keep 'Get Game'
+                        Button(gameExists ? "Get Game" : "Import") {
+                            sharedGamesBoss(shareGames: shareGames)
                             if !showingAlert {
                                 alertMessage = "Import Complete"
                                 showingAlert = true
                             }
-                            
                         }
-                        .foregroundColor(.blue).buttonStyle(.bordered)
+                        .foregroundColor(.blue)
+                        .buttonStyle(.bordered)
                     }
                 }
                 Text("")

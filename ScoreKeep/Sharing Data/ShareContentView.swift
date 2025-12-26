@@ -40,6 +40,7 @@ struct ShareContentView: View {
     @State var doDown = true
     @State var doImport = false
     @State var fNames:[String] = []
+    @State private var teamURLMap: [String: String] = [:]
     @State var down:String = "Select Team"
     @State var newTeam = ""
     @State var url:URL?
@@ -256,11 +257,17 @@ struct ShareContentView: View {
                     }
                     
                     do {
+                        // Resolve direct URL for the selected team from the locally stored map
+                        guard let directURLString = teamURLMap[down] else {
+                            throw URLError(.fileDoesNotExist)
+                        }
+
+                        // Destination filename remains TeamName.ScoreKeep_Players
                         let destinationFileName = "\(down).ScoreKeep_Players"
-                        try await downTeam.downloadFile(from: "https://komakode.com/Teams/\(destinationFileName)", to: destinationFileName)
-                        
+                        try await downTeam.downloadFile(from: directURLString, to: destinationFileName)
+
                         let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                        url = documentsDirectory.appendingPathComponent(destinationFileName) // Example file
+                        url = documentsDirectory.appendingPathComponent(destinationFileName)
                         if url != nil {
                             doImport = true
                             // Increment usage after successful download if not upgraded
@@ -289,7 +296,11 @@ struct ShareContentView: View {
             }
         }
         .onAppear{
-           doShare = "Download MLB Teams"
+            doShare = "Download MLB Teams"
+            doTeam = false
+            doGame = false
+            doDown = true
+            getFileNames()
         }
         // Paywall presentation:
         // - iPhone: full screen
@@ -524,20 +535,20 @@ struct ShareContentView: View {
     func getFileNames () {
         let downloadFiles = DownloadFiles()
         fNames = []
-        if let listURL = URL(string: "https://komakode.com/teams/") {
-            downloadFiles.fetchFileList(from: listURL) { fileNames, error in
-                if let fileNames = fileNames {
-                    for fileName in fileNames {
-                        if let index = fileName.firstIndex(of: #"""#) {
-                            let substring = fileName.prefix(upTo: index)
-                            if substring.components(separatedBy: ".").last == "ScoreKeep_Players" {
-                                fNames.append(substring.components(separatedBy: ".").first!)
-                            }
-                        }
-                    }
-                } else if let error = error {
-                    print("Error fetching file list: \(error.localizedDescription)")
-                }
+
+        guard let indexURL = URL(string: "https://komakode.com/Teams/index.json") else { return }
+        downloadFiles.fetchTeamsIndex(from: indexURL) { pairs, error in
+            if let error = error {
+                print("Error fetching teams index: \(error.localizedDescription)")
+                return
+            }
+            guard let pairs = pairs else { return }
+
+            DispatchQueue.main.async {
+                // Populate the picker names and the local name→URL map
+                self.fNames = pairs.map { $0.name }
+                self.fNames.sort(by: <)
+                self.teamURLMap = Dictionary(uniqueKeysWithValues: pairs.map { ($0.name, $0.url) })
             }
         }
     }

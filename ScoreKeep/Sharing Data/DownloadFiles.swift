@@ -9,6 +9,20 @@ import Foundation
 
 class DownloadFiles {
   
+    // MARK: - JSON models for komakode.com/Teams/index.json
+    private struct TeamsIndex: Decodable {
+        let updated: String?
+        let divisions: [IndexDivision]
+    }
+    private struct IndexDivision: Decodable {
+        let name: String
+        let teams: [IndexTeam]
+    }
+    private struct IndexTeam: Decodable {
+        let name: String
+        let url: String
+    }
+  
     func fetchFileList(from url: URL, completion: @escaping ([String]?, Error?) -> Void) {
         let task = URLSession.shared.dataTask(with: url) { data, response, error in
             if let error = error {
@@ -37,19 +51,36 @@ class DownloadFiles {
         task.resume()
     }
     
-    // Example usage:
-    // if let listURL = URL(string: "https://example.com/api/filelist") {
-    //     fetchFileList(from: listURL) { fileNames, error in
-    //         if let fileNames = fileNames {
-    //             print("Files available: \(fileNames)")
-    //         } else if let error = error {
-    //             print("Error fetching file list: \(error.localizedDescription)")
-    //         }
-    //     }
-    // }
+    // Fetch and parse the JSON index of teams, returning a flat list of (name, url)
+    func fetchTeamsIndex(from url: URL, completion: @escaping ([(name: String, url: String)]?, Error?) -> Void) {
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                completion(nil, error)
+                return
+            }
+            guard let data = data else {
+                completion(nil, NSError(domain: "TeamsIndexError", code: 0, userInfo: [NSLocalizedDescriptionKey: "No data received"]))
+                return
+            }
+            do {
+                let decoder = JSONDecoder()
+                let index = try decoder.decode(TeamsIndex.self, from: data)
+                let pairs: [(name: String, url: String)] = index.divisions.flatMap { division in
+                    division.teams.map { (name: $0.name, url: $0.url) }
+                }
+                completion(pairs, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+        task.resume()
+    }
+    
     func downloadFile(from urlString: String, to destinationFileName: String) async throws {
         let fileManager = FileManager.default
-        guard let url = URL(string: urlString) else {
+        // Ensure spaces and other path characters are percent-encoded
+        let safeURLString = urlString.replacingOccurrences(of: " ", with: "%20")
+        guard let url = URL(string: safeURLString) else {
             throw URLError(.badURL)
         }
 
