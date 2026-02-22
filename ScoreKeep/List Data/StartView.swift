@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StartView: View {
     @Environment(\.modelContext) var modelContext
+    @State private var didLogPaths = false
     @State var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers","presentScreenShot"]
     @State private var flags:[Bool] = [true,false,false,false,false,false,false,false,false]
@@ -135,6 +136,11 @@ struct StartView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom )
+        .task {
+            guard !didLogPaths else { return }
+            didLogPaths = true
+            print("SQL Dir = \(modelContext.sqliteCommand) \nFolders Dir = \(NSHomeDirectory())")
+        }
     }
     func setFlags(flag flagName: String) {
         if let nameIndex = flagNames.firstIndex(of: flagName) {
@@ -157,3 +163,4 @@ struct StartView: View {
 //        return Text("Failed to create preview: \(error.localizedDescription)")
 //    }
 //}
+

@@ -49,6 +49,7 @@ struct EditTeamView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
         Form {
             HStack {
                 Text("Logo").frame(width:185,height:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
@@ -109,96 +110,86 @@ struct EditTeamView: View {
                 Spacer()
             }
         }
-        .frame(maxWidth:.infinity, maxHeight: 175, alignment: .top)
-
-        Section() {
-            VStack( ) {
-                if UIDevice.type == "iPhone" {
-                    Button(action: {
-                        presentPlayers.toggle()
-                    }) {
-                        Text("See Players")
+        .frame(maxHeight: UIDevice.type != "iPhone" ? 225 : nil, alignment: .top)
+        if UIDevice.type != "iPhone" {
+            VStack(alignment: .leading, spacing: 6) {
+//                Text("Select a Player to edit")
+                PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
+                    .navigationDestination(for: Player.self) { player in
+                        EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
                     }
-                    .fullScreenCover(isPresented: $presentPlayers) {
-//                        PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
-                        PlayerView(team: team, navigationPath: $navigationPath,searchString: $searchText)
-                    }
-                } else {
-                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
-                        .navigationDestination(for: Player.self) { player in
-                            EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
-                        }
-
-                }
             }
-            .toolbar {
-                if UIDevice.type != "iPhone" {
-                    ToolbarItemGroup(placement: .topBarLeading) {
-                        Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                            Picker("Sort", selection: $selectedPlayerTCriteria) {
-                                ForEach(SortCriteria.allCases) { criteria in
-                                    if criteria == .nameAsc {
-                                        Text("Name (A-Z)").tag(criteria)
-                                    } else if criteria == .nameDec {
-                                        Text("Name (Z-A)").tag(criteria)
-                                    } else if criteria == .numAsc {
-                                        Text("Number (A-Z)").tag(criteria)
-                                    } else if criteria == .orderAsc {
-                                        Text("order (A-Z)").tag(criteria)
-                                    }
+            .padding(.top, 4)
+        }
+        
+        }
+        .toolbar {
+            if UIDevice.type != "iPhone" {
+                ToolbarItemGroup(placement: .topBarLeading) {
+                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                        Picker("Sort", selection: $selectedPlayerTCriteria) {
+                            ForEach(SortCriteria.allCases) { criteria in
+                                if criteria == .nameAsc {
+                                    Text("Name (A-Z)").tag(criteria)
+                                } else if criteria == .nameDec {
+                                    Text("Name (Z-A)").tag(criteria)
+                                } else if criteria == .numAsc {
+                                    Text("Number (A-Z)").tag(criteria)
+                                } else if criteria == .orderAsc {
+                                    Text("order (A-Z)").tag(criteria)
                                 }
                             }
                         }
                     }
                 }
-                ToolbarItem(placement: .principal) {
-                    Text("\(team.name)")
-                        .font(.title2)
-                }
-//                ToolbarItem(placement: .navigationBarTrailing) {
-//                    if UIDevice.type == "iPhone" {
-//                        Button(action: {
-//                            withAnimation {
-//                                isSearching.toggle()
-//                            }
-//                        }) {
-//                            Image(systemName: "magnifyingglass")
-//                        }
-//                    }
-//                }
             }
-            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
-            .onAppear {
-                if UIDevice.type == "iPhone" {
-                   isSearching = false
-                } else {
-                    isSearching = true
+            if UIDevice.type == "iPhone" {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Players") {
+                        presentPlayers.toggle()
+                    }
                 }
             }
-            .onChange(of: isSearching) {
-                if isSearching == false {
-                    searchText = "" // Clear the search text when the search field is dismissed
-                }
+            ToolbarItem(placement: .principal) {
+                Text("\(team.name)")
+                    .font(.title2)
             }
-            .onChange(of: sortDescriptor) {
-                sortOrder = sortDescriptor
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+        .onAppear {
+            if UIDevice.type == "iPhone" {
+               isSearching = false
+            } else {
+                isSearching = true
             }
-            .onDisappear() {
-                if dups || teamName.isEmpty {
-                   modelContext.delete(team)
-                } else {
-                    team.name = teamName
-                }
+        }
+        .onChange(of: isSearching) {
+            if isSearching == false {
+                searchText = "" // Clear the search text when the search field is dismissed
             }
-            .onAppear() {
-                teamName = team.name
-                prevTName = team.name
-                if !teamName.isEmpty {
-                    checkForDups = false
-                }
+        }
+        .onChange(of: sortDescriptor) {
+            sortOrder = sortDescriptor
+        }
+        .onDisappear() {
+            if dups || teamName.isEmpty {
+               modelContext.delete(team)
+            } else {
+                team.name = teamName
             }
-            Spacer()
-        } 
+        }
+        .onAppear() {
+            teamName = team.name
+            prevTName = team.name
+            if !teamName.isEmpty {
+                checkForDups = false
+            }
+        }
+        .fullScreenCover(isPresented: $presentPlayers) {
+            PlayerView(team: team, navigationPath: $navigationPath,searchString: $searchText)
+        }
+
 
     }
 
@@ -252,6 +243,4 @@ struct EditTeamView: View {
     }
 
 }
-
-
 

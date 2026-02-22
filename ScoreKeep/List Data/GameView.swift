@@ -275,7 +275,7 @@ struct GameView: View {
         }
         // Top overlay banner (no layout space taken)
         .overlay(alignment: .topTrailing) {
-            let _ = print(" \(hasSeededInitialGame) \(!hasDismissedSeedHint_Game) \(!hasUserContent) \(!singleNonSeededGameExists)")
+//            let _ = print(" \(hasSeededInitialGame) \(!hasDismissedSeedHint_Game) \(!hasUserContent) \(!singleNonSeededGameExists)")
             if hasSeededInitialGame && !hasDismissedSeedHint_Game && !hasUserContent && !singleNonSeededGameExists {
                 HStack(spacing: 6) {
                     Image(systemName: "info.circle")

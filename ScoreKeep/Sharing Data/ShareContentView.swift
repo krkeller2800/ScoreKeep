@@ -133,6 +133,24 @@ struct ShareContentView: View {
                         .border(.gray).cornerRadius(10).accentColor(.black)
                     }
                     if doDown {
+                        if isLoading {
+                            ProgressView("Loading teams…")
+                                .padding(.bottom, 6)
+                        } else if let errorMessage = errorMessage {
+                            VStack(spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundStyle(.orange)
+                                    Text(errorMessage)
+                                        .font(.footnote)
+                                }
+                                Button("Retry") {
+                                    getFileNames()
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                            .padding(.vertical, 6)
+                        }
                         HStack {
                             Spacer()
                             Picker("Down", selection: $down) {
@@ -300,7 +318,7 @@ struct ShareContentView: View {
             doTeam = false
             doGame = false
             doDown = true
-            getFileNames()
+            if fNames.isEmpty { getFileNames() }
         }
         // Paywall presentation:
         // - iPhone: full screen
@@ -533,13 +551,19 @@ struct ShareContentView: View {
         return shareTeam
     }
     func getFileNames () {
-        let downloadFiles = DownloadFiles()
+        isLoading = true
+        errorMessage = nil
         fNames = []
+
+        let downloadFiles = DownloadFiles()
 
         guard let indexURL = URL(string: "https://komakode.com/Teams/index.json") else { return }
         downloadFiles.fetchTeamsIndex(from: indexURL) { pairs, error in
-            if let error = error {
-                print("Error fetching teams index: \(error.localizedDescription)")
+            if let _ = error {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Unable to load teams. Please check your connection and try again."
+                    self.isLoading = false
+                }
                 return
             }
             guard let pairs = pairs else { return }
@@ -549,6 +573,8 @@ struct ShareContentView: View {
                 self.fNames = pairs.map { $0.name }
                 self.fNames.sort(by: <)
                 self.teamURLMap = Dictionary(uniqueKeysWithValues: pairs.map { ($0.name, $0.url) })
+                self.isLoading = false
+                self.errorMessage = nil
             }
         }
     }
