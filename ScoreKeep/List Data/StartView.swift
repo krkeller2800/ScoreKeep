@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StartView: View {
     @Environment(\.modelContext) var modelContext
+    @EnvironmentObject var router: AppRouter
     @State private var didLogPaths = false
     @State var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers","presentScreenShot"]
@@ -106,12 +107,6 @@ struct StartView: View {
 //                Spacer()
             }
             .ignoresSafeArea(.keyboard, edges: .bottom )
-            .onOpenURL { url in
-//                print(url)
-                importUrl = url
-                setFlags(flag: "importPlayers")
-                columnVisibility = .detailOnly
-            }
         } detail: {
             if flags[0] {
                 ScoreContentView(columnVisability: $columnVisibility)
@@ -135,6 +130,30 @@ struct StartView: View {
                 ScreenShotView()
             }
         }
+        .onOpenURL { url in
+            // Route custom deep links to the shared router; do NOT treat as file import
+            if url.scheme == "scorekeep" {
+                if let dest = parseDeepLink(url) {
+                    router.destination = dest
+                }
+                return
+            }
+            // Only treat as import when the URL looks like one of our supported files
+            if isImportFileURL(url) {
+                importUrl = url
+                setFlags(flag: "importPlayers")
+                columnVisibility = .detailOnly
+            }
+        }
+        .onReceive(router.$destination) { dest in
+            guard let dest = dest else { return }
+            switch dest {
+            case .shareDownloadTeams:
+                // Show the Share view in the detail when deep link requests downloads
+                setFlags(flag: "presentShareLineup")
+                columnVisibility = .doubleColumn
+            }
+        }
         .ignoresSafeArea(.keyboard, edges: .bottom )
         .task {
             guard !didLogPaths else { return }
@@ -152,6 +171,30 @@ struct StartView: View {
                 }
             }
         }
+    }
+    
+    private func isImportFileURL(_ url: URL) -> Bool {
+        // Primary: extension check (case-insensitive)
+        let ext = url.pathExtension.lowercased()
+        if ext == "scorekeep_players" || ext == "scorekeep_games" {
+            return true
+        }
+        // Fallback: lastPathComponent contains (case-insensitive)
+        let name = url.lastPathComponent.lowercased()
+        return name.contains("scorekeep_players") || name.contains("scorekeep_games")
+    }
+
+    private func parseDeepLink(_ url: URL) -> AppRouter.Destination? {
+        guard url.scheme == "scorekeep" else { return nil }
+        let host = url.host ?? ""
+        guard host == "share" else { return nil }
+        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let tab = comps?.queryItems?.first(where: { $0.name == "tab" })?.value
+        let prefill = comps?.queryItems?.first(where: { $0.name == "prefill" })?.value
+        if tab == "download" {
+            return .shareDownloadTeams(prefill: prefill)
+        }
+        return nil
     }
 }
 //#Preview {

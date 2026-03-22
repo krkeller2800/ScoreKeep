@@ -1,0 +1,40 @@
+// Debug.xcconfig (Debug-scoped)
+// Ensures rich LLDB introspection by emitting Swift reflection metadata and disabling optimizations in Debug builds.
+// You can attach this file once (Project or Target Base Configuration). All settings are scoped to [config=Debug].
+
+// Swift optimization off
+SWIFT_OPTIMIZATION_LEVEL[config=Debug] = -Onone
+
+// C/ObjC optimization off (if you have any C/ObjC)
+GCC_OPTIMIZATION_LEVEL[config=Debug] = 0
+
+// Emit full reflection metadata so LLDB can introspect generic-heavy types (e.g., SwiftUI property wrappers)
+SWIFT_REFLECTION_METADATA_LEVEL[config=Debug] = all
+
+// Favor incremental for faster debug rebuilds
+SWIFT_COMPILATION_MODE[config=Debug] = incremental
+
+// Generate debug symbols suitable for device/simulator debugging
+DEBUG_INFORMATION_FORMAT[config=Debug] = dwarf
+
+// Do not strip Swift symbols in Debug
+STRIP_SWIFT_SYMBOLS[config=Debug] = NO
+
+// Do not strip linked product or debug symbols during copy in Debug
+STRIP_INSTALLED_PRODUCT[config=Debug] = NO
+COPY_PHASE_STRIP[config=Debug] = NO
+
+// Keep dead code (sometimes helps with symbolization in Debug)
+DEAD_CODE_STRIPPING[config=Debug] = NO
+
+// Disable Link-Time Optimization in Debug
+LLVM_LTO[config=Debug] = NO
+
+// Build only active arch for faster local builds
+ONLY_ACTIVE_ARCH[config=Debug] = YES
+
+// Ensure DEBUG flag is present
+SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug] = DEBUG
+
+// Inherit other flags; ensure nothing re-enables optimization or disables reflection
+OTHER_SWIFT_FLAGS[config=Debug] = $(inherited)

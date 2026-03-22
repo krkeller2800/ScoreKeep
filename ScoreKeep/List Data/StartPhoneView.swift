@@ -9,6 +9,7 @@ import SwiftUI
 
 struct StartPhoneView: View {
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject var router: AppRouter
     @State var columnVisibility = NavigationSplitViewVisibility.detailOnly
 
     @State private var selectedTab = 0
@@ -79,13 +80,32 @@ struct StartPhoneView: View {
  
        }
         .onOpenURL { url in
-            handleIncomingURL(url)
+            // Route custom deep links (scorekeep://...) via shared router; do NOT treat as file import
+            if url.scheme == "scorekeep" {
+                if let dest = parseDeepLink(url) {
+                    router.destination = dest
+                }
+                return
+            }
+            // Only import when the URL is one of our supported file types
+            if isImportFileURL(url) {
+                importURL = url
+                showImport = true
+            }
         }
         .fullScreenCover(isPresented: $showImport) {
             if let url = importURL {
                 ImportPlayersView(showingImport: $showImport, iURL: url, columnVisibility: $columnVisibility)
             } else {
                 Text("Bad URL")
+            }
+        }
+        .onReceive(router.$destination) { dest in
+            guard let dest = dest else { return }
+            switch dest {
+            case .shareDownloadTeams:
+                // Ensure the Share tab is visible on iPhone
+                selectedTab = 4
             }
         }
     }
@@ -98,6 +118,24 @@ struct StartPhoneView: View {
             showImport = true
             }
         }
+    
+    private func isImportFileURL(_ url: URL) -> Bool {
+        let ext = url.pathExtension
+        return ext == "ScoreKeep_Players" || ext == "ScoreKeep_Games"
+    }
+
+    private func parseDeepLink(_ url: URL) -> AppRouter.Destination? {
+        guard url.scheme == "scorekeep" else { return nil }
+        let host = url.host ?? ""
+        guard host == "share" else { return nil }
+        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let tab = comps?.queryItems?.first(where: { $0.name == "tab" })?.value
+        let prefill = comps?.queryItems?.first(where: { $0.name == "prefill" })?.value
+        if tab == "download" {
+            return .shareDownloadTeams(prefill: prefill)
+        }
+        return nil
+    }
 }
 
 #Preview {

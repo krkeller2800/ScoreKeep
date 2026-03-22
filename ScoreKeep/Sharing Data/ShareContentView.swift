@@ -8,11 +8,20 @@ import MessageUI
 import SwiftUI
 import SwiftData
 
+final class AppRouter: ObservableObject {
+    enum Destination: Equatable {
+        case shareDownloadTeams(prefill: String?)
+    }
+    @Published var destination: Destination?
+}
+
 struct ShareContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Environment(\.openURL) var openURL
     @EnvironmentObject var purchaseManager: PurchaseManager
+    @EnvironmentObject var router: AppRouter
+    @State private var pendingPrefill: String?
     
     // Keychain-backed MLB download counter
     @StateObject private var mlbCounter = KeychainBackedCounter(key: "mlbDownloadCountKC", defaultValue: 0)
@@ -264,6 +273,7 @@ struct ShareContentView: View {
                 }
             }
             .onChange(of: down) {
+                guard down != "Select Team" else { return }
                 let downTeam = DownloadFiles()
                 Task {
                     // Gate: block if free limit reached
@@ -308,9 +318,24 @@ struct ShareContentView: View {
                 url = nil
             }
         }
+        /*
+        .onOpenURL { url in
+            if let dest = parseDeepLink(url) {
+                router.destination = dest
+            }
+        }
+        */
         .fullScreenCover(isPresented: $doImport) {
-            if let url1 = url {
+            if let url1 = url, isValidImportURL(url1) {
                 ImportPlayersView(showingImport: $showImport, iURL: url1, columnVisibility: $columnVisibility)
+            } else {
+                Color.clear
+                    .task {
+                        doImport = false
+                        url = nil
+                        showingAlert = true
+                        alertMessage = "No valid import file found."
+                    }
             }
         }
         .onAppear{
@@ -319,6 +344,8 @@ struct ShareContentView: View {
             doGame = false
             doDown = true
             if fNames.isEmpty { getFileNames() }
+            // Apply any already-set destination so we react even if the router was set before appearance
+            applyDestination(router.destination)
         }
         // Paywall presentation:
         // - iPhone: full screen
@@ -387,6 +414,16 @@ struct ShareContentView: View {
         }
         .onChange(of: sortDescriptor) {
             sortOrder = sortDescriptor
+        }
+        .onReceive(router.$destination) { dest in
+            print("Router destination:", String(describing: dest))
+            applyDestination(dest)
+        }
+        .onChange(of: teamURLMap) {
+            if let prefill = pendingPrefill, teamURLMap[prefill] != nil {
+                down = prefill
+                pendingPrefill = nil
+            }
         }
         // Optional: auto-dismiss paywall if premium flips true
         .onReceive(purchaseManager.$isSeasonPassActive) { active in
@@ -589,7 +626,52 @@ struct ShareContentView: View {
             }
         }
     }
+    
+    private func applyDestination(_ dest: AppRouter.Destination?) {
+        guard let dest = dest else { return }
+        switch dest {
+        case .shareDownloadTeams(let prefill):
+            // Ensure the Download MLB Teams segment is active
+            doShare = "Download MLB Teams"
+            doTeam = false
+            doGame = false
+            doDown = true
 
+            // Load team list if needed
+            if fNames.isEmpty { getFileNames() }
+
+            // Optional: preselect a team if provided
+            if let prefill, !prefill.isEmpty {
+                if teamURLMap[prefill] != nil {
+                    down = prefill
+                } else {
+                    pendingPrefill = prefill
+                }
+            }
+        }
+    }
+
+    private func isValidImportURL(_ url: URL) -> Bool {
+        let ext = url.pathExtension
+        let ok = (ext == "ScoreKeep_Players" || ext == "ScoreKeep_Games")
+        if ok {
+            return FileManager.default.fileExists(atPath: url.path)
+        }
+        return false
+    }
+    
+    private func parseDeepLink(_ url: URL) -> AppRouter.Destination? {
+        guard url.scheme == "scorekeep" else { return nil }
+        let host = url.host ?? ""
+        guard host == "share" else { return nil }
+        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let tab = comps?.queryItems?.first(where: { $0.name == "tab" })?.value
+        let prefill = comps?.queryItems?.first(where: { $0.name == "prefill" })?.value
+        if tab == "download" {
+            return .shareDownloadTeams(prefill: prefill)
+        }
+        return nil
+    }
 }
 
 // Helper view modifier to present Paywall as sheet on iPad, full screen on iPhone
@@ -612,3 +694,4 @@ private struct PaywallPresentation: ViewModifier {
         }
     }
 }
+

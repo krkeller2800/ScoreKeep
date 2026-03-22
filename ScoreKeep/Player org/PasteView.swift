@@ -448,9 +448,10 @@ struct PasteView: View {
                     Name = Name.removeAccents()
                     Name = Name.split(separator: " ").count > 2 ? String(Name.split(separator: " ").first! + " " + Name.split(separator: " ").last!) : Name
                     let batdir = batsDirIdx == 0 ? "" : batsDirection[x]
-                    let bOrder:Int = batOrder.count > 0 ? Int(batOrder[x]) ?? 99 : 99
+                    let order = Int(batOrder[x].trimmingCharacters(in: .whitespaces))
+                    let bOrder = order ?? 99 > 0 ? order ?? 99 : 99
                     if bOrder < 20 {
-                        for splayer in selectPlayers.filter({$0.batOrder == bOrder}) {
+                        for splayer in selectPlayers.filter({Int($0.batOrder) == bOrder}) {
                             splayer.batOrder = 99
                         }
                     }

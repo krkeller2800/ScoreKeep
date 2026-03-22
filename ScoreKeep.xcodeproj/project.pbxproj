@@ -305,6 +305,8 @@
 /* Begin XCBuildConfiguration section */
 		CB643B6B2D85E59E00F30B87 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = CB643B4B2D85E59C00F30B87 /* ScoreKeep */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -452,7 +454,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.030;
+				MARKETING_VERSION = 5.031;
 				PRODUCT_BUNDLE_IDENTIFIER = Komakode.ScoreKeep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -493,7 +495,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.030;
+				MARKETING_VERSION = 5.031;
 				PRODUCT_BUNDLE_IDENTIFIER = Komakode.ScoreKeep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

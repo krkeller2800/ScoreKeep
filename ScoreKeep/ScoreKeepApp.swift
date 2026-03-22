@@ -13,6 +13,8 @@ import os.log
 struct ScoreKeepApp: App {
     // Shared purchase manager for the entire app
     @StateObject private var purchaseManager = PurchaseManager()
+    @StateObject private var router = AppRouter()
+    @StateObject private var announcements = AnnouncementCenter()
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeededInitialGame") private var hasSeededInitialGame = false
 
@@ -28,9 +30,12 @@ struct ScoreKeepApp: App {
                 }
             }
             .environmentObject(purchaseManager)
+            .environmentObject(router)
+            .environmentObject(announcements)
             .task {
                 await purchaseManager.loadProducts()
                 await purchaseManager.refreshEntitlements()
+                await announcements.refresh()
             }
             .onChange(of: scenePhase) {
                 if scenePhase == .active {
@@ -39,8 +44,18 @@ struct ScoreKeepApp: App {
                         if purchaseManager.seasonPassProduct == nil {
                             await purchaseManager.loadProducts()
                         }
+                        await announcements.refresh()
                     }
                 }
+            }
+            .onOpenURL { url in
+                if let dest = parseDeepLink(url) {
+                    router.destination = dest
+                }
+            }
+            .sheet(isPresented: $announcements.isPresenting) {
+                AnnouncementSheet()
+                    .environmentObject(announcements)
             }
             // Inject a hidden seeding runner once the modelContext exists
             .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
@@ -76,3 +91,17 @@ private struct SeederView: View {
             }
     }
 }
+private func parseDeepLink(_ url: URL) -> AppRouter.Destination? {
+    print("parseDeepLink received:", url.absoluteString)
+    guard url.scheme == "scorekeep" else { return nil }
+    let host = url.host ?? ""
+    guard host == "share" else { return nil }
+    let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    let tab = comps?.queryItems?.first(where: { $0.name == "tab" })?.value
+    let prefill = comps?.queryItems?.first(where: { $0.name == "prefill" })?.value
+    if tab == "download" {
+        return .shareDownloadTeams(prefill: prefill)
+    }
+    return nil
+}
+
