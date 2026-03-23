@@ -458,7 +458,7 @@ struct PasteView: View {
                     if let pidx = selectPlayers.firstIndex(where: { ($0.name.removeAccents().split(separator: " ").last == Name.split(separator: " ").last &&
                                                                     ((Name.split(separator: " ").first?.count == 1 || $0.name.split(separator: " ").first?.count == 1) ||
                                                                      (Name.split(separator: " ").first?.count == 2 || $0.name.split(separator: " ").first?.count == 2))) ||
-                                                           $0.name.removeAccents() == Name}) {
+                                                                     $0.name.removeAccents() == Name}) {
                         selectPlayers[pidx].batOrder = bOrder == 99 ? selectPlayers[pidx].batOrder : bOrder
                         selectPlayers[pidx].position = pos == "" ? selectPlayers[pidx].position : pos
                         selectPlayers[pidx].number = num == "" ? selectPlayers[pidx].number : num
