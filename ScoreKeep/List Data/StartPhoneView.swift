@@ -8,13 +8,17 @@
 import SwiftUI
 
 struct StartPhoneView: View {
-    @Environment(\.openURL) private var openURL
     @EnvironmentObject var router: AppRouter
     @State var columnVisibility = NavigationSplitViewVisibility.detailOnly
 
+    private struct ImportPayload: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
+
+    @State private var importPayload: ImportPayload?
+
     @State private var selectedTab = 0
-    @State private var showImport = false
-    @State private var importURL:URL?
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -88,17 +92,27 @@ struct StartPhoneView: View {
                 return
             }
             // Only import when the URL is one of our supported file types
-            if isImportFileURL(url) {
-                importURL = url
-                showImport = true
+            guard isImportFileURL(url) else { return }
+            // Ensure main-actor state updates and avoid races by driving presentation from the URL item
+            Task { @MainActor in
+                _ = url.startAccessingSecurityScopedResource()
+                importPayload = ImportPayload(url: url)
             }
         }
-        .fullScreenCover(isPresented: $showImport) {
-            if let url = importURL {
-                ImportPlayersView(showingImport: $showImport, iURL: url, columnVisibility: $columnVisibility)
-            } else {
-                Text("Bad URL")
-            }
+        .fullScreenCover(item: $importPayload) { payload in
+            ImportPlayersView(
+                showingImport: Binding(
+                    get: { importPayload != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            importPayload?.url.stopAccessingSecurityScopedResource()
+                            importPayload = nil
+                        }
+                    }
+                ),
+                iURL: payload.url,
+                columnVisibility: $columnVisibility
+            )
         }
         .onReceive(router.$destination) { dest in
             guard let dest = dest else { return }
@@ -109,15 +123,6 @@ struct StartPhoneView: View {
             }
         }
     }
-    func handleIncomingURL(_ url: URL) {
-        let dataType = url.lastPathComponent.components(separatedBy: ".").last ?? ""
-        if dataType.localizedStandardContains("ScoreKeep_Players") ||
-           dataType.localizedStandardContains("ScoreKeep_Games") {
-            print(url)
-            importURL = url
-            showImport = true
-            }
-        }
     
     private func isImportFileURL(_ url: URL) -> Bool {
         let ext = url.pathExtension
