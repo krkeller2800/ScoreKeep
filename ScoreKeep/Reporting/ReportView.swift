@@ -24,6 +24,11 @@ struct ReportView: View {
     @Query var atbats: [Atbat]
     
     var com:Common = Common()
+    private var sortedStats: [PlayerStats] {
+        sumedStats.sorted(by: { (lhs: PlayerStats, rhs: PlayerStats) -> Bool in
+            (lhs.player?.batOrder ?? 0) < (rhs.player?.batOrder ?? 0)
+        })
+    }
 
     var body: some View {
         NavigationStack {
@@ -87,37 +92,8 @@ struct ReportView: View {
                     }
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
-                            let summedStats = sumedStats.sorted { $0.player?.batOrder ?? 0 < $1.player?.batOrder ?? 0 }
-                            ForEach(summedStats) { stats in
-                                HStack {
-                                    Text("").frame(maxWidth:5)
-                                    let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
-                                    let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
-                                                                                     (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
-                                    let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) +
-                                                                                            (4 * stats.HR)) / stats.atbats))
-                                    let nm = (stats.player?.name ?? "").components(separatedBy: " ")
-                                    let name = nm.count > 1 && UIDevice.type == "iPhone" ? nm[1] : nm.count == 1 ? nm[0] : nm.count > 1 ? nm[0] + " " + nm[1] : "Unknown"
-                                    Text(stats.player?.number ?? "").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text(name).foregroundColor(.black).frame(width: 125,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.atbats)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text(String(format: "%03d", avg)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text(String(format: "%03d", obp)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text(String(format: "%03d", slg)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text(String(format: "%03d", obp + slg)).foregroundColor(.black).frame(width: 30).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.runs)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.hits)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.strikeouts)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.strikeoutl)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.BB)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.HR)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.single)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.double)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.triple)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.sacBunt)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("\(stats.sacFly)").foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                    Text("").frame(maxWidth:5)
-                                }
+                            ForEach(sortedStats) { stats in
+                                PlayerStatsRow(stats: stats)
                             }
                             Spacer()
                         }
@@ -128,8 +104,8 @@ struct ReportView: View {
                 sumData()
                 isLoading = false
             }
-            .onChange(of: doShot) {
-                if doShot {
+            .onChange(of: doShot) { _, newValue in
+                if newValue {
                     if let screenshotMaker = screenshotMaker {
                         url = saveImage(uiimage: screenshotMaker.screenshot()!)
                         doShot.toggle()
@@ -240,6 +216,159 @@ struct ReportView: View {
             isLoading = false
         }
         return nil
+    }
+}
+
+struct PlayerStatsRow: View {
+    let stats: PlayerStats
+
+    var body: some View {
+        let atbats = stats.atbats
+        let hits = stats.hits
+        let walks = stats.BB
+        let hbp = stats.hbp
+        let sacFly = stats.sacFly
+        let singles = stats.single
+        let doubles = stats.double
+        let triples = stats.triple
+        let homers = stats.HR
+
+        let avg: Int
+        if atbats == 0 {
+            avg = 0
+        } else {
+            let value = (Double(hits) / Double(atbats)) * 1000.0
+            avg = Int(value.rounded(.down))
+        }
+
+        let obp: Int
+        let obpDenominator = atbats + walks + hbp + sacFly
+        if obpDenominator == 0 {
+            obp = 0
+        } else {
+            let numerator = hits + walks + hbp
+            let value = (Double(numerator) / Double(obpDenominator)) * 1000.0
+            obp = Int(value.rounded(.down))
+        }
+
+        let slg: Int
+        if atbats == 0 {
+            slg = 0
+        } else {
+            let totalBases = singles + (2 * doubles) + (3 * triples) + (4 * homers)
+            let value = (Double(totalBases) / Double(atbats)) * 1000.0
+            slg = Int(value.rounded(.down))
+        }
+
+        let nameParts = (stats.player?.name ?? "").components(separatedBy: " ")
+        let isIPhone = (UIDevice.type == "iPhone")
+        let name: String
+        if nameParts.count == 0 {
+            name = "Unknown"
+        } else if nameParts.count == 1 {
+            name = nameParts[0]
+        } else if isIPhone {
+            name = nameParts[1]
+        } else {
+            name = nameParts[0] + " " + nameParts[1]
+        }
+        
+        return HStack {
+            Text("")
+                .frame(maxWidth: 5)
+            Text(stats.player?.number ?? "")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(name)
+                .foregroundColor(.black)
+                .frame(width: 125, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.atbats)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(String(format: "%03d", avg))
+                .foregroundColor(.black)
+                .frame(width: 30)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(String(format: "%03d", obp))
+                .foregroundColor(.black)
+                .frame(width: 30)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(String(format: "%03d", slg))
+                .foregroundColor(.black)
+                .frame(width: 30)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(String(format: "%03d", obp + slg))
+                .foregroundColor(.black)
+                .frame(width: 30)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.runs)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.hits)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.strikeouts)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.strikeoutl)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.BB)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.HR)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.single)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.double)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.triple)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.sacBunt)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("\(stats.sacFly)")
+                .foregroundColor(.black)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text("")
+                .frame(maxWidth: 5)
+        }
     }
 }
 

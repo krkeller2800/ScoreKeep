@@ -57,7 +57,8 @@ struct ShareContentView: View {
     @Query var games: [Game]
     @State var isLoading = false
     @State var errorMessage: String?
-    
+    @State private var lastUpdated: String? // Formatted MM/dd/yyyy from index.json
+
     enum FocusField: Hashable {case field}
     @FocusState private var focusedField: FocusField?
     
@@ -176,6 +177,12 @@ struct ShareContentView: View {
                             .disabled(!isPremium && mlbCounter.value >= 4)
                             Spacer()
                         }
+                        if let lastUpdated = lastUpdated {
+                            Text("Updated on: \(lastUpdated)")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 6)
+                        }
                         // Counter or Unlimited text based on upgrade status
                         if isPremium {
                             PremiumBadgeView(isCompact: false)
@@ -188,7 +195,7 @@ struct ShareContentView: View {
                             HStack {
                                 Image(systemName: "info.circle")
                                     .imageScale(.small)
-                                Text("Tip: Pick a MLB team, then add it to your teams to score.")
+                                Text("Tip: Pick a MLB team, it will be added to your teams to score.")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 6)
@@ -595,6 +602,8 @@ struct ShareContentView: View {
         let downloadFiles = DownloadFiles()
 
         guard let indexURL = URL(string: "https://komakode.com/Teams/index.json") else { return }
+        // Fetch and display the last updated date from the index
+        fetchIndexUpdated(from: indexURL)
         downloadFiles.fetchTeamsIndex(from: indexURL) { pairs, error in
             if let _ = error {
                 DispatchQueue.main.async {
@@ -614,6 +623,31 @@ struct ShareContentView: View {
                 self.errorMessage = nil
             }
         }
+    }
+    private func fetchIndexUpdated(from url: URL) {
+        struct TeamsIndex: Decodable {
+            let updated: String?
+        }
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            guard let data = data, error == nil else { return }
+            do {
+                let index = try JSONDecoder().decode(TeamsIndex.self, from: data)
+                guard let updatedString = index.updated else { return }
+                let iso = ISO8601DateFormatter()
+                if let date = iso.date(from: updatedString) {
+                    let fmt = DateFormatter()
+                    fmt.locale = Locale(identifier: "en_US_POSIX")
+                    fmt.dateFormat = "MM/dd/yyyy"
+                    let formatted = fmt.string(from: date)
+                    DispatchQueue.main.async {
+                        self.lastUpdated = formatted
+                    }
+                }
+            } catch {
+                // Ignore parsing errors for updated field
+            }
+        }
+        task.resume()
     }
     func sendEmail(openUrl: OpenURLAction) {
         let urlString = "mailto:comment@KomaKode.com?subject=Additional%20download%20request&body=Please%20make%20\(newTeam)%20available%20for%20download"

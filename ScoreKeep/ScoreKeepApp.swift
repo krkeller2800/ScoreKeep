@@ -59,6 +59,12 @@ struct ScoreKeepApp: App {
             }
             // Inject a hidden seeding runner once the modelContext exists
             .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
+            .onAppear {
+                let fm = FileManager.default
+                if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    print("Documents directory path: \(documents.path)")
+                }
+            }
         }
         .modelContainer(for: Game.self)
         .handlesExternalEvents(matching: ["*"])

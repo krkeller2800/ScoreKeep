@@ -454,7 +454,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.031;
+				MARKETING_VERSION = 5.033;
 				PRODUCT_BUNDLE_IDENTIFIER = Komakode.ScoreKeep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -495,7 +495,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.031;
+				MARKETING_VERSION = 5.033;
 				PRODUCT_BUNDLE_IDENTIFIER = Komakode.ScoreKeep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
