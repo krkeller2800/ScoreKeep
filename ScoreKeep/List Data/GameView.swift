@@ -231,18 +231,37 @@ struct GameView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
                                 .overlay(Divider().background(.black), alignment: .trailing)
                                 if !title.isEmpty {
-                                    let hruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.hteam!.name}).count
-                                    let vruns = game.atbats.filter({$0.maxbase == "Home" && $0.team.name == game.vteam!.name}).count
-                                    let outs = game.atbats.filter({$0.team.name == game.vteam!.name && (com.outresults.contains($0.result) || $0.outAt != "Safe" )}).count
-                                    let inning = (outs / 3) + 1
-                                    let score:String = "\(vruns) to \(hruns)"
-                                    let hteam = game.hteam!.name.components(separatedBy: " ").last ?? ""
-                                    let vteam = game.vteam!.name.components(separatedBy: " ").last ?? ""
-                                    let winner:String = vruns > hruns ? vteam : vruns < hruns ? hteam : ""
-                                    let fin = inning >= 9 && winner != "" ? " Final" : ""
-                                    let win = winner + (fin != "" ? fin : " in \(com.innAbr[inning])")
-                                    Text(score + " " + win ).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                        .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.7)
+                                    if let hName = game.hteam?.name, let vName = game.vteam?.name {
+                                        let hruns = game.atbats.filter { $0.maxbase == "Home" && $0.team.name == hName }.count
+                                        let vruns = game.atbats.filter { $0.maxbase == "Home" && $0.team.name == vName }.count
+                                        let outs = game.atbats.filter { $0.team.name == vName && (com.outresults.contains($0.result) || $0.outAt != "Safe") }.count
+
+                                        let inning = max(1, (outs / 3) + 1)
+                                        let inningText: String = {
+                                            if com.innAbr.indices.contains(inning) {
+                                                return com.innAbr[inning]
+                                            } else {
+                                                return "Inning \(inning)"
+                                            }
+                                        }()
+
+                                        let hShort = hName.components(separatedBy: " ").last ?? hName
+                                        let vShort = vName.components(separatedBy: " ").last ?? vName
+                                        let winner = vruns > hruns ? vShort : (vruns < hruns ? hShort : "")
+                                        let isFinal = inning >= 9 && !winner.isEmpty
+                                        let suffix = isFinal ? " Final" : " in \(inningText)"
+
+                                        Text("\(vruns) to \(hruns) \(winner)\(suffix)")
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .foregroundColor(.black).bold()
+                                            .overlay(Divider().background(.black), alignment: .trailing)
+                                            .lineLimit(2).minimumScaleFactor(0.7)
+                                    } else {
+                                        Text("Game teams not set")
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .foregroundColor(.secondary)
+                                            .overlay(Divider().background(.black), alignment: .trailing)
+                                    }
                                 }
                                 Spacer(minLength: 20)
                             }
