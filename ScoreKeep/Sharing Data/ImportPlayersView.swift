@@ -127,6 +127,8 @@ struct ImportPlayersView: View {
                             Text("Current Games").bold().italic()
                             GameView(
                                 searchString: searchText,
+                                sortOrder: [],
+                                sortMode: .dateAsc,
                                 title: $title,
                                 navigationPath: $navigationPath,
                                 columnVisability: $columnVisibility,

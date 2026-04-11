@@ -40,9 +40,18 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack(path: $path) {
+            let currentSortMode: GameView.GameSort = {
+                switch selectedGameCriteria {
+                case .dateAsc:     return .dateAsc
+                case .dateDec:     return .dateDec
+                case .homeTeam:    return .homeTeam
+                case .visitorTeam: return .visitorTeam
+                }
+            }()
             GameView(
                 searchString: searchText,
                 sortOrder: sortDescriptor,
+                sortMode: currentSortMode,
                 title: $title,
                 navigationPath: $path,
                 columnVisability: $columnVisability,

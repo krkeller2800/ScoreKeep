@@ -84,11 +84,20 @@ struct ScoreContentView: View {
         let requestCreateGame: (String, String, Bool, Team, Team, Bool) -> Void = { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
             handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam, isSeeded: isSeeded)
         }
+        let currentSortMode: GameView.GameSort = {
+            switch selectedSortCriteria {
+            case .dateAsc:     return .dateAsc
+            case .dateDec:     return .dateDec
+            case .homeTeam:    return .homeTeam
+            case .visitorTeam: return .visitorTeam
+            }
+        }()
 
         NavigationStack(path: $path) {
             GameView(
                 searchString: currentSearchText,
                 sortOrder: currentSortOrder,
+                sortMode: currentSortMode,
                 title: titleBinding,
                 navigationPath: navBinding,
                 columnVisability: columnBinding,
@@ -331,3 +340,4 @@ private struct PresentationDragIndicatorHidden: ViewModifier {
         }
     }
 }
+

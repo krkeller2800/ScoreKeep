@@ -34,15 +34,32 @@ struct GameView: View {
 
     enum FocusField: Hashable {case field}
     
+    enum GameSort {
+        case dateAsc, dateDec, homeTeam, visitorTeam
+    }
+    
     @FocusState private var focusedField: FocusField?
     
     let com = Common()
+    let sortMode: GameSort
     
     @Query(sort: [
         SortDescriptor(\Team.name)
     ]) var teams: [Team]
     
     @Query var games: [Game]
+    
+    // In-memory sorted view of games for team-based sorts
+    var displayedGames: [Game] {
+        switch sortMode {
+        case .homeTeam:
+            return games.sorted { ($0.hteam?.name ?? "") < ($1.hteam?.name ?? "") }
+        case .visitorTeam:
+            return games.sorted { ($0.vteam?.name ?? "") < ($1.vteam?.name ?? "") }
+        case .dateAsc, .dateDec:
+            return games
+        }
+    }
     
     // Hide seed hint if the user has added their own content
     private var hasUserContent: Bool {
@@ -183,7 +200,7 @@ struct GameView: View {
                             }
                         }
                     }
-                    ForEach(games) { game in
+                    ForEach(displayedGames) { game in
                         NavigationLink(value: game) {
                             HStack {
                                 let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
@@ -238,11 +255,15 @@ struct GameView: View {
                     .alert(isPresented:$showingAlert) {
                         Alert(
                             title: Text("Deleting a Game"),
-                            message: Text("If a game is deleted all asssociated at bats and pitches will also be deleted and removed from the stats"),
+                            message: Text("If a game is deleted all associated at bats and pitches will also be deleted and removed from the stats"),
                             primaryButton: .destructive(Text("Delete")) {
-                                let indexSet = self.deleteIndexSet!
-                                for index in indexSet {
-                                    let game = games[index]
+                                guard let indexSet = deleteIndexSet else { return }
+
+                                let gamesToDelete = indexSet.compactMap { index in
+                                    displayedGames.indices.contains(index) ? displayedGames[index] : nil
+                                }
+
+                                for game in gamesToDelete {
                                     for atbat in game.atbats {
                                         modelContext.delete(atbat)
                                     }
@@ -252,11 +273,15 @@ struct GameView: View {
                                     for lineup in game.lineups {
                                         modelContext.delete(lineup)
                                     }
+                                    modelContext.delete(game)
                                 }
-                                deleteGame(at: indexSet)
+
+                                deleteIndexSet = nil
                                 print("Deleting...")
                             },
-                            secondaryButton: .cancel()
+                            secondaryButton: .cancel {
+                                deleteIndexSet = nil
+                            }
                         )
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
@@ -308,12 +333,23 @@ struct GameView: View {
             }
         }
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [],title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Team, Team, Bool) -> Void) {
+    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [], sortMode: GameSort, title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Team, Team, Bool) -> Void) {
         
         _title = title
         _navigationPath = navigationPath
         _columnVisibility = columnVisability
+        self.sortMode = sortMode
         self.createGame = createGame
+        
+        let effectiveSort: [SortDescriptor<Game>] = {
+            switch sortMode {
+            case .homeTeam, .visitorTeam:
+                // Avoid passing relationship-based sorts to SwiftData on device
+                return []
+            case .dateAsc, .dateDec:
+                return sortOrder
+            }
+        }()
         
         _games = Query(filter: #Predicate { game in
             if !searchString.isEmpty {
@@ -324,7 +360,7 @@ struct GameView: View {
             } else {
                 return true
             }
-        },  sort: sortOrder)
+        },  sort: effectiveSort)
     }
     func deleteGame(at offsets: IndexSet) {
 
