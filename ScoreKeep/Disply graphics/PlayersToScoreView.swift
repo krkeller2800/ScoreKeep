@@ -127,24 +127,33 @@ struct PlayersToScoreView: View {
                     if firstTime {
                         seqGame()
                         updMaxBases()
+                        updatePitcherMarkers()
                         firstTime = false
                     }
                 }
                 .onChange(of: theAtbat.result) {
                     seqGame()
                     updMaxBases()
+                    updatePitcherMarkers()
                 }
                 .onChange(of: theAtbat.outAt) {
                     seqGame()
                     updMaxBases()
+                    updatePitcherMarkers()
                 }
                 .onChange(of: atbats.count > 0 ? atbats[0].team.name : "") {
                     seqGame()
                     updMaxBases()
+                    updatePitcherMarkers()
                 }
                 .onChange(of: theAtbat.sacFly) {
                     seqGame()
                     updMaxBases()
+                    updatePitcherMarkers()
+                }
+                .onChange(of: game.pitchers.count) { _, _ in
+                    // A pitcher was added or removed; sync markers now.
+                    updatePitcherMarkers()
                 }
 
             }
@@ -307,6 +316,117 @@ struct PlayersToScoreView: View {
                 print("Error saving seq atbats: \(error)")
             }
         }
+    }
+    private func updatePitcherMarkers() {
+        // Compute against the currently displayed team's at-bats
+        let firstTeam = atbats.first?.team
+        let oTHit: [Atbat] = firstTeam != nil ? game.atbats.filter { $0.team == firstTeam } : []
+        let oTHitting = oTHit.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+
+        // Last completed at-bat for this team (may be nil before first PA completes)
+        let currbatter = oTHitting.last(where: { $0.result != "Result" })
+
+        // Opponent’s pitchers (the ones facing this team). Use insertion order: last = most recently added.
+        let oppPitchers = game.pitchers.filter { $0.team != firstTeam }
+        guard !oppPitchers.isEmpty else { return }
+
+        // Current pitcher is the most recently added for the opposing team
+        let currPitch = oppPitchers.last!
+
+        // CASE 1: Starting pitcher — force start markers to 1/0/0 if uninitialized, and initialize end to start
+        if oppPitchers.count == 1 {
+            if currPitch.startInn == 0 && currPitch.sOuts == 0 && currPitch.sBats == 0 {
+                currPitch.startInn = 1
+                currPitch.sOuts = 0
+                currPitch.sBats = 0
+
+                // Initialize end equal to start at the beginning of the game
+                currPitch.endInn = 1
+                currPitch.eOuts = 0
+                currPitch.eBats = 0
+
+                do { try modelContext.save() } catch { /* non-fatal */ }
+                // Don't return; allow advancing end markers below if a batter already exists
+            }
+        }
+        // CASE 2: A new pitcher has been added (there is a previous pitcher)
+        else {
+            let prevPitch = oppPitchers[oppPitchers.count - 2]
+
+            // Newly added pitcher with no start markers yet: initialize from prev end
+            if currPitch.startInn == 0 && currPitch.sOuts == 0 && currPitch.sBats == 0 {
+                var startInn = prevPitch.endInn
+                var sOuts = prevPitch.eOuts
+                var sBats = prevPitch.eBats
+
+                // If previous pitcher doesn't have an end yet, derive a sensible transition point
+                if startInn == 0 {
+                    if let currbatter {
+                        if currbatter.outs == 3 {
+                            // Transition at end of inning
+                            startInn = Int(currbatter.inning.rounded(.up)) + 1
+                            sOuts = 0
+                            sBats = 0
+                        } else {
+                            // Transition mid-inning, at current batter's position
+                            startInn = Int(currbatter.inning.rounded(.up))
+                            sOuts = currbatter.outs
+                            sBats = currbatter.seq
+                        }
+                    } else {
+                        // No batter context yet; default to start of game
+                        startInn = 1
+                        sOuts = 0
+                        sBats = 0
+                    }
+                }
+
+                // Finalize previous pitcher’s end markers if still missing
+                if prevPitch.endInn == 0 {
+                    prevPitch.endInn = startInn
+                    prevPitch.eOuts = sOuts
+                    prevPitch.eBats = sBats
+                }
+
+                // Initialize new pitcher’s start markers from prev end
+                currPitch.startInn = prevPitch.endInn
+                currPitch.sOuts = prevPitch.eOuts
+                currPitch.sBats = prevPitch.eBats
+
+                // Initialize new pitcher’s end markers equal to start (at the moment of entry)
+                currPitch.endInn = currPitch.startInn
+                currPitch.eOuts = currPitch.sOuts
+                currPitch.eBats = currPitch.sBats
+
+                do { try modelContext.save() } catch { /* non-fatal */ }
+                return // Do not advance beyond start in the same tick
+            }
+        }
+
+        // Regular update: advance current pitcher’s end markers to the current batter’s position
+        if let currbatter {
+            if currbatter.outs == 3 {
+                currPitch.endInn = Int(currbatter.inning.rounded(.up)) + 1
+                currPitch.eOuts = 0
+                currPitch.eBats = 0
+            } else {
+                currPitch.endInn = Int(currbatter.inning.rounded(.up))
+                currPitch.eOuts = currbatter.outs
+                currPitch.eBats = currbatter.seq
+            }
+        }
+
+        // Ensure previous pitcher (if any) has an end; if missing, finalize to the current pitcher's start
+        if oppPitchers.count >= 2 {
+            let prevPitch = oppPitchers[oppPitchers.count - 2]
+            if prevPitch.endInn == 0 {
+                prevPitch.endInn = currPitch.startInn
+                prevPitch.eOuts = currPitch.sOuts
+                prevPitch.eBats = currPitch.sBats
+            }
+        }
+
+        do { try modelContext.save() } catch { /* non-fatal */ }
     }
     init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>, hasChanged: Binding<Bool>, columnVisability: Binding<NavigationSplitViewVisibility>) {
         _game = passedGame
