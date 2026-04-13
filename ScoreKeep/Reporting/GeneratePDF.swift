@@ -184,8 +184,10 @@ class PDFGenerator {
         let com = Common()
         let atbats = game.atbats.filter { $0.team == theTeam && $0.result != "Result"}.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
         var abb = ""
-        var colbox = Array(repeating: BoxScore(), count: 20)
-        var batbox = Array(repeating: BoxScore(), count: 20)
+        let maxCol = atbats.map { $0.col }.max() ?? 0
+        var colbox = Array(repeating: BoxScore(), count: maxCol + 1)
+        let maxBatOrder = atbats.map { $0.batOrder }.max() ?? 0
+        var batbox = Array(repeating: BoxScore(), count: max(1, maxBatOrder))
         var totbox = Array(repeating: BoxScore(), count: 5)
         for atbat in atbats {
             
@@ -253,10 +255,13 @@ class PDFGenerator {
             aPath.stroke()
         }
         if atbat.inning.rounded(.up) > 0 && atbat.result != "Pitch Hitter" {
-            let inn = com.innAbr[Int(atbat.inning.rounded(.up))]
-            var abbString = NSAttributedString(string: "\(inn) Inn", attributes: smallCenterATTR)
-            abbString.draw(in: CGRect(x: CGFloat(130 + (atbat.col * 30)), y: 110, width: 30, height: 30))
-            abbString = NSAttributedString(string: "Num   Name", attributes: smallCenterATTR)
+            let idx = Int(atbat.inning.rounded(.up))
+            if idx >= 0 && idx < com.innAbr.count {
+                let inn = com.innAbr[idx]
+                let abbString = NSAttributedString(string: "\(inn) Inn", attributes: smallCenterATTR)
+                abbString.draw(in: CGRect(x: CGFloat(130 + (atbat.col * 30)), y: 110, width: 30, height: 30))
+            }
+            let abbString = NSAttributedString(string: "Num   Name", attributes: smallCenterATTR)
             abbString.draw(in: CGRect(x: CGFloat(50), y: 110, width: 50, height: 30))
         }
     }
@@ -336,53 +341,58 @@ class PDFGenerator {
     func getTots (atbat:Atbat, colbox: inout [BoxScore], batbox: inout [BoxScore], totbox: inout [BoxScore]) {
         
         let com = Common()
+        let batIdx = max(0, atbat.batOrder - 1)
+        
         if atbat.maxbase == "Home" {
-            colbox[atbat.col].runs += 1
-            batbox[atbat.batOrder].runs += 1
+            if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].runs += 1 }
+            if batIdx < batbox.count { batbox[batIdx].runs += 1 }
             totbox[0].runs += 1
         }
         if atbat.result == "Home Run" {
-            colbox[atbat.col].HR += 1
-            batbox[atbat.batOrder].HR += 1
+            if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].HR += 1 }
+            if batIdx < batbox.count { batbox[batIdx].HR += 1 }
             totbox[0].HR += 1
         }
         if com.hitresults.contains(atbat.result) {
-            colbox[atbat.col].hits += 1
-            batbox[atbat.batOrder].hits += 1
+            if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].hits += 1 }
+            if batIdx < batbox.count { batbox[batIdx].hits += 1 }
             totbox[0].hits += 1
         }
         if atbat.result == "Walk" {
-            colbox[atbat.col].walks += 1
-            batbox[atbat.batOrder].walks += 1
+            if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].walks += 1 }
+            if batIdx < batbox.count { batbox[batIdx].walks += 1 }
             totbox[0].walks += 1
         }
         if atbat.result == "Strikeout" || atbat.result == "Strikeout Looking" || atbat.result == "Dropped 3rd Strike" {
-            colbox[atbat.col].strikeouts += 1
-            batbox[atbat.batOrder].strikeouts += 1
+            if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].strikeouts += 1 }
+            if batIdx < batbox.count { batbox[batIdx].strikeouts += 1 }
             totbox[0].strikeouts += 1
         }
         if com.onresults.contains(atbat.result) && atbat.stolenBases > 0 {
-            colbox[atbat.col].stoleBase += atbat.stolenBases
-            batbox[atbat.batOrder].stoleBase += atbat.stolenBases
+            if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].stoleBase += atbat.stolenBases }
+            if batIdx < batbox.count { batbox[batIdx].stoleBase += atbat.stolenBases }
             totbox[0].stoleBase += atbat.stolenBases
         }
-        colbox[atbat.col].inning = Int(atbat.inning.rounded(.up))
+        if atbat.col >= 0 && atbat.col < colbox.count {
+            colbox[atbat.col].inning = Int(atbat.inning.rounded(.up))
+        }
     }
     func drawTots(batbox:[BoxScore], totbox: [BoxScore], bodyATTR: [NSAttributedString.Key : Any]) {
-        for batters in 1...numOfPlayers {
-            let box = batbox[Int(batters)]
+        for idx in 0..<min(numOfPlayers, batbox.count) {
+            let box = batbox[idx]
+            let y = 130 + (idx * 30)
             var boxString = NSAttributedString(string: "\(box.runs)", attributes: bodyATTR)
-            boxString.draw(at: CGPoint(x: 625, y: 130 + ((batters - 1) * 30)))
+            boxString.draw(at: CGPoint(x: 625, y: y))
             boxString = NSAttributedString(string: "\(box.hits)", attributes: bodyATTR)
-            boxString.draw(at: CGPoint(x: 645, y: 130 + ((batters - 1) * 30)))
+            boxString.draw(at: CGPoint(x: 645, y: y))
             boxString = NSAttributedString(string: "\(box.HR)", attributes: bodyATTR)
-            boxString.draw(at: CGPoint(x: 665, y: 130 + ((batters - 1) * 30)))
+            boxString.draw(at: CGPoint(x: 665, y: y))
             boxString = NSAttributedString(string: "\(box.walks)", attributes: bodyATTR)
-            boxString.draw(at: CGPoint(x: 685, y: 130 + ((batters - 1) * 30)))
+            boxString.draw(at: CGPoint(x: 685, y: y))
             boxString = NSAttributedString(string: "\(box.strikeouts)", attributes: bodyATTR)
-            boxString.draw(at: CGPoint(x: 705, y: 130 + ((batters - 1) * 30)))
+            boxString.draw(at: CGPoint(x: 705, y: y))
             boxString = NSAttributedString(string: "\(box.stoleBase)", attributes: bodyATTR)
-            boxString.draw(at: CGPoint(x: 725, y: 130 + ((batters - 1) * 30)))
+            boxString.draw(at: CGPoint(x: 725, y: y))
         }
         let box2 = totbox[0]
         var boxString = NSAttributedString(string: "\(box2.runs)", attributes: bodyATTR)
@@ -482,8 +492,10 @@ class PDFGenerator {
         let v3outs = visitOuts % 3 == 0
         let h3outs = homeOuts % 3 == 0
         let vinning:Int = visitOuts / 3
-        let theInning = homeOuts < visitOuts && h3outs && v3outs ? "\(com.innAbr[Int(vinning)])" :
-                        homeOuts <= visitOuts && !h3outs ? "\(com.innAbr[Int(vinning)])" : "\(com.innAbr[Int(vinning + 1)])"
+        let safeVinning = min(max(vinning, 0), max(0, com.innAbr.count - 1))
+        let nextVinning = min(safeVinning + 1, max(0, com.innAbr.count - 1))
+        let theInning = homeOuts < visitOuts && h3outs && v3outs ? "\(com.innAbr[safeVinning])" :
+                        homeOuts <= visitOuts && !h3outs ? "\(com.innAbr[safeVinning])" : "\(com.innAbr[nextVinning])"
         let theHalf = homeOuts < visitOuts && v3outs ? "Bot" : "Top"
         return "\(theHalf) \n\(theInning)"
     }
@@ -558,7 +570,7 @@ class PDFGenerator {
         pitchString.draw(in: CGRect(x: 315, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
         makeNewRect(rec: CGRect(x:350, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
         pitchString = NSAttributedString(string: "Inn", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 350, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
+        pitchString.draw(in: CGRect(x: 350, y: (numOfPlayers * 30) + 190 + ((numOfPlayers * 30) + 15), width: 30, height: 15))
         makeNewRect(rec: CGRect(x:380, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
         pitchString = NSAttributedString(string: "Outs", attributes: pitchATTR)
         pitchString.draw(in: CGRect(x: 380, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
@@ -755,4 +767,5 @@ class PDFGenerator {
         }
     }
 }
+
 

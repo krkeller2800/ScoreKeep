@@ -461,6 +461,8 @@ struct drawPitchers: View {
     var game:Game
     var team:Team
     var width: CGFloat
+    @Environment(\.modelContext) private var modelContext
+    @State private var inningsFixed = false
     @State var showPitchers:Bool = false
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     let com = Common()
@@ -509,10 +511,10 @@ struct drawPitchers: View {
                     }
                     Text("").frame(width:15)
                 }
-                let oTHit = game.atbats.filter({$0.team == atbats[0].team})
-                let oTHitting = oTHit.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) }
-                let pitchs = game.pitchers.filter({$0.team != atbats[0].team})
-                let pitchers = fixInnings(pitchers: pitchs, atbats: oTHitting)
+                let firstTeam = atbats.first?.team
+                let oTHit: [Atbat] = firstTeam != nil ? game.atbats.filter { $0.team == firstTeam } : []
+                let oTHitting = oTHit.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+                let pitchers: [Pitcher] = firstTeam != nil ? game.pitchers.filter { $0.team != firstTeam } : []
                 ForEach(Array(pitchers.enumerated()), id: \.offset) { index, pitcher in
                     NavigationLink(value: pitcher) {
                         VStack(spacing:0) {
@@ -560,9 +562,8 @@ struct drawPitchers: View {
                 .navigationDestination(for: Pitcher.self) { pitcher in
                     EditPitcherView(pitcher: pitcher, game: atbats[0].game)
                 }
-//                .hid
-                .onAppear() {
-                    
+                .task {
+                    await persistInningsIfNeeded(oTHitting: oTHitting, firstTeam: firstTeam)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
@@ -612,28 +613,43 @@ struct drawPitchers: View {
         }
      
     }
-    func fixInnings(pitchers:[Pitcher], atbats:[Atbat])->[Pitcher] {
-        let pitchs = pitchers.sorted { ($0.startInn, $0.sOuts, $0.sBats) < ($1.startInn, $1.sOuts, $1.sBats) }
-        if let currbatter = atbats.filter({$0.result != "Result"}).last {
+
+    private func persistInningsIfNeeded(oTHitting: [Atbat], firstTeam: Team?) async {
+        // Ensure we only perform this once per view lifecycle
+        if inningsFixed { return }
+        await MainActor.run {
+            inningsFixed = true
+            guard let firstTeam = firstTeam else { return }
+
+            // Select pitchers opposing the batting team and sort by start markers
+            let pitchs = game.pitchers
+                .filter { $0.team != firstTeam }
+                .sorted { ($0.startInn, $0.sOuts, $0.sBats) < ($1.startInn, $1.sOuts, $1.sBats) }
+
+            // Determine the current batter (last non-placeholder at-bat)
+            guard let currbatter = oTHitting.filter({ $0.result != "Result" }).last else { return }
+
+            // If new game state (first batter of first column), ensure the current pitcher has a starting inning
             if currbatter.seq == 1 && currbatter.col == 1 {
                 if let currPitch = pitchs.last {
-                    currPitch.startInn = 1
+                    if currPitch.startInn == 0 { currPitch.startInn = 1 }
                 }
             } else {
-                for pitch in pitchs {
-                    if pitch.startInn == 0 {
-                        if currbatter.outs == 3 {
-                            pitch.startInn = Int(currbatter.inning.rounded(.up)) + 1
-                            pitch.sOuts = 0
-                            pitch.sBats = 0
-                        } else {
-                            pitch.startInn = Int(currbatter.inning.rounded(.up))
-                            pitch.sOuts = currbatter.outs
-                            pitch.sBats = currbatter.seq
-                        }
+                // Backfill missing start markers for pitchers that haven't been initialized
+                for pitch in pitchs where pitch.startInn == 0 {
+                    if currbatter.outs == 3 {
+                        pitch.startInn = Int(currbatter.inning.rounded(.up)) + 1
+                        pitch.sOuts = 0
+                        pitch.sBats = 0
+                    } else {
+                        pitch.startInn = Int(currbatter.inning.rounded(.up))
+                        pitch.sOuts = currbatter.outs
+                        pitch.sBats = currbatter.seq
                     }
                 }
             }
+
+            // Update the end markers for the current pitcher
             if let currPitch = pitchs.last {
                 if currbatter.outs == 3 {
                     currPitch.endInn = Int(currbatter.inning.rounded(.up)) + 1
@@ -644,10 +660,16 @@ struct drawPitchers: View {
                     currPitch.eOuts = currbatter.outs
                     currPitch.eBats = currbatter.seq
                 }
-              
+            }
+
+            // Persist the changes
+            do {
+                try modelContext.save()
+            } catch {
+                // If saving fails, reset the flag so we can retry on next appearance
+                inningsFixed = false
             }
         }
-        return pitchs
     }
 }
 
