@@ -14,9 +14,9 @@ struct GameView: View {
     @Binding var navigationPath: NavigationPath
     @Binding private var title: String
     @Binding var columnVisibility: NavigationSplitViewVisibility
-    @State private var showingAlert = false
+    @State private var showingValidationAlert = false
     @State private var alertMessage = ""
-    @State private var deleteIndexSet: IndexSet?
+    @State private var gamePendingDeletion: Game?
     @State private var date: Date = Date()
     @State private var theDate:  String = ""
     @State private var field: String = ""
@@ -48,6 +48,9 @@ struct GameView: View {
     ]) var teams: [Team]
     
     @Query var games: [Game]
+    @Query var atbats: [Atbat]
+    @Query var pitchers: [Pitcher]
+    @Query var lineups: [Lineup]
     
     // In-memory sorted view of games for team-based sorts
     var displayedGames: [Game] {
@@ -194,7 +197,7 @@ struct GameView: View {
                                             field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
                                         } else {
                                             alertMessage = "You must select a Home and Visiting Team!"
-                                            showingAlert = true
+                                            showingValidationAlert = true
                                         }
                                     }
                             }
@@ -232,11 +235,8 @@ struct GameView: View {
                                 .overlay(Divider().background(.black), alignment: .trailing)
                                 if !title.isEmpty {
                                     if let hName = game.hteam?.name, let vName = game.vteam?.name {
-                                        let hruns = game.atbats.filter { $0.maxbase == "Home" && $0.team.name == hName }.count
-                                        let vruns = game.atbats.filter { $0.maxbase == "Home" && $0.team.name == vName }.count
-                                        let outs = game.atbats.filter { $0.team.name == vName && (com.outresults.contains($0.result) || $0.outAt != "Safe") }.count
-
-                                        let inning = max(1, (outs / 3) + 1)
+                                        let summary = scoreSummary(for: game, homeTeamName: hName, visitingTeamName: vName)
+                                        let inning = max(1, (summary.outs / 3) + 1)
                                         let inningText: String = {
                                             if com.innAbr.indices.contains(inning) {
                                                 return com.innAbr[inning]
@@ -247,11 +247,11 @@ struct GameView: View {
 
                                         let hShort = hName.components(separatedBy: " ").last ?? hName
                                         let vShort = vName.components(separatedBy: " ").last ?? vName
-                                        let winner = vruns > hruns ? vShort : (vruns < hruns ? hShort : "")
+                                        let winner = summary.visitingRuns > summary.homeRuns ? vShort : (summary.visitingRuns < summary.homeRuns ? hShort : "")
                                         let isFinal = inning >= 9 && !winner.isEmpty
                                         let suffix = isFinal ? " Final" : " in \(inningText)"
 
-                                        Text("\(vruns) to \(hruns) \(winner)\(suffix)")
+                                        Text("\(summary.visitingRuns) to \(summary.homeRuns) \(winner)\(suffix)")
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .foregroundColor(.black).bold()
                                             .overlay(Divider().background(.black), alignment: .trailing)
@@ -266,48 +266,39 @@ struct GameView: View {
                                 Spacer(minLength: 20)
                             }
                         }
-                    }
-                    .onDelete(perform: { indexSet in
-                        self.showingAlert = true
-                        self.deleteIndexSet = indexSet
-                    })
-                    .alert(isPresented:$showingAlert) {
-                        Alert(
-                            title: Text("Deleting a Game"),
-                            message: Text("If a game is deleted all associated at bats and pitches will also be deleted and removed from the stats"),
-                            primaryButton: .destructive(Text("Delete")) {
-                                guard let indexSet = deleteIndexSet else { return }
-
-                                let gamesToDelete = indexSet.compactMap { index in
-                                    displayedGames.indices.contains(index) ? displayedGames[index] : nil
-                                }
-
-                                for game in gamesToDelete {
-                                    for atbat in game.atbats {
-                                        modelContext.delete(atbat)
-                                    }
-                                    for pitcher in game.pitchers {
-                                        modelContext.delete(pitcher)
-                                    }
-                                    for lineup in game.lineups {
-                                        modelContext.delete(lineup)
-                                    }
-                                    modelContext.delete(game)
-                                }
-
-                                deleteIndexSet = nil
-                                print("Deleting...")
-                            },
-                            secondaryButton: .cancel {
-                                deleteIndexSet = nil
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                gamePendingDeletion = game
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
-                        )
+                        }
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
                 // Keep the list background hidden so the grouped background shows through
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
+                .alert(alertMessage, isPresented: $showingValidationAlert) {
+                    Button("OK", role: .cancel) { }
+                }
+                .alert(
+                    "Deleting a Game",
+                    isPresented: Binding(
+                        get: { gamePendingDeletion != nil },
+                        set: { if !$0 { gamePendingDeletion = nil } }
+                    ),
+                    presenting: gamePendingDeletion
+                ) { game in
+                    Button("Delete", role: .destructive) {
+                        delete(game)
+                    }
+                    Button("Cancel", role: .cancel) {
+                        gamePendingDeletion = nil
+                    }
+                } message: { _ in
+                    Text("If a game is deleted all associated at bats and pitches will also be deleted and removed from the stats")
+                }
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         Text(self.title)
@@ -381,12 +372,30 @@ struct GameView: View {
             }
         },  sort: effectiveSort)
     }
-    func deleteGame(at offsets: IndexSet) {
+    private func scoreSummary(for game: Game, homeTeamName: String, visitingTeamName: String) -> (homeRuns: Int, visitingRuns: Int, outs: Int) {
+        let gameAtbats = atbats.filter { $0.game == game }
+        let homeRuns = gameAtbats.filter { $0.maxbase == "Home" && $0.team.name == homeTeamName }.count
+        let visitingRuns = gameAtbats.filter { $0.maxbase == "Home" && $0.team.name == visitingTeamName }.count
+        let outs = gameAtbats.filter {
+            $0.team.name == visitingTeamName &&
+            (com.outresults.contains($0.result) || $0.outAt != "Safe")
+        }.count
 
-        for offset in offsets {
-            let game = games[offset]
-            modelContext.delete(game)
+        return (homeRuns, visitingRuns, outs)
+    }
+
+    private func delete(_ game: Game) {
+        for atbat in atbats.filter({ $0.game == game }) {
+            modelContext.delete(atbat)
         }
+        for pitcher in pitchers.filter({ $0.game == game }) {
+            modelContext.delete(pitcher)
+        }
+        for lineup in lineups.filter({ $0.game == game }) {
+            modelContext.delete(lineup)
+        }
+        modelContext.delete(game)
+        gamePendingDeletion = nil
     }
 }
 

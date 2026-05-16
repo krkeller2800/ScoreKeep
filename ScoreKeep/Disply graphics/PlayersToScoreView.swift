@@ -10,6 +10,7 @@ import SwiftData
 struct PlayersToScoreView: View {
     @Environment(\.modelContext) var modelContext
     @Query var atbats: [Atbat]
+    @Query var pitchers: [Pitcher]
     @Binding var lAtbats: [Atbat]
     @Binding var game: Game
     @Binding var isLoading: Bool
@@ -96,10 +97,10 @@ struct PlayersToScoreView: View {
                                                 Spacer(minLength:mCol < 0 ? 0 : mCol)
                                             }
                                         }
-                                        if atbats.count > 0 {
-                                            let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
-                                            let numOfPitchers = CGFloat(game.pitchers.filter { $0.team == opTeam }.count)
-                                            Spacer(minLength:numOfPitchers * 25 + 100)
+                                        if let firstAtbat = atbats.first,
+                                           let opTeam = opponentTeam(for: firstAtbat.team) {
+                                            let numOfPitchers = CGFloat(pitchers.filter { $0.team == opTeam }.count)
+                                            Spacer(minLength: numOfPitchers * 25 + 100)
                                         }
                                     }
                                     .background(GeometryReader {
@@ -108,9 +109,9 @@ struct PlayersToScoreView: View {
                                     .onPreferenceChange(ViewOffsetKey.self) {
                                         offset = $0
                                     }
-                                    if !atbats.isEmpty {
+                                    if let firstAtbat = atbats.first,
+                                       let opTeam = opponentTeam(for: firstAtbat.team) {
                                         drawSing(space: calcSpace(gWidth:gWidth), atbats: atbats.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) },colbox: colbox,batbox: batbox, totbox: totbox,sWidth: gWidth, isLoading: $isLoading)
-                                        let opTeam = atbats[0].team == game.hteam ? game.vteam! : game.hteam!
                                         drawPitchers(space: calcSpace(gWidth:gWidth), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam, width: gWidth)
                                     }
                                 }
@@ -151,7 +152,7 @@ struct PlayersToScoreView: View {
                     updMaxBases()
                     updatePitcherMarkers()
                 }
-                .onChange(of: game.pitchers.count) { _, _ in
+                .onChange(of: pitchers.count) { _, _ in
                     // A pitcher was added or removed; sync markers now.
                     updatePitcherMarkers()
                 }
@@ -318,16 +319,15 @@ struct PlayersToScoreView: View {
         }
     }
     private func updatePitcherMarkers() {
-        // Compute against the currently displayed team's at-bats
+        // Compute against the currently displayed team's queried at-bats instead of the mutable game relationship.
         let firstTeam = atbats.first?.team
-        let oTHit: [Atbat] = firstTeam != nil ? game.atbats.filter { $0.team == firstTeam } : []
-        let oTHitting = oTHit.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+        let oTHitting = atbats.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
 
         // Last completed at-bat for this team (may be nil before first PA completes)
         let currbatter = oTHitting.last(where: { $0.result != "Result" })
 
         // Opponent’s pitchers (the ones facing this team). Use insertion order: last = most recently added.
-        let oppPitchers = game.pitchers.filter { $0.team != firstTeam }
+        let oppPitchers = pitchers.filter { $0.team != firstTeam }
         guard !oppPitchers.isEmpty else { return }
 
         // Current pitcher is the most recently added for the opposing team
@@ -450,7 +450,20 @@ struct PlayersToScoreView: View {
                  || atbat.player.number.localizedStandardContains(searchString))
             }
         },  sort: sortOrder)
+        _pitchers = Query(filter: #Predicate { pitcher in
+            pitcher.game.date == date && pitcher.game.location == location
+        })
     }
+    private func opponentTeam(for battingTeam: Team) -> Team? {
+        if battingTeam == game.hteam {
+            return game.vteam
+        }
+        if battingTeam == game.vteam {
+            return game.hteam
+        }
+        return nil
+    }
+
     func doAtbat(ind:Int, index:Int, atbat:Atbat) {
         let posx = Int(ind)
         let posy = Int(index+1)

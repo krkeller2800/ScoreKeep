@@ -218,28 +218,34 @@ struct ImportPlayersView: View {
         self.importURL = iURL
     }
     func decodePlayers() -> [SharePlayer] {
-        
         let needsAccess = importURL.startAccessingSecurityScopedResource()
         defer {
             if needsAccess {
                 importURL.stopAccessingSecurityScopedResource()
             }
         }
+
         do {
-            let data = try Data(contentsOf: importURL.absoluteURL)
-            
-            let decoder = JSONDecoder()
-            
-            guard let loadedFile = try? decoder.decode([SharePlayer].self, from: data) else {
-                
-                throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Invalid user data"))
-            }
+            let data = try Data(contentsOf: importURL)
+            let loadedFile = try JSONDecoder().decode([SharePlayer].self, from: data)
             return loadedFile.sorted { $0.batOrder < $1.batOrder }
-        }
-        catch {
+        } catch let DecodingError.keyNotFound(key, context) {
+            alertMessage = "Import file is missing '\(key.stringValue)' at \(context.codingPath.map(\.stringValue).joined(separator: "."))."
+            showingAlert = true
+        } catch let DecodingError.typeMismatch(type, context) {
+            alertMessage = "Import file has the wrong value type for \(type) at \(context.codingPath.map(\.stringValue).joined(separator: "."))."
+            showingAlert = true
+        } catch let DecodingError.valueNotFound(type, context) {
+            alertMessage = "Import file is missing a value for \(type) at \(context.codingPath.map(\.stringValue).joined(separator: "."))."
+            showingAlert = true
+        } catch let DecodingError.dataCorrupted(context) {
+            alertMessage = "Import file is not valid player data: \(context.debugDescription)"
+            showingAlert = true
+        } catch {
             alertMessage = "Error reading file: \(error.localizedDescription)"
             showingAlert = true
         }
+
         return []
     }
     func decodeGame() -> [ShareGame] {
