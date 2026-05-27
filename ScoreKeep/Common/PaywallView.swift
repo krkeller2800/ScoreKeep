@@ -8,10 +8,36 @@
 import SwiftUI
 import StoreKit
 
+enum PaywallContext {
+    case general
+    case gameLimit
+    case downloadLimit
+    case reports
+
+    var message: String? {
+        switch self {
+        case .general:
+            return nil
+        case .gameLimit:
+            return "Score unlimited games this season."
+        case .downloadLimit:
+            return "Download unlimited team rosters."
+        case .reports:
+            return "Create PDF reports for coaches and parents."
+        }
+    }
+}
+
 struct PaywallView: View {
     @EnvironmentObject var purchaseManager: PurchaseManager
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+
+    let context: PaywallContext
+
+    init(context: PaywallContext = .general) {
+        self.context = context
+    }
 
     // These will be driven by the loaded product's year
     private var productYear: String {
@@ -33,10 +59,10 @@ struct PaywallView: View {
     }
 
     var benefits: [String] = [
-        "Unlimited scoring and stats",
-        "Share and import teams/games",
-        "PDF exports and reports",
-        "Priority updates"
+        "Score every game this season",
+        "Track full team and player stats",
+        "Export coach-ready PDF reports",
+        "Import MLB/team rosters without limits"
     ]
 
     private let privacyURL = URL(string: "https://komakode.com/Privacy%20Policy")!
@@ -131,6 +157,16 @@ struct PaywallView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(compact ? 1 : 2)
                 .minimumScaleFactor(0.8)
+
+            if let message = context.message {
+                Text(message)
+                    .font(compact ? (extraCompact ? .subheadline.bold() : .headline.bold()) : .title3.bold())
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .padding(.top, compact ? 2 : 4)
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -157,7 +193,7 @@ struct PaywallView: View {
             } label: {
                 HStack(spacing: 8) {
                     if purchaseManager.isPurchasing { ProgressView().tint(.white) }
-                    Text(purchaseManager.isPurchasing ? "Processing..." : "Continue")
+                    Text(purchaseManager.isPurchasing ? "Processing..." : "Buy Season Pass")
                         .bold()
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -169,27 +205,33 @@ struct PaywallView: View {
             }
             .disabled(purchaseManager.isPurchasing)
 
-            // Keep Restore button but clarify behavior via manager message
             Button {
                 Task { await purchaseManager.restorePurchases() }
             } label: {
-                Text("Restore Purchases")
+                Text("Check Purchase Status")
                     .font(compact ? (extraCompact ? .caption : .footnote) : .body)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, compact ? (extraCompact ? 6 : 8) : 10)
                     .overlay(Capsule().stroke(.blue.opacity(0.4), lineWidth: 1))
             }
             .disabled(purchaseManager.isPurchasing)
+
+            Text("The Season Pass is non-renewing. It unlocks ScoreKeep through \(productYear) and does not renew automatically.")
+                .font(compact ? (extraCompact ? .caption2 : .caption) : .footnote)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.85)
         }
     }
 
     @ViewBuilder
     private func benefitsGrid(compact: Bool, extraCompact: Bool) -> some View {
         let compactBenefits = [
-            "Unlimited scoring & stats",
-            "Share teams & games",
-            "PDF exports",
-            "Priority updates"
+            "Score every game",
+            "Track team stats",
+            "Coach-ready PDFs",
+            "Unlimited rosters"
         ]
         let benefitsToShow = compact ? compactBenefits : benefits
         let spacing = compact ? (extraCompact ? 6 : 8) : 12

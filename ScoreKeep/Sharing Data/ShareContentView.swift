@@ -64,6 +64,7 @@ struct ShareContentView: View {
     
     @AppStorage("selectedShareCriteria") var selectedShareCriteria: SortCriteria = .orderAsc
     @State private var showPaywall: Bool = false
+    @State private var paywallContext: PaywallContext = .general
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case nameAsc, nameDec, orderAsc, numAsc
@@ -208,6 +209,7 @@ struct ShareContentView: View {
                         // Upgrade button: only show when not premium
                         if !isPremium {
                             Button("Upgrade") {
+                                paywallContext = .downloadLimit
                                 showPaywall = true
                             }
                             .buttonStyle(.borderedProminent)
@@ -287,6 +289,7 @@ struct ShareContentView: View {
                     if !isPremium && mlbCounter.value >= 4 {
                         showingAlert = true
                         alertMessage = "You’ve reached your 4 free downloads. Upgrade to continue."
+                        paywallContext = .downloadLimit
                         showPaywall = true
                         return
                     }
@@ -357,7 +360,7 @@ struct ShareContentView: View {
         // Paywall presentation:
         // - iPhone: full screen
         // - iPad: largest sheet possible
-        .modifier(PaywallPresentation(isPresented: $showPaywall))
+        .modifier(PaywallPresentation(isPresented: $showPaywall, context: paywallContext))
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Share")
@@ -711,19 +714,20 @@ struct ShareContentView: View {
 // Helper view modifier to present Paywall as sheet on iPad, full screen on iPhone
 private struct PaywallPresentation: ViewModifier {
     @Binding var isPresented: Bool
+    let context: PaywallContext
 
     func body(content: Content) -> some View {
         if UIDevice.type == "iPad" {
             content
                 .sheet(isPresented: $isPresented) {
-                    PaywallView()
+                    PaywallView(context: context)
                         .presentationDetents([.large])
                         .presentationDragIndicator(.visible)
                 }
         } else {
             content
                 .fullScreenCover(isPresented: $isPresented) {
-                    PaywallView()
+                    PaywallView(context: context)
                 }
         }
     }

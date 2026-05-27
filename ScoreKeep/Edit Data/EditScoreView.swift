@@ -10,6 +10,7 @@ import AVFoundation
 
 struct EditScoreView: View {
     @Environment(\.modelContext) var modelContext
+    @EnvironmentObject var purchaseManager: PurchaseManager
     @State var game: Game
     @Binding var navigationPath: NavigationPath
     @Binding var columnVisibility:NavigationSplitViewVisibility
@@ -32,6 +33,7 @@ struct EditScoreView: View {
     @State private var showReport = false
     @State private var showPitchRpt = false
     @State private var shareReport = false
+    @State private var showPaywall = false
     @State private var isLoading = false
     @State private var isError = false
     @State private var alertText = ""
@@ -49,6 +51,9 @@ struct EditScoreView: View {
     @FocusState private var focusedField: FocusField?
     
     @State var date = Date.now
+
+    private var isPremium: Bool { purchaseManager.isSeasonPassActive }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -166,6 +171,10 @@ struct EditScoreView: View {
                             PitcherContentView(team: opTeam, game: game)
                         }
                         Button {
+                            guard isPremium else {
+                                showPaywall = true
+                                return
+                            }
                             let generatePDF = PDFGenerator()
                             url = generatePDF.generatePDFData(game: game, team: team, title: "Test PDF", body: "This is a test")
                         } label: {
@@ -197,6 +206,10 @@ struct EditScoreView: View {
                     }
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button(action: {
+                            guard isPremium else {
+                                showPaywall = true
+                                return
+                            }
                             showPitchRpt.toggle()
                             isLoading = true
                         }) {
@@ -213,6 +226,10 @@ struct EditScoreView: View {
                         }
                         Spacer()
                         Button(action: {
+                            guard isPremium else {
+                                showPaywall = true
+                                return
+                            }
                             showReport.toggle()
                             isLoading = true
                         }) {
@@ -255,6 +272,11 @@ struct EditScoreView: View {
             .screenshotMaker { screenshotMaker in
                      self.screenshotMaker = screenshotMaker
                  }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView(context: .reports)
+                .environmentObject(purchaseManager)
+                .presentationDetents([.large])
         }
      
     }

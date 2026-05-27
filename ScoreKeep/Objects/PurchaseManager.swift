@@ -19,9 +19,8 @@ final class PurchaseManager: ObservableObject {
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
-    // Option B: Build product IDs by convention from the calendar year.
-    // We attempt the current year first, then fall back to last year if needed.
-    // Keep the prefix stable and ensure App Store Connect has the product approved in advance.
+    // Build the product ID by convention from the current calendar year.
+    // Keep the prefix stable and ensure App Store Connect has the current-year product approved in advance.
     private let productIDPrefix = "com.komakode.ScoreKeep.SeasonPass"
 
     // Local entitlement storage (Keychain)
@@ -46,43 +45,36 @@ final class PurchaseManager: ObservableObject {
     func loadProducts() async {
         lastErrorMessage = nil
 
-        // Build candidate IDs: current year, then last year as a safety fallback
-        let currentYear = Calendar.current.component(.year, from: Date())
-        let candidates = [
-            "\(productIDPrefix)\(currentYear)",
-            "\(productIDPrefix)\(currentYear - 1)"
-        ]
+        let currentProductID = currentSeasonPassProductID()
 
-        // Try to load the first available product among candidates
         do {
-            if let product = try await loadFirstAvailableProduct(from: candidates) {
+            if let product = try await loadCurrentYearProduct(productID: currentProductID) {
                 self.seasonPassProduct = product
                 self.lastErrorMessage = nil
                 return
             }
-            // Retry once after a short delay
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-            if let product = try await loadFirstAvailableProduct(from: candidates) {
+
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            if let product = try await loadCurrentYearProduct(productID: currentProductID) {
                 self.seasonPassProduct = product
                 self.lastErrorMessage = nil
             } else {
                 self.seasonPassProduct = nil
-                self.lastErrorMessage = "We couldn’t load purchase options. Please try again in a moment."
+                self.lastErrorMessage = "We couldn’t load this year’s Season Pass. Please try again in a moment."
             }
         } catch {
-            // Retry once on transient errors
             do {
                 try await Task.sleep(nanoseconds: 500_000_000)
-                if let product = try await loadFirstAvailableProduct(from: candidates) {
+                if let product = try await loadCurrentYearProduct(productID: currentProductID) {
                     self.seasonPassProduct = product
                     self.lastErrorMessage = nil
                 } else {
                     self.seasonPassProduct = nil
-                    self.lastErrorMessage = "We couldn’t load purchase options. Please try again in a moment."
+                    self.lastErrorMessage = "We couldn’t load this year’s Season Pass. Please try again in a moment."
                 }
             } catch {
                 self.seasonPassProduct = nil
-                self.lastErrorMessage = "We couldn’t load purchase options. Please try again in a moment."
+                self.lastErrorMessage = "We couldn’t load this year’s Season Pass. Please try again in a moment."
             }
         }
     }
@@ -93,7 +85,7 @@ final class PurchaseManager: ObservableObject {
         await purchase(product: product)
     }
 
-    /// Restore flow note: Non-renewing subscriptions are not restored via AppStore.sync.
+    /// Checks current StoreKit purchase status for the non-renewing Season Pass.
     func restore() async {
         await restorePurchases()
     }
@@ -111,6 +103,12 @@ final class PurchaseManager: ObservableObject {
         lastErrorMessage = nil
         isPurchasing = true
         defer { isPurchasing = false }
+
+        guard product.id == currentSeasonPassProductID() else {
+            seasonPassProduct = nil
+            lastErrorMessage = "This Season Pass is not for the current season. Please try again after this year’s pass is available."
+            return
+        }
 
         do {
             let result = try await product.purchase()
@@ -142,9 +140,8 @@ final class PurchaseManager: ObservableObject {
         }
     }
 
-    /// Restores purchases and refreshes entitlements.
-    /// Note: Non‑renewing subscriptions do not restore automatically with App Store.
-    /// This keeps the button behavior but clarifies to the user.
+    /// Checks purchase status and refreshes local entitlements.
+    /// The Season Pass is non-renewing, so it does not appear as an auto-renewing subscription.
     func restorePurchases() async {
         lastErrorMessage = nil
         isPurchasing = true
@@ -152,10 +149,12 @@ final class PurchaseManager: ObservableObject {
 
         do {
             try await AppStore.sync()
-            // AppStore.sync does not make non‑renewing subscriptions active.
+            // AppStore.sync does not make non-renewing purchases active on a new device.
             await refreshEntitlements()
-            if !isSeasonPassActive {
-                self.lastErrorMessage = "Non‑renewing purchases can’t be restored automatically. If you changed devices, please contact support."
+            if isSeasonPassActive {
+                self.lastErrorMessage = "Your Season Pass is active on this device. It is non-renewing and does not renew automatically."
+            } else {
+                self.lastErrorMessage = "The Season Pass is a non-renewing purchase. It unlocks ScoreKeep through the season year and does not renew automatically. If you changed devices and need help restoring access, please contact support."
             }
         } catch {
             self.lastErrorMessage = "We couldn’t restore purchases. Please try again."
@@ -217,17 +216,14 @@ final class PurchaseManager: ObservableObject {
 
     // MARK: - Product loading helpers
 
-    private func loadFirstAvailableProduct(from candidateIDs: [String]) async throws -> Product? {
-        // Query all candidates in one call; StoreKit will return only those that exist
-        let products = try await Product.products(for: candidateIDs)
-        // Prefer current year if present; otherwise return any available (e.g., last year)
-        // Maintain the order of candidates as preference
-        for id in candidateIDs {
-            if let match = products.first(where: { $0.id == id }) {
-                return match
-            }
-        }
-        return nil
+    private func loadCurrentYearProduct(productID: String) async throws -> Product? {
+        let products = try await Product.products(for: [productID])
+        return products.first { $0.id == productID }
+    }
+
+    private func currentSeasonPassProductID() -> String {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return "\(productIDPrefix)\(currentYear)"
     }
 
     // MARK: - Year handling

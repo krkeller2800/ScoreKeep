@@ -27,6 +27,7 @@ struct ScoreContentView: View {
     // Free tier: remaining game creations for non‑premium users (Keychain-backed)
     @StateObject private var freeCreates = KeychainBackedCounter(key: "freeGameCreatesRemainingKC", defaultValue: 2)
     @State private var showPaywall: Bool = false
+    @State private var paywallContext: PaywallContext = .general
     @State private var pendingCreation: PendingCreation?
 
     enum SortCriteria: String, CaseIterable, Identifiable {
@@ -80,7 +81,10 @@ struct ScoreContentView: View {
         let titleBinding: Binding<String> = $title
         let navBinding: Binding<NavigationPath> = $path
         let columnBinding: Binding<NavigationSplitViewVisibility> = $columnVisability
-        let requestUpgrade: () -> Void = { showPaywall = true }
+        let requestUpgrade: () -> Void = {
+            paywallContext = .gameLimit
+            showPaywall = true
+        }
         let requestCreateGame: (String, String, Bool, Team, Team, Bool) -> Void = { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
             handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam, isSeeded: isSeeded)
         }
@@ -266,7 +270,7 @@ struct ScoreContentView: View {
     // MARK: - Paywall sheet content (extracted)
     @ViewBuilder
     private func paywallSheetContent() -> some View {
-        PaywallView()
+        PaywallView(context: paywallContext)
             .environmentObject(purchaseManager)
             // Force the largest detent so the sheet opens tall and avoids cramped scrolling
             .presentationDetents([.large])
@@ -289,6 +293,7 @@ struct ScoreContentView: View {
         }
 
         guard freeCreates.value > 0 else {
+            paywallContext = .gameLimit
             showPaywall = true
             return
         }
