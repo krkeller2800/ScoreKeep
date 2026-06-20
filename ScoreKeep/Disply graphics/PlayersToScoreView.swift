@@ -53,13 +53,15 @@ struct PlayersToScoreView: View {
                     ScrollView() {
                         HStack {
                             VStack (spacing: 0){
-                                ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
+                                ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
                                     HStack(spacing: 2) {
                                         if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                             let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
-                                            let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
-                                            let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
-                                            Text(atbat.player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundColor(.black)
+                                            let player = atbat.player
+                                            let strikeIt = containsPlayer(player, in: game.replaced)
+                                            let isIncoming = containsPlayer(player, in: game.incomings)
+                                            let iName = isIncoming ? "    \(player.name)" : player.name
+                                            Text(player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundColor(.black)
                                                 .overlay(Divider().background(.black), alignment: .trailing)
                                             Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt)
                                                 .fixedSize(horizontal: true, vertical: true).padding(.leading,5).lineLimit(2)
@@ -77,7 +79,7 @@ struct PlayersToScoreView: View {
                                     let newCol = (bigCol?.col ?? 1) + 1
                                     let maxCol = newCol < bSize ? bSize : newCol
                                     VStack (spacing: 0) {
-                                        ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
+                                        ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
                                             HStack(spacing: 0) {
                                                 if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                                     ForEach((1...maxCol), id: \.self) {ind in
@@ -462,6 +464,11 @@ struct PlayersToScoreView: View {
             return game.hteam
         }
         return nil
+    }
+
+    private func containsPlayer(_ player: Player, in players: [Player]) -> Bool {
+        let playerID = player.persistentModelID
+        return players.contains { $0.persistentModelID == playerID }
     }
 
     func doAtbat(ind:Int, index:Int, atbat:Atbat) {
