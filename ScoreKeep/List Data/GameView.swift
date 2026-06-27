@@ -162,7 +162,7 @@ struct GameView: View {
                                 Text("Pick").tag(Optional<Team>.none)
                                 if teams.isEmpty == false {
                                     Divider()
-                                    ForEach(teams) { team in
+                                    ForEach(teams, id: \.ident) { team in
                                         if team.name != "" {
                                             Text(team.name).tag(Optional(team))
                                         }
@@ -175,7 +175,7 @@ struct GameView: View {
                                 Text("Pick").tag(Optional<Team>.none)
                                 if teams.isEmpty == false {
                                     Divider()
-                                    ForEach(teams, id: \.self) { team in
+                                    ForEach(teams, id: \.ident) { team in
                                         if team.name != "" {
                                             Text(team.name).tag(Optional(team))
                                         }
@@ -203,7 +203,7 @@ struct GameView: View {
                             }
                         }
                     }
-                    ForEach(displayedGames) { game in
+                    ForEach(displayedGames, id: \.ident) { game in
                         NavigationLink(value: game) {
                             HStack {
                                 let date = ISO8601DateFormatter().date(from: game.date) ?? Date()

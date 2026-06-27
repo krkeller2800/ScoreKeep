@@ -50,10 +50,8 @@ struct ScoreContentView: View {
             return [SortDescriptor(\Game.date, order: .forward)]
         case .dateDec:
             return [SortDescriptor(\Game.date, order: .reverse)]
-        case .homeTeam:
-            return [SortDescriptor(\Game.hteam!.name, order: .forward)]
-        case .visitorTeam:
-            return [SortDescriptor(\Game.vteam!.name, order: .forward)]
+        case .homeTeam, .visitorTeam:
+            return []
         }
     }
 
