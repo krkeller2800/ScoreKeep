@@ -10,6 +10,8 @@ import Foundation
 class DownloadFiles {
   
     // MARK: - JSON models for komakode.com/Teams/index.json
+    // Compatibility schema used by released ScoreKeep versions.
+    // Keep divisions, teams, and each team URL compatible with /Teams/index.json.
     private struct TeamsIndex: Decodable {
         let updated: String?
         let divisions: [IndexDivision]
@@ -114,7 +116,8 @@ class DownloadFiles {
             throw URLError(.badURL)
         }
 
-        // Initiate the download
+        // Roster URLs come from the compatibility manifest and often use .ScoreKeep_Players.
+        // Website routing must keep these files directly downloadable instead of redirecting to HTML.
         let (downloadURL, _) = try await URLSession.shared.download(from: url)
 
         // Define the destination URL in a permanent location (e.g., Documents directory)
@@ -130,4 +133,3 @@ class DownloadFiles {
 //        print("File downloaded successfully to: \(destinationURL.path)")
     }
 }
-

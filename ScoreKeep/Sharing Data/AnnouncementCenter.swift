@@ -29,7 +29,8 @@ final class AnnouncementCenter: ObservableObject {
     @AppStorage("dismissedMessageIDsData") private var dismissedIDsData: Data = Data()
     private var dismissedIDs: Set<String> = []
 
-    // Remote source URL
+    // Compatibility endpoint used by released ScoreKeep versions.
+    // Keep /Teams/message.json and its expected JSON shape stable; website routing must not replace it with HTML.
     private let messagesURL = URL(string: "https://komakode.com/Teams/message.json")!
 
     init() {

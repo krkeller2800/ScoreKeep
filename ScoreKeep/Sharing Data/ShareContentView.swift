@@ -300,7 +300,8 @@ struct ShareContentView: View {
                             throw URLError(.fileDoesNotExist)
                         }
 
-                        // Destination filename remains TeamName.ScoreKeep_Players
+                        // .ScoreKeep_Players is part of the import contract used by released versions.
+                        // Keep manifest roster URLs and downloaded filenames compatible.
                         let destinationFileName = "\(down).ScoreKeep_Players"
                         try await downTeam.downloadFile(from: directURLString, to: destinationFileName)
 
@@ -604,6 +605,8 @@ struct ShareContentView: View {
 
         let downloadFiles = DownloadFiles()
 
+        // Compatibility endpoint used by released ScoreKeep versions.
+        // Keep /Teams/index.json and its expected JSON schema stable; website redirects must not replace it with HTML.
         guard let indexURL = URL(string: "https://komakode.com/Teams/index.json") else { return }
         // Fetch and display the last updated date from the index
         fetchIndexUpdated(from: indexURL)
@@ -732,4 +735,3 @@ private struct PaywallPresentation: ViewModifier {
         }
     }
 }
-
