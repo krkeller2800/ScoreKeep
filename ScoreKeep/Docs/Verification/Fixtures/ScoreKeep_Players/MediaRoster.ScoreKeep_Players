@@ -1,0 +1,21 @@
+[
+  {
+    "id": "30000000-0000-4000-8000-000000000001",
+    "name": "Fixture Media Player",
+    "number": "9",
+    "position": "RF",
+    "batDir": "Left",
+    "batOrder": 1,
+    "team": {
+      "id": "30000000-0000-4000-8000-000000000101",
+      "name": "Fixture Media Club",
+      "coach": "Coach Media",
+      "details": "Synthetic media roster fixture",
+      "players": [],
+      "games": [],
+      "logo": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+    },
+    "atbats": [],
+    "photo": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+  }
+]

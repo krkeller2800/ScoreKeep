@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Synthetic Roster Download Error</title>
+  </head>
+  <body>
+    <h1>Roster unavailable</h1>
+    <p>This deterministic fixture is not ScoreKeep roster JSON.</p>
+  </body>
+</html>

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "50000000-0000-4000-8000-000000000001",
+    "name": "Fixture Alpha Conflict",
+    "number": "8",
+    "position": "2B",
+    "batDir": "Right",
+    "batOrder": 1,
+    "team": {
+      "id": "50000000-0000-4000-8000-000000000101",
+      "name": "Fixture Conflict Club",
+      "coach": "",
+      "details": "Synthetic duplicate and conflict fixture",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  },
+  {
+    "id": "50000000-0000-4000-8000-000000000002",
+    "name": "Fixture Beta Conflict",
+    "number": "8",
+    "position": "3B",
+    "batDir": "Left",
+    "batOrder": 2,
+    "team": {
+      "id": "50000000-0000-4000-8000-000000000101",
+      "name": "Fixture Conflict Club",
+      "coach": "",
+      "details": "Synthetic duplicate and conflict fixture",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

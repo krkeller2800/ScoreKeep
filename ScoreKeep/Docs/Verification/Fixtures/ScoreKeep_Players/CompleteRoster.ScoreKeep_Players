@@ -1,0 +1,78 @@
+[
+  {
+    "id": "20000000-0000-4000-8000-000000000001",
+    "name": "Fixture Order One",
+    "number": "3",
+    "position": "P",
+    "batDir": "Right",
+    "batOrder": 1,
+    "team": {
+      "id": "20000000-0000-4000-8000-000000000101",
+      "name": "Fixture Complete Club",
+      "coach": "Coach Example",
+      "details": "Synthetic complete roster fixture",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000002",
+    "name": "Fixture Order Two",
+    "number": "12",
+    "position": "C",
+    "batDir": "Left",
+    "batOrder": 2,
+    "team": {
+      "id": "20000000-0000-4000-8000-000000000101",
+      "name": "Fixture Complete Club",
+      "coach": "Coach Example",
+      "details": "Synthetic complete roster fixture",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000003",
+    "name": "Fixture Order Three",
+    "number": "27",
+    "position": "SS",
+    "batDir": "Switch",
+    "batOrder": 3,
+    "team": {
+      "id": "20000000-0000-4000-8000-000000000101",
+      "name": "Fixture Complete Club",
+      "coach": "Coach Example",
+      "details": "Synthetic complete roster fixture",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000004",
+    "name": "Fixture Order Four",
+    "number": "44",
+    "position": "CF",
+    "batDir": "Right",
+    "batOrder": 4,
+    "team": {
+      "id": "20000000-0000-4000-8000-000000000101",
+      "name": "Fixture Complete Club",
+      "coach": "Coach Example",
+      "details": "Synthetic complete roster fixture",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]
