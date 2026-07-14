@@ -139,29 +139,7 @@ struct ScoreContentView: View {
 
                 // Leading: Add Team
                 ToolbarItem(placement: .topBarLeading) {
-                    if #available(iOS 26.0, *) {
-                        Button {
-                            let team = Team(name: "", coach: "", details: "")
-                            modelContext.insert(team)
-                            try? modelContext.save()
-                            path.append(team)
-                        } label: {
-                            Text("Add Team")
-                                .frame(maxWidth: .infinity)
-                                .foregroundColor(.blue)
-                                .lineLimit(1)
-                        }
-                        .buttonStyle(.glassProminent)
-                        .tint(.blue.opacity(0.075))
-                    } else {
-                        Button("Add Team") {
-                            let team = Team(name: "", coach: "", details: "")
-                            modelContext.insert(team)
-                            try? modelContext.save()
-                            path.append(team)
-                        }
-                        .buttonStyle(ToolBarButtonStyle())
-                    }
+                    addTeamToolbarButton()
                 }
 
                 // Leading: Score/Edit segmented control placed immediately to the right of Add Team
@@ -265,6 +243,34 @@ struct ScoreContentView: View {
         $columnVisability
     }
 
+    @ViewBuilder
+    private func addTeamToolbarButton() -> some View {
+        if #available(iOS 26.0, *) {
+            Button {
+                addBlankTeam()
+            } label: {
+                Text("Add Team")
+                    .frame(maxWidth: .infinity)
+                    .foregroundColor(.blue)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(.blue.opacity(0.075))
+        } else {
+            Button("Add Team") {
+                addBlankTeam()
+            }
+            .buttonStyle(ToolBarButtonStyle())
+        }
+    }
+
+    private func addBlankTeam() {
+        let team = Team(name: "", coach: "", details: "")
+        modelContext.insert(team)
+        try? modelContext.save()
+        path.append(team)
+    }
+
     // MARK: - Paywall sheet content (extracted)
     @ViewBuilder
     private func paywallSheetContent() -> some View {
@@ -343,4 +349,3 @@ private struct PresentationDragIndicatorHidden: ViewModifier {
         }
     }
 }
-
