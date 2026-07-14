@@ -1,0 +1,133 @@
+{
+  "id": "50000000-0000-4000-8000-000000000001",
+  "date": "2026-04-05T18:00:00Z",
+  "location": "Fixture Field Epsilon",
+  "highLights": "Synthetic lineup compatibility fixture.",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": true,
+  "numInnings": 6,
+  "vteam": {
+    "id": "50000000-0000-4000-8000-000000000101",
+    "name": "Fixture Lineup Visitors",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "50000000-0000-4000-8000-000000001001",
+        "name": "Fixture Alpha Lineup",
+        "number": "2",
+        "position": "SS",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "50000000-0000-4000-8000-000000000101",
+          "name": "Fixture Lineup Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      },
+      {
+        "id": "50000000-0000-4000-8000-000000001002",
+        "name": "Fixture Beta Lineup",
+        "number": "8",
+        "position": "CF",
+        "batDir": "L",
+        "batOrder": 2,
+        "team": {
+          "id": "50000000-0000-4000-8000-000000000101",
+          "name": "Fixture Lineup Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "50000000-0000-4000-8000-000000000201",
+    "name": "Fixture Lineup Home",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "50000000-0000-4000-8000-000000002001",
+        "name": "Fixture Gamma Lineup",
+        "number": "14",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "50000000-0000-4000-8000-000000000201",
+          "name": "Fixture Lineup Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [
+    {
+      "id": "50000000-0000-4000-8000-000000020001",
+      "everyoneHits": true,
+      "game": null,
+      "team": {
+        "id": "50000000-0000-4000-8000-000000000101",
+        "name": "Fixture Lineup Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "inning": 1,
+      "players": [
+        {
+          "id": "50000000-0000-4000-8000-000000001001",
+          "name": "Fixture Alpha Lineup",
+          "number": "2",
+          "position": "SS",
+          "batDir": "R",
+          "batOrder": 1,
+          "team": null,
+          "atbats": [],
+          "photo": ""
+        },
+        {
+          "id": "50000000-0000-4000-8000-000000001002",
+          "name": "Fixture Beta Lineup",
+          "number": "8",
+          "position": "CF",
+          "batDir": "L",
+          "batOrder": 2,
+          "team": null,
+          "atbats": [],
+          "photo": ""
+        }
+      ]
+    }
+  ],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

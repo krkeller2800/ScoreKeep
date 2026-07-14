@@ -1,0 +1,145 @@
+{
+  "id": "60000000-0000-4000-8000-000000000001",
+  "date": "2026-04-06T18:00:00Z",
+  "location": "Fixture Field Zeta",
+  "highLights": "Synthetic pitcher compatibility fixture.",
+  "hscore": 1,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "60000000-0000-4000-8000-000000000101",
+    "name": "Fixture Pitch Visitors",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "60000000-0000-4000-8000-000000001001",
+        "name": "Fixture Jamie Pitch",
+        "number": "18",
+        "position": "SP",
+        "batDir": "R",
+        "batOrder": 99,
+        "team": {
+          "id": "60000000-0000-4000-8000-000000000101",
+          "name": "Fixture Pitch Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "60000000-0000-4000-8000-000000000201",
+    "name": "Fixture Pitch Home",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "60000000-0000-4000-8000-000000002001",
+        "name": "Fixture Robin Pitch",
+        "number": "28",
+        "position": "SP",
+        "batDir": "L",
+        "batOrder": 99,
+        "team": {
+          "id": "60000000-0000-4000-8000-000000000201",
+          "name": "Fixture Pitch Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [
+    {
+      "id": "60000000-0000-4000-8000-000000030001",
+      "player": {
+        "id": "60000000-0000-4000-8000-000000001001",
+        "name": "Fixture Jamie Pitch",
+        "number": "18",
+        "position": "SP",
+        "batDir": "R",
+        "batOrder": 99,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "team": {
+        "id": "60000000-0000-4000-8000-000000000101",
+        "name": "Fixture Pitch Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "game": null,
+      "startInn": 1,
+      "sOuts": 0,
+      "sBats": 0,
+      "endInn": 4,
+      "eOuts": 2,
+      "eBats": 13,
+      "strikeOuts": 3,
+      "walks": 2,
+      "hits": 4,
+      "runs": 1,
+      "won": false
+    },
+    {
+      "id": "60000000-0000-4000-8000-000000030002",
+      "player": {
+        "id": "60000000-0000-4000-8000-000000002001",
+        "name": "Fixture Robin Pitch",
+        "number": "28",
+        "position": "SP",
+        "batDir": "L",
+        "batOrder": 99,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "team": {
+        "id": "60000000-0000-4000-8000-000000000201",
+        "name": "Fixture Pitch Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "game": null,
+      "startInn": 1,
+      "sOuts": 0,
+      "sBats": 0,
+      "endInn": 7,
+      "eOuts": 3,
+      "eBats": 20,
+      "strikeOuts": 5,
+      "walks": 1,
+      "hits": 3,
+      "runs": 0,
+      "won": true
+    }
+  ],
+  "replaced": [],
+  "incomings": []
+}

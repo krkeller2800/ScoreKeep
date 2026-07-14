@@ -1,0 +1,191 @@
+{
+  "id": "20000000-0000-4000-8000-000000000001",
+  "date": "2026-04-02T18:00:00Z",
+  "location": "Fixture Field Beta",
+  "highLights": "Synthetic in-progress compatibility state; not a completed game.",
+  "hscore": 1,
+  "vscore": 2,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "20000000-0000-4000-8000-000000000101",
+    "name": "Fixture Progress Visitors",
+    "coach": "Coach Synthetic V",
+    "details": "Synthetic visiting side",
+    "players": [
+      {
+        "id": "20000000-0000-4000-8000-000000001001",
+        "name": "Fixture Avery Progress",
+        "number": "4",
+        "position": "SS",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "20000000-0000-4000-8000-000000000101",
+          "name": "Fixture Progress Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000001002",
+        "name": "Fixture Blair Progress",
+        "number": "7",
+        "position": "2B",
+        "batDir": "L",
+        "batOrder": 2,
+        "team": {
+          "id": "20000000-0000-4000-8000-000000000101",
+          "name": "Fixture Progress Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "20000000-0000-4000-8000-000000000201",
+    "name": "Fixture Progress Home",
+    "coach": "Coach Synthetic H",
+    "details": "Synthetic home side",
+    "players": [
+      {
+        "id": "20000000-0000-4000-8000-000000002001",
+        "name": "Fixture Casey Progress",
+        "number": "12",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "20000000-0000-4000-8000-000000000201",
+          "name": "Fixture Progress Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000002002",
+        "name": "Fixture Drew Progress",
+        "number": "16",
+        "position": "C",
+        "batDir": "R",
+        "batOrder": 2,
+        "team": {
+          "id": "20000000-0000-4000-8000-000000000201",
+          "name": "Fixture Progress Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [
+    {
+      "id": "20000000-0000-4000-8000-000000010001",
+      "game": null,
+      "team": {
+        "id": "20000000-0000-4000-8000-000000000101",
+        "name": "Fixture Progress Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "20000000-0000-4000-8000-000000001001",
+        "name": "Fixture Avery Progress",
+        "number": "4",
+        "position": "SS",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Single",
+      "maxbase": "First",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1,
+      "seq": 1,
+      "col": 1,
+      "rbis": 0,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000010002",
+      "game": null,
+      "team": {
+        "id": "20000000-0000-4000-8000-000000000201",
+        "name": "Fixture Progress Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "20000000-0000-4000-8000-000000002001",
+        "name": "Fixture Casey Progress",
+        "number": "12",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Walk",
+      "maxbase": "First",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1.5,
+      "seq": 2,
+      "col": 1,
+      "rbis": 0,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "Synthetic runner on base at import snapshot",
+      "endOfInning": false
+    }
+  ],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

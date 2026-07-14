@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fixture Wrong Game Content</title>
+</head>
+<body>
+  <p>This synthetic HTML is not ScoreKeep game JSON.</p>
+</body>
+</html>

@@ -1,0 +1,283 @@
+{
+  "id": "30000000-0000-4000-8000-000000000001",
+  "date": "2026-04-03T18:00:00Z",
+  "location": "Fixture Field Gamma",
+  "highLights": "Synthetic completed game with stored final score evidence.",
+  "hscore": 3,
+  "vscore": 2,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "30000000-0000-4000-8000-000000000101",
+    "name": "Fixture Complete Visitors",
+    "coach": "Coach Fixture Visitor",
+    "details": "Completed fixture visiting side",
+    "players": [
+      {
+        "id": "30000000-0000-4000-8000-000000001001",
+        "name": "Fixture Rowan Complete",
+        "number": "3",
+        "position": "CF",
+        "batDir": "L",
+        "batOrder": 1,
+        "team": {
+          "id": "30000000-0000-4000-8000-000000000101",
+          "name": "Fixture Complete Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      },
+      {
+        "id": "30000000-0000-4000-8000-000000001002",
+        "name": "Fixture Sloan Complete",
+        "number": "9",
+        "position": "1B",
+        "batDir": "R",
+        "batOrder": 2,
+        "team": {
+          "id": "30000000-0000-4000-8000-000000000101",
+          "name": "Fixture Complete Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "30000000-0000-4000-8000-000000000201",
+    "name": "Fixture Complete Home",
+    "coach": "Coach Fixture Home",
+    "details": "Completed fixture home side",
+    "players": [
+      {
+        "id": "30000000-0000-4000-8000-000000002001",
+        "name": "Fixture Tatum Complete",
+        "number": "15",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "30000000-0000-4000-8000-000000000201",
+          "name": "Fixture Complete Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      },
+      {
+        "id": "30000000-0000-4000-8000-000000002002",
+        "name": "Fixture Quinn Complete",
+        "number": "22",
+        "position": "C",
+        "batDir": "L",
+        "batOrder": 2,
+        "team": {
+          "id": "30000000-0000-4000-8000-000000000201",
+          "name": "Fixture Complete Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [
+    {
+      "id": "30000000-0000-4000-8000-000000010001",
+      "game": null,
+      "team": {
+        "id": "30000000-0000-4000-8000-000000000101",
+        "name": "Fixture Complete Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "30000000-0000-4000-8000-000000001001",
+        "name": "Fixture Rowan Complete",
+        "number": "3",
+        "position": "CF",
+        "batDir": "L",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Double",
+      "maxbase": "Second",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1,
+      "seq": 1,
+      "col": 1,
+      "rbis": 1,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000010002",
+      "game": null,
+      "team": {
+        "id": "30000000-0000-4000-8000-000000000201",
+        "name": "Fixture Complete Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "30000000-0000-4000-8000-000000002001",
+        "name": "Fixture Tatum Complete",
+        "number": "15",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Home Run",
+      "maxbase": "Home",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1.5,
+      "seq": 2,
+      "col": 1,
+      "rbis": 2,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000010003",
+      "game": null,
+      "team": {
+        "id": "30000000-0000-4000-8000-000000000201",
+        "name": "Fixture Complete Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "30000000-0000-4000-8000-000000002002",
+        "name": "Fixture Quinn Complete",
+        "number": "22",
+        "position": "C",
+        "batDir": "L",
+        "batOrder": 2,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Single",
+      "maxbase": "First",
+      "batOrder": 2,
+      "outAt": "Safe",
+      "inning": 2.5,
+      "seq": 3,
+      "col": 2,
+      "rbis": 1,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 1,
+      "earnedRun": true,
+      "playRec": "Synthetic final-score evidence",
+      "endOfInning": true
+    }
+  ],
+  "lineups": [
+    {
+      "id": "30000000-0000-4000-8000-000000020001",
+      "everyoneHits": false,
+      "game": null,
+      "team": {
+        "id": "30000000-0000-4000-8000-000000000101",
+        "name": "Fixture Complete Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "inning": 1,
+      "players": []
+    }
+  ],
+  "pitchers": [
+    {
+      "id": "30000000-0000-4000-8000-000000030001",
+      "player": {
+        "id": "30000000-0000-4000-8000-000000002001",
+        "name": "Fixture Tatum Complete",
+        "number": "15",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "team": {
+        "id": "30000000-0000-4000-8000-000000000201",
+        "name": "Fixture Complete Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "game": null,
+      "startInn": 1,
+      "sOuts": 0,
+      "sBats": 0,
+      "endInn": 7,
+      "eOuts": 3,
+      "eBats": 18,
+      "strikeOuts": 4,
+      "walks": 1,
+      "hits": 5,
+      "runs": 2,
+      "won": true
+    }
+  ],
+  "replaced": [],
+  "incomings": []
+}

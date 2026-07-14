@@ -1,0 +1,74 @@
+{
+  "id": "10000000-0000-4000-8000-000000000001",
+  "date": "2026-04-01T18:00:00Z",
+  "location": "Fixture Field Alpha",
+  "highLights": "",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "10000000-0000-4000-8000-000000000101",
+    "name": "Fixture Minimal Visitors",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "10000000-0000-4000-8000-000000001001",
+        "name": "Fixture Visitor One",
+        "number": "1",
+        "position": "CF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "10000000-0000-4000-8000-000000000101",
+          "name": "Fixture Minimal Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "10000000-0000-4000-8000-000000000201",
+    "name": "Fixture Minimal Home",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "10000000-0000-4000-8000-000000002001",
+        "name": "Fixture Home One",
+        "number": "11",
+        "position": "P",
+        "batDir": "L",
+        "batOrder": 1,
+        "team": {
+          "id": "10000000-0000-4000-8000-000000000201",
+          "name": "Fixture Minimal Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

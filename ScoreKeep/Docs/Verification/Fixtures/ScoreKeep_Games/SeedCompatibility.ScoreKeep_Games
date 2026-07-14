@@ -1,0 +1,150 @@
+{
+  "id": "90000000-0000-4000-8000-000000000001",
+  "date": "2026-04-09T18:00:00Z",
+  "location": "Fixture Seed Pattern Field",
+  "highLights": "Synthetic seed-pattern compatibility fixture; not the production seed.",
+  "hscore": 1,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 9,
+  "vteam": {
+    "id": "90000000-0000-4000-8000-000000000101",
+    "name": "Fixture Seed Visitors",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "90000000-0000-4000-8000-000000001001",
+        "name": "Fixture Seed Visitor Batter",
+        "number": "31",
+        "position": "CF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "90000000-0000-4000-8000-000000000101",
+          "name": "Fixture Seed Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "90000000-0000-4000-8000-000000000201",
+    "name": "Fixture Seed Home",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "90000000-0000-4000-8000-000000002001",
+        "name": "Fixture Seed Home Pitcher",
+        "number": "41",
+        "position": "SP",
+        "batDir": "L",
+        "batOrder": 99,
+        "team": {
+          "id": "90000000-0000-4000-8000-000000000201",
+          "name": "Fixture Seed Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [
+    {
+      "id": "90000000-0000-4000-8000-000000010001",
+      "game": null,
+      "team": {
+        "id": "90000000-0000-4000-8000-000000000101",
+        "name": "Fixture Seed Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "90000000-0000-4000-8000-000000001001",
+        "name": "Fixture Seed Visitor Batter",
+        "number": "31",
+        "position": "CF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Fly Out",
+      "maxbase": "First",
+      "batOrder": 1,
+      "outAt": "First",
+      "inning": 1,
+      "seq": 1,
+      "col": 1,
+      "rbis": 0,
+      "outs": 1,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    }
+  ],
+  "lineups": [],
+  "pitchers": [
+    {
+      "id": "90000000-0000-4000-8000-000000030001",
+      "player": {
+        "id": "90000000-0000-4000-8000-000000002001",
+        "name": "Fixture Seed Home Pitcher",
+        "number": "41",
+        "position": "SP",
+        "batDir": "L",
+        "batOrder": 99,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "team": {
+        "id": "90000000-0000-4000-8000-000000000201",
+        "name": "Fixture Seed Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "game": null,
+      "startInn": 1,
+      "sOuts": 0,
+      "sBats": 0,
+      "endInn": 1,
+      "eOuts": 1,
+      "eBats": 1,
+      "strikeOuts": 0,
+      "walks": 0,
+      "hits": 0,
+      "runs": 0,
+      "won": false
+    }
+  ],
+  "replaced": [],
+  "incomings": []
+}

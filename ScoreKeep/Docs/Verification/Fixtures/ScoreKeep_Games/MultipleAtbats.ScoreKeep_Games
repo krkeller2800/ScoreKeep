@@ -1,0 +1,250 @@
+{
+  "id": "40000000-0000-4000-8000-000000000001",
+  "date": "2026-04-04T18:00:00Z",
+  "location": "Fixture Field Delta",
+  "highLights": "Synthetic ordered at-bat sequence.",
+  "hscore": 1,
+  "vscore": 1,
+  "everyOneHits": true,
+  "numInnings": 6,
+  "vteam": {
+    "id": "40000000-0000-4000-8000-000000000101",
+    "name": "Fixture Sequence Visitors",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "40000000-0000-4000-8000-000000001001",
+        "name": "Fixture Morgan Sequence",
+        "number": "5",
+        "position": "LF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "40000000-0000-4000-8000-000000000101",
+          "name": "Fixture Sequence Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      },
+      {
+        "id": "40000000-0000-4000-8000-000000001002",
+        "name": "Fixture Parker Sequence",
+        "number": "6",
+        "position": "RF",
+        "batDir": "L",
+        "batOrder": 2,
+        "team": {
+          "id": "40000000-0000-4000-8000-000000000101",
+          "name": "Fixture Sequence Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "40000000-0000-4000-8000-000000000201",
+    "name": "Fixture Sequence Home",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "40000000-0000-4000-8000-000000002001",
+        "name": "Fixture Ellis Sequence",
+        "number": "21",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "40000000-0000-4000-8000-000000000201",
+          "name": "Fixture Sequence Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [
+    {
+      "id": "40000000-0000-4000-8000-000000010001",
+      "game": null,
+      "team": {
+        "id": "40000000-0000-4000-8000-000000000101",
+        "name": "Fixture Sequence Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "40000000-0000-4000-8000-000000001001",
+        "name": "Fixture Morgan Sequence",
+        "number": "5",
+        "position": "LF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Single",
+      "maxbase": "First",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1,
+      "seq": 1,
+      "col": 1,
+      "rbis": 0,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 1,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000010002",
+      "game": null,
+      "team": {
+        "id": "40000000-0000-4000-8000-000000000101",
+        "name": "Fixture Sequence Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "40000000-0000-4000-8000-000000001002",
+        "name": "Fixture Parker Sequence",
+        "number": "6",
+        "position": "RF",
+        "batDir": "L",
+        "batOrder": 2,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Ground Out",
+      "maxbase": "First",
+      "batOrder": 2,
+      "outAt": "First",
+      "inning": 1,
+      "seq": 2,
+      "col": 1,
+      "rbis": 0,
+      "outs": 1,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000010003",
+      "game": null,
+      "team": {
+        "id": "40000000-0000-4000-8000-000000000201",
+        "name": "Fixture Sequence Home",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "40000000-0000-4000-8000-000000002001",
+        "name": "Fixture Ellis Sequence",
+        "number": "21",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Double",
+      "maxbase": "Second",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1.5,
+      "seq": 3,
+      "col": 1,
+      "rbis": 1,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000010004",
+      "game": null,
+      "team": {
+        "id": "40000000-0000-4000-8000-000000000101",
+        "name": "Fixture Sequence Visitors",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "40000000-0000-4000-8000-000000001001",
+        "name": "Fixture Morgan Sequence",
+        "number": "5",
+        "position": "LF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Strikeout",
+      "maxbase": "First",
+      "batOrder": 1,
+      "outAt": "First",
+      "inning": 2,
+      "seq": 4,
+      "col": 2,
+      "rbis": 0,
+      "outs": 1,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "Repeated batter appearance",
+      "endOfInning": false
+    }
+  ],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

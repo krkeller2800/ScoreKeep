@@ -1,0 +1,74 @@
+{
+  "id": "80000000-0000-4000-8000-000000000001",
+  "date": "2026-04-08T18:00:00Z",
+  "location": "Fixture Field Conflict",
+  "highLights": "Synthetic same-teams same-date duplicate risk fixture.",
+  "hscore": 4,
+  "vscore": 4,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "80000000-0000-4000-8000-000000000101",
+    "name": "Fixture Conflict Visitors",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "80000000-0000-4000-8000-000000001001",
+        "name": "Fixture Delta Conflict",
+        "number": "8",
+        "position": "3B",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": {
+          "id": "80000000-0000-4000-8000-000000000101",
+          "name": "Fixture Conflict Visitors",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "80000000-0000-4000-8000-000000000201",
+    "name": "Fixture Conflict Home",
+    "coach": "",
+    "details": "",
+    "players": [
+      {
+        "id": "80000000-0000-4000-8000-000000002001",
+        "name": "Fixture Echo Conflict",
+        "number": "8",
+        "position": "SS",
+        "batDir": "L",
+        "batOrder": 1,
+        "team": {
+          "id": "80000000-0000-4000-8000-000000000201",
+          "name": "Fixture Conflict Home",
+          "coach": "",
+          "details": "",
+          "players": [],
+          "games": [],
+          "logo": ""
+        },
+        "atbats": [],
+        "photo": ""
+      }
+    ],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}
