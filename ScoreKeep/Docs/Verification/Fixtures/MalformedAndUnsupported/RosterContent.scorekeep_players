@@ -1,0 +1,21 @@
+[
+  {
+    "id": "35000000-0000-4000-8000-000000000001",
+    "name": "Fixture Lowercase Roster Extension",
+    "number": "23",
+    "position": "SS",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "35000000-0000-4000-8000-000000000101",
+      "name": "Fixture Lowercase Roster Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

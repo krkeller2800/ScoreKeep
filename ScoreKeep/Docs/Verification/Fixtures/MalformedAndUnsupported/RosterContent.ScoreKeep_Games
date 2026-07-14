@@ -1,0 +1,21 @@
+[
+  {
+    "id": "31000000-0000-4000-8000-000000000001",
+    "name": "Fixture Roster In Game Extension",
+    "number": "21",
+    "position": "P",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "31000000-0000-4000-8000-000000000101",
+      "name": "Fixture Cross Format Roster Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

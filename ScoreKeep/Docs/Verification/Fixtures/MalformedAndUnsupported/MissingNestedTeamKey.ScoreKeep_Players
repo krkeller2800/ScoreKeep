@@ -1,0 +1,20 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000004",
+    "name": "Fixture Missing Team Key",
+    "number": "7",
+    "position": "LF",
+    "batDir": "L",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000104",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

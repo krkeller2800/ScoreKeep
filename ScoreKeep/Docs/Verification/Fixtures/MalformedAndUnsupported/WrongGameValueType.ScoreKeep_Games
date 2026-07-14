@@ -1,0 +1,34 @@
+{
+  "id": "21000000-0000-4000-8000-000000000002",
+  "date": "2026-05-02T18:00:00Z",
+  "location": "Fixture Wrong Game Type Field",
+  "highLights": "",
+  "hscore": "zero",
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "21000000-0000-4000-8000-000000000102",
+    "name": "Fixture Wrong Type Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "21000000-0000-4000-8000-000000000202",
+    "name": "Fixture Wrong Type Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

@@ -1,0 +1,35 @@
+{
+  "id": "21000000-0000-4000-8000-000000000013",
+  "date": "2026-05-13T18:00:00Z",
+  "location": "Fixture Unknown Game Field",
+  "highLights": "",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "21000000-0000-4000-8000-000000000113",
+    "name": "Fixture Unknown Field Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "21000000-0000-4000-8000-000000000213",
+    "name": "Fixture Unknown Field Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": [],
+  "compatibilityVersion": "hypothetical-99"
+}

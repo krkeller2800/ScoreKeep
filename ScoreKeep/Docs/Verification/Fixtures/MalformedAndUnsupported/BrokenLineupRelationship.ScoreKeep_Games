@@ -1,0 +1,51 @@
+{
+  "id": "21000000-0000-4000-8000-000000000008",
+  "date": "2026-05-08T18:00:00Z",
+  "location": "Fixture Broken Lineup Field",
+  "highLights": "",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": true,
+  "numInnings": 7,
+  "vteam": {
+    "id": "21000000-0000-4000-8000-000000000108",
+    "name": "Fixture Broken Lineup Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "21000000-0000-4000-8000-000000000208",
+    "name": "Fixture Broken Lineup Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [
+    {
+      "id": "21000000-0000-4000-8000-000000020008",
+      "everyoneHits": true,
+      "game": null,
+      "team": {
+        "id": "21000000-0000-4000-8000-000000000308",
+        "name": "Fixture Lineup Third Team",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "inning": 1,
+      "players": []
+    }
+  ],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

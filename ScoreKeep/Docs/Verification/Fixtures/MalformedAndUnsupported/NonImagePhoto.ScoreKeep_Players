@@ -1,0 +1,21 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000011",
+    "name": "Fixture Non Image Photo",
+    "number": "15",
+    "position": "CF",
+    "batDir": "L",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000111",
+      "name": "Fixture Non Image Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": "bm90LWltYWdl"
+  }
+]

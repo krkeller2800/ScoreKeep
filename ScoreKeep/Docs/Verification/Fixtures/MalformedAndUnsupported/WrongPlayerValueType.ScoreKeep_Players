@@ -1,0 +1,21 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000002",
+    "name": "Fixture Wrong Type Batter",
+    "number": "5",
+    "position": "2B",
+    "batDir": "L",
+    "batOrder": "first",
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000102",
+      "name": "Fixture Wrong Type Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

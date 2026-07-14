@@ -1,0 +1,40 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000008",
+    "name": "Fixture Duplicate ID One",
+    "number": "11",
+    "position": "C",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000108",
+      "name": "Fixture Duplicate ID Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  },
+  {
+    "id": "11000000-0000-4000-8000-000000000008",
+    "name": "Fixture Duplicate ID Two",
+    "number": "12",
+    "position": "P",
+    "batDir": "L",
+    "batOrder": 2,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000108",
+      "name": "Fixture Duplicate ID Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

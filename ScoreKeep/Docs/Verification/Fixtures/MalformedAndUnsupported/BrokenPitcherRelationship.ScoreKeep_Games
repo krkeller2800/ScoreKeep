@@ -1,0 +1,70 @@
+{
+  "id": "21000000-0000-4000-8000-000000000009",
+  "date": "2026-05-09T18:00:00Z",
+  "location": "Fixture Broken Pitcher Field",
+  "highLights": "",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "21000000-0000-4000-8000-000000000109",
+    "name": "Fixture Broken Pitcher Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "21000000-0000-4000-8000-000000000209",
+    "name": "Fixture Broken Pitcher Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [
+    {
+      "id": "21000000-0000-4000-8000-000000030009",
+      "player": {
+        "id": "21000000-0000-4000-8000-000000003009",
+        "name": "Fixture Unknown Pitcher",
+        "number": "31",
+        "position": "P",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "team": {
+        "id": "21000000-0000-4000-8000-000000000309",
+        "name": "Fixture Pitcher Third Team",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "game": null,
+      "startInn": 1,
+      "sOuts": 0,
+      "sBats": 1,
+      "endInn": 1,
+      "eOuts": 3,
+      "eBats": 3,
+      "strikeOuts": 0,
+      "walks": 0,
+      "hits": 0,
+      "runs": 0,
+      "won": false
+    }
+  ],
+  "replaced": [],
+  "incomings": []
+}

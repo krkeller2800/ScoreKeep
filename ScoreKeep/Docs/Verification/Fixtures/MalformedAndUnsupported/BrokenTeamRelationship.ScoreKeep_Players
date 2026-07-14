@@ -1,0 +1,40 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000006",
+    "name": "Fixture Relationship One",
+    "number": "9",
+    "position": "1B",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000106",
+      "name": "Fixture Relationship Alpha",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  },
+  {
+    "id": "11000000-0000-4000-8000-000000000007",
+    "name": "Fixture Relationship Two",
+    "number": "10",
+    "position": "3B",
+    "batDir": "L",
+    "batOrder": 2,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000106",
+      "name": "Fixture Relationship Beta",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

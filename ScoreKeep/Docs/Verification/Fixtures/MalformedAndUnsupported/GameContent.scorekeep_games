@@ -1,0 +1,34 @@
+{
+  "id": "36000000-0000-4000-8000-000000000001",
+  "date": "2026-06-03T18:00:00Z",
+  "location": "Fixture Lowercase Game Extension",
+  "highLights": "",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "36000000-0000-4000-8000-000000000101",
+    "name": "Fixture Lowercase Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "36000000-0000-4000-8000-000000000201",
+    "name": "Fixture Lowercase Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

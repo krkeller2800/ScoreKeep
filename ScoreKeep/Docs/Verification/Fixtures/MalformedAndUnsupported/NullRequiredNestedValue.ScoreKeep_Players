@@ -1,0 +1,21 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000005",
+    "name": "Fixture Null Team Name",
+    "number": "8",
+    "position": "RF",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000105",
+      "name": null,
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

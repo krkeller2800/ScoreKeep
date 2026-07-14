@@ -1,0 +1,23 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000012",
+    "name": "Fixture Unknown Field",
+    "number": "16",
+    "position": "SS",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000112",
+      "name": "Fixture Unknown Field Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": "",
+      "compatibilityVersion": "hypothetical-99"
+    },
+    "atbats": [],
+    "photo": "",
+    "compatibilityVersion": "hypothetical-99"
+  }
+]

@@ -1,0 +1,74 @@
+{
+  "id": "21000000-0000-4000-8000-000000000007",
+  "date": "2026-05-07T18:00:00Z",
+  "location": "Fixture Broken Atbat Field",
+  "highLights": "",
+  "hscore": 0,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "21000000-0000-4000-8000-000000000107",
+    "name": "Fixture Broken Atbat Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "21000000-0000-4000-8000-000000000207",
+    "name": "Fixture Broken Atbat Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [
+    {
+      "id": "21000000-0000-4000-8000-000000010007",
+      "game": null,
+      "team": {
+        "id": "21000000-0000-4000-8000-000000000307",
+        "name": "Fixture Third Team",
+        "coach": "",
+        "details": "",
+        "players": [],
+        "games": [],
+        "logo": ""
+      },
+      "player": {
+        "id": "21000000-0000-4000-8000-000000001007",
+        "name": "Fixture Unknown Atbat Player",
+        "number": "17",
+        "position": "LF",
+        "batDir": "R",
+        "batOrder": 1,
+        "team": null,
+        "atbats": [],
+        "photo": ""
+      },
+      "result": "Single",
+      "maxbase": "First",
+      "batOrder": 1,
+      "outAt": "Safe",
+      "inning": 1,
+      "seq": 1,
+      "col": 1,
+      "rbis": 0,
+      "outs": 0,
+      "sacFly": 0,
+      "sacBunt": 0,
+      "stolenBases": 0,
+      "earnedRun": true,
+      "playRec": "",
+      "endOfInning": false
+    }
+  ],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}

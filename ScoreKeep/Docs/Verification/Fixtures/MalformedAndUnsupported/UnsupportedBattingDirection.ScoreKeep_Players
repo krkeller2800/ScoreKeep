@@ -1,0 +1,21 @@
+[
+  {
+    "id": "11000000-0000-4000-8000-000000000009",
+    "name": "Fixture Unsupported Batting",
+    "number": "13",
+    "position": "DH",
+    "batDir": "Ambidextrous-Experimental",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000109",
+      "name": "Fixture Semantic Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

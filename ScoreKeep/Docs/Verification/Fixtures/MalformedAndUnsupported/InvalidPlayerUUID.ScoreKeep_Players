@@ -1,0 +1,21 @@
+[
+  {
+    "id": "not-a-valid-uuid",
+    "name": "Fixture Invalid UUID Batter",
+    "number": "6",
+    "position": "CF",
+    "batDir": "R",
+    "batOrder": 1,
+    "team": {
+      "id": "11000000-0000-4000-8000-000000000103",
+      "name": "Fixture Invalid UUID Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

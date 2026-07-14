@@ -1,0 +1,34 @@
+{
+  "id": "21000000-0000-4000-8000-000000000012",
+  "date": "2026-05-12T18:00:00Z",
+  "location": "Fixture Unsupported Score Field",
+  "highLights": "",
+  "hscore": -1,
+  "vscore": 0,
+  "everyOneHits": false,
+  "numInnings": 7,
+  "vteam": {
+    "id": "21000000-0000-4000-8000-000000000112",
+    "name": "Fixture Unsupported Score Visitors",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "hteam": {
+    "id": "21000000-0000-4000-8000-000000000212",
+    "name": "Fixture Unsupported Score Home",
+    "coach": "",
+    "details": "",
+    "players": [],
+    "games": [],
+    "logo": ""
+  },
+  "players": [],
+  "atbats": [],
+  "lineups": [],
+  "pitchers": [],
+  "replaced": [],
+  "incomings": []
+}
