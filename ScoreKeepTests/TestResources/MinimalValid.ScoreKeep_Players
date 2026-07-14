@@ -1,0 +1,21 @@
+[
+  {
+    "id": "10000000-0000-4000-8000-000000000001",
+    "name": "Fixture Minimal Batter",
+    "number": "1",
+    "position": "P",
+    "batDir": "Right",
+    "batOrder": 1,
+    "team": {
+      "id": "10000000-0000-4000-8000-000000000101",
+      "name": "Fixture Minimal Club",
+      "coach": "",
+      "details": "",
+      "players": [],
+      "games": [],
+      "logo": ""
+    },
+    "atbats": [],
+    "photo": ""
+  }
+]

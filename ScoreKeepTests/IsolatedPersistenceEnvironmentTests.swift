@@ -81,16 +81,21 @@ struct IsolatedPersistenceEnvironmentTests {
 
     @Test("isolated store creation does not import the production seed")
     func isolatedStoreCreationDoesNotImportProductionSeed() throws {
-        _ = try IsolatedPersistenceEnvironment.fixtureURL(relativePath: "ScoreKeep/Seed/seededGame.ScoreKeep_Games")
         let environment = try IsolatedPersistenceEnvironment()
 
         #expect(try environment.fetch(FetchDescriptor<Game>()).isEmpty)
+        #expect(try environment.fetch(FetchDescriptor<Team>()).isEmpty)
+        #expect(try environment.fetch(FetchDescriptor<Player>()).isEmpty)
+        #expect(try environment.fetch(FetchDescriptor<Atbat>()).isEmpty)
+        #expect(try environment.fetch(FetchDescriptor<Lineup>()).isEmpty)
+        #expect(try environment.fetch(FetchDescriptor<Pitcher>()).isEmpty)
     }
 
     @Test("curated roster fixture can be decoded without persistence writes")
     func curatedRosterFixtureCanBeDecodedWithoutPersistenceWrites() throws {
-        let fixtureURL = try IsolatedPersistenceEnvironment.fixtureURL(
-            relativePath: "ScoreKeep/Docs/Verification/Fixtures/ScoreKeep_Players/MinimalValid.ScoreKeep_Players"
+        let fixtureURL = try IsolatedPersistenceEnvironment.bundledFixtureURL(
+            named: "MinimalValid",
+            extension: "ScoreKeep_Players"
         )
         let data = try Data(contentsOf: fixtureURL)
         let players = try JSONDecoder().decode([SharePlayer].self, from: data)

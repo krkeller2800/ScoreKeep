@@ -59,27 +59,24 @@ struct IsolatedPersistenceEnvironment {
         context.delete(model)
     }
 
-    static func fixtureURL(relativePath: String, sourceFilePath: StaticString = #filePath) throws -> URL {
-        let sourceFile = URL(fileURLWithPath: "\(sourceFilePath)")
-        let repositoryRoot = sourceFile
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let fixtureURL = repositoryRoot.appendingPathComponent(relativePath)
+    static func bundledFixtureURL(named name: String, extension fileExtension: String) throws -> URL {
+        let testBundle = Bundle(for: IsolatedPersistenceBundleToken.self)
 
-        guard FileManager.default.fileExists(atPath: fixtureURL.path) else {
-            throw IsolatedPersistenceError.fixtureNotFound(relativePath: relativePath)
+        guard let url = testBundle.url(forResource: name, withExtension: fileExtension) else {
+            throw IsolatedPersistenceError.fixtureResourceNotFound(name: name, fileExtension: fileExtension)
         }
 
-        return fixtureURL
+        return url
     }
 }
+
+private final class IsolatedPersistenceBundleToken {}
 
 enum IsolatedPersistenceError: Error, CustomStringConvertible {
     case containerCreationFailed(mode: String, modelTypes: String, underlying: Error)
     case saveFailed(underlying: Error)
     case fetchFailed(modelType: String, underlying: Error)
-    case fixtureNotFound(relativePath: String)
+    case fixtureResourceNotFound(name: String, fileExtension: String)
 
     var description: String {
         switch self {
@@ -89,8 +86,8 @@ enum IsolatedPersistenceError: Error, CustomStringConvertible {
             "Could not save isolated persistence context: \(underlying)"
         case .fetchFailed(let modelType, let underlying):
             "Could not fetch \(modelType) from isolated persistence context: \(underlying)"
-        case .fixtureNotFound(let relativePath):
-            "Missing verification fixture at repository-relative path: \(relativePath)"
+        case .fixtureResourceNotFound(let name, let fileExtension):
+            "Missing verification fixture resource in test bundle: \(name).\(fileExtension)"
         }
     }
 }

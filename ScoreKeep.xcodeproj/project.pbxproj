@@ -34,6 +34,7 @@
 		CB643B492D85E59C00F30B87 /* ScoreKeep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ScoreKeep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB643B592D85E59E00F30B87 /* ScoreKeepTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScoreKeepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CB643B632D85E59E00F30B87 /* ScoreKeepUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScoreKeepUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF6566FB3006D67E00455320 /* ScoreKeep.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = ScoreKeep.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -97,6 +98,7 @@
 		CB643B402D85E59C00F30B87 = {
 			isa = PBXGroup;
 			children = (
+				DF6566FB3006D67E00455320 /* ScoreKeep.xctestplan */,
 				B61F01D62ED6367D00BF0531 /* ScoreKeep.storekit */,
 				CB643B4B2D85E59C00F30B87 /* ScoreKeep */,
 				CB643B5C2D85E59E00F30B87 /* ScoreKeepTests */,
