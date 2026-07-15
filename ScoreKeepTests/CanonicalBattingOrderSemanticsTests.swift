@@ -190,3 +190,274 @@ struct CanonicalBattingOrderSemanticsTests {
         )
     }
 }
+
+struct CanonicalBatterProjectionTests {
+    @Test func firstNextProgressionWraparoundAndDeterminism() {
+        let lineup = battingLineup(count: 3)
+        let first = CanonicalBatterProjector.project(input(lineup: lineup))
+        let afterOne = CanonicalBatterProjector.project(input(lineup: lineup, events: [event(sequence: 1, batter: lineup.entries[0].participant)]))
+        let wrapped = CanonicalBatterProjector.project(input(lineup: lineup, events: [
+            event(sequence: 1, batter: lineup.entries[0].participant),
+            event(sequence: 2, batter: lineup.entries[1].participant),
+            event(sequence: 3, batter: lineup.entries[2].participant)
+        ]))
+
+        #expect(first.disposition == .resolved)
+        #expect(first.currentSlot == 1)
+        #expect(first.nextSlot == 2)
+        #expect(afterOne.currentSlot == 2)
+        #expect(afterOne.nextSlot == 3)
+        #expect(wrapped.currentSlot == 1)
+        #expect(wrapped.nextSlot == 2)
+        #expect(wrapped.wraparoundApplied)
+        #expect(CanonicalBatterProjector.project(input(lineup: lineup, events: [event(sequence: 1, batter: lineup.entries[0].participant)])) == afterOne)
+    }
+
+    @Test func homeVisitingProgressionAndInningBoundariesRemainIndependent() {
+        let home = battingLineup(side: .home, count: 3)
+        let visiting = battingLineup(side: .visiting, count: 3)
+        let homeEvent = event(sequence: 1, batter: home.entries[0].participant, inning: 1.0, side: .home)
+        let visitingEvent = event(sequence: 1, batter: visiting.entries[0].participant, inning: 1.0, side: .visiting)
+        let laterHomeEvent = event(sequence: 2, batter: home.entries[1].participant, inning: 2.0, side: .home)
+
+        let homeProjection = CanonicalBatterProjector.project(input(side: .home, lineup: home, events: [homeEvent, visitingEvent, laterHomeEvent]))
+        let visitingProjection = CanonicalBatterProjector.project(input(side: .visiting, lineup: visiting, events: [homeEvent, visitingEvent, laterHomeEvent]))
+
+        #expect(homeProjection.currentSlot == 3)
+        #expect(visitingProjection.currentSlot == 2)
+        #expect(homeProjection.sourceEvidenceIgnored.contains("opposingSideEvents"))
+        #expect(visitingProjection.sourceEvidenceIgnored.contains("opposingSideEvents"))
+    }
+
+    @Test func traditionalAndEveryoneHitsUseLineupEvidenceOnly() {
+        let traditional = battingLineup(mode: .traditional, count: 9)
+        let everyoneHits = battingLineup(mode: .everyoneHits, count: 11)
+
+        let traditionalProjection = CanonicalBatterProjector.project(input(lineup: traditional, events: [event(sequence: 1, batter: traditional.entries[8].participant)]))
+        let everyoneHitsProjection = CanonicalBatterProjector.project(input(lineup: everyoneHits, events: [event(sequence: 1, batter: everyoneHits.entries[8].participant)]))
+
+        #expect(traditionalProjection.lineupContext == .traditional)
+        #expect(traditionalProjection.currentSlot == 1)
+        #expect(everyoneHitsProjection.lineupContext == .everyoneHits)
+        #expect(everyoneHitsProjection.currentSlot == 10)
+        #expect(everyoneHitsProjection.nextSlot == 11)
+        #expect(everyoneHitsProjection.sourceEvidenceIgnored.contains("currentRosterOrder"))
+    }
+
+    @Test func incompleteAmbiguousUnsupportedAndConflictingLineupEvidenceClassifiesWithoutFabrication() {
+        let empty = CanonicalBatterProjector.project(input(lineup: battingLineup(count: 0)))
+        let missingSlot = CanonicalBatterProjector.project(input(lineup: battingLineup(slots: [.known(1), .missing])))
+        let duplicateSlot = CanonicalBatterProjector.project(input(lineup: battingLineup(slots: [.known(1), .known(1)])))
+        let gap = CanonicalBatterProjector.project(input(lineup: battingLineup(slots: [.known(1), .known(3)])))
+        let conflicting = CanonicalBatterProjector.project(input(lineup: battingLineup(slots: [.known(1), .conflicting([1, 2])])))
+        let missingParticipant = CanonicalBatterProjector.project(input(lineup: battingLineup(entries: [
+            entry(slot: .known(1), participant: .missingPlayerIdentity(PlayerDisplayEvidence()))
+        ])))
+        let invalidParticipant = CanonicalBatterProjector.project(input(lineup: battingLineup(entries: [
+            entry(slot: .known(1), participant: .invalidPlayerIdentity(.invalid("bad-player"), PlayerDisplayEvidence()))
+        ])))
+        let unknownMode = CanonicalBatterProjector.project(input(lineup: battingLineup(mode: .unknown, count: 2)))
+
+        #expect(empty.disposition == .incomplete)
+        #expect(missingSlot.disposition == .resolvedWithWarnings)
+        #expect(gap.disposition == .resolvedWithWarnings)
+        #expect(duplicateSlot.disposition == .ambiguous)
+        #expect(conflicting.disposition == .contradictory)
+        #expect(missingParticipant.disposition == .incomplete)
+        #expect(invalidParticipant.disposition == .rejected)
+        #expect(unknownMode.disposition == .unresolved)
+        #expect(duplicateSlot.currentBatter == nil)
+        #expect(conflicting.currentBatter == nil)
+    }
+
+    @Test func unresolvedAndUnorderedEventsDoNotFabricateBatterProjection() {
+        let lineup = battingLineup(count: 3)
+        let unresolved = CanonicalBatterProjector.project(input(lineup: lineup, events: [
+            event(sequence: 1, batter: lineup.entries[0].participant),
+            event(sequence: 2, batter: .unknown(PlayerDisplayEvidence()))
+        ]))
+        let missingSequence = CanonicalBatterProjector.project(input(lineup: lineup, events: [
+            event(sequence: nil, batter: lineup.entries[0].participant)
+        ]))
+        let duplicateSequence = CanonicalBatterProjector.project(input(lineup: lineup, events: [
+            event(sequence: 1, batter: lineup.entries[0].participant),
+            event(sequence: 1, batter: lineup.entries[1].participant)
+        ]))
+
+        #expect(unresolved.disposition == .unresolved)
+        #expect(missingSequence.disposition == .resolvedWithWarnings)
+        #expect(duplicateSequence.disposition == .ambiguous)
+        #expect(duplicateSequence.currentBatter == nil)
+    }
+
+    @Test func historicalLineupEvidenceSurvivesRosterAndPlayerBatOrderChanges() {
+        var lineup = battingLineup(count: 2)
+        let rosterHint = CanonicalBattingOrderEntry(
+            gameIdentity: lineup.entries[0].gameIdentity,
+            lineupIdentity: lineup.entries[0].lineupIdentity,
+            participant: lineup.entries[0].participant,
+            slotEvidence: lineup.entries[0].slotEvidence,
+            rosterOrderEvidence: OrderEvidence(kind: .battingOrder, value: 8),
+            displaySortEvidence: OrderEvidence(kind: .displaySort, value: 1),
+            jerseyNumberEvidence: .present("99")
+        )
+        lineup = CanonicalBattingOrderEvidence(
+            gameIdentity: lineup.gameIdentity,
+            lineupIdentity: lineup.lineupIdentity,
+            context: lineup.context,
+            entries: [rosterHint, lineup.entries[1]]
+        )
+
+        let projection = CanonicalBatterProjector.project(input(lineup: lineup))
+
+        #expect(projection.currentSlot == 1)
+        #expect(projection.sourceEvidenceIgnored.contains("currentRosterOrder"))
+        #expect(projection.sourceEvidenceIgnored.contains("displaySortOrder"))
+        #expect(lineup.entries[0].slotEvidence.knownSlotValue == 1)
+    }
+
+    @Test func knownSubstitutionChangesSlotAndAmbiguousSubstitutionDoesNot() {
+        let lineup = battingLineup(count: 3)
+        let incoming = participant(id: "51000000-0000-0000-0000-000000000099", name: "Incoming Batter", side: .home)
+        let known = substitution(incoming: incoming, outgoing: lineup.entries[1].participant, slot: 2, order: 1)
+        let ambiguous = CanonicalSubstitutionEvidence(
+            gameIdentity: .valid(CanonicalLineupMeaningTestSupport.gameA),
+            teamSide: .home,
+            incoming: .participant(incoming),
+            outgoing: .participant(lineup.entries[2].participant),
+            roleEvidence: [.batterReplacement],
+            source: .syntheticVerification
+        )
+
+        let applied = CanonicalBatterProjector.project(input(lineup: lineup, events: [event(sequence: 1, batter: lineup.entries[0].participant)], substitutions: [known]))
+        let notApplied = CanonicalBatterProjector.project(input(lineup: lineup, events: [event(sequence: 1, batter: lineup.entries[0].participant)], substitutions: [ambiguous]))
+
+        #expect(applied.currentSlot == 2)
+        #expect(applied.currentBatter?.participant.playerIdentity == incoming.playerIdentity)
+        #expect(applied.disposition == .resolvedWithWarnings)
+        #expect(notApplied.currentBatter?.participant.playerIdentity == lineup.entries[1].participant.playerIdentity)
+        #expect(notApplied.disposition == .unresolved)
+    }
+
+    @Test func projectionInputsRemainUnchangedAndReplayPrepared() throws {
+        let fixture = try CanonicalTeamMeaningTestSupport.decodeGameFixture("LineupGame.ScoreKeep_Games")
+        let importedLineup = try #require(fixture.lineups.first.map { CanonicalLineupMeaningTestSupport.importedLineup(from: $0, gameID: fixture.id) })
+        let lineup = CanonicalBattingOrderEvidence(lineup: importedLineup)
+        let original = input(lineup: lineup)
+
+        let first = CanonicalBatterProjector.project(original)
+        let second = CanonicalBatterProjector.project(original)
+
+        #expect(first == second)
+        #expect(original.lineup == lineup)
+        #expect(first.sourceEvidenceIgnored.contains("swiftDataFetchOrder"))
+        #expect(first.sourceEvidenceIgnored.contains("currentDate"))
+        #expect(first.validation.findings.map(\.code) == second.validation.findings.map(\.code))
+    }
+
+    private func input(
+        side: TeamSideRole = .home,
+        lineup: CanonicalBattingOrderEvidence,
+        events: [CanonicalScoringEventEvidence] = [],
+        substitutions: [CanonicalSubstitutionEvidence] = []
+    ) -> CanonicalBatterProjectionInput {
+        CanonicalBatterProjectionInput(
+            gameIdentity: .valid(CanonicalLineupMeaningTestSupport.gameA),
+            battingSide: side,
+            lineup: lineup,
+            recordedEvents: events,
+            substitutions: substitutions,
+            sourceLocation: "CanonicalBatterProjectionTests"
+        )
+    }
+
+    private func battingLineup(
+        side: TeamSideRole = .home,
+        mode: CanonicalBattingLineupContext = .traditional,
+        count: Int
+    ) -> CanonicalBattingOrderEvidence {
+        battingLineup(side: side, mode: mode, slots: count <= 0 ? [] : (1...count).map { .known($0) })
+    }
+
+    private func battingLineup(
+        side: TeamSideRole = .home,
+        mode: CanonicalBattingLineupContext = .traditional,
+        slots: [CanonicalBattingSlotEvidence]
+    ) -> CanonicalBattingOrderEvidence {
+        battingLineup(mode: mode, entries: slots.enumerated().map { index, slot in
+            entry(slot: slot, participant: participant(id: "51000000-0000-0000-0000-0000000000\(String(format: "%02d", index + 1))", name: "Batter \(index + 1)", side: side))
+        })
+    }
+
+    private func battingLineup(
+        mode: CanonicalBattingLineupContext = .traditional,
+        entries: [CanonicalBattingOrderEntry]
+    ) -> CanonicalBattingOrderEvidence {
+        CanonicalBattingOrderEvidence(
+            gameIdentity: .valid(CanonicalLineupMeaningTestSupport.gameA),
+            lineupIdentity: .valid(CanonicalLineupMeaningTestSupport.lineupA),
+            context: mode,
+            entries: entries
+        )
+    }
+
+    private func entry(
+        slot: CanonicalBattingSlotEvidence,
+        participant: LineupParticipantEvidence
+    ) -> CanonicalBattingOrderEntry {
+        CanonicalBattingOrderEntry(
+            gameIdentity: .valid(CanonicalLineupMeaningTestSupport.gameA),
+            lineupIdentity: .valid(CanonicalLineupMeaningTestSupport.lineupA),
+            participant: participant,
+            slotEvidence: slot
+        )
+    }
+
+    private func participant(id: String, name: String, side: TeamSideRole) -> LineupParticipantEvidence {
+        .gameParticipant(
+            CanonicalLineupMeaningTestSupport.participant(
+                player: CanonicalLineupMeaningTestSupport.player(
+                    id: StableIdentityAndOrderingTestSupport.fixedUUID(id),
+                    name: name
+                ),
+                sideRole: side
+            )
+        )
+    }
+
+    private func event(
+        sequence: Int?,
+        batter: LineupParticipantEvidence?,
+        inning: CGFloat = 1.0,
+        side: TeamSideRole = .home
+    ) -> CanonicalScoringEventEvidence {
+        CanonicalScoringEventEvidence(
+            eventIdentity: .valid(StableIdentityAndOrderingTestSupport.fixedUUID("70000000-0000-0000-0000-0000000000\(String(format: "%02d", sequence ?? 99))")),
+            gameIdentity: .valid(CanonicalLineupMeaningTestSupport.gameA),
+            orderingEvidence: sequence.map { [.knownSequence(OrderEvidence(kind: .eventSequence, value: $0))] } ?? [.missingSequence],
+            inningContext: nil,
+            teamSide: side,
+            participants: ScoringEventParticipantEvidence(batter: batter),
+            resultEvidence: .batterReachesBase(rawValue: "Single")
+        )
+    }
+
+    private func substitution(
+        incoming: LineupParticipantEvidence,
+        outgoing: LineupParticipantEvidence,
+        slot: Int,
+        order: Int
+    ) -> CanonicalSubstitutionEvidence {
+        CanonicalSubstitutionEvidence(
+            substitutionIdentity: .valid(StableIdentityAndOrderingTestSupport.fixedUUID("72000000-0000-0000-0000-000000000001")),
+            gameIdentity: .valid(CanonicalLineupMeaningTestSupport.gameA),
+            teamSide: .home,
+            incoming: .participant(incoming),
+            outgoing: .participant(outgoing),
+            effectiveOrder: OrderEvidence(kind: .substitution, value: order),
+            battingSlotContext: .known(slot),
+            roleEvidence: [.batterReplacement],
+            source: .syntheticVerification
+        )
+    }
+}
