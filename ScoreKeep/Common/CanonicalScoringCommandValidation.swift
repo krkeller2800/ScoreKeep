@@ -6,6 +6,8 @@ struct CanonicalScoringCommandInputState: Hashable, Sendable {
     let inning: CanonicalHalfInning?
     let outs: CanonicalOutsState
     let baseOccupancy: CanonicalBaseOccupancy
+    let count: BallStrikeCountEvidence
+    let score: CanonicalProjectedScore
     let currentBatter: LineupParticipantEvidence?
     let lineupParticipants: [LineupParticipantEvidence]
     let pitcherResponsibility: CanonicalPitcherResponsibilityEvidence?
@@ -16,6 +18,8 @@ struct CanonicalScoringCommandInputState: Hashable, Sendable {
         inning: CanonicalHalfInning?,
         outs: CanonicalOutsState,
         baseOccupancy: CanonicalBaseOccupancy = CanonicalBaseOccupancy(),
+        count: BallStrikeCountEvidence = .unsupportedRepositoryEvidence,
+        score: CanonicalProjectedScore = CanonicalProjectedScore(),
         currentBatter: LineupParticipantEvidence? = nil,
         lineupParticipants: [LineupParticipantEvidence] = [],
         pitcherResponsibility: CanonicalPitcherResponsibilityEvidence? = nil
@@ -25,6 +29,8 @@ struct CanonicalScoringCommandInputState: Hashable, Sendable {
         self.inning = inning
         self.outs = outs
         self.baseOccupancy = baseOccupancy
+        self.count = count
+        self.score = score
         self.currentBatter = currentBatter
         self.lineupParticipants = lineupParticipants
         self.pitcherResponsibility = pitcherResponsibility
@@ -278,7 +284,7 @@ enum CanonicalScoringCommandValidator {
     }
 }
 
-private extension CanonicalRunnerDestinationIntent {
+extension CanonicalRunnerDestinationIntent {
     var runner: RunnerIdentityEvidence {
         switch self {
         case let .advance(runner, _, _, _), let .score(runner, _, _), let .out(runner, _, _):

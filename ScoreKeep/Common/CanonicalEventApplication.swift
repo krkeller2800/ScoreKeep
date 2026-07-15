@@ -12,6 +12,20 @@ struct CanonicalScoringEventApplicationResult: Hashable, Sendable {
     var inputStateRemainsUnchanged: Bool { inputState == validation.inputState }
 }
 
+struct CanonicalScoringStateTransitionApplicationResult: Hashable, Sendable {
+    let baseApplication: CanonicalScoringEventApplicationResult
+    let countTransition: CanonicalCountTransitionResult
+    let baseRunnerTransition: CanonicalBaseRunnerTransitionResult?
+    let outTransition: CanonicalOutTransitionResult?
+    let scoreCalculation: CanonicalScoreCalculationResult?
+    let inningTransition: CanonicalInningTransitionResult?
+    let resultingState: CanonicalScoringCommandInputState
+    let rejected: Bool
+
+    var event: CanonicalScoringEventEvidence? { rejected ? nil : baseApplication.event }
+    var inputStateRemainsUnchanged: Bool { baseApplication.inputStateRemainsUnchanged }
+}
+
 enum CanonicalScoringEventApplicationFact: String, Hashable, Sendable {
     case eventEvidence
     case batterDestination
@@ -26,6 +40,91 @@ enum CanonicalScoringEventApplicationFact: String, Hashable, Sendable {
 }
 
 enum CanonicalScoringEventApplicator {
+    static func applyComposed(
+        _ command: CanonicalScoringCommand,
+        to input: CanonicalScoringCommandInputState,
+        sourceLocation: String? = nil
+    ) -> CanonicalScoringStateTransitionApplicationResult {
+        let count = CanonicalCountTransition.apply(CanonicalCountTransitionRequest(countEvidence: input.count, rawEvidence: command.rawLegacyEvidence))
+        let base = apply(command, to: input, sourceLocation: sourceLocation)
+        guard base.applied, let event = base.event else {
+            return CanonicalScoringStateTransitionApplicationResult(
+                baseApplication: base,
+                countTransition: count,
+                baseRunnerTransition: nil,
+                outTransition: nil,
+                scoreCalculation: nil,
+                inningTransition: nil,
+                resultingState: input,
+                rejected: true
+            )
+        }
+
+        let baseRunner = baseRunnerTransition(for: command, input: input)
+        if baseRunner.rejected {
+            return rejectedComposed(base: base, count: count, baseRunner: baseRunner, input: input)
+        }
+
+        let outsAdded = event.outsEvidence?.outsRecordedByEvent ?? 0
+        let participantOuts = participantOuts(from: event)
+        let outTransition = CanonicalOutTransition.apply(CanonicalOutTransitionRequest(
+            inputOuts: input.outs,
+            outsToAdd: outsAdded,
+            participantOuts: participantOuts,
+            explicitEndOfHalfEvidence: event.endOfHalfEvidence
+        ))
+        if outTransition.rejected {
+            return rejectedComposed(base: base, count: count, baseRunner: baseRunner, outTransition: outTransition, input: input)
+        }
+
+        let score = CanonicalScoreCalculation.calculate(CanonicalScoreCalculationRequest(
+            inputScore: input.score,
+            battingSide: command.teamSide,
+            scoredRunners: baseRunner.scoredRunners,
+            rbiEvidence: command.rbiEvidence,
+            earnedRunEvidence: command.earnedRunEvidence,
+            thirdOutContext: outTransition.thirdOutContext,
+            storedScoreEvidence: nil
+        ))
+        if score.rejected {
+            return rejectedComposed(base: base, count: count, baseRunner: baseRunner, outTransition: outTransition, score: score, input: input)
+        }
+
+        let inningTransition = (outTransition.thirdOutContext || command.intent == .endHalfInning)
+            ? CanonicalInningTransition.apply(CanonicalInningTransitionRequest(
+                inning: input.inning,
+                outs: outTransition.resultingOuts,
+                baseOccupancy: baseRunner.resultingOccupancy,
+                score: score.resultingScore,
+                explicitEndHalfCommand: command.intent == .endHalfInning || event.endOfHalfEvidence
+            ))
+            : nil
+
+        let resultingState = CanonicalScoringCommandInputState(
+            game: input.game,
+            battingSide: inningTransition?.resultingInning == nil ? input.battingSide : nextBattingSide(after: input.battingSide),
+            inning: inningTransition?.resultingInning ?? input.inning,
+            outs: inningTransition?.resultingOuts ?? outTransition.resultingOuts,
+            baseOccupancy: inningTransition?.resultingBaseOccupancy ?? baseRunner.resultingOccupancy,
+            count: count.resultingCount,
+            score: score.resultingScore,
+            currentBatter: input.currentBatter,
+            lineupParticipants: input.lineupParticipants,
+            pitcherResponsibility: input.pitcherResponsibility
+        )
+
+        return CanonicalScoringStateTransitionApplicationResult(
+            baseApplication: base,
+            countTransition: count,
+            baseRunnerTransition: baseRunner,
+            outTransition: outTransition,
+            scoreCalculation: score,
+            inningTransition: inningTransition,
+            resultingState: resultingState,
+            rejected: false
+        )
+    }
+
     static func apply(
         _ command: CanonicalScoringCommand,
         to input: CanonicalScoringCommandInputState,
@@ -130,6 +229,8 @@ enum CanonicalScoringEventApplicator {
             inning: input.inning,
             outs: resultingOuts,
             baseOccupancy: resultingOccupancy,
+            count: input.count,
+            score: input.score,
             currentBatter: input.currentBatter,
             lineupParticipants: input.lineupParticipants,
             pitcherResponsibility: input.pitcherResponsibility
@@ -259,6 +360,92 @@ enum CanonicalScoringEventApplicator {
             return value != 0
         case .flag, .conflicting:
             return true
+        }
+    }
+
+    private static func rejectedComposed(
+        base: CanonicalScoringEventApplicationResult,
+        count: CanonicalCountTransitionResult,
+        baseRunner: CanonicalBaseRunnerTransitionResult? = nil,
+        outTransition: CanonicalOutTransitionResult? = nil,
+        score: CanonicalScoreCalculationResult? = nil,
+        input: CanonicalScoringCommandInputState
+    ) -> CanonicalScoringStateTransitionApplicationResult {
+        CanonicalScoringStateTransitionApplicationResult(
+            baseApplication: CanonicalScoringEventApplicationResult(
+                validation: base.validation,
+                inputState: input,
+                event: nil,
+                resultingState: input,
+                changedFacts: [],
+                preservedUnsupportedEvidence: base.preservedUnsupportedEvidence
+            ),
+            countTransition: count,
+            baseRunnerTransition: baseRunner,
+            outTransition: outTransition,
+            scoreCalculation: score,
+            inningTransition: nil,
+            resultingState: input,
+            rejected: true
+        )
+    }
+
+    private static func baseRunnerTransition(
+        for command: CanonicalScoringCommand,
+        input: CanonicalScoringCommandInputState
+    ) -> CanonicalBaseRunnerTransitionResult {
+        let batterOutcome: CanonicalBatterRunnerTransition
+        switch command.intent {
+        case let .batterReaches(destination, _):
+            batterOutcome = batterRunner(command.batter ?? input.currentBatter).map { .reaches(destination, $0) } ?? .unresolved
+        case .homeRun:
+            batterOutcome = batterRunner(command.batter ?? input.currentBatter).map { .scores($0) } ?? .unresolved
+        case .batterOut:
+            batterOutcome = batterRunner(command.batter ?? input.currentBatter).map { .out($0, outAt: .first) } ?? .unresolved
+        default:
+            batterOutcome = .unresolved
+        }
+        return CanonicalBaseRunnerTransition.apply(CanonicalBaseRunnerTransitionRequest(
+            inputOccupancy: input.baseOccupancy,
+            batterOutcome: batterOutcome,
+            runnerDestinations: command.runnerDestinations
+        ))
+    }
+
+    private static func participantOuts(from event: CanonicalScoringEventEvidence) -> [CanonicalParticipantOutEvidence] {
+        var outs: [CanonicalParticipantOutEvidence] = []
+        if case .out = event.batterAdvancement, let runner = runner(from: event.batterAdvancement) {
+            outs.append(.batter(event.participants.batter))
+            if outs.isEmpty {
+                outs.append(.runner(runner, sourceBase: .first, outAt: .first))
+            }
+        }
+        for outcome in event.runnerAdvancement {
+            if case let .out(runner, sourceBase) = outcome {
+                outs.append(.runner(runner, sourceBase: sourceBase ?? .first, outAt: sourceBase ?? .first))
+            }
+        }
+        return outs
+    }
+
+    private static func runner(from evidence: RunnerStateEvidence?) -> RunnerIdentityEvidence? {
+        guard let evidence else { return nil }
+        switch evidence {
+        case let .activeOccupant(_, runner), let .scored(runner, _), let .out(runner, _), let .batterRunner(runner), let .historicalRunner(runner, _):
+            return runner
+        default:
+            return nil
+        }
+    }
+
+    private static func nextBattingSide(after side: TeamSideRole) -> TeamSideRole {
+        switch side {
+        case .visiting:
+            return .home
+        case .home:
+            return .visiting
+        case .unresolved:
+            return .unresolved
         }
     }
 }

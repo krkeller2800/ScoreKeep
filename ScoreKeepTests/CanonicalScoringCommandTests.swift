@@ -104,6 +104,8 @@ enum ScoringCommandTestSupport {
         inning: CanonicalHalfInning? = CanonicalHalfInning(number: .known(1), half: .known(.top), expectedInnings: .known(7)),
         outs: Int = 0,
         occupancy: CanonicalBaseOccupancy = CanonicalBaseOccupancy(),
+        count: BallStrikeCountEvidence = .unsupportedRepositoryEvidence,
+        score: CanonicalProjectedScore = CanonicalProjectedScore(),
         batter: LineupParticipantEvidence? = batter(),
         lineup: [LineupParticipantEvidence] = [batter()],
         pitcher: CanonicalPitcherResponsibilityEvidence? = pitcherResponsibility()
@@ -114,6 +116,8 @@ enum ScoringCommandTestSupport {
             inning: inning,
             outs: CanonicalOutsState(outs: .known(outs)),
             baseOccupancy: occupancy,
+            count: count,
+            score: score,
             currentBatter: batter,
             lineupParticipants: lineup,
             pitcherResponsibility: pitcher
