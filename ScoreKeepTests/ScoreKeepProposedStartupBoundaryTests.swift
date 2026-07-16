@@ -1,0 +1,77 @@
+import Foundation
+import Testing
+@testable import ScoreKeep
+
+@Suite("Proposed startup active production boundary")
+struct ScoreKeepProposedStartupBoundaryTests {
+    @Test("ScoreKeepApp remains legacy and does not reference proposed startup authority")
+    func scoreKeepAppRemainsLegacyAndDoesNotReferenceProposedStartupAuthority() throws {
+        let source = try repositorySource("ScoreKeep/ScoreKeepApp.swift")
+
+        #expect(source.contains(".modelContainer(for: Game.self)"))
+        #expect(source.contains("ScoreKeepProposedContainerFactory") == false)
+        #expect(source.contains("ScoreKeepProposedVersionedSchema") == false)
+        #expect(source.contains("ScoreKeepProposedTeamCreationEvidenceMigrationPlan") == false)
+        #expect(source.contains("ScoreKeepMigrationOperationEvidenceAuthority") == false)
+        #expect(source.contains("TeamCreationSwiftDataEvidenceStore") == false)
+    }
+
+    @Test("TeamView and content routes remain legacy writer routes")
+    func teamViewAndContentRoutesRemainLegacyWriterRoutes() throws {
+        let teamView = try repositorySource("ScoreKeep/List Data/TeamView.swift")
+        let teamContentView = try repositorySource("ScoreKeep/Content Views/TeamContentView.swift")
+        let route = CanonicalPersistenceCutoverRouteManifest.route(for: .teamCreationAndEditing)
+
+        #expect(teamView.contains("ScoreKeepProposedContainerFactory") == false)
+        #expect(teamView.contains("TeamCreationTransactionAdapter") == false)
+        #expect(teamContentView.contains("ScoreKeepProposedContainerFactory") == false)
+        #expect(route.currentAuthority == .legacySwiftData)
+        #expect(route.proposedFutureAuthority == .proposedPersistenceAuthority)
+        #expect(route.canBeRoutedIndependently == true)
+    }
+
+    @Test("team adapter coordinator and evidence store remain non routed")
+    func teamAdapterCoordinatorAndEvidenceStoreRemainNonRouted() throws {
+        let coordinator = try repositorySource("ScoreKeep/Common/CanonicalTeamCreationCoordinator.swift")
+        let transaction = try repositorySource("ScoreKeep/Common/CanonicalTeamCreationTransaction.swift")
+        let evidenceStore = try repositorySource("ScoreKeep/Common/TeamCreationSwiftDataEvidenceStore.swift")
+
+        #expect(coordinator.contains("@main") == false)
+        #expect(coordinator.contains("ScoreKeepApp") == false)
+        #expect(transaction.contains("@main") == false)
+        #expect(transaction.contains("ScoreKeepApp") == false)
+        #expect(evidenceStore.contains("@main") == false)
+        #expect(evidenceStore.contains("ScoreKeepApp") == false)
+        #expect(ScoreKeepSchemaRouteChoice.currentDefault == .legacyUnversionedProductionStartup)
+    }
+
+    @Test("StoreKit Keychain allowances entitlements UI and generated outputs are not referenced by factory")
+    func unrelatedBoundariesAreNotReferencedByFactory() throws {
+        let factory = try repositorySource("ScoreKeep/Common/ScoreKeepProposedContainerFactory.swift")
+        let evidence = try repositorySource("ScoreKeep/Common/ScoreKeepMigrationOperationEvidence.swift")
+
+        for forbidden in ["StoreKit", "Keychain", "PurchaseManager", "Allowance", "Entitlement", "SwiftUI", "PDF", "ImportService", "Export"] {
+            #expect(factory.contains(forbidden) == false)
+            #expect(evidence.contains(forbidden) == false)
+        }
+    }
+
+    private func repositorySource(_ relativePath: String) throws -> String {
+        let url = try repositoryRoot().appendingPathComponent(relativePath)
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    private func repositoryRoot() throws -> URL {
+        var url = URL(fileURLWithPath: #filePath)
+        while url.pathComponents.last != "ScoreKeepTests" {
+            url.deleteLastPathComponent()
+            if url.path == "/" { throw ScoreKeepProposedStartupBoundaryTestError.repositoryRootNotFound }
+        }
+        url.deleteLastPathComponent()
+        return url
+    }
+}
+
+enum ScoreKeepProposedStartupBoundaryTestError: Error {
+    case repositoryRootNotFound
+}
