@@ -96,13 +96,7 @@ enum CanonicalGameStatePrimitivesTestSupport {
     }
 
     static func fixture(_ filename: String, directory: String = "ScoreKeep_Games") throws -> ShareGame {
-        var url = URL(fileURLWithPath: #filePath)
-        for _ in 0..<3 {
-            url.deleteLastPathComponent()
-        }
-        url.appendPathComponent("ScoreKeep/Docs/Verification/Fixtures")
-        url.appendPathComponent(directory)
-        url.appendPathComponent(filename)
+        let url = StableIdentityAndOrderingTestSupport.sourceFixtureURL(directory: directory, filename: filename)
         return try JSONDecoder().decode(ShareGame.self, from: Data(contentsOf: url))
     }
 }

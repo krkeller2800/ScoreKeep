@@ -1,0 +1,5 @@
+// Build setting overrides for the disposable physical-device legacy migration proof.
+// Use with xcodebuild -xcconfig ScoreKeep/MigrationTestLegacy.xcconfig.
+PRODUCT_BUNDLE_IDENTIFIER = com.komakode.ScoreKeepMigrationTest
+INFOPLIST_KEY_CFBundleDisplayName = ScoreKeep Migration Test
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG SCOREKEEP_MIGRATION_TEST SCOREKEEP_MIGRATION_TEST_LEGACY

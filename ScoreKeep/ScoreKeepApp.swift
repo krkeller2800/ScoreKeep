@@ -19,6 +19,12 @@ struct ScoreKeepApp: App {
     @AppStorage("hasSeededInitialGame") private var hasSeededInitialGame = false
 
     var body: some Scene {
+        #if SCOREKEEP_MIGRATION_TEST_PROPOSED
+        WindowGroup {
+            ScoreKeepPhysicalMigrationExecutionView()
+        }
+        .handlesExternalEvents(matching: ["*"])
+        #else
         WindowGroup {
             Group {
                 if UIDevice.type == "iPad" {
@@ -59,6 +65,9 @@ struct ScoreKeepApp: App {
             }
             // Inject a hidden seeding runner once the modelContext exists
             .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
+            #if SCOREKEEP_MIGRATION_TEST
+            .modifier(ScoreKeepPhysicalMigrationTestOverlay())
+            #endif
             .onAppear {
                 let fm = FileManager.default
                 if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
@@ -68,6 +77,7 @@ struct ScoreKeepApp: App {
         }
         .modelContainer(for: Game.self)
         .handlesExternalEvents(matching: ["*"])
+        #endif
     }
 }
 
@@ -110,4 +120,3 @@ private func parseDeepLink(_ url: URL) -> AppRouter.Destination? {
     }
     return nil
 }
-

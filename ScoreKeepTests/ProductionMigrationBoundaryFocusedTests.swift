@@ -65,11 +65,7 @@ struct ScoreKeepMigrationProductionBoundaryTests {
     }
 
     private func source(_ projectRelativePath: String) throws -> String {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let url = root.appendingPathComponent(projectRelativePath)
-        return try String(contentsOf: url, encoding: .utf8)
+        try StableIdentityAndOrderingTestSupport.repositorySource(projectRelativePath)
     }
 }
 #endif

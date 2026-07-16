@@ -340,13 +340,7 @@ struct CanonicalTeamCreationTransactionTests {
     }
 
     private func repositoryRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.pathComponents.last != "ScoreKeepTests" {
-            url.deleteLastPathComponent()
-            if url.path == "/" { throw TeamCreationTransactionTestError.repositoryRootNotFound }
-        }
-        url.deleteLastPathComponent()
-        return url
+        try StableIdentityAndOrderingTestSupport.repositoryRoot()
     }
 
     private func productionSwiftFiles(root: URL) throws -> [URL] {

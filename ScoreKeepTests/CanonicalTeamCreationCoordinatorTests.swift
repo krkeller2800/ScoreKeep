@@ -221,18 +221,11 @@ struct CanonicalTeamCreationCoordinatorTests {
     }
 
     private func source(named relativePath: String) throws -> String {
-        let url = try repositoryRoot().appendingPathComponent(relativePath)
-        return try String(contentsOf: url, encoding: .utf8)
+        try StableIdentityAndOrderingTestSupport.repositorySource(relativePath)
     }
 
     private func repositoryRoot() throws -> URL {
-        var url = URL(fileURLWithPath: #filePath)
-        while url.pathComponents.last != "ScoreKeepTests" {
-            url.deleteLastPathComponent()
-            if url.path == "/" { throw TeamCreationCoordinatorTestError.repositoryRootNotFound }
-        }
-        url.deleteLastPathComponent()
-        return url
+        try StableIdentityAndOrderingTestSupport.repositoryRoot()
     }
 }
 

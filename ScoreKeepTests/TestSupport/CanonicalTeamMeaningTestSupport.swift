@@ -76,20 +76,12 @@ enum CanonicalTeamMeaningTestSupport {
     }
 
     static func fixtureData(directory: String, filename: String, callerFilePath: String = #filePath) throws -> Data {
-        let fileManager = FileManager.default
-        var searchDirectory = URL(fileURLWithPath: callerFilePath).deletingLastPathComponent()
-
-        for _ in 0..<8 {
-            let candidate = searchDirectory.appendingPathComponent("ScoreKeep/Docs/Verification/Fixtures")
-            if fileManager.fileExists(atPath: candidate.path) {
-                let fixtureURL = candidate.appendingPathComponent(directory).appendingPathComponent(filename)
-                return try Data(contentsOf: fixtureURL)
-            }
-            searchDirectory.deleteLastPathComponent()
-        }
-
-        let fallback = StableIdentityAndOrderingTestSupport.sourceFixtureURL(directory: directory, filename: filename)
-        return try Data(contentsOf: fallback)
+        let url = StableIdentityAndOrderingTestSupport.sourceFixtureURL(
+            directory: directory,
+            filename: filename,
+            callerFilePath: callerFilePath
+        )
+        return try Data(contentsOf: url)
     }
 
     static func decodeRosterFixture(_ filename: String) throws -> [SharePlayer] {

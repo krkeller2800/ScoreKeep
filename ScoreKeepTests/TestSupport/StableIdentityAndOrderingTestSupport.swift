@@ -66,13 +66,67 @@ enum StableIdentityAndOrderingTestSupport {
         filename: String,
         callerFilePath: String = #filePath
     ) -> URL {
-        var url = URL(fileURLWithPath: callerFilePath)
-        for _ in 0..<2 {
+        if let url = try? repositoryURL("ScoreKeep/Docs/Verification/Fixtures/\(directory)/\(filename)", callerFilePath: callerFilePath) {
+            return url
+        }
+        return URL(fileURLWithPath: callerFilePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("ScoreKeep/Docs/Verification/Fixtures")
+            .appendingPathComponent(directory)
+            .appendingPathComponent(filename)
+    }
+
+    static func repositoryURL(_ relativePath: String, callerFilePath: String = #filePath) throws -> URL {
+        let root = try repositoryRoot(callerFilePath: callerFilePath)
+        return relativePath.split(separator: "/").reduce(root) { url, component in
+            url.appendingPathComponent(String(component))
+        }
+    }
+
+    static func repositorySource(_ relativePath: String, callerFilePath: String = #filePath) throws -> String {
+        try String(contentsOf: repositoryURL(relativePath, callerFilePath: callerFilePath), encoding: .utf8)
+    }
+
+    static func repositoryRoot(callerFilePath: String = #filePath) throws -> URL {
+        var candidates: [URL] = []
+        if let sourceRoot = ProcessInfo.processInfo.environment["SRCROOT"] {
+            candidates.append(URL(fileURLWithPath: sourceRoot))
+        }
+        candidates.append(URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
+        candidates.append(URL(fileURLWithPath: callerFilePath))
+        if callerFilePath.hasPrefix("/") == false {
+            candidates.append(URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(callerFilePath))
+        }
+
+        for candidate in candidates {
+            if let root = repositoryRoot(containing: candidate) {
+                return root
+            }
+        }
+        throw StableIdentityAndOrderingTestSupportError.repositoryRootNotFound
+    }
+
+    private static func repositoryRoot(containing candidate: URL) -> URL? {
+        let fileManager = FileManager.default
+        var url = candidate
+        if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
             url.deleteLastPathComponent()
         }
-        url.appendPathComponent("ScoreKeep/Docs/Verification/Fixtures")
-        url.appendPathComponent(directory)
-        url.appendPathComponent(filename)
-        return url
+        for _ in 0..<12 {
+            let project = url.appendingPathComponent("ScoreKeep.xcodeproj")
+            let app = url.appendingPathComponent("ScoreKeep/ScoreKeepApp.swift")
+            if fileManager.fileExists(atPath: project.path), fileManager.fileExists(atPath: app.path) {
+                return url
+            }
+            let parent = url.deletingLastPathComponent()
+            if parent.path == url.path { break }
+            url = parent
+        }
+        return nil
     }
+}
+
+enum StableIdentityAndOrderingTestSupportError: Error {
+    case repositoryRootNotFound
 }
