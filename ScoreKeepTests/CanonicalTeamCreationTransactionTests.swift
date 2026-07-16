@@ -135,6 +135,39 @@ struct CanonicalTeamCreationTransactionTests {
         IsolatedTeamCreationTransactionSupport.assertOnlyCreatedTeamChanged(before: before, after: after, request: request)
     }
 
+    @Test("dedicated operation context ignores environment context and disables autosave")
+    func dedicatedOperationContextIgnoresEnvironmentContextAndDisablesAutosave() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        environment.context.insert(Team(ident: TeamCreationTransactionVerificationIDs.unrelatedTeam, name: "Pending", coach: "", details: ""))
+        let request = IsolatedTeamCreationTransactionSupport.request()
+        var saveSawAutosaveDisabled = false
+        var saveUsedEnvironmentContext = false
+        var reloadContext: ModelContext?
+        let dependencies = CanonicalTeamCreationTransactionDependencies(
+            save: { context in
+                saveSawAutosaveDisabled = context.autosaveEnabled == false
+                saveUsedEnvironmentContext = context === environment.context
+                try context.save()
+            },
+            makeReloadContext: { container in
+                let context = ModelContext(container)
+                reloadContext = context
+                return context
+            }
+        )
+        let adapter = CanonicalTeamCreationTransactionAdapter(container: environment.container, dependencies: dependencies)
+
+        let result = adapter.applyUsingDedicatedOperationContext(request)
+        let snapshot = try IsolatedTeamCreationTransactionSupport.snapshot(from: environment.container)
+
+        #expect(result.transaction.disposition == .success)
+        #expect(saveSawAutosaveDisabled)
+        #expect(saveUsedEnvironmentContext == false)
+        #expect(reloadContext?.autosaveEnabled == false)
+        #expect(environment.context.hasChanges)
+        #expect(snapshot.teams[request.teamIdentity]?.name == request.teamName)
+    }
+
     @Test("result is deterministic for equivalent isolated successes")
     func resultIsDeterministicForEquivalentIsolatedSuccesses() throws {
         let firstEnvironment = try IsolatedPersistenceEnvironment()

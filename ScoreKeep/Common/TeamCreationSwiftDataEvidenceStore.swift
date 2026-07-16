@@ -11,7 +11,7 @@ final class TeamCreationSwiftDataEvidenceStore: CanonicalTeamCreationOperationEv
 
     func evidence(for operationIdentity: CanonicalTeamCreationOperationIdentity) async -> CanonicalTeamCreationOperationEvidence? {
         do {
-            let context = ModelContext(container)
+            let context = makeContext()
             return try fetchRecord(operationIdentity: operationIdentity.rawValue, in: context).map(Self.canonicalEvidence(from:))
         } catch {
             return nil
@@ -20,7 +20,7 @@ final class TeamCreationSwiftDataEvidenceStore: CanonicalTeamCreationOperationEv
 
     func evidenceForTeam(_ teamIdentity: UUID) async -> [CanonicalTeamCreationOperationEvidence] {
         do {
-            let context = ModelContext(container)
+            let context = makeContext()
             let descriptor = FetchDescriptor<TeamCreationOperationEvidenceRecord>(
                 predicate: #Predicate { $0.targetTeamIdentity == teamIdentity }
             )
@@ -32,7 +32,7 @@ final class TeamCreationSwiftDataEvidenceStore: CanonicalTeamCreationOperationEv
 
     func begin(_ evidence: CanonicalTeamCreationOperationEvidence) async -> CanonicalTeamCreationEvidenceConflict {
         do {
-            let context = ModelContext(container)
+            let context = makeContext()
             if let existingRecord = try fetchRecord(operationIdentity: evidence.operationIdentity.rawValue, in: context) {
                 let existing = Self.canonicalEvidence(from: existingRecord)
                 if existing.requestFingerprint != evidence.requestFingerprint { return .sameOperationDifferentRequest }
@@ -100,7 +100,7 @@ final class TeamCreationSwiftDataEvidenceStore: CanonicalTeamCreationOperationEv
 
     func detectConflictingReuse(_ evidence: CanonicalTeamCreationOperationEvidence) async -> CanonicalTeamCreationEvidenceConflict {
         do {
-            let context = ModelContext(container)
+            let context = makeContext()
             if let existing = try fetchRecord(operationIdentity: evidence.operationIdentity.rawValue, in: context).map(Self.canonicalEvidence(from:)) {
                 if existing.requestFingerprint != evidence.requestFingerprint { return .sameOperationDifferentRequest }
                 if existing.phase == .failedWithUncertainCompletion || existing.phase == .saveOutcomeUncertain { return .uncertainPriorCompletion }
@@ -122,7 +122,7 @@ final class TeamCreationSwiftDataEvidenceStore: CanonicalTeamCreationOperationEv
 
     private func persist(_ evidence: CanonicalTeamCreationOperationEvidence) async {
         do {
-            let context = ModelContext(container)
+            let context = makeContext()
             if let record = try fetchRecord(operationIdentity: evidence.operationIdentity.rawValue, in: context) {
                 let current = Self.canonicalEvidence(from: record)
                 guard current.requestFingerprint == evidence.requestFingerprint else { return }
@@ -135,6 +135,12 @@ final class TeamCreationSwiftDataEvidenceStore: CanonicalTeamCreationOperationEv
         } catch {
             return
         }
+    }
+
+    private func makeContext() -> ModelContext {
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        return context
     }
 
     private func fetchRecord(operationIdentity: String, in context: ModelContext) throws -> TeamCreationOperationEvidenceRecord? {

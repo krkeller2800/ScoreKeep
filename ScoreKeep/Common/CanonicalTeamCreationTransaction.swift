@@ -231,6 +231,12 @@ struct CanonicalTeamCreationTransactionAdapter {
         self.dependencies = dependencies
     }
 
+    func applyUsingDedicatedOperationContext(_ request: CanonicalTeamCreationRequest) -> CanonicalTeamCreationTransactionResult {
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        return apply(request, in: context)
+    }
+
     func apply(_ request: CanonicalTeamCreationRequest, in context: ModelContext) -> CanonicalTeamCreationTransactionResult {
         let requestFingerprint = CanonicalTeamCreationRequestFingerprint(request: request)
         var findings = validate(request, context: context, requestFingerprint: requestFingerprint)
@@ -375,6 +381,7 @@ struct CanonicalTeamCreationTransactionAdapter {
         }
 
         let reloadContext = dependencies.makeReloadContext(container)
+        reloadContext.autosaveEnabled = false
         let reloadedTeams: [Team]
         do {
             reloadedTeams = try fetchTeams(with: request.teamIdentity, in: reloadContext)
