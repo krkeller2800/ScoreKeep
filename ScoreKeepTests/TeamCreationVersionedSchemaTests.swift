@@ -33,15 +33,18 @@ struct TeamCreationVersionedSchemaTests {
         #expect(TeamCreationOperationEvidenceModelBoundary.excludedFields.contains("logo"))
     }
 
-    @Test("production startup source remains unversioned and unrouted")
-    func productionStartupSourceRemainsUnversionedAndUnrouted() throws {
+    @Test("production startup is hosted and bounded activation is enabled")
+    func productionStartupIsHostedAndBoundedActivationIsEnabled() throws {
         let source = try repositorySource("ScoreKeep/ScoreKeepApp.swift")
+        let startup = try repositorySource("ScoreKeep/Common/ScoreKeepProductionStartupHost.swift")
 
-        #expect(source.contains(".modelContainer(for: Game.self)"))
+        #expect(source.contains("ScoreKeepProductionStartupHost"))
         #expect(source.contains("ScoreKeepProposedVersionedSchema") == false)
         #expect(source.contains("ScoreKeepProposedTeamCreationEvidenceMigrationPlan") == false)
         #expect(source.contains("TeamCreationOperationEvidenceRecord") == false)
         #expect(source.contains("TeamCreationSwiftDataEvidenceStore") == false)
+        #expect(startup.contains("simpleTeamCreationProductionEnabled = true"))
+        #expect(startup.contains("runProductionMigration"))
     }
 
     private func repositorySource(_ relativePath: String) throws -> String {

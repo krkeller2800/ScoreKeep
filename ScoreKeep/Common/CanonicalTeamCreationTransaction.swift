@@ -89,6 +89,19 @@ struct CanonicalTeamCreationGateState: Hashable, Sendable {
         purchaseSeparationVerified: true,
         allowanceBoundaryVerified: true
     )
+
+    static let readyForProductionSimpleTeamCreation = CanonicalTeamCreationGateState(
+        schemaStateKnown: true,
+        sourceStoreVersionKnown: true,
+        migrationCompleted: true,
+        migrationCompletionCertain: true,
+        cutoverApprovalAbsent: false,
+        oneWriterProofPresent: true,
+        disablePathDefined: true,
+        rollbackOrRecoveryPolicyResolved: true,
+        purchaseSeparationVerified: true,
+        allowanceBoundaryVerified: true
+    )
 }
 
 struct CanonicalTeamCreationRequest: Hashable, Sendable {
@@ -476,8 +489,17 @@ struct CanonicalTeamCreationTransactionAdapter {
         if !request.unsupportedEvidenceFields.isEmpty {
             findings.append(finding("teamCreation.unsupportedEvidence", severity: .rejection, disposition: .rejected, summary: "Unsupported team creation evidence was supplied: \(request.unsupportedEvidenceFields.joined(separator: ", "))."))
         }
-        if request.expectedSource != .isolatedCandidateAdapter {
-            findings.append(finding("teamCreation.source.unsupported", severity: .rejection, disposition: .rejected, summary: "Only isolated candidate adapter requests are supported."))
+        switch request.expectedSource {
+        case .isolatedCandidateAdapter:
+            if !request.gateState.cutoverApprovalAbsent {
+                findings.append(finding("teamCreation.gate.routingApprovalPresent", severity: .rejection, disposition: .rejected, summary: "The isolated adapter path cannot run with production routing approval."))
+            }
+        case .productionRoute:
+            if request.gateState.cutoverApprovalAbsent {
+                findings.append(finding("teamCreation.gate.routingApprovalMissing", severity: .rejection, disposition: .rejected, summary: "The production route requires explicit routing approval."))
+            }
+        case .importRoute, .unknown:
+            findings.append(finding("teamCreation.source.unsupported", severity: .rejection, disposition: .rejected, summary: "This team creation source is not supported by the simple-team transaction adapter."))
         }
         if let knownFingerprint = request.knownInvocationFingerprints[request.operationIdentity], knownFingerprint != requestFingerprint {
             findings.append(finding("teamCreation.operationIdentity.conflict", severity: .contradiction, disposition: .contradictory, summary: "The operation identity has already been used for conflicting team creation evidence."))
@@ -505,9 +527,6 @@ struct CanonicalTeamCreationTransactionAdapter {
         }
         if !gates.migrationCompletionCertain {
             findings.append(finding("teamCreation.gate.migrationUncertain", severity: .rejection, disposition: .rejected, summary: "Migration completion is uncertain."))
-        }
-        if !gates.cutoverApprovalAbsent {
-            findings.append(finding("teamCreation.gate.routingApprovalPresent", severity: .rejection, disposition: .rejected, summary: "This adapter must remain non-routed even when cutover approval exists elsewhere."))
         }
         if !gates.oneWriterProofPresent {
             findings.append(finding("teamCreation.gate.oneWriterMissing", severity: .rejection, disposition: .rejected, summary: "One-writer proof is absent."))

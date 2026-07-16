@@ -11,6 +11,7 @@ import Foundation
 @MainActor
 struct TeamView: View {
     @Environment(\.modelContext) var modelContext
+    @EnvironmentObject private var teamCreationRoutes: SimpleTeamCreationRoutingService
     
     @State private var alertMessage = "kk"
     @State private var showingAlert: Bool = false
@@ -20,6 +21,8 @@ struct TeamView: View {
     @State private var checkForDups = true
     @State var coachName: String = ""
     @State var teamInfo: String = ""
+    @State private var pendingSubmission: SimpleTeamCreationSubmission?
+    @State private var submittingSimpleTeam = false
     
     enum FocusField: Hashable {case field}
 
@@ -56,18 +59,19 @@ struct TeamView: View {
                 TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
                     .overlay(Divider().background(.black), alignment: .trailing)
                 HStack {
-                    Image(systemName: "plus")
-                      .onTapGesture {
-                        if !dups {
-                            let theTeam = Team(name:teamName, coach:coachName, details:teamInfo)
-                            modelContext.insert(theTeam)
-                            teamName = ""; coachName = ""; teamInfo = ""
-                            try? self.modelContext.save()
-                        } else {
+                    Button {
+                        guard submittingSimpleTeam == false else { return }
+                        if dups {
                             alertMessage = "Team named \(teamName) already exists"
                             showingAlert = true
+                        } else {
+                            submitSimpleTeamCreation()
                         }
+                    } label: {
+                        Image(systemName: "plus")
                     }
+                    .disabled(submittingSimpleTeam)
+                    .accessibilityLabel("Create team")
                 }
                 .accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(20).padding(.leading,5)
             }
@@ -205,7 +209,60 @@ struct TeamView: View {
             }
         }
     }
-}
 
+    func submitSimpleTeamCreation() {
+        guard teamCreationRoutes.selectedRouteBeforeMutation == .proposed,
+              teamName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+            legacyCreateSimpleTeam()
+            return
+        }
+
+        let submission = submissionForCurrentValues()
+        submittingSimpleTeam = true
+        Task {
+            let outcome = await teamCreationRoutes.submit(submission)
+            await MainActor.run {
+                submittingSimpleTeam = false
+                if outcome.shouldClearFields {
+                    teamName = ""
+                    coachName = ""
+                    teamInfo = ""
+                    pendingSubmission = nil
+                    dups = false
+                } else if let message = outcome.userMessage {
+                    alertMessage = message
+                    showingAlert = true
+                }
+            }
+        }
+    }
+
+    func legacyCreateSimpleTeam() {
+        let theTeam = Team(name:teamName, coach:coachName, details:teamInfo)
+        modelContext.insert(theTeam)
+        teamName = ""; coachName = ""; teamInfo = ""
+        pendingSubmission = nil
+        try? self.modelContext.save()
+    }
+
+    func submissionForCurrentValues() -> SimpleTeamCreationSubmission {
+        if let pendingSubmission,
+           pendingSubmission.teamName == teamName,
+           pendingSubmission.coach == coachName,
+           pendingSubmission.details == teamInfo {
+            return pendingSubmission
+        }
+
+        let submission = SimpleTeamCreationSubmission(
+            operationIdentity: CanonicalTeamCreationOperationIdentity(UUID().uuidString),
+            teamIdentity: UUID(),
+            teamName: teamName,
+            coach: coachName,
+            details: teamInfo
+        )
+        pendingSubmission = submission
+        return submission
+    }
+}
 
 

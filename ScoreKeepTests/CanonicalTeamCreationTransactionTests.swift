@@ -338,8 +338,8 @@ struct CanonicalTeamCreationTransactionTests {
         #expect(try IsolatedTeamCreationTransactionSupport.snapshot(from: environment.container).allowanceProbe == IsolatedTeamCreationTransactionSupport.baselineProbe)
     }
 
-    @Test("adapter has no production route reference")
-    func adapterHasNoProductionRouteReference() throws {
+    @Test("adapter production reference is limited to simple team route service")
+    func adapterProductionReferenceIsLimitedToSimpleTeamRouteService() throws {
         let route = CanonicalPersistenceCutoverRouteManifest.route(for: .teamCreationAndEditing)
         #expect(route.currentAuthority == .legacySwiftData)
         #expect(route.proposedFutureAuthority == .proposedPersistenceAuthority)
@@ -355,7 +355,7 @@ struct CanonicalTeamCreationTransactionTests {
                 || source.contains("CanonicalTeamCreationRequest(")
         }
 
-        #expect(productionReferences.isEmpty)
+        #expect(productionReferences.map(\.lastPathComponent) == ["SimpleTeamCreationProductionRoute.swift"])
     }
 
     @Test("legacy team creation references remain active")

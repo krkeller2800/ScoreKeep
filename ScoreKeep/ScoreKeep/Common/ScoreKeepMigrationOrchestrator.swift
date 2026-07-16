@@ -50,10 +50,47 @@ struct ScoreKeepMigrationOrchestratorInput {
     let disableState: ScoreKeepSchemaRouteDisableState
     let authorizationEvidence: String?
     let sourceClosureEvidence: ScoreKeepSourceClosureEvidence
+    let sourceLocation: ScoreKeepStartupStoreLocation.Kind
+    let sourcePreservationAuthorizationScope: ScoreKeepSourcePreservationAuthorizationScope
+    let allowIncompleteBackupRemoval: Bool
     let interruptionPoint: ScoreKeepMigrationInterruptionPoint?
     let factoryInjection: ScoreKeepProposedContainerFactoryInjection?
     let semanticRestoreVerifier: ((URL) throws -> Bool)?
     let postOpenVerifier: ((ModelContainer) throws -> Bool)?
+
+    init(
+        operationIdentity: ScoreKeepMigrationOperationIdentity,
+        sourceStoreURL: URL,
+        backupStoreURL: URL,
+        targetStoreURL: URL,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        disableState: ScoreKeepSchemaRouteDisableState,
+        authorizationEvidence: String?,
+        sourceClosureEvidence: ScoreKeepSourceClosureEvidence,
+        sourceLocation: ScoreKeepStartupStoreLocation.Kind = .disposableTestStore,
+        sourcePreservationAuthorizationScope: ScoreKeepSourcePreservationAuthorizationScope = .testOwnedDisposable,
+        allowIncompleteBackupRemoval: Bool = true,
+        interruptionPoint: ScoreKeepMigrationInterruptionPoint?,
+        factoryInjection: ScoreKeepProposedContainerFactoryInjection?,
+        semanticRestoreVerifier: ((URL) throws -> Bool)?,
+        postOpenVerifier: ((ModelContainer) throws -> Bool)?
+    ) {
+        self.operationIdentity = operationIdentity
+        self.sourceStoreURL = sourceStoreURL
+        self.backupStoreURL = backupStoreURL
+        self.targetStoreURL = targetStoreURL
+        self.sourceClassification = sourceClassification
+        self.disableState = disableState
+        self.authorizationEvidence = authorizationEvidence
+        self.sourceClosureEvidence = sourceClosureEvidence
+        self.sourceLocation = sourceLocation
+        self.sourcePreservationAuthorizationScope = sourcePreservationAuthorizationScope
+        self.allowIncompleteBackupRemoval = allowIncompleteBackupRemoval
+        self.interruptionPoint = interruptionPoint
+        self.factoryInjection = factoryInjection
+        self.semanticRestoreVerifier = semanticRestoreVerifier
+        self.postOpenVerifier = postOpenVerifier
+    }
 }
 
 @MainActor
@@ -139,10 +176,11 @@ enum ScoreKeepMigrationOrchestrator {
                     ScoreKeepSourcePreservationRequest(
                         sourceStoreURL: input.sourceStoreURL,
                         backupStoreURL: input.backupStoreURL,
-                        sourceLocation: .disposableTestStore,
+                        sourceLocation: input.sourceLocation,
                         sourceClosureEvidence: input.sourceClosureEvidence,
-                        allowIncompleteTestOwnedBackupRemoval: true,
-                        semanticRestoreVerifier: input.semanticRestoreVerifier
+                        allowIncompleteTestOwnedBackupRemoval: input.allowIncompleteBackupRemoval,
+                        semanticRestoreVerifier: input.semanticRestoreVerifier,
+                        authorizationScope: input.sourcePreservationAuthorizationScope
                     )
                 )
             } catch {

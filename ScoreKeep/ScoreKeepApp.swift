@@ -19,65 +19,59 @@ struct ScoreKeepApp: App {
     @AppStorage("hasSeededInitialGame") private var hasSeededInitialGame = false
 
     var body: some Scene {
-        #if SCOREKEEP_MIGRATION_TEST_PROPOSED
         WindowGroup {
-            ScoreKeepPhysicalMigrationExecutionView()
-        }
-        .handlesExternalEvents(matching: ["*"])
-        #else
-        WindowGroup {
-            Group {
-                if UIDevice.type == "iPad" {
-                    StartView()
-                        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-                } else if UIDevice.type == "iPhone" {
-                    StartPhoneView()
-                        .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+            ScoreKeepProductionStartupHost {
+                Group {
+                    if UIDevice.type == "iPad" {
+                        StartView()
+                            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+                    } else if UIDevice.type == "iPhone" {
+                        StartPhoneView()
+                            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+                    }
                 }
-            }
-            .environmentObject(purchaseManager)
-            .environmentObject(router)
-            .environmentObject(announcements)
-            .task {
-                await purchaseManager.loadProducts()
-                await purchaseManager.refreshEntitlements()
-                await announcements.refresh()
-            }
-            .onChange(of: scenePhase) {
-                if scenePhase == .active {
-                    Task {
-                        await purchaseManager.refreshEntitlements()
-                        if purchaseManager.seasonPassProduct == nil {
-                            await purchaseManager.loadProducts()
+                .environmentObject(purchaseManager)
+                .environmentObject(router)
+                .environmentObject(announcements)
+                .task {
+                    await purchaseManager.loadProducts()
+                    await purchaseManager.refreshEntitlements()
+                    await announcements.refresh()
+                }
+                .onChange(of: scenePhase) {
+                    if scenePhase == .active {
+                        Task {
+                            await purchaseManager.refreshEntitlements()
+                            if purchaseManager.seasonPassProduct == nil {
+                                await purchaseManager.loadProducts()
+                            }
+                            await announcements.refresh()
                         }
-                        await announcements.refresh()
+                    }
+                }
+                .onOpenURL { url in
+                    if let dest = parseDeepLink(url) {
+                        router.destination = dest
+                    }
+                }
+                .sheet(isPresented: $announcements.isPresenting) {
+                    AnnouncementSheet()
+                        .environmentObject(announcements)
+                }
+                // Inject a hidden seeding runner once the modelContext exists
+                .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
+                #if SCOREKEEP_MIGRATION_TEST
+                .modifier(ScoreKeepPhysicalMigrationTestOverlay())
+                #endif
+                .onAppear {
+                    let fm = FileManager.default
+                    if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
+                        print("Documents directory path: \(documents.path)")
                     }
                 }
             }
-            .onOpenURL { url in
-                if let dest = parseDeepLink(url) {
-                    router.destination = dest
-                }
-            }
-            .sheet(isPresented: $announcements.isPresenting) {
-                AnnouncementSheet()
-                    .environmentObject(announcements)
-            }
-            // Inject a hidden seeding runner once the modelContext exists
-            .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
-            #if SCOREKEEP_MIGRATION_TEST
-            .modifier(ScoreKeepPhysicalMigrationTestOverlay())
-            #endif
-            .onAppear {
-                let fm = FileManager.default
-                if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
-                    print("Documents directory path: \(documents.path)")
-                }
-            }
         }
-        .modelContainer(for: Game.self)
         .handlesExternalEvents(matching: ["*"])
-        #endif
     }
 }
 

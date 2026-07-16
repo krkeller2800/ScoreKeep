@@ -4,16 +4,20 @@ import Testing
 
 @Suite("Proposed startup active production boundary")
 struct ScoreKeepProposedStartupBoundaryTests {
-    @Test("ScoreKeepApp remains legacy and does not reference proposed startup authority")
-    func scoreKeepAppRemainsLegacyAndDoesNotReferenceProposedStartupAuthority() throws {
+    @Test("ScoreKeepApp uses startup host with bounded production route activation")
+    func scoreKeepAppUsesStartupHostWithBoundedProductionActivation() throws {
         let source = try repositorySource("ScoreKeep/ScoreKeepApp.swift")
+        let startup = try repositorySource("ScoreKeep/Common/ScoreKeepProductionStartupHost.swift")
 
-        #expect(source.contains(".modelContainer(for: Game.self)"))
+        #expect(source.contains("ScoreKeepProductionStartupHost"))
         #expect(source.contains("ScoreKeepProposedContainerFactory") == false)
         #expect(source.contains("ScoreKeepProposedVersionedSchema") == false)
         #expect(source.contains("ScoreKeepProposedTeamCreationEvidenceMigrationPlan") == false)
         #expect(source.contains("ScoreKeepMigrationOperationEvidenceAuthority") == false)
         #expect(source.contains("TeamCreationSwiftDataEvidenceStore") == false)
+        #expect(startup.contains("simpleTeamCreationProductionEnabled = true"))
+        #expect(startup.contains("sourcePreservationAuthorizationScope: .productionTransitionExplicitlyAuthorized"))
+        #expect(startup.contains("disposableProposedNormalUIRehearsalEnabled = true"))
     }
 
     @Test("TeamView and content routes remain legacy writer routes")
@@ -23,7 +27,9 @@ struct ScoreKeepProposedStartupBoundaryTests {
         let route = CanonicalPersistenceCutoverRouteManifest.route(for: .teamCreationAndEditing)
 
         #expect(teamView.contains("ScoreKeepProposedContainerFactory") == false)
-        #expect(teamView.contains("TeamCreationTransactionAdapter") == false)
+        #expect(teamView.contains("CanonicalTeamCreationTransactionAdapter") == false)
+        #expect(teamView.contains("modelContext.insert(theTeam)"))
+        #expect(teamView.contains("try? self.modelContext.save()"))
         #expect(teamContentView.contains("ScoreKeepProposedContainerFactory") == false)
         #expect(route.currentAuthority == .legacySwiftData)
         #expect(route.proposedFutureAuthority == .proposedPersistenceAuthority)

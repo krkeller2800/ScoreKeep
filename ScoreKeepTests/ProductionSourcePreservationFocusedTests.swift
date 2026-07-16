@@ -103,6 +103,21 @@ struct ScoreKeepSourcePreservationTests {
             )
         }
 
+        let authorizedProductionBackupURL = try backupStoreURL()
+        let authorized = try ScoreKeepSourcePreservationExecutor.preserve(
+            ScoreKeepSourcePreservationRequest(
+                sourceStoreURL: source.url,
+                backupStoreURL: authorizedProductionBackupURL,
+                sourceLocation: .productionIntendedApplicationStore,
+                sourceClosureEvidence: .closedForDisposableVerification,
+                allowIncompleteTestOwnedBackupRemoval: false,
+                semanticRestoreVerifier: nil,
+                authorizationScope: .productionTransitionExplicitlyAuthorized
+            )
+        )
+        #expect(authorized.fileVerificationPassed)
+        #expect(authorized.disposition == .backupVerified)
+
         #expect(throws: ScoreKeepSourcePreservationError.sourceNotClosed) {
             try ScoreKeepSourcePreservationExecutor.preserve(
                 ScoreKeepSourcePreservationRequest(

@@ -5,16 +5,19 @@ import Testing
 
 @Suite("Migration production boundary")
 struct ScoreKeepMigrationProductionBoundaryTests {
-    @Test("active app startup and model container remain unchanged")
-    func activeAppStartupAndModelContainerRemainUnchanged() throws {
+    @Test("active app startup delegates to host with bounded production activation")
+    func activeAppStartupDelegatesToHostWithBoundedProductionActivation() throws {
         let appSource = try source("ScoreKeep/ScoreKeepApp.swift")
+        let startupSource = try source("ScoreKeep/Common/ScoreKeepProductionStartupHost.swift")
 
-        #expect(appSource.contains(".modelContainer(for: Game.self)"))
+        #expect(appSource.contains("ScoreKeepProductionStartupHost"))
         #expect(appSource.contains("ScoreKeepProposedContainerFactory") == false)
         #expect(appSource.contains("ScoreKeepMigrationJournalStore") == false)
         #expect(appSource.contains("ScoreKeepSourcePreservationExecutor") == false)
         #expect(appSource.contains("ScoreKeepMigrationOrchestrator") == false)
         #expect(appSource.contains("ScoreKeepProposedVersionedSchema") == false)
+        #expect(startupSource.contains("simpleTeamCreationProductionEnabled = true"))
+        #expect(startupSource.contains("runProductionMigration"))
     }
 
     @Test("proposed V2 schema remains the proven team evidence target")

@@ -4,10 +4,12 @@ import Testing
 
 @Suite("Active transition preparation boundary")
 struct ScoreKeepActiveTransitionPreparationBoundaryTests {
-    @Test("ScoreKeepApp active startup route remains legacy and unconnected to preparation authorities")
-    func scoreKeepAppStartupRemainsLegacy() throws {
+    @Test("ScoreKeepApp delegates startup and enables bounded production activation")
+    func scoreKeepAppStartupDelegatesWithBoundedProductionActivation() throws {
         let appSource = try source("ScoreKeep/ScoreKeepApp.swift")
-        #expect(appSource.contains(".modelContainer(for: Game.self)"))
+        let startupSource = try source("ScoreKeep/Common/ScoreKeepProductionStartupHost.swift")
+
+        #expect(appSource.contains("ScoreKeepProductionStartupHost"))
         #expect(appSource.contains("ScoreKeepProductionMigrationLayout") == false)
         #expect(appSource.contains("ScoreKeepMigrationCapacityCalculator") == false)
         #expect(appSource.contains("ScoreKeepMigrationFileProtectionApplicator") == false)
@@ -18,6 +20,8 @@ struct ScoreKeepActiveTransitionPreparationBoundaryTests {
         #expect(appSource.contains("ScoreKeepMigrationOrchestrator") == false)
         #expect(appSource.contains("ScoreKeepProposedContainerFactory") == false)
         #expect(appSource.contains("ScoreKeepProposedVersionedSchema") == false)
+        #expect(startupSource.contains("simpleTeamCreationProductionEnabled = true"))
+        #expect(startupSource.contains("sourcePreservationAuthorizationScope: .productionTransitionExplicitlyAuthorized"))
     }
 
     @Test("TeamView and production writer routes remain unchanged and unrouted")

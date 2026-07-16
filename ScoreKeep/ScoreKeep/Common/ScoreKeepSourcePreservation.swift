@@ -16,6 +16,18 @@ struct ScoreKeepSourceClosureEvidence: Hashable, Sendable {
         testAuthorityReleasedSourceAccess: true,
         noOtherKnownSourceAuthorityOpen: true
     )
+
+    static let closedForProductionStartup = ScoreKeepSourceClosureEvidence(
+        sourceContainerReleased: true,
+        sourceContextReleased: true,
+        testAuthorityReleasedSourceAccess: true,
+        noOtherKnownSourceAuthorityOpen: true
+    )
+}
+
+enum ScoreKeepSourcePreservationAuthorizationScope: String, Hashable, Sendable {
+    case testOwnedDisposable
+    case productionTransitionExplicitlyAuthorized
 }
 
 struct ScoreKeepSourcePreservationRequest {
@@ -25,6 +37,25 @@ struct ScoreKeepSourcePreservationRequest {
     let sourceClosureEvidence: ScoreKeepSourceClosureEvidence
     let allowIncompleteTestOwnedBackupRemoval: Bool
     let semanticRestoreVerifier: ((URL) throws -> Bool)?
+    let authorizationScope: ScoreKeepSourcePreservationAuthorizationScope
+
+    init(
+        sourceStoreURL: URL,
+        backupStoreURL: URL,
+        sourceLocation: ScoreKeepStartupStoreLocation.Kind,
+        sourceClosureEvidence: ScoreKeepSourceClosureEvidence,
+        allowIncompleteTestOwnedBackupRemoval: Bool,
+        semanticRestoreVerifier: ((URL) throws -> Bool)?,
+        authorizationScope: ScoreKeepSourcePreservationAuthorizationScope = .testOwnedDisposable
+    ) {
+        self.sourceStoreURL = sourceStoreURL
+        self.backupStoreURL = backupStoreURL
+        self.sourceLocation = sourceLocation
+        self.sourceClosureEvidence = sourceClosureEvidence
+        self.allowIncompleteTestOwnedBackupRemoval = allowIncompleteTestOwnedBackupRemoval
+        self.semanticRestoreVerifier = semanticRestoreVerifier
+        self.authorizationScope = authorizationScope
+    }
 }
 
 struct ScoreKeepSourcePreservationEvidence: Hashable, Sendable {
@@ -51,7 +82,7 @@ enum ScoreKeepSourcePreservationError: Error, Equatable {
 
 enum ScoreKeepSourcePreservationExecutor {
     static func preserve(_ request: ScoreKeepSourcePreservationRequest, fileManager: FileManager = .default) throws -> ScoreKeepSourcePreservationEvidence {
-        guard request.sourceLocation != .productionIntendedApplicationStore else {
+        guard request.sourceLocation != .productionIntendedApplicationStore || request.authorizationScope == .productionTransitionExplicitlyAuthorized else {
             throw ScoreKeepSourcePreservationError.productionPathRejected
         }
         guard request.sourceClosureEvidence.isClosed else {
