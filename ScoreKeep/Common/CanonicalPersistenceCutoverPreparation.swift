@@ -325,6 +325,250 @@ enum CanonicalPersistenceCutoverReadinessEvaluator {
     }
 }
 
+enum CanonicalPersistenceAuthorityRouteState: String, CaseIterable, Hashable, Sendable {
+    case legacy
+    case proposed
+    case disabled
+    case migrationRequired
+    case recoveryRequired
+    case unavailable
+    case rejected
+}
+
+enum CanonicalPersistenceContextOwner: String, CaseIterable, Hashable, Sendable {
+    case none
+    case existingLegacyEnvironmentContext
+    case proposedDedicatedOperationContext
+}
+
+enum CanonicalPersistenceRouteRolloutState: String, CaseIterable, Hashable, Sendable {
+    case legacyOnly
+    case proposedIfReady
+    case disabled
+}
+
+enum CanonicalPersistenceOperationPhase: String, CaseIterable, Hashable, Sendable {
+    case notStarted
+    case routeSelected
+    case mutationStarted
+    case saveAttempted
+    case committed
+    case rollbackAttempted
+    case verificationPassed
+    case reconciliationRequired
+    case failedClosed
+}
+
+enum CanonicalPersistenceRouteDiagnosticCode: String, CaseIterable, Hashable, Sendable {
+    case routeLegacyRetained
+    case routeProposedSelected
+    case routeDisabled
+    case routeRejected
+    case migrationRequired
+    case recoveryRequired
+    case persistenceUnavailable
+    case productionStartupNotAuthorized
+    case proposedMigrationIncomplete
+    case durableEvidenceMissing
+    case rollbackMissing
+    case operationAdapterMissing
+    case uiSecondSaveRisk
+    case freshContextVerificationMissing
+    case explicitRoutingApprovalMissing
+    case scoringCutoverDeferred
+    case importRouteDeferred
+    case destructiveRouteDeferred
+    case notBaseballPersistence
+}
+
+struct CanonicalPersistenceProductionRoutingGateSet: Hashable, Sendable {
+    var physicalMigrationProofComplete: Bool = false
+    var productionStartupActivationAuthorized: Bool = false
+    var proposedV2MigrationCompleted: Bool = false
+    var recoveryRequired: Bool = false
+    var protectedDataAvailable: Bool = true
+    var sufficientCapacity: Bool = true
+    var routeDisableActive: Bool = false
+    var rollbackOrRecoveryDefined: Bool = false
+    var durableOperationEvidenceVerified: Bool = false
+    var simpleTeamCreationAdapterVerified: Bool = false
+    var simpleTeamCreationUISecondSavePrevented: Bool = false
+    var freshContextVerificationVerified: Bool = false
+    var explicitRoutingApprovalReceived: Bool = false
+
+    static let currentProduction = CanonicalPersistenceProductionRoutingGateSet(
+        physicalMigrationProofComplete: true,
+        productionStartupActivationAuthorized: false,
+        proposedV2MigrationCompleted: false,
+        recoveryRequired: false,
+        protectedDataAvailable: true,
+        sufficientCapacity: true,
+        routeDisableActive: false,
+        rollbackOrRecoveryDefined: false,
+        durableOperationEvidenceVerified: false,
+        simpleTeamCreationAdapterVerified: false,
+        simpleTeamCreationUISecondSavePrevented: false,
+        freshContextVerificationVerified: false,
+        explicitRoutingApprovalReceived: false
+    )
+
+    static let readyForIsolatedSimpleTeamCreation = CanonicalPersistenceProductionRoutingGateSet(
+        physicalMigrationProofComplete: true,
+        productionStartupActivationAuthorized: true,
+        proposedV2MigrationCompleted: true,
+        recoveryRequired: false,
+        protectedDataAvailable: true,
+        sufficientCapacity: true,
+        routeDisableActive: false,
+        rollbackOrRecoveryDefined: true,
+        durableOperationEvidenceVerified: true,
+        simpleTeamCreationAdapterVerified: true,
+        simpleTeamCreationUISecondSavePrevented: true,
+        freshContextVerificationVerified: true,
+        explicitRoutingApprovalReceived: true
+    )
+}
+
+struct CanonicalPersistenceAuthorityRoutePolicy: Hashable, Sendable {
+    var rolloutState: CanonicalPersistenceRouteRolloutState
+    var gates: CanonicalPersistenceProductionRoutingGateSet
+
+    static let currentProduction = CanonicalPersistenceAuthorityRoutePolicy(
+        rolloutState: .legacyOnly,
+        gates: .currentProduction
+    )
+}
+
+struct CanonicalPersistenceAuthorityDecision: Hashable, Sendable {
+    let routeID: CanonicalPersistenceCutoverRouteID
+    let routeState: CanonicalPersistenceAuthorityRouteState
+    let writerAuthority: CanonicalPersistenceWriterAuthority
+    let contextOwner: CanonicalPersistenceContextOwner
+    let permitsMutation: Bool
+    let operationPhase: CanonicalPersistenceOperationPhase
+    let productionRoutingChanged: Bool
+    let diagnosticCodes: [CanonicalPersistenceRouteDiagnosticCode]
+
+    var exactlyOneWriterPermitted: Bool {
+        switch writerAuthority {
+        case .legacySwiftData, .proposedPersistenceAuthority, .storeKitAndKeychain:
+            return permitsMutation
+        case .none, .generatedOutputOnly:
+            return permitsMutation == false
+        }
+    }
+}
+
+enum CanonicalPersistenceAuthorityRouter {
+    static func decide(
+        routeID: CanonicalPersistenceCutoverRouteID,
+        policy: CanonicalPersistenceAuthorityRoutePolicy = .currentProduction
+    ) -> CanonicalPersistenceAuthorityDecision {
+        let route = CanonicalPersistenceCutoverRouteManifest.route(for: routeID)
+
+        if policy.gates.protectedDataAvailable == false {
+            return blocked(routeID: routeID, state: .unavailable, diagnostics: [.persistenceUnavailable])
+        }
+        if policy.gates.recoveryRequired {
+            return blocked(routeID: routeID, state: .recoveryRequired, diagnostics: [.recoveryRequired])
+        }
+        if policy.gates.routeDisableActive || policy.rolloutState == .disabled {
+            return blocked(routeID: routeID, state: .disabled, diagnostics: [.routeDisabled])
+        }
+
+        switch policy.rolloutState {
+        case .legacyOnly:
+            return legacyDecision(route: route)
+        case .disabled:
+            return blocked(routeID: routeID, state: .disabled, diagnostics: [.routeDisabled])
+        case .proposedIfReady:
+            return proposedDecision(route: route, gates: policy.gates)
+        }
+    }
+
+    private static func legacyDecision(route: CanonicalPersistenceCutoverRouteAssessment) -> CanonicalPersistenceAuthorityDecision {
+        let isBaseballWriter = route.currentAuthority == .legacySwiftData && route.isReadOnly == false
+        let authority = route.isReadOnly ? CanonicalPersistenceWriterAuthority.generatedOutputOnly : route.currentAuthority
+        let contextOwner: CanonicalPersistenceContextOwner = isBaseballWriter ? .existingLegacyEnvironmentContext : .none
+        let diagnostics: [CanonicalPersistenceRouteDiagnosticCode] = route.classifications.contains(.notPartOfPersistenceCutover)
+            ? [.notBaseballPersistence]
+            : [.routeLegacyRetained]
+
+        return CanonicalPersistenceAuthorityDecision(
+            routeID: route.routeID,
+            routeState: .legacy,
+            writerAuthority: authority,
+            contextOwner: contextOwner,
+            permitsMutation: isBaseballWriter || route.currentAuthority == .storeKitAndKeychain,
+            operationPhase: .routeSelected,
+            productionRoutingChanged: false,
+            diagnosticCodes: diagnostics
+        )
+    }
+
+    private static func proposedDecision(
+        route: CanonicalPersistenceCutoverRouteAssessment,
+        gates: CanonicalPersistenceProductionRoutingGateSet
+    ) -> CanonicalPersistenceAuthorityDecision {
+        if route.routeID == .scoringEventCreation || route.routeID == .correctionPersistence || route.routeID == .scoreAndGameStateProjectionWrites {
+            return blocked(routeID: route.routeID, state: .rejected, diagnostics: [.scoringCutoverDeferred])
+        }
+        if route.routeID == .compatibilityImports || route.routeID == .seededGameInsertion {
+            return blocked(routeID: route.routeID, state: .rejected, diagnostics: [.importRouteDeferred])
+        }
+        if route.classifications.contains(.legacyDestructiveWriter) || route.classifications.contains(.deleteOrCleanupWriter) {
+            return blocked(routeID: route.routeID, state: .rejected, diagnostics: [.destructiveRouteDeferred])
+        }
+        guard route.routeID == .teamCreationAndEditing else {
+            return legacyDecision(route: route)
+        }
+
+        var diagnostics: [CanonicalPersistenceRouteDiagnosticCode] = []
+        if gates.productionStartupActivationAuthorized == false { diagnostics.append(.productionStartupNotAuthorized) }
+        if gates.physicalMigrationProofComplete == false || gates.proposedV2MigrationCompleted == false { diagnostics.append(.proposedMigrationIncomplete) }
+        if gates.rollbackOrRecoveryDefined == false { diagnostics.append(.rollbackMissing) }
+        if gates.durableOperationEvidenceVerified == false { diagnostics.append(.durableEvidenceMissing) }
+        if gates.simpleTeamCreationAdapterVerified == false { diagnostics.append(.operationAdapterMissing) }
+        if gates.simpleTeamCreationUISecondSavePrevented == false { diagnostics.append(.uiSecondSaveRisk) }
+        if gates.freshContextVerificationVerified == false { diagnostics.append(.freshContextVerificationMissing) }
+        if gates.explicitRoutingApprovalReceived == false { diagnostics.append(.explicitRoutingApprovalMissing) }
+        if gates.sufficientCapacity == false { diagnostics.append(.persistenceUnavailable) }
+
+        guard diagnostics.isEmpty else {
+            let state: CanonicalPersistenceAuthorityRouteState = diagnostics.contains(.proposedMigrationIncomplete) ? .migrationRequired : .rejected
+            return blocked(routeID: route.routeID, state: state, diagnostics: diagnostics)
+        }
+
+        return CanonicalPersistenceAuthorityDecision(
+            routeID: route.routeID,
+            routeState: .proposed,
+            writerAuthority: .proposedPersistenceAuthority,
+            contextOwner: .proposedDedicatedOperationContext,
+            permitsMutation: true,
+            operationPhase: .routeSelected,
+            productionRoutingChanged: true,
+            diagnosticCodes: [.routeProposedSelected]
+        )
+    }
+
+    private static func blocked(
+        routeID: CanonicalPersistenceCutoverRouteID,
+        state: CanonicalPersistenceAuthorityRouteState,
+        diagnostics: [CanonicalPersistenceRouteDiagnosticCode]
+    ) -> CanonicalPersistenceAuthorityDecision {
+        CanonicalPersistenceAuthorityDecision(
+            routeID: routeID,
+            routeState: state,
+            writerAuthority: .none,
+            contextOwner: .none,
+            permitsMutation: false,
+            operationPhase: .failedClosed,
+            productionRoutingChanged: false,
+            diagnosticCodes: diagnostics
+        )
+    }
+}
+
 enum CanonicalPersistenceCutoverRouteManifest {
     static let requiredProductionWriterReferences: Set<String> = [
         "ScoreKeepApp.modelContainer",

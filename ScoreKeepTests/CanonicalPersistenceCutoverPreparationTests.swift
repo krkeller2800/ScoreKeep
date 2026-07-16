@@ -202,6 +202,126 @@ struct CanonicalPersistenceCutoverPreparationTests {
         #expect(gates == before)
     }
 
+    @Test("current production route policy retains legacy for unrouted writers")
+    func currentProductionRoutePolicyRetainsLegacyForUnroutedWriters() {
+        let routes: [CanonicalPersistenceCutoverRouteID] = [
+            .gameCreation,
+            .teamCreationAndEditing,
+            .playerCreationAndEditing,
+            .lineupChanges,
+            .scoringEventCreation,
+            .compatibilityImports
+        ]
+        let decisions = routes.map { CanonicalPersistenceAuthorityRouter.decide(routeID: $0) }
+
+        #expect(decisions.allSatisfy { $0.routeState == .legacy })
+        #expect(decisions.allSatisfy { $0.writerAuthority == .legacySwiftData })
+        #expect(decisions.allSatisfy { $0.contextOwner == .existingLegacyEnvironmentContext })
+        #expect(decisions.allSatisfy { $0.productionRoutingChanged == false })
+    }
+
+    @Test("disabled persistence authority route fails closed before mutation")
+    func disabledPersistenceAuthorityRouteFailsClosedBeforeMutation() {
+        let decision = CanonicalPersistenceAuthorityRouter.decide(
+            routeID: .teamCreationAndEditing,
+            policy: CanonicalPersistenceAuthorityRoutePolicy(
+                rolloutState: .disabled,
+                gates: .readyForIsolatedSimpleTeamCreation
+            )
+        )
+
+        #expect(decision.routeState == .disabled)
+        #expect(decision.permitsMutation == false)
+        #expect(decision.writerAuthority == .none)
+        #expect(decision.contextOwner == .none)
+        #expect(decision.operationPhase == .failedClosed)
+    }
+
+    @Test("recovery and protected data blocks prevent persistence routing")
+    func recoveryAndProtectedDataBlocksPreventPersistenceRouting() {
+        var recoveryGates = CanonicalPersistenceProductionRoutingGateSet.readyForIsolatedSimpleTeamCreation
+        recoveryGates.recoveryRequired = true
+        var protectedDataGates = CanonicalPersistenceProductionRoutingGateSet.readyForIsolatedSimpleTeamCreation
+        protectedDataGates.protectedDataAvailable = false
+
+        let recoveryDecision = CanonicalPersistenceAuthorityRouter.decide(
+            routeID: .teamCreationAndEditing,
+            policy: CanonicalPersistenceAuthorityRoutePolicy(rolloutState: .proposedIfReady, gates: recoveryGates)
+        )
+        let protectedDataDecision = CanonicalPersistenceAuthorityRouter.decide(
+            routeID: .teamCreationAndEditing,
+            policy: CanonicalPersistenceAuthorityRoutePolicy(rolloutState: .proposedIfReady, gates: protectedDataGates)
+        )
+
+        #expect(recoveryDecision.routeState == .recoveryRequired)
+        #expect(protectedDataDecision.routeState == .unavailable)
+        #expect(recoveryDecision.permitsMutation == false)
+        #expect(protectedDataDecision.permitsMutation == false)
+    }
+
+    @Test("proposed routing requires completed migration and explicit production authorization")
+    func proposedRoutingRequiresCompletedMigrationAndExplicitProductionAuthorization() {
+        let blocked = CanonicalPersistenceAuthorityRouter.decide(
+            routeID: .teamCreationAndEditing,
+            policy: CanonicalPersistenceAuthorityRoutePolicy(
+                rolloutState: .proposedIfReady,
+                gates: .currentProduction
+            )
+        )
+        let ready = CanonicalPersistenceAuthorityRouter.decide(
+            routeID: .teamCreationAndEditing,
+            policy: CanonicalPersistenceAuthorityRoutePolicy(
+                rolloutState: .proposedIfReady,
+                gates: .readyForIsolatedSimpleTeamCreation
+            )
+        )
+
+        #expect(blocked.routeState == .migrationRequired)
+        #expect(blocked.permitsMutation == false)
+        #expect(blocked.diagnosticCodes.contains(.productionStartupNotAuthorized))
+        #expect(blocked.diagnosticCodes.contains(.proposedMigrationIncomplete))
+        #expect(ready.routeState == .proposed)
+        #expect(ready.writerAuthority == .proposedPersistenceAuthority)
+        #expect(ready.contextOwner == .proposedDedicatedOperationContext)
+        #expect(ready.exactlyOneWriterPermitted)
+    }
+
+    @Test("proposed routing is limited to the approved simple team candidate")
+    func proposedRoutingIsLimitedToApprovedSimpleTeamCandidate() {
+        let policy = CanonicalPersistenceAuthorityRoutePolicy(
+            rolloutState: .proposedIfReady,
+            gates: .readyForIsolatedSimpleTeamCreation
+        )
+        let playerDecision = CanonicalPersistenceAuthorityRouter.decide(routeID: .playerCreationAndEditing, policy: policy)
+        let scoringDecision = CanonicalPersistenceAuthorityRouter.decide(routeID: .scoringEventCreation, policy: policy)
+        let importDecision = CanonicalPersistenceAuthorityRouter.decide(routeID: .compatibilityImports, policy: policy)
+        let deleteDecision = CanonicalPersistenceAuthorityRouter.decide(routeID: .gameDeletion, policy: policy)
+
+        #expect(playerDecision.routeState == .legacy)
+        #expect(scoringDecision.routeState == .rejected)
+        #expect(importDecision.routeState == .rejected)
+        #expect(deleteDecision.routeState == .rejected)
+        #expect(scoringDecision.diagnosticCodes.contains(.scoringCutoverDeferred))
+        #expect(importDecision.diagnosticCodes.contains(.importRouteDeferred))
+        #expect(deleteDecision.diagnosticCodes.contains(.destructiveRouteDeferred))
+    }
+
+    @Test("route decision is immutable for a selected transaction snapshot")
+    func routeDecisionIsImmutableForSelectedTransactionSnapshot() {
+        var gates = CanonicalPersistenceProductionRoutingGateSet.readyForIsolatedSimpleTeamCreation
+        let initialPolicy = CanonicalPersistenceAuthorityRoutePolicy(rolloutState: .proposedIfReady, gates: gates)
+        let selectedDecision = CanonicalPersistenceAuthorityRouter.decide(routeID: .teamCreationAndEditing, policy: initialPolicy)
+        gates.routeDisableActive = true
+        let laterDecision = CanonicalPersistenceAuthorityRouter.decide(
+            routeID: .teamCreationAndEditing,
+            policy: CanonicalPersistenceAuthorityRoutePolicy(rolloutState: .proposedIfReady, gates: gates)
+        )
+
+        #expect(selectedDecision.routeState == .proposed)
+        #expect(laterDecision.routeState == .disabled)
+        #expect(selectedDecision != laterDecision)
+    }
+
     @Test("no production persistence APIs are used by preparation vocabulary")
     func noProductionPersistenceAPIsAreUsedByPreparationVocabulary() {
         let source = String(describing: CanonicalPersistenceCutoverRouteManifest.routes)

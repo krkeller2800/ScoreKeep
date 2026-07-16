@@ -302,3 +302,52 @@ Review the completed Phase 3 evidence and this task 3.19 preparation before auth
 If the cutover gates conclude that a versioned schema is required, implement the first explicit production persistence schema and migration-policy foundation before any routed writer.
 
 If schema and source-version evidence supports keeping the current schema for an initial bounded route, implement one isolated production-compatible simple team-creation persistence transaction adapter without routing it.
+
+<!-- MARK: 26. Physical Migration Proof Dependency -->
+## 26. Physical Migration Proof Dependency
+
+The completed disposable physical-device proof improves migration confidence but does not activate production migration startup. The proof established that a Legacy disposable unversioned store can be updated by a Proposed V2 disposable build, preserve the store family, create a verified backup, persist a `completionRecorded` journal, reopen Proposed V2 in a fresh context, compare the migrated records against the stored Legacy baseline, block repeat authorization, and survive process relaunch.
+
+This evidence is necessary but not sufficient for production routing. Production startup still requires explicit activation authorization, production source classification, durable production progress handling, rollback and recovery behavior, and one-writer routing gates.
+
+<!-- MARK: 27. Production Authority Route Policy -->
+## 27. Production Authority Route Policy
+
+The new route policy is side-effect free and fail closed. Current production policy is `legacyOnly`. Under that policy, existing baseball writer routes retain legacy SwiftData authority and the existing legacy environment context. Read-only generated-output routes remain read-only. StoreKit and Keychain routes remain outside baseball persistence cutover.
+
+The policy can represent legacy, proposed, disabled, migration-required, recovery-required, unavailable, and rejected route states. Proposed routing requires an explicit `proposedIfReady` rollout policy and satisfied gates for production startup authorization, completed Proposed migration, rollback or recovery, durable operation evidence, a verified simple-team adapter, UI second-save prevention, fresh-context verification, capacity, protected-data availability, and explicit routing approval.
+
+<!-- MARK: 28. One-Writer And Context Ownership Verdict -->
+## 28. One-Writer And Context Ownership Verdict
+
+For current production, exactly one writer remains active for each existing transaction: legacy SwiftData for current baseball writers, StoreKit and Keychain for purchase and allowance state, and no baseball writer for read-only generated output. Proposed routing is not active.
+
+If a future simple-team route is explicitly enabled, the policy requires a dedicated Proposed operation context. The decision must be selected before mutation and cannot switch writers mid-transaction. Disabled, migration-required, recovery-required, unavailable, rejected, and incomplete-gate decisions permit no mutation.
+
+<!-- MARK: 29. Save Rollback And Idempotency Verdict -->
+## 29. Save Rollback And Idempotency Verdict
+
+No production save or rollback behavior changed in this task. Existing legacy save and implicit persistence behavior remains active for all current workflows. The new policy records the required future gates rather than pretending rollback exists where it has not been implemented.
+
+Simple team creation is not routed because the production adapter, UI second-save prevention, durable operation evidence, and explicit production startup authorization are not yet proven together. Future routing must use the existing stable operation identity, request fingerprint, durable completion evidence, reconciliation behavior, explicit save result, rollback or recovery classification, and fresh-context completion verification.
+
+<!-- MARK: 30. Active Routing Status -->
+## 30. Active Routing Status
+
+Production startup remains unchanged and continues to use the existing legacy unversioned SwiftData model container. Proposed V2 is not the production persistence authority. Simple team creation is not routed. Team editing, team deletion, player workflows, game workflows, lineup, pitcher, at-bat, substitution, import, purchase, allowance, photo, report, export, generated-output, and scoring workflows remain on their prior authority.
+
+Task 3.20 legacy persistence retirement is not started. Task 2.19 scoring-authority cutover preparation is not started. No rewritten scoring writer is enabled.
+
+<!-- MARK: 31. Focused Verification Added -->
+## 31. Focused Verification Added
+
+Focused tests now verify that current production route policy retains legacy authority for unrouted writers, disabled routing fails closed before mutation, recovery and protected-data blockers prevent routing, Proposed routing requires completed migration and explicit production authorization, Proposed routing is limited to the approved simple-team candidate, high-risk scoring, import, and destructive routes are rejected, and a route decision is an immutable transaction snapshot.
+
+The existing cutover tests continue to verify route inventory coverage, current writer authority, one-writer classification, missing schema and source-version blockers, migration and rollback blockers, user-review blockers, purchase and allowance blockers, unsupported mapping blockers, relationship and ordering blockers, high-risk route blockers, legacy-retirement blockers, deterministic evaluation, and absence of production persistence API use in the preparation vocabulary.
+
+<!-- MARK: 32. Final Task 3.19 Verdict -->
+## 32. Final Task 3.19 Verdict
+
+Task 3.19 is completed as production-capable cutover preparation with bounded routing left disabled. The correct verdict is blocked for production Proposed routing and blocked for simple team creation routing until the remaining explicit gates are satisfied.
+
+The next implementation should not retire legacy persistence. The next safe work is to implement or prove the missing simple-team transaction adapter gates without routing, or to complete the production startup activation decision if explicitly authorized by a later task.
