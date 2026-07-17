@@ -222,6 +222,51 @@ struct CanonicalScoringAuthorityCutoverPreparationTests {
         #expect(matrix.allSatisfy { $0.productionRouteEligible == false })
     }
 
+    @Test("task 2.20 candidate ranking is deterministic and selects no routable candidate")
+    func task220CandidateRankingIsDeterministicAndSelectsNoRoutableCandidate() {
+        let ranking = CanonicalScoringAuthorityPolicy.task220CandidateRanking
+        let review = CanonicalScoringAuthorityPolicy.task220RouteGateReview
+
+        #expect(ranking.map(\.rank) == [1, 2, 3])
+        #expect(ranking.map(\.family) == [.batterOut, .hitByPitch, .inningTransition])
+        #expect(ranking.allSatisfy { $0.productionEligible == false })
+        #expect(ranking.allSatisfy { $0.existingModelRepresentation != .exact })
+        #expect(ranking.allSatisfy { $0.correctionGate == .blocked })
+        #expect(ranking.allSatisfy { $0.idempotencyGate == .blocked })
+        #expect(ranking.allSatisfy { $0.legacyParityGate == .blocked })
+        #expect(review.candidate == nil)
+        #expect(review.canonicalCandidateSelected == false)
+        #expect(review.productionRoutingEnabled == false)
+    }
+
+    @Test("task 2.20 route gates block rehearsal and production routing without weakening legacy authority")
+    func task220RouteGatesBlockRehearsalAndProductionRoutingWithoutWeakeningLegacyAuthority() {
+        let review = CanonicalScoringAuthorityPolicy.task220RouteGateReview
+
+        #expect(review.disposableRehearsalPerformed == false)
+        #expect(review.oneWriterStatus == .blocked)
+        #expect(review.persistenceMappingStatus == .blocked)
+        #expect(review.correctionStatus == .blocked)
+        #expect(review.legacyParityStatus == .blocked)
+        #expect(review.difficultRunnerOutStatus == .passed)
+        #expect(review.blockers.contains(.canonicalEventPersistenceAbsent))
+        #expect(review.blockers.contains(.idempotencyPersistenceMissing))
+        #expect(review.stableDiagnosticCode == "scoring.task220.noCandidate.legacyRetained")
+    }
+
+    @Test("task 2.20 legacy retirement split keeps all scoring families active in legacy")
+    func task220LegacyRetirementSplitKeepsAllScoringFamiliesActiveInLegacy() {
+        let split = CanonicalScoringAuthorityPolicy.task220LegacyRetirementSplit
+
+        #expect(split.routedCandidate == nil)
+        #expect(split.candidateLegacyDisposition.contains(.retainedAsDisableFallback))
+        #expect(split.candidateLegacyDisposition.contains(.retainedForUnsupportedHistoricalStates))
+        #expect(split.candidateLegacyDisposition.contains(.deprecatedButActive))
+        #expect(split.allOtherLegacyDisposition == .mustRemainFullyActive)
+        #expect(split.scoringFamiliesRemainingLegacy == Set(CanonicalScoringCommandFamily.allCases))
+        #expect(split.task320Started == false)
+    }
+
     private func family(for routeID: CanonicalScoringProductionRouteID) -> CanonicalScoringCommandFamily {
         switch routeID {
         case .gameStart, .resumeInProgressGame, .saveAtbatHistory:

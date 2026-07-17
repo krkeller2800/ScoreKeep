@@ -109,6 +109,21 @@ enum CanonicalScoringRouteEligibility: String, CaseIterable, Hashable, Sendable 
     case readOnly
 }
 
+enum CanonicalScoringRoutingGateStatus: String, CaseIterable, Hashable, Sendable {
+    case passed
+    case blocked
+    case notApplicable
+}
+
+enum CanonicalScoringLegacyRetirementDisposition: String, CaseIterable, Hashable, Sendable {
+    case retainedAsDisableFallback
+    case retainedForUnsupportedHistoricalStates
+    case deprecatedButActive
+    case isolatedFromNormalProductionRouting
+    case eligibleForLaterRemoval
+    case mustRemainFullyActive
+}
+
 enum CanonicalScoringAuthorityBlockingReason: String, CaseIterable, Hashable, Sendable {
     case productionApprovalAbsent
     case canonicalProductionRouteDisabled
@@ -209,6 +224,45 @@ struct CanonicalScoringReadinessMatrixEntry: Hashable, Sendable {
     let uiBoundary: CanonicalScoringSupportStatus
     let productionRouteEligible: Bool
     let blockedReasons: Set<CanonicalScoringAuthorityBlockingReason>
+}
+
+struct CanonicalScoringCandidateAssessment: Hashable, Sendable {
+    let family: CanonicalScoringCommandFamily
+    let rank: Int
+    let persistedEffect: String
+    let existingModelRepresentation: CanonicalScoringPersistenceMappingStatus
+    let touchesRunnerState: Bool
+    let touchesPitcherResponsibility: Bool
+    let touchesInningTransition: Bool
+    let touchesScoreValidity: Bool
+    let correctionGate: CanonicalScoringRoutingGateStatus
+    let idempotencyGate: CanonicalScoringRoutingGateStatus
+    let legacyParityGate: CanonicalScoringRoutingGateStatus
+    let uiOneWriterGate: CanonicalScoringRoutingGateStatus
+    let productionEligible: Bool
+    let exactBlocker: CanonicalScoringAuthorityBlockingReason
+}
+
+struct CanonicalScoringProductionRouteGateReview: Hashable, Sendable {
+    let candidate: CanonicalScoringCommandFamily?
+    let canonicalCandidateSelected: Bool
+    let productionRoutingEnabled: Bool
+    let disposableRehearsalPerformed: Bool
+    let oneWriterStatus: CanonicalScoringRoutingGateStatus
+    let persistenceMappingStatus: CanonicalScoringRoutingGateStatus
+    let correctionStatus: CanonicalScoringRoutingGateStatus
+    let legacyParityStatus: CanonicalScoringRoutingGateStatus
+    let difficultRunnerOutStatus: CanonicalScoringRoutingGateStatus
+    let stableDiagnosticCode: String
+    let blockers: Set<CanonicalScoringAuthorityBlockingReason>
+}
+
+struct CanonicalScoringLegacyRetirementSplit: Hashable, Sendable {
+    let routedCandidate: CanonicalScoringCommandFamily?
+    let candidateLegacyDisposition: Set<CanonicalScoringLegacyRetirementDisposition>
+    let allOtherLegacyDisposition: CanonicalScoringLegacyRetirementDisposition
+    let scoringFamiliesRemainingLegacy: Set<CanonicalScoringCommandFamily>
+    let task320Started: Bool
 }
 
 struct CanonicalScoringOneWriterAssessment: Hashable, Sendable {
@@ -407,6 +461,91 @@ enum CanonicalScoringAuthorityPolicy {
         inventedSubstitutionTiming: false,
         inventedCompletedAtbatStatus: false,
         inventedNextBatter: false
+    )
+
+    static let task220CandidateRanking: [CanonicalScoringCandidateAssessment] = [
+        CanonicalScoringCandidateAssessment(
+            family: .batterOut,
+            rank: 1,
+            persistedEffect: "Atbat.result plus dependent out and inning markers in Legacy storage.",
+            existingModelRepresentation: .compatibleLossy,
+            touchesRunnerState: false,
+            touchesPitcherResponsibility: false,
+            touchesInningTransition: true,
+            touchesScoreValidity: false,
+            correctionGate: .blocked,
+            idempotencyGate: .blocked,
+            legacyParityGate: .blocked,
+            uiOneWriterGate: .blocked,
+            productionEligible: false,
+            exactBlocker: .persistenceMappingIncomplete
+        ),
+        CanonicalScoringCandidateAssessment(
+            family: .hitByPitch,
+            rank: 2,
+            persistedEffect: "Atbat.result and Atbat.maxbase in Legacy storage.",
+            existingModelRepresentation: .compatibleLossy,
+            touchesRunnerState: true,
+            touchesPitcherResponsibility: false,
+            touchesInningTransition: false,
+            touchesScoreValidity: false,
+            correctionGate: .blocked,
+            idempotencyGate: .blocked,
+            legacyParityGate: .blocked,
+            uiOneWriterGate: .blocked,
+            productionEligible: false,
+            exactBlocker: .legacyParityIncomplete
+        ),
+        CanonicalScoringCandidateAssessment(
+            family: .inningTransition,
+            rank: 3,
+            persistedEffect: "Atbat.inning, outs, sequence, column, and end-of-inning projection fields.",
+            existingModelRepresentation: .compatibleLossy,
+            touchesRunnerState: false,
+            touchesPitcherResponsibility: false,
+            touchesInningTransition: true,
+            touchesScoreValidity: false,
+            correctionGate: .blocked,
+            idempotencyGate: .blocked,
+            legacyParityGate: .blocked,
+            uiOneWriterGate: .blocked,
+            productionEligible: false,
+            exactBlocker: .oneWriterProofIncomplete
+        )
+    ]
+
+    static let task220RouteGateReview = CanonicalScoringProductionRouteGateReview(
+        candidate: nil,
+        canonicalCandidateSelected: false,
+        productionRoutingEnabled: false,
+        disposableRehearsalPerformed: false,
+        oneWriterStatus: .blocked,
+        persistenceMappingStatus: .blocked,
+        correctionStatus: .blocked,
+        legacyParityStatus: .blocked,
+        difficultRunnerOutStatus: delayedRunnerOutGate.permitsCanonicalProductionRoute ? .passed : .blocked,
+        stableDiagnosticCode: "scoring.task220.noCandidate.legacyRetained",
+        blockers: [
+            .canonicalProductionRouteDisabled,
+            .persistenceMappingIncomplete,
+            .canonicalEventPersistenceAbsent,
+            .idempotencyPersistenceMissing,
+            .legacyParityIncomplete,
+            .uiBoundaryIncomplete,
+            .oneWriterProofIncomplete
+        ]
+    )
+
+    static let task220LegacyRetirementSplit = CanonicalScoringLegacyRetirementSplit(
+        routedCandidate: nil,
+        candidateLegacyDisposition: [
+            .retainedAsDisableFallback,
+            .retainedForUnsupportedHistoricalStates,
+            .deprecatedButActive
+        ],
+        allOtherLegacyDisposition: .mustRemainFullyActive,
+        scoringFamiliesRemainingLegacy: Set(CanonicalScoringCommandFamily.allCases),
+        task320Started: false
     )
 
     private static let routeEntries: [CanonicalScoringRouteInventoryEntry] = [
