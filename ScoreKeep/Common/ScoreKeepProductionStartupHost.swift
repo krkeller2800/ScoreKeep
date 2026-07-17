@@ -11,19 +11,122 @@ enum ScoreKeepProductionStartupRouteApproval {
     static let disposableProposedNormalUIRehearsalEnabled = true
 }
 
+enum ScoreKeepProductionStartupDiagnosticCode: String, CaseIterable, Hashable, Sendable {
+    case protectedDataUnavailable
+    case capacityInsufficient
+    case capacityUnavailable
+    case migrationInterruptedRetryable
+    case migrationRecoveryRequired
+    case journalCorrupt
+    case journalUnsupported
+    case sourceMissing
+    case sourceIncomplete
+    case backupVerificationFailed
+    case proposedOpenFailed
+    case postMigrationVerificationFailed
+    case completionRecordFailed
+    case retryInProgress
+    case retryBlocked
+    case startupCompleted
+}
+
+enum ScoreKeepProductionStartupRecoveryAction: String, CaseIterable, Hashable, Sendable {
+    case unlockDevice
+    case retry
+    case freeUpStorage
+    case copySupportSummary
+}
+
+struct ScoreKeepProductionStartupRecoveryPresentation: Hashable, Sendable {
+    let diagnosticCode: ScoreKeepProductionStartupDiagnosticCode
+    let title: String
+    let explanation: String
+    let actions: Set<ScoreKeepProductionStartupRecoveryAction>
+    let retryAllowed: Bool
+    let supportSummary: String
+
+    static func make(
+        diagnosticCode: ScoreKeepProductionStartupDiagnosticCode,
+        protectedDataState: ScoreKeepProtectedDataObservationState,
+        capacityStatus: String,
+        sourceStatus: String,
+        backupStatus: String,
+        migrationPhase: String,
+        targetVerification: String,
+        retryAllowed: Bool,
+        retryInProgress: Bool = false
+    ) -> ScoreKeepProductionStartupRecoveryPresentation {
+        let content = userContent(for: diagnosticCode, retryAllowed: retryAllowed, retryInProgress: retryInProgress)
+        var actions = content.actions
+        actions.insert(.copySupportSummary)
+        let finalCode: ScoreKeepProductionStartupDiagnosticCode = retryInProgress ? .retryInProgress : diagnosticCode
+        return ScoreKeepProductionStartupRecoveryPresentation(
+            diagnosticCode: finalCode,
+            title: content.title,
+            explanation: content.explanation,
+            actions: actions,
+            retryAllowed: retryAllowed && retryInProgress == false,
+            supportSummary: [
+                "ScoreKeep Startup Support Summary",
+                "App Version: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown")",
+                "Build: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown")",
+                "Startup Outcome: \(finalCode.rawValue)",
+                "Protected Data: \(protectedDataState.rawValue)",
+                "Capacity: \(capacityStatus)",
+                "Source: \(sourceStatus)",
+                "Backup: \(backupStatus)",
+                "Migration Phase: \(migrationPhase)",
+                "Target Verification: \(targetVerification)",
+                "Retry: \((retryAllowed && retryInProgress == false) ? "allowed" : "prohibited")",
+                "Codes: startup.\(finalCode.rawValue)"
+            ].joined(separator: "\n")
+        )
+    }
+
+    private static func userContent(
+        for code: ScoreKeepProductionStartupDiagnosticCode,
+        retryAllowed: Bool,
+        retryInProgress: Bool
+    ) -> (title: String, explanation: String, actions: Set<ScoreKeepProductionStartupRecoveryAction>) {
+        if retryInProgress {
+            return ("Preparing Your Data", "ScoreKeep is checking the saved data again. No changes can be made until this finishes.", [])
+        }
+        switch code {
+        case .protectedDataUnavailable:
+            return ("Unlock Device", "ScoreKeep needs the device to be unlocked before it can safely open saved data.", [.unlockDevice])
+        case .capacityInsufficient, .capacityUnavailable:
+            return ("More Storage Needed", "ScoreKeep needs more available device storage before it can safely prepare saved data.", retryAllowed ? [.freeUpStorage, .retry] : [.freeUpStorage])
+        case .migrationInterruptedRetryable:
+            return ("Finish Preparing Data", "ScoreKeep needs to finish preparing saved data before changes can be made.", [.retry])
+        case .migrationRecoveryRequired, .journalCorrupt, .journalUnsupported, .sourceMissing, .sourceIncomplete, .backupVerificationFailed, .postMigrationVerificationFailed:
+            return ("Recovery Needed", "ScoreKeep cannot safely finish preparing saved data on this device without review. No changes will be saved.", [])
+        case .proposedOpenFailed:
+            return ("Cannot Open Saved Data", "ScoreKeep could not safely open the prepared data. No changes will be saved.", retryAllowed ? [.retry] : [])
+        case .completionRecordFailed:
+            return ("Preparation Not Verified", "ScoreKeep could not verify that data preparation finished. No changes will be saved.", [])
+        case .retryBlocked:
+            return ("Retry Not Available", "ScoreKeep cannot safely retry from the saved evidence on this device. No changes will be saved.", [])
+        case .retryInProgress:
+            return ("Preparing Your Data", "ScoreKeep is checking the saved data again. No changes can be made until this finishes.", [])
+        case .startupCompleted:
+            return ("ScoreKeep Is Ready", "Saved data opened successfully.", [])
+        }
+    }
+}
+
 enum ScoreKeepProductionStartupStatus: Hashable {
     case loading
     case ready(ModelContainer, SimpleTeamCreationRoutingService, Bool)
     case proposedMigrationExecutionRequired
-    case blocked(String)
+    case blocked(ScoreKeepProductionStartupRecoveryPresentation)
 
     static func == (lhs: ScoreKeepProductionStartupStatus, rhs: ScoreKeepProductionStartupStatus) -> Bool {
         switch (lhs, rhs) {
         case (.loading, .loading),
              (.proposedMigrationExecutionRequired, .proposedMigrationExecutionRequired):
             return true
-        case (.blocked(let lhsMessage), .blocked(let rhsMessage)):
-            return lhsMessage == rhsMessage
+        case (.blocked(let lhsPresentation), .blocked(let rhsPresentation)):
+            return lhsPresentation == rhsPresentation
         case (.ready, .ready):
             return true
         default:
@@ -39,9 +142,9 @@ enum ScoreKeepProductionStartupStatus: Hashable {
             hasher.combine("ready")
         case .proposedMigrationExecutionRequired:
             hasher.combine("proposedMigrationExecutionRequired")
-        case .blocked(let message):
+        case .blocked(let presentation):
             hasher.combine("blocked")
-            hasher.combine(message)
+            hasher.combine(presentation)
         }
     }
 }
@@ -50,16 +153,80 @@ enum ScoreKeepProductionStartupStatus: Hashable {
 final class ScoreKeepProductionStartupModel: ObservableObject {
     @Published private(set) var status: ScoreKeepProductionStartupStatus = .loading
     private var didStart = false
+    private var retryInProgress = false
 
     func start() {
         guard didStart == false else { return }
         didStart = true
+        runStartup(allowJournalResume: false)
+    }
 
+    func retry() {
+        guard case .blocked(let presentation) = status, presentation.retryAllowed else {
+            status = .blocked(recoveryPresentation(
+                code: .retryBlocked,
+                protectedDataState: currentProtectedDataState(),
+                capacityStatus: "notAssessed",
+                sourceStatus: "notAssessed",
+                backupStatus: "uncertain",
+                migrationPhase: "blocked",
+                targetVerification: "notRun",
+                retryAllowed: false
+            ))
+            return
+        }
+        guard retryInProgress == false else { return }
+        retryInProgress = true
+        status = .blocked(recoveryPresentation(
+            code: presentation.diagnosticCode,
+            protectedDataState: currentProtectedDataState(),
+            capacityStatus: "reassessing",
+            sourceStatus: "reassessing",
+            backupStatus: "reassessing",
+            migrationPhase: "retrying",
+            targetVerification: "notRun",
+            retryAllowed: false,
+            retryInProgress: true
+        ))
+        runStartup(allowJournalResume: true)
+        retryInProgress = false
+    }
+
+    func protectedDataBecameAvailable() {
+        guard case .blocked(let presentation) = status,
+              presentation.diagnosticCode == .protectedDataUnavailable else { return }
+        status = .blocked(recoveryPresentation(
+            code: .migrationInterruptedRetryable,
+            protectedDataState: .becameAvailable,
+            capacityStatus: "notAssessed",
+            sourceStatus: "notAssessed",
+            backupStatus: "uncertain",
+            migrationPhase: "protectedDataAvailable",
+            targetVerification: "notRun",
+            retryAllowed: true
+        ))
+    }
+
+    func protectedDataWillBecomeUnavailable() {
+        guard case .ready = status else { return }
+        status = .blocked(recoveryPresentation(
+            code: .protectedDataUnavailable,
+            protectedDataState: .willBecomeUnavailable,
+            capacityStatus: "notAssessed",
+            sourceStatus: "notAssessed",
+            backupStatus: "uncertain",
+            migrationPhase: "protectedDataUnavailable",
+            targetVerification: "notRun",
+            retryAllowed: false
+        ))
+    }
+
+    private func runStartup(allowJournalResume: Bool) {
         #if SCOREKEEP_MIGRATION_TEST_PROPOSED
         startDisposableProposedRehearsalOrExecution()
         #else
         if ScoreKeepProductionStartupRouteApproval.simpleTeamCreationProductionEnabled {
-            startProductionProposedIfComplete()
+            startProductionProposedIfComplete(allowJournalResume: allowJournalResume)
         } else {
             startLegacyCompatibleProduction()
         }
@@ -72,17 +239,49 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             let service = SimpleTeamCreationRoutingService()
             status = .ready(container, service, false)
         } catch {
-            status = .blocked("ScoreKeep cannot safely open your data right now.")
+            status = .blocked(recoveryPresentation(
+                code: .proposedOpenFailed,
+                protectedDataState: currentProtectedDataState(),
+                capacityStatus: "notAssessed",
+                sourceStatus: "legacyCompatible",
+                backupStatus: "notRequired",
+                migrationPhase: "legacyCompatibleOpenFailed",
+                targetVerification: "notRun",
+                retryAllowed: true
+            ))
         }
     }
 
-    private func startProductionProposedIfComplete(fileManager: FileManager = .default) {
+    private func startProductionProposedIfComplete(fileManager: FileManager = .default, allowJournalResume: Bool = false) {
+        let protectedDataState = currentProtectedDataState()
+        guard protectedDataState == .available || protectedDataState == .unknownOrUnsupported else {
+            status = .blocked(recoveryPresentation(
+                code: .protectedDataUnavailable,
+                protectedDataState: protectedDataState,
+                capacityStatus: "notAssessed",
+                sourceStatus: "notAssessed",
+                backupStatus: "uncertain",
+                migrationPhase: "protectedDataUnavailable",
+                targetVerification: "notRun",
+                retryAllowed: false
+            ))
+            return
+        }
         let root = ScoreKeepPhysicalDeviceDiagnostics.applicationSupportRoot(fileManager: fileManager)
         let layout = ScoreKeepProductionMigrationLayout.resolve(applicationSupportRoot: root)
         let journalStore = ScoreKeepMigrationJournalStore(directory: layout.journal.deletingLastPathComponent(), fileManager: fileManager)
         let journal = journalStore.load()
-        guard journal.error == nil else {
-            status = .blocked("ScoreKeep cannot safely open your data right now.")
+        if let journalError = journal.error {
+            status = .blocked(recoveryPresentation(
+                code: diagnosticCode(for: journalError),
+                protectedDataState: protectedDataState,
+                capacityStatus: "notAssessed",
+                sourceStatus: "uncertain",
+                backupStatus: "uncertain",
+                migrationPhase: "journalUnreadable",
+                targetVerification: "notRun",
+                retryAllowed: false
+            ))
             return
         }
         if let record = journal.record, record.phase == .completionRecorded {
@@ -95,6 +294,21 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             )
             return
         }
+        if let record = journal.record, allowJournalResume == false {
+            let recovery = ScoreKeepMigrationOrchestrator.reconcile(record)
+            let retryAllowed = Self.retryAllowed(for: recovery)
+            status = .blocked(recoveryPresentation(
+                code: retryAllowed ? .migrationInterruptedRetryable : .migrationRecoveryRequired,
+                protectedDataState: protectedDataState,
+                capacityStatus: "notAssessed",
+                sourceStatus: record.sourceClassification.rawValue,
+                backupStatus: record.backupVerificationDisposition == .backupVerified ? "present" : "uncertain",
+                migrationPhase: record.phase.rawValue,
+                targetVerification: record.postOpenVerificationDisposition,
+                retryAllowed: retryAllowed
+            ))
+            return
+        }
         runProductionMigration(layout: layout, journalStore: journalStore, fileManager: fileManager)
     }
 
@@ -103,10 +317,37 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         journalStore: ScoreKeepMigrationJournalStore,
         fileManager: FileManager
     ) {
-        let family = try? ScoreKeepStoreFamilyDiscovery.discover(storeURL: layout.activeStore, fileManager: fileManager)
+        let family: ScoreKeepStoreFamilyDescriptor?
+        do {
+            family = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: layout.activeStore, fileManager: fileManager)
+        } catch {
+            family = nil
+            if fileManager.fileExists(atPath: layout.activeStore.path + "-wal") || fileManager.fileExists(atPath: layout.activeStore.path + "-shm") {
+                status = .blocked(recoveryPresentation(
+                    code: .sourceIncomplete,
+                    protectedDataState: currentProtectedDataState(),
+                    capacityStatus: "notAssessed",
+                    sourceStatus: "incomplete",
+                    backupStatus: "uncertain",
+                    migrationPhase: "notStarted",
+                    targetVerification: "notRun",
+                    retryAllowed: false
+                ))
+                return
+            }
+        }
         let sourceClassification: ScoreKeepSourceStoreClassification = family == nil ? .noStoreExists : .populatedCurrentUnversionedStore
         guard sourceClassification.isSupportedForProposedV2Startup else {
-            status = .blocked("ScoreKeep cannot safely open your data right now.")
+            status = .blocked(recoveryPresentation(
+                code: .sourceMissing,
+                protectedDataState: currentProtectedDataState(),
+                capacityStatus: "notAssessed",
+                sourceStatus: sourceClassification.rawValue,
+                backupStatus: "uncertain",
+                migrationPhase: "notStarted",
+                targetVerification: "notRun",
+                retryAllowed: false
+            ))
             return
         }
         let operationIdentity = makeOperationIdentity(sourceStoreIdentity: family?.diagnosticIdentity ?? "no-existing-store", sourceClassification: sourceClassification)
@@ -119,7 +360,16 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 volume: ScoreKeepMigrationCapacityCalculator.queryVolume(at: layout.applicationSupportRoot)
             )
             guard capacity.mayProceed else {
-                status = .blocked("ScoreKeep needs more device storage before it can safely prepare your data.")
+                status = .blocked(recoveryPresentation(
+                    code: capacity.disposition == .insufficient || capacity.disposition == .safetyMarginNotMet ? .capacityInsufficient : .capacityUnavailable,
+                    protectedDataState: currentProtectedDataState(),
+                    capacityStatus: capacity.diagnosticCode,
+                    sourceStatus: sourceClassification.rawValue,
+                    backupStatus: "absent",
+                    migrationPhase: "notStarted",
+                    targetVerification: "notRun",
+                    retryAllowed: true
+                ))
                 return
             }
         }
@@ -156,7 +406,18 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 journalStore: journalStore
             )
             guard result.disposition == .completed, result.journal.phase == .completionRecorded else {
-                status = .blocked("ScoreKeep could not verify your prepared data. No new changes will be saved.")
+                let code = diagnosticCode(for: result)
+                let retryAllowed = Self.retryAllowed(for: result.recoveryRequirement)
+                status = .blocked(recoveryPresentation(
+                    code: code,
+                    protectedDataState: currentProtectedDataState(),
+                    capacityStatus: "capacity.sufficient",
+                    sourceStatus: sourceClassification.rawValue,
+                    backupStatus: result.journal.backupVerificationDisposition == .backupVerified ? "present" : "uncertain",
+                    migrationPhase: result.journal.phase.rawValue,
+                    targetVerification: result.journal.postOpenVerificationDisposition,
+                    retryAllowed: retryAllowed
+                ))
                 return
             }
             openProposedContainer(
@@ -166,7 +427,18 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 disposableIndicator: false
             )
         } catch {
-            status = .blocked("ScoreKeep could not safely prepare your data. No new changes will be saved.")
+            let loaded = journalStore.load()
+            let recovery = ScoreKeepMigrationOrchestrator.reconcile(loaded.record)
+            status = .blocked(recoveryPresentation(
+                code: Self.retryAllowed(for: recovery) ? .migrationInterruptedRetryable : .migrationRecoveryRequired,
+                protectedDataState: currentProtectedDataState(),
+                capacityStatus: family == nil ? "notRequiredForEmptyStore" : "capacity.sufficient",
+                sourceStatus: sourceClassification.rawValue,
+                backupStatus: loaded.record?.backupVerificationDisposition == .backupVerified ? "present" : "uncertain",
+                migrationPhase: loaded.record?.phase.rawValue ?? "notStarted",
+                targetVerification: loaded.record?.postOpenVerificationDisposition ?? "notRun",
+                retryAllowed: Self.retryAllowed(for: recovery)
+            ))
         }
     }
 
@@ -177,7 +449,16 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         }
         let safety = ScoreKeepPhysicalMigrationTestSafety.evaluate()
         guard safety.identity.isDisposableMigrationTestIdentity, safety.mode == .proposedV2Migration else {
-            status = .blocked("This test build cannot safely open data.")
+            status = .blocked(recoveryPresentation(
+                code: .retryBlocked,
+                protectedDataState: currentProtectedDataState(),
+                capacityStatus: "notAssessed",
+                sourceStatus: "disposableIdentityInvalid",
+                backupStatus: "uncertain",
+                migrationPhase: "blocked",
+                targetVerification: "notRun",
+                retryAllowed: false
+            ))
             return
         }
         let root = ScoreKeepPhysicalDeviceDiagnostics.applicationSupportRoot(fileManager: fileManager)
@@ -212,7 +493,16 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             )
         )
         guard let container = result.container else {
-            status = .blocked("ScoreKeep cannot safely open your prepared data right now.")
+            status = .blocked(recoveryPresentation(
+                code: .proposedOpenFailed,
+                protectedDataState: currentProtectedDataState(),
+                capacityStatus: "notAssessed",
+                sourceStatus: sourceClassification.rawValue,
+                backupStatus: "uncertain",
+                migrationPhase: "completionRecorded",
+                targetVerification: result.diagnostics.verificationDisposition,
+                retryAllowed: true
+            ))
             return
         }
 
@@ -230,6 +520,79 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             migrationCompletionState: "completed"
         )
         status = .ready(container, service, disposableIndicator)
+    }
+
+    private func recoveryPresentation(
+        code: ScoreKeepProductionStartupDiagnosticCode,
+        protectedDataState: ScoreKeepProtectedDataObservationState,
+        capacityStatus: String,
+        sourceStatus: String,
+        backupStatus: String,
+        migrationPhase: String,
+        targetVerification: String,
+        retryAllowed: Bool,
+        retryInProgress: Bool = false
+    ) -> ScoreKeepProductionStartupRecoveryPresentation {
+        ScoreKeepProductionStartupRecoveryPresentation.make(
+            diagnosticCode: code,
+            protectedDataState: protectedDataState,
+            capacityStatus: capacityStatus,
+            sourceStatus: sourceStatus,
+            backupStatus: backupStatus,
+            migrationPhase: migrationPhase,
+            targetVerification: targetVerification,
+            retryAllowed: retryAllowed,
+            retryInProgress: retryInProgress
+        )
+    }
+
+    private func currentProtectedDataState() -> ScoreKeepProtectedDataObservationState {
+        #if canImport(UIKit)
+        return UIApplication.shared.isProtectedDataAvailable ? .available : .unavailable
+        #else
+        return .unknownOrUnsupported
+        #endif
+    }
+
+    private func diagnosticCode(for error: ScoreKeepMigrationJournalError) -> ScoreKeepProductionStartupDiagnosticCode {
+        switch error {
+        case .unsupportedJournalVersion:
+            return .journalUnsupported
+        case .decodingFailed, .missingJournal, .phaseRegression, .conflictingOperationIdentity,
+             .conflictingSourceIdentity, .completionRequiresVerifiedBackup, .completionRequiresPostOpenVerification,
+             .uncertaintyCannotBeErased, .completedJournalConflictsWithTarget, .atomicReplacementFailed,
+             .authorizationRequired:
+            return .journalCorrupt
+        }
+    }
+
+    private func diagnosticCode(for result: ScoreKeepMigrationOrchestratorResult) -> ScoreKeepProductionStartupDiagnosticCode {
+        switch result.disposition {
+        case .completed:
+            return .startupCompleted
+        case .interrupted:
+            return .migrationInterruptedRetryable
+        case .disabled, .ownershipConflict, .recoveryRequired, .writesProhibited:
+            return .migrationRecoveryRequired
+        case .sourcePreservationFailed:
+            return .backupVerificationFailed
+        case .constructionFailed:
+            return .proposedOpenFailed
+        case .verificationFailed:
+            return .postMigrationVerificationFailed
+        case .completionEvidenceFailed:
+            return .completionRecordFailed
+        }
+    }
+
+    private static func retryAllowed(for recovery: ScoreKeepMigrationRecoveryRequirement) -> Bool {
+        switch recovery {
+        case .retryPreflightWithSameOperationIdentity, .reuseVerifiedBackup, .discardIncompleteDisposableTarget, .verifyExistingTarget:
+            return true
+        case .noRecoveryRequired, .discardIncompleteTestOwnedBackup, .restoreFromVerifiedBackup, .requireManualReview,
+             .unsupportedAutomaticRecovery, .doNotReopenThroughLegacy, .doNotRetryMigration, .writesRemainProhibited:
+            return false
+        }
     }
 
     private static func currentUnversionedContainer(url: URL, allowsSave: Bool) throws -> ModelContainer {
@@ -293,13 +656,21 @@ struct ScoreKeepProductionStartupHost<Content: View>: View {
                 }
             case .proposedMigrationExecutionRequired:
                 ScoreKeepPhysicalMigrationExecutionView()
-            case .blocked(let message):
-                ScoreKeepStartupBlockedView(message: message)
+            case .blocked(let presentation):
+                ScoreKeepStartupBlockedView(presentation: presentation, retry: startup.retry)
             }
         }
         .task {
             startup.start()
         }
+        #if canImport(UIKit)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)) { _ in
+            startup.protectedDataBecameAvailable()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataWillBecomeUnavailableNotification)) { _ in
+            startup.protectedDataWillBecomeUnavailable()
+        }
+        #endif
     }
 }
 
@@ -349,18 +720,64 @@ private struct DisposableRehearsalSummaryBanner: View {
 }
 
 private struct ScoreKeepStartupBlockedView: View {
-    let message: String
+    let presentation: ScoreKeepProductionStartupRecoveryPresentation
+    let retry: () -> Void
+    @State private var copied = false
 
     var body: some View {
-        VStack(spacing: 12) {
-            Text(message)
-                .font(.headline)
+        VStack(spacing: 18) {
+            Text(presentation.title)
+                .font(.title2.weight(.semibold))
                 .multilineTextAlignment(.center)
-            Text("No changes will be saved until ScoreKeep can open your data safely.")
-                .font(.subheadline)
+            Text(presentation.explanation)
+                .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
+            VStack(spacing: 10) {
+                if presentation.actions.contains(.unlockDevice) {
+                    Text("Unlock this device, then try again.")
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .accessibilityLabel("Unlock this device, then try again.")
+                }
+                if presentation.actions.contains(.freeUpStorage) {
+                    Text("Free up device storage before retrying.")
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .accessibilityLabel("Free up device storage before retrying.")
+                }
+                if presentation.actions.contains(.retry) {
+                    Button("Retry") {
+                        retry()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(presentation.retryAllowed == false)
+                    .accessibilityLabel("Retry opening ScoreKeep data")
+                }
+                if presentation.actions.contains(.copySupportSummary) {
+                    Button(copied ? "Copied" : "Copy Support Summary") {
+                        copySupportSummary()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .accessibilityLabel(copied ? "Support summary copied" : "Copy support summary")
+                }
+            }
         }
         .padding()
+        .frame(maxWidth: 520)
     }
+
+    private func copySupportSummary() {
+        #if canImport(UIKit)
+        UIPasteboard.general.string = presentation.supportSummary
+        #endif
+        copied = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            copied = false
+        }
+    }
+
 }

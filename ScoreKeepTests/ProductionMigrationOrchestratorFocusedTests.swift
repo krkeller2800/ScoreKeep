@@ -134,6 +134,44 @@ struct ScoreKeepMigrationOrchestratorTests {
         }
     }
 
+    @Test("retry resumes from verified backup with same operation identity and no duplicate backup")
+    func retryResumesFromVerifiedBackupWithSameOperationIdentityAndNoDuplicateBackup() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let journalStore = try journalStore()
+        let backupURL = try storeURL()
+        let targetURL = try storeURL()
+        let identity = "resume-verified-backup"
+        let interrupted = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                source: source,
+                backupURL: backupURL,
+                targetURL: targetURL,
+                journalStoreIdentity: identity,
+                interruptionPoint: .afterBackupVerification
+            ),
+            journalStore: journalStore
+        )
+        let backupIdentity = interrupted.journal.backupIdentity
+
+        let resumed = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                source: source,
+                backupURL: backupURL,
+                targetURL: targetURL,
+                journalStoreIdentity: identity
+            ),
+            journalStore: journalStore
+        )
+
+        #expect(interrupted.disposition == .interrupted)
+        #expect(ScoreKeepMigrationOrchestrator.reconcile(interrupted.journal) == .reuseVerifiedBackup)
+        #expect(resumed.disposition == .completed)
+        #expect(resumed.journal.operationIdentity == interrupted.journal.operationIdentity)
+        #expect(resumed.journal.backupIdentity == backupIdentity)
+        #expect(resumed.journal.phase == .completionRecorded)
+        #expect(resumed.writeReadiness.permitsBaseballWrites == false)
+    }
+
     private func input(
         source: (url: URL, snapshot: UnversionedStoreSnapshot),
         backupURL: URL,

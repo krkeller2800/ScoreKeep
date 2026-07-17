@@ -119,13 +119,15 @@ enum ScoreKeepMigrationOrchestrator {
             state: input.disableState,
             authorizationEvidence: input.authorizationEvidence
         )
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: max(journal.phase, .preflightStarted),
-            disableState: resolvedDisable,
-            diagnosticCodes: resolvedDisable.failsClosed ? [.disableStateActive] : []
-        )
-        try journalStore.save(journal)
+        if journal.phase < .preflightStarted || journal.disableState != resolvedDisable {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: max(journal.phase, .preflightStarted),
+                disableState: resolvedDisable,
+                diagnosticCodes: resolvedDisable.failsClosed ? [.disableStateActive] : []
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterDisableStateResolution {
             return interrupted(journal)
         }
@@ -134,13 +136,15 @@ enum ScoreKeepMigrationOrchestrator {
         }
 
         let ownership = ScoreKeepStartupOwnershipAuthority.claim(current: journal.startupOwnership, requested: .migrationInProgress)
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: max(journal.phase, .preflightStarted),
-            startupOwnership: ownership,
-            diagnosticCodes: ownership == .conflictingOwners ? [.ownershipConflict] : []
-        )
-        try journalStore.save(journal)
+        if journal.startupOwnership != ownership {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: max(journal.phase, .preflightStarted),
+                startupOwnership: ownership,
+                diagnosticCodes: ownership == .conflictingOwners ? [.ownershipConflict] : []
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterOwnershipClaim {
             return interrupted(journal)
         }
@@ -148,18 +152,20 @@ enum ScoreKeepMigrationOrchestrator {
             return classified(.ownershipConflict, journal: journal, container: nil, diagnostics: [.ownershipConflict])
         }
 
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: .sourceClassified,
-            sourceClassification: input.sourceClassification
-        )
-        try journalStore.save(journal)
+        if journal.phase < .sourceClassified {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .sourceClassified,
+                sourceClassification: input.sourceClassification
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterSourceClassification {
             return interrupted(journal)
         }
 
         let preservationRequired = input.sourceClassification.requiresMigration
-        if preservationRequired {
+        if preservationRequired && journal.phase < .backupVerified {
             journal = try ScoreKeepMigrationJournalTransition.advance(
                 journal,
                 to: .sourcePreservationStarted,
@@ -209,7 +215,7 @@ enum ScoreKeepMigrationOrchestrator {
             if input.interruptionPoint == .afterBackupVerification {
                 return interrupted(journal)
             }
-        } else {
+        } else if journal.phase < .backupVerified {
             journal = try ScoreKeepMigrationJournalTransition.advance(
                 journal,
                 to: .backupVerified,
@@ -220,12 +226,14 @@ enum ScoreKeepMigrationOrchestrator {
             try journalStore.save(journal)
         }
 
-        if preservationRequired {
+        if preservationRequired && journal.phase < .migrationAttemptStarted {
             try copyStoreFamily(from: input.backupStoreURL, to: input.targetStoreURL)
         }
 
-        journal = try ScoreKeepMigrationJournalTransition.advance(journal, to: .migrationAttemptStarted)
-        try journalStore.save(journal)
+        if journal.phase < .migrationAttemptStarted {
+            journal = try ScoreKeepMigrationJournalTransition.advance(journal, to: .migrationAttemptStarted)
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterMigrationAttemptRecording || input.interruptionPoint == .afterContainerConstructionBegins {
             return interrupted(journal)
         }
@@ -253,22 +261,26 @@ enum ScoreKeepMigrationOrchestrator {
             return classified(.constructionFailed, journal: journal, container: nil, diagnostics: [diagnostic])
         }
 
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: .containerConstructed,
-            containerConstructionDisposition: factoryResult.disposition
-        )
-        try journalStore.save(journal)
+        if journal.phase < .containerConstructed {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .containerConstructed,
+                containerConstructionDisposition: factoryResult.disposition
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterContainerConstructionReturns {
             return interrupted(journal, container: container)
         }
 
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: .postOpenVerificationStarted,
-            postOpenVerificationDisposition: "started"
-        )
-        try journalStore.save(journal)
+        if journal.phase < .postOpenVerificationStarted {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .postOpenVerificationStarted,
+                postOpenVerificationDisposition: "started"
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterPostOpenVerificationStarts {
             return interrupted(journal, container: container)
         }
@@ -286,24 +298,28 @@ enum ScoreKeepMigrationOrchestrator {
             return classified(.verificationFailed, journal: journal, container: container, diagnostics: [.postOpenVerificationFailed])
         }
 
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: .postOpenVerificationPassed,
-            postOpenVerificationDisposition: "passed"
-        )
-        try journalStore.save(journal)
+        if journal.phase < .postOpenVerificationPassed {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .postOpenVerificationPassed,
+                postOpenVerificationDisposition: "passed"
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterPostOpenVerificationPasses || input.interruptionPoint == .afterCompletionRecordingStarts {
             return interrupted(journal, container: container)
         }
 
-        journal = try ScoreKeepMigrationJournalTransition.advance(
-            journal,
-            to: .completionRecorded,
-            completionDisposition: "sidecarCompletionRecorded",
-            retryClassification: .noRetryRequired,
-            recoveryRequirement: .noRecoveryRequired
-        )
-        try journalStore.save(journal)
+        if journal.phase < .completionRecorded {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .completionRecorded,
+                completionDisposition: "sidecarCompletionRecorded",
+                retryClassification: .noRetryRequired,
+                recoveryRequirement: .noRecoveryRequired
+            )
+            try journalStore.save(journal)
+        }
         if input.interruptionPoint == .afterCompletionRecordingSucceeds {
             return interrupted(journal, container: container)
         }
