@@ -380,8 +380,15 @@ enum ScoreKeepPhysicalMigrationExecutor {
     }
 
     static func freshProposedComparison(targetURL: URL, backupURL: URL? = nil, baseline: ScoreKeepMigrationBaselineRecord) throws -> String {
-        guard backupURL == nil else {
-            return "blocked.semanticVerifierUnavailable.currentTargetV2AndV3DuplicateEffectiveChecksums"
+        if let backupURL {
+            let backupAssessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: backupURL)
+            guard backupAssessment.sourceClassification == .existingProposedV2Store else {
+                return "backupMetadataMismatch.\(backupAssessment.sourceClassification.rawValue)"
+            }
+        }
+        let targetAssessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: targetURL)
+        guard targetAssessment.sourceClassification == .existingProposedV3Store else {
+            return "targetMetadataMismatch.\(targetAssessment.sourceClassification.rawValue)"
         }
         let container = try proposedContainer(url: targetURL)
         let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)

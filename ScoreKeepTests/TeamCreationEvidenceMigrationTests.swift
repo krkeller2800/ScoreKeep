@@ -52,6 +52,6 @@ struct TeamCreationEvidenceMigrationTests {
     @Test("current unversioned production store assessment remains explicit blocker")
     func currentUnversionedProductionStoreAssessmentRemainsExplicitBlocker() {
         #expect(ScoreKeepProposedSchemaAssessment.current.unversionedInstalledStoreAssessment.contains("requires device-copy testing"))
-        #expect(ScoreKeepProposedSchemaAssessment.current.unversionedInstalledStoreAssessment.contains("synthetic Proposed V1 stores do not prove"))
+        #expect(ScoreKeepProposedSchemaAssessment.current.unversionedInstalledStoreAssessment.contains("synthetic Proposed V1/V2 stores do not prove"))
     }
 }

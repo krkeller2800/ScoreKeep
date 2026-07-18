@@ -481,6 +481,42 @@ struct MigrationAcceptanceTask322ETests {
         #expect(versioned.contains("testSource.contains(\"ScoreKeepProposedCanonicalScoringStorageMigrationPlan\") == false"))
     }
 
+    @Test("physical comparison checks V2 backup metadata and opens only V3 target")
+    func physicalComparisonChecksV2BackupMetadataAndOpensOnlyV3Target() throws {
+        let sourceURL = try FrozenV2FixtureTestSupport.copiedPrimaryStoreURL()
+        let sourceBefore = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL)
+        let root = temporaryRoot()
+        let backupURL = root.appendingPathComponent("backup/StoreFamily/FrozenV2Synthetic.sqlite")
+        let targetURL = root.appendingPathComponent("target/FrozenV2Synthetic.sqlite")
+        let journalStore = ScoreKeepMigrationJournalStore(directory: root.appendingPathComponent("journal", isDirectory: true))
+        let operation = operationIdentity(sourceIdentity: sourceBefore.diagnosticIdentity)
+
+        let interrupted = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                operation: operation,
+                sourceURL: sourceURL,
+                backupURL: backupURL,
+                targetURL: targetURL,
+                interruptionPoint: .afterContainerConstructionReturns
+            ),
+            journalStore: journalStore
+        )
+        let candidateContainer = try #require(interrupted.container)
+        let baseline = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: candidateContainer.mainContext)
+
+        let result = try ScoreKeepPhysicalMigrationExecutor.freshProposedComparison(
+            targetURL: targetURL,
+            backupURL: backupURL,
+            baseline: baseline
+        )
+
+        #expect(result == "matchesStoredLegacyBaseline")
+        #expect(result.contains("currentTargetV2AndV3DuplicateEffectiveChecksums") == false)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: backupURL).sourceClassification == .existingProposedV2Store)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: targetURL).sourceClassification == .existingProposedV3Store)
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL) == sourceBefore)
+    }
+
     private var failClosedSourceClassifications: [ScoreKeepSourceStoreClassification] {
         [
             .proposedV1RecognizableStore,

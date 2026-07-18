@@ -650,3 +650,16 @@ The duplicate-checksum safety audit confirms the selected acceptance path and pr
 Manual simulator or device verification was not performed for Task 3.22E. The only available committed source is synthetic fixture evidence, and no approved procedure in this task authorizes placing the fixture into active user application data or launching against the user's simulator data. The explicit manual evidence boundary therefore remains unclaimed until a separately approved disposable active-container procedure or real archived historical V2 store family is available.
 
 Task 3.22E does not authorize candidate promotion, active-store replacement, retained-backup deletion, canonical scoring writes, Legacy scoring retirement, Task 3.22 completion, or Task 3.23. Task 3.22 remains blocked pending Task 3.22F and final Task 3.22 review. Production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
+
+<!-- MARK: - 23. Task 3.22F Duplicate-Checksum Diagnostic Cleanup -->
+## 23. Task 3.22F Duplicate-Checksum Diagnostic Cleanup
+
+Task 3.22F cleans up temporary duplicate-checksum investigation scaffolding after Tasks 3.22C through 3.22E established the selected migration boundary and automated acceptance evidence. The cleanup does not change V1, V2, or V3 schema declarations; does not promote a candidate store; does not route canonical scoring; does not synthesize canonical scoring history; and does not retire Legacy scoring.
+
+Retained diagnostics are bounded to supported evidence: exact Core Data persistent-store metadata, model-version-hash inventory, source-family discovery, source preservation, copied-workspace migration evidence, V3 destination verification, rollback and recovery journal state, sanitized Core Data/SQLite error classification, and fixture digests. These diagnostics identify source and destination boundaries but do not claim that the current V3 app target can semantically open frozen V2.
+
+Removed or reduced temporary scaffolding includes launch-only schema diagnostic prints, `ScoreKeepApp` ownership of schema/migration diagnostic internals, wording that implied a hosted V2-to-V3 migration attempt, and the physical migration comparison branch that reported the duplicate-checksum blocker whenever a retained backup was present. The comparison now metadata-checks the retained backup as frozen V2 and opens only the copied V3 target for baseline comparison.
+
+Legacy compatibility states remain for `semanticVerifierUnavailable.currentTargetV2AndV3DuplicateEffectiveChecksums` and blocked V1/V2 recovery helpers. They are retained because interrupted development journals and fail-closed recovery presentations may still need to decode or report those states, but they are not active successful migration behavior and do not construct V2 and V3 together.
+
+The final supported boundary remains metadata-gated copied-workspace migration with V3 destination semantic verification, canonical-zero checks, unchanged source and backup evidence, rollback retention, and write prohibition until later approval. Task 3.22 remains blocked pending final Task 3.22 review. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
