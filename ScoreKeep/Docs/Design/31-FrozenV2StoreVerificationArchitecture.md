@@ -156,7 +156,7 @@ The architecture must preserve these guarantees separately:
 - Destination semantic correctness: the migrated destination must preserve all required V2 facts and relationships and must not synthesize canonical scoring rows.
 - Canonical-zero guarantee: all five canonical scoring storage tables must remain empty after migration from Legacy history.
 - Journaled idempotency: startup, retry, completion, failure, and recovery must be classified by operation evidence rather than by implicit side effects.
-- Atomic replacement: the active store may be replaced only after destination verification succeeds.
+- Candidate acceptance boundary: Task 3.22 may mark a copied V3 candidate destination verified and eligible for later acceptance; active-store replacement is later work and may occur only after separate authorization and successful destination verification.
 - Rollback safety: the untouched source backup must be retained or controlled-retained so recovery can return to a known pre-migration family.
 - Interruption safety: interrupted attempts must not duplicate records, hide records, partially promote an unverified target, or lose the prior source.
 - Purchase separation: baseball persistence and migration must not mutate StoreKit, entitlement, or allowance state.
@@ -333,7 +333,7 @@ Path A is strong only if an exact frozen V2 model exists or can be reconstructed
 
 Path B is useful for isolation evidence but weak as a small production architecture. A V2-only test target can prevent hosted V3-process schema collisions and can prove fixtures. A framework linked into the main app does not preserve process-level isolation. An app extension could be production-shippable only with significant extension-point, App Group, IPC, lifecycle, signing, and recovery complexity. An arbitrary helper process is not a supported iOS production assumption. Path B therefore scores well for testability and fixture support, but poorly for smallest production feasibility and operational recoverability.
 
-Path C is the smallest production-capable architecture. It relies on documented metadata reads, existing repository source-family preservation, copied workspaces, existing V3 container construction, destination semantic verification, journaled recovery, and rollback retention. It does not depend on undocumented SwiftData generated-model reconstruction or an iOS helper process. It is weaker than full source semantic opening, but it keeps that weakness explicit and preserves recoverability by never mutating the protected source before verified destination promotion.
+Path C is the smallest production-capable architecture. It relies on documented metadata reads, existing repository source-family preservation, copied workspaces, existing V3 container construction, destination semantic verification, journaled recovery, and rollback retention. It does not depend on undocumented SwiftData generated-model reconstruction or an iOS helper process. It is weaker than full source semantic opening, but it keeps that weakness explicit and preserves recoverability by never mutating the protected source before the candidate is verified and retained for later acceptance.
 
 The decision is a bounded combination: select Path C for production, with a narrowly scoped Path B test-only evidence task allowed as supporting fixture and regression infrastructure. Do not select Path A for production unless an exact frozen V2 model artifact is later obtained and independently verified. Do not select a production app-extension or helper-process boundary for Task 3.22.
 
@@ -351,7 +351,7 @@ Production uses:
 - The approved V2-to-V3 migration path only against that copied workspace.
 - V3-only destination opening in the current app target after migration.
 - Destination semantic verification using existing and expanded baseline evidence.
-- Atomic active-store replacement only after destination verification succeeds.
+- No active-store replacement during Task 3.22; any later replacement requires separate authorization and successful destination verification.
 - Permanent or controlled retention of the untouched V2 backup and journal evidence.
 - Fail-closed recovery states for any identity, migration, verification, replacement, journal, or retention uncertainty.
 
@@ -418,7 +418,7 @@ Migration must operate only on a copied workspace:
 - Never promote a target whose migration, open, or verification state is uncertain.
 - Open the migrated target as V3 through the current production V3 container boundary.
 - Disable autosave where the repository's migration-verification boundary requires explicit saves.
-- Run destination semantic verification before active-store replacement.
+- Run destination semantic verification before any later authorized active-store replacement.
 
 Destination semantic verification must include:
 
@@ -457,7 +457,7 @@ This boundary proves rollback safety and interruption safety. It also limits the
 <!-- MARK: - 15. Testing and Fixture Strategy -->
 ## 15. Testing and Fixture Strategy
 
-Task 3.22 cannot resume until the redesigned architecture has direct automated and manual evidence.
+Task 3.22 completion required direct automated evidence for the redesigned architecture; manual simulator or device evidence remained outside scope because no real or archived historical V2 user store was authorized.
 
 Required fixtures:
 
@@ -515,7 +515,7 @@ Task 3.22B: Frozen V2 evidence and fixture acquisition
 - Explicit exclusions: no production startup changes, no production migration, no schema alteration, no Core Data reconstruction claimed as authoritative without fixture proof, no Task 3.23 work.
 - Dependencies: Task 3.22A.
 - Completion evidence: fixtures and metadata evidence are checked in or documented with reproducible generation steps, and their provenance is recorded.
-- Blocks Task 3.22: yes.
+- Task 3.22 completion prerequisite: yes.
 - Task 3.23: remains blocked.
 
 Task 3.22C: Metadata-gated copied-workspace migration boundary
@@ -525,17 +525,17 @@ Task 3.22C: Metadata-gated copied-workspace migration boundary
 - Explicit exclusions: no source semantic V2 open in the V3 app target, no app extension/helper process, no canonical scoring writer, no Legacy scoring retirement.
 - Dependencies: Task 3.22B.
 - Completion evidence: code review and tests prove active source is not migrated in place and every unsupported source state fails closed.
-- Blocks Task 3.22: yes.
+- Task 3.22 completion prerequisite: yes.
 - Task 3.23: remains blocked.
 
 Task 3.22D: V3 destination semantic verification and rollback reconciliation
 
 - Purpose: implement post-migration V3 semantic verification and rollback/recovery evidence.
-- Allowed scope: V3 open verification, counts, stable identities, relationships, ordering, score, substitution, media, team-creation evidence, canonical-zero checks, completed-journal recovery, atomic replacement, retention, and manual-review classification.
+- Allowed scope: V3 open verification, counts, stable identities, relationships, ordering, score, substitution, media, team-creation evidence, canonical-zero checks, completed-journal recovery, verified-candidate eligibility, retention, and manual-review classification.
 - Explicit exclusions: no pre-migration V2 semantic open, no new scoring persistence adapter, no production scoring route.
 - Dependencies: Task 3.22C.
-- Completion evidence: automated tests and manual fixtures prove successful promotion only after V3 destination verification and prove rollback after failures.
-- Blocks Task 3.22: yes.
+- Completion evidence: automated tests prove verified-candidate eligibility only after V3 destination verification and prove rollback after failures; production promotion remains outside Task 3.22.
+- Task 3.22 completion prerequisite: yes.
 - Task 3.23: remains blocked.
 
 Task 3.22E: Migration acceptance tests and manual verification
@@ -544,8 +544,8 @@ Task 3.22E: Migration acceptance tests and manual verification
 - Allowed scope: automated migration/recovery tests, fixture-based acceptance tests, manual device or archived-store verification, and documented acceptance results.
 - Explicit exclusions: no simulator or physical migration outside the approved test procedure, no production routing of canonical scoring, no Task 3.23 adapter.
 - Dependencies: Task 3.22B, Task 3.22C, and Task 3.22D.
-- Completion evidence: passing tests and recorded manual verification show source preservation, copied migration, V3 destination verification, canonical-zero preservation, rollback, interruption recovery, and purchase separation.
-- Blocks Task 3.22: yes.
+- Completion evidence: passing automated tests and recorded manual-verification limitation show source preservation, copied migration, V3 destination verification, canonical-zero preservation, rollback, interruption recovery, and purchase separation.
+- Task 3.22 completion prerequisite: yes.
 - Task 3.23: remains blocked.
 
 Task 3.22F: Temporary duplicate-checksum diagnostic cleanup
@@ -555,7 +555,7 @@ Task 3.22F: Temporary duplicate-checksum diagnostic cleanup
 - Explicit exclusions: no behavior cleanup before Tasks 3.22C through 3.22E pass, no deletion of useful source-preservation or metadata diagnostics, no Task 3.23 work.
 - Dependencies: Task 3.22C, Task 3.22D, and Task 3.22E.
 - Completion evidence: retained tests prove no production or hosted path constructs runtime-effective V2 and V3 schemas together unless a separately approved isolated boundary owns that construction.
-- Blocks Task 3.22: yes.
+- Task 3.22 completion prerequisite: yes.
 - Task 3.23: remains blocked.
 
 <!-- MARK: - 17. Risks and Open Questions -->
@@ -579,23 +579,23 @@ Open questions:
 - What retention duration and user-facing recovery path are required for untouched V2 backups after successful migration?
 - Should a V2-only test target be mandatory for fixture acquisition, or can archived-build fixture generation provide enough evidence without a target addition?
 
-<!-- MARK: - 18. Task 3.22 Resumption Criteria -->
-## 18. Task 3.22 Resumption Criteria
+<!-- MARK: - 18. Task 3.22 Completion Criteria -->
+## 18. Task 3.22 Completion Criteria
 
-Task 3.22 may resume only after all of the following are true:
+Task 3.22 may be marked complete only after all of the following are true:
 
 - Task 3.22A is accepted as the architecture decision.
 - Task 3.22B provides authoritative frozen V2 metadata evidence and representative fixtures.
 - Task 3.22C implements metadata-gated source identity and copied-workspace migration boundaries without opening frozen V2 semantically in the current V3 app target.
-- Task 3.22D implements V3 destination semantic verification, canonical-zero checks, atomic replacement, rollback, and completed-journal recovery for the selected boundary.
-- Task 3.22E provides automated and manual acceptance evidence for success, failure, interruption, retry, rollback, unsupported sources, and purchase separation.
-- Task 3.22F removes or permanently fences obsolete duplicate-checksum diagnostics and unreachable detours after the replacement proof exists.
+- Task 3.22D implements V3 destination semantic verification, canonical-zero checks, verified-candidate eligibility, rollback, and completed-journal recovery for the selected boundary.
+- Task 3.22E provides automated acceptance evidence and a recorded manual-verification limitation for success, failure, interruption, retry, rollback, unsupported sources, and purchase separation.
+- Task 3.22F removes or permanently fences obsolete duplicate-checksum diagnostics and unreachable detours after the verified-candidate proof exists.
 - No retained production or hosted test path constructs runtime-effective V2 and V3 SwiftData schemas together in the current V3 app target.
 - Production scoring remains Legacy.
 - No production writer synthesizes canonical scoring history for Legacy games.
 - Task 3.23 remains blocked until Task 3.22 is complete and verified.
 
-Until those criteria are met, Task 3.22 remains blocked and Task 3.23 remains blocked.
+Final review confirms these criteria are met through the approved Path C boundary and Tasks 3.22A through 3.22F. Task 3.22 is complete. Task 3.23 remains blocked until separately authorized.
 
 <!-- MARK: - 19. Task 3.22B Fixture Acquisition Evidence -->
 ## 19. Task 3.22B Fixture Acquisition Evidence
@@ -610,7 +610,7 @@ The fixture data is deterministic and synthetic. It contains synthetic team, pla
 
 This evidence supports Tasks 3.22C through 3.22E for metadata-gated source identity, store-family preservation, copied-workspace migration, fixture rollback/interruption tests, and destination canonical-zero verification. It does not prove independent pre-migration source semantic opening inside the current V3 app target, and it must not be used to justify constructing runtime-effective V2 and V3 SwiftData schemas together in the current hosted target.
 
-Task 3.22 remains blocked pending Tasks 3.22C through 3.22F. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
+Task 3.22B is accepted as completed prerequisite evidence for Tasks 3.22C through 3.22F and final Task 3.22 completion. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
 
 <!-- MARK: - 20. Task 3.22C Implementation Boundary -->
 ## 20. Task 3.22C Implementation Boundary
@@ -621,7 +621,7 @@ The production boundary preserves the complete discovered source store family be
 
 The migration journal now records explicit copied-workspace phases: `workspaceCreationStarted`, `workspaceVerified`, and `destinationVerificationPending`. Retry preserves the same operation identity, reuses an already verified backup, and deterministically recreates incomplete copied workspaces under the operation target directory. A V2 candidate that opens as V3 stops at `destinationVerificationPending` with `pendingTask3.22D`; no completion, write-readiness, active-store replacement, canonical history synthesis, or Legacy scoring retirement is claimed.
 
-Destination semantic reconciliation, canonical-zero proof after migration, atomic replacement, completed-journal promotion, rollback reconciliation, manual acceptance, temporary diagnostic cleanup, Task 3.22 resumption, and Task 3.23 remain deferred to Tasks 3.22D through 3.22F. Production scoring remains Legacy, and Task 3.22 remains blocked.
+Destination semantic reconciliation, canonical-zero proof after migration, rollback reconciliation, acceptance evidence, temporary diagnostic cleanup, and final Task 3.22 review were deferred to and completed by Tasks 3.22D through 3.22F and final review. Atomic production replacement and completed-journal promotion remain outside the accepted Task 3.22 boundary. Production scoring remains Legacy, and Task 3.23 remains blocked.
 
 <!-- MARK: - 21. Task 3.22D Destination Verification Boundary -->
 ## 21. Task 3.22D Destination Verification Boundary
@@ -634,7 +634,7 @@ Canonical-zero verification explicitly checks `CanonicalGameHistoryRecord`, `Can
 
 The migration journal now distinguishes destination verification in progress, V3 metadata verified, Legacy reconciliation verified, canonical-zero verified, destination verification succeeded, destination verification failed, candidate eligible for later acceptance, and rollback still available. Failure classifications include unreadable candidate, metadata mismatch, count mismatch, identifier mismatch, relationship mismatch, unexpected canonical records, missing canonical model evidence, source or backup immutability mismatch, journal inconsistency, unsupported verification evidence, and interrupted verification.
 
-A successful Task 3.22D result marks the candidate destination verified and eligible for later acceptance only. The active V2 source and retained V2 backup remain unchanged, rollback remains retained, normal production replacement is not performed by this task, production scoring remains Legacy, Task 3.22 remains blocked pending the remaining Task 3.22E and Task 3.22F evidence, and Task 3.23 remains blocked.
+A successful Task 3.22D result marks the candidate destination verified and eligible for later acceptance only. The active V2 source and retained V2 backup remain unchanged, rollback remains retained, normal production replacement is not performed by this task, production scoring remains Legacy, Tasks 3.22E and 3.22F provide the remaining acceptance and diagnostic-cleanup evidence, and Task 3.23 remains blocked.
 
 <!-- MARK: - 22. Task 3.22E Migration Acceptance Evidence -->
 ## 22. Task 3.22E Migration Acceptance Evidence
@@ -649,7 +649,7 @@ The duplicate-checksum safety audit confirms the selected acceptance path and pr
 
 Manual simulator or device verification was not performed for Task 3.22E. The only available committed source is synthetic fixture evidence, and no approved procedure in this task authorizes placing the fixture into active user application data or launching against the user's simulator data. The explicit manual evidence boundary therefore remains unclaimed until a separately approved disposable active-container procedure or real archived historical V2 store family is available.
 
-Task 3.22E does not authorize candidate promotion, active-store replacement, retained-backup deletion, canonical scoring writes, Legacy scoring retirement, Task 3.22 completion, or Task 3.23. Task 3.22 remains blocked pending Task 3.22F and final Task 3.22 review. Production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
+Task 3.22E does not authorize candidate promotion, active-store replacement, retained-backup deletion, canonical scoring writes, Legacy scoring retirement, or Task 3.23. Task 3.22E is accepted as prerequisite evidence for Task 3.22F and final Task 3.22 review. Production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
 
 <!-- MARK: - 23. Task 3.22F Duplicate-Checksum Diagnostic Cleanup -->
 ## 23. Task 3.22F Duplicate-Checksum Diagnostic Cleanup
@@ -662,4 +662,4 @@ Removed or reduced temporary scaffolding includes launch-only schema diagnostic 
 
 Legacy compatibility states remain for `semanticVerifierUnavailable.currentTargetV2AndV3DuplicateEffectiveChecksums` and blocked V1/V2 recovery helpers. They are retained because interrupted development journals and fail-closed recovery presentations may still need to decode or report those states, but they are not active successful migration behavior and do not construct V2 and V3 together.
 
-The final supported boundary remains metadata-gated copied-workspace migration with V3 destination semantic verification, canonical-zero checks, unchanged source and backup evidence, rollback retention, and write prohibition until later approval. Task 3.22 remains blocked pending final Task 3.22 review. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
+The final supported boundary remains metadata-gated copied-workspace migration with V3 destination semantic verification, canonical-zero checks, unchanged source and backup evidence, rollback retention, and write prohibition until later approval. Final review accepts exact metadata identity, source preservation, copied migration, V3 semantic reconciliation, canonical-zero verification, and rollback as the safety substitute for the unavailable independent frozen V2 semantic open. Task 3.22 is complete with the candidate destination verified and eligible for later acceptance but not promoted or production-routed. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
