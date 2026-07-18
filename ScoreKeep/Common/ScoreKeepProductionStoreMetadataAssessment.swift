@@ -585,13 +585,15 @@ enum ScoreKeepCompletedJournalV2RecoveryGenerationPlanner {
     static func state(for phase: ScoreKeepMigrationJournalPhase?) -> ScoreKeepCompletedJournalV2RecoveryGenerationState {
         guard let phase else { return .empty }
         switch phase {
-        case .recoveryRequired, .failedSafely, .completionUncertain, .disabled:
+        case .recoveryRequired, .failedSafely, .destinationVerificationFailed, .completionUncertain, .disabled:
             return .failedPreserved
         case .completionRecorded:
             return .usableExisting
         case .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted,
              .backupVerified, .workspaceCreationStarted, .workspaceVerified,
              .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
+             .destinationVerificationInProgress, .destinationMetadataVerified,
+             .legacyReconciliationVerified, .canonicalZeroVerified, .destinationVerificationSucceeded,
              .postOpenVerificationStarted, .postOpenVerificationPassed:
             return .usableExisting
         }
@@ -607,9 +609,13 @@ enum ScoreKeepCompletedJournalV2RecoveryGenerationPlanner {
                 return .failedPreserved
             case .backupVerified, .workspaceCreationStarted, .workspaceVerified,
                  .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
+                 .destinationVerificationInProgress, .destinationMetadataVerified,
+                 .legacyReconciliationVerified, .canonicalZeroVerified, .destinationVerificationSucceeded,
                  .postOpenVerificationStarted, .postOpenVerificationPassed, .completionRecorded,
                  .recoveryRequired, .failedSafely, .completionUncertain, .disabled:
                 break
+            case .destinationVerificationFailed:
+                return .failedPreserved
             }
         }
         return state(for: phase)

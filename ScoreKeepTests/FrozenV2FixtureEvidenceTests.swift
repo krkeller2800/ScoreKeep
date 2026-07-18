@@ -153,11 +153,12 @@ struct FrozenV2FixtureEvidenceTests {
         let backupAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL)
         let workspaceAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: targetURL)
 
-        #expect(result.disposition == .destinationVerificationPending)
+        #expect(result.disposition == .verificationFailed)
         #expect(result.container == nil)
-        #expect(result.journal.phase == .destinationVerificationPending)
+        #expect(result.journal.phase == .destinationVerificationFailed)
         #expect(result.journal.backupVerificationDisposition == .backupVerified)
-        #expect(result.journal.postOpenVerificationDisposition == "pendingTask3.22D")
+        #expect(result.journal.postOpenVerificationDisposition.contains("failure.unsupportedVerificationEvidence"))
+        #expect(result.diagnostics == [.destinationUnsupportedVerificationEvidence])
         #expect(result.writeReadiness.permitsBaseballWrites == false)
         #expect(sourceAfter == sourceBefore)
         #expect(try ScoreKeepStoreFamilyDiscovery.validateBackup(source: sourceBefore, backup: backupAfter, sourceURL: sourceURL, backupURL: backupURL))
@@ -227,7 +228,9 @@ struct FrozenV2FixtureEvidenceTests {
         #expect(resumed.journal.operationIdentity == operation)
         #expect(resumed.journal.backupIdentity == backupIdentity)
         #expect(backupRootContents == sourceFamily.fileNames)
-        #expect(resumed.disposition == .destinationVerificationPending)
+        #expect(resumed.disposition == .verificationFailed)
+        #expect(resumed.journal.phase == .destinationVerificationFailed)
+        #expect(resumed.diagnostics == [.destinationUnsupportedVerificationEvidence])
     }
 
     @Test("manifest records expected V2 counts relationships and canonical absence")

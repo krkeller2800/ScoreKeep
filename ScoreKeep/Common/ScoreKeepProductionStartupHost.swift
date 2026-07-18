@@ -1386,7 +1386,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             return .migrationRecoveryRequired
         case .constructionFailed:
             return .proposedOpenFailed
-        case .destinationVerificationPending:
+        case .destinationVerificationPending, .destinationVerified:
             return .postMigrationVerificationFailed
         case .verificationFailed:
             return .postMigrationVerificationFailed
@@ -1774,6 +1774,9 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             return artifactDirectories.contains { directoryHasContents($0, fileManager: fileManager) }
         case .backupVerified, .workspaceCreationStarted, .workspaceVerified,
              .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
+             .destinationVerificationInProgress, .destinationMetadataVerified,
+             .legacyReconciliationVerified, .canonicalZeroVerified, .destinationVerificationSucceeded,
+             .destinationVerificationFailed,
              .postOpenVerificationStarted, .postOpenVerificationPassed, .completionRecorded,
              .recoveryRequired, .failedSafely, .completionUncertain, .disabled:
             return false

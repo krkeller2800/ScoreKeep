@@ -116,7 +116,8 @@ enum ScoreKeepStartupOutcomePolicy {
         case .sourcePreservationFailed: return .backupVerificationFailed
         case .workspaceCreationFailed: return .recoveryRequired
         case .constructionFailed: return .retryProhibited
-        case .destinationVerificationPending: return .recoveryRequired
+        case .destinationVerificationPending, .destinationVerified:
+            return .recoveryRequired
         case .verificationFailed: return .recoveryRequired
         case .completionEvidenceFailed: return .completionUncertain
         case .recoveryRequired: return .recoveryRequired

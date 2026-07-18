@@ -30,6 +30,7 @@ enum ScoreKeepMigrationOrchestratorDisposition: String, CaseIterable, Hashable, 
     case workspaceCreationFailed
     case constructionFailed
     case destinationVerificationPending
+    case destinationVerified
     case verificationFailed
     case completionEvidenceFailed
     case recoveryRequired
@@ -62,6 +63,9 @@ struct ScoreKeepMigrationOrchestratorInput {
     let factoryInjection: ScoreKeepProposedContainerFactoryInjection?
     let semanticRestoreVerifier: ((URL) throws -> Bool)?
     let postOpenVerifier: ((ModelContainer) throws -> Bool)?
+    let expectedSourceBaseline: ScoreKeepMigrationBaselineRecord?
+    let expectedSourceFamilyIdentity: String?
+    let expectedBackupFamilyIdentity: String?
 
     init(
         operationIdentity: ScoreKeepMigrationOperationIdentity,
@@ -78,7 +82,10 @@ struct ScoreKeepMigrationOrchestratorInput {
         interruptionPoint: ScoreKeepMigrationInterruptionPoint?,
         factoryInjection: ScoreKeepProposedContainerFactoryInjection?,
         semanticRestoreVerifier: ((URL) throws -> Bool)?,
-        postOpenVerifier: ((ModelContainer) throws -> Bool)?
+        postOpenVerifier: ((ModelContainer) throws -> Bool)?,
+        expectedSourceBaseline: ScoreKeepMigrationBaselineRecord? = nil,
+        expectedSourceFamilyIdentity: String? = nil,
+        expectedBackupFamilyIdentity: String? = nil
     ) {
         self.operationIdentity = operationIdentity
         self.sourceStoreURL = sourceStoreURL
@@ -95,6 +102,9 @@ struct ScoreKeepMigrationOrchestratorInput {
         self.factoryInjection = factoryInjection
         self.semanticRestoreVerifier = semanticRestoreVerifier
         self.postOpenVerifier = postOpenVerifier
+        self.expectedSourceBaseline = expectedSourceBaseline
+        self.expectedSourceFamilyIdentity = expectedSourceFamilyIdentity
+        self.expectedBackupFamilyIdentity = expectedBackupFamilyIdentity
     }
 }
 
@@ -330,14 +340,81 @@ enum ScoreKeepMigrationOrchestrator {
         }
 
         if input.sourceClassification == .existingProposedV2Store || input.sourceClassification == .convertedProposedV2Store {
+            if journal.phase < .destinationVerificationInProgress {
+                journal = try ScoreKeepMigrationJournalTransition.advance(
+                    journal,
+                    to: .destinationVerificationInProgress,
+                    postOpenVerificationDisposition: "startedTask3.22D",
+                    recoveryRequirement: .verifyExistingTarget
+                )
+                try journalStore.save(journal)
+            }
+            if input.interruptionPoint == .afterPostOpenVerificationStarts {
+                journal = try ScoreKeepMigrationJournalTransition.advance(
+                    journal,
+                    to: .destinationVerificationFailed,
+                    postOpenVerificationDisposition: "interruptedTask3.22D",
+                    recoveryRequirement: .verifyExistingTarget,
+                    diagnosticCodes: [.destinationVerificationInterrupted]
+                )
+                try journalStore.save(journal)
+                return classified(.verificationFailed, journal: journal, container: nil, diagnostics: [.destinationVerificationInterrupted])
+            }
+
+            let verification = ScoreKeepDestinationVerifier.verify(
+                container: container,
+                input: ScoreKeepDestinationVerificationInput(
+                    operationIdentity: input.operationIdentity,
+                    candidateStoreURL: input.targetStoreURL,
+                    sourceStoreURL: input.sourceStoreURL,
+                    backupStoreURL: input.backupStoreURL,
+                    expectedSourceBaseline: input.expectedSourceBaseline,
+                    expectedSourceFamilyIdentity: input.expectedSourceFamilyIdentity,
+                    expectedBackupFamilyIdentity: input.expectedBackupFamilyIdentity,
+                    candidateAssessmentOverride: nil
+                )
+            )
+            guard verification.passed else {
+                let diagnostic = verification.diagnosticCode ?? .postOpenVerificationFailed
+                journal = try ScoreKeepMigrationJournalTransition.advance(
+                    journal,
+                    to: .destinationVerificationFailed,
+                    postOpenVerificationDisposition: verification.evidence.journalSummary,
+                    recoveryRequirement: .verifyExistingTarget,
+                    diagnosticCodes: [diagnostic]
+                )
+                try journalStore.save(journal)
+                return classified(.verificationFailed, journal: journal, container: nil, diagnostics: [diagnostic])
+            }
             journal = try ScoreKeepMigrationJournalTransition.advance(
                 journal,
-                to: .destinationVerificationPending,
-                postOpenVerificationDisposition: "pendingTask3.22D",
-                recoveryRequirement: .verifyExistingTarget
+                to: .destinationMetadataVerified,
+                postOpenVerificationDisposition: "metadataVerifiedTask3.22D"
             )
             try journalStore.save(journal)
-            return classified(.destinationVerificationPending, journal: journal, container: nil, diagnostics: [])
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .legacyReconciliationVerified,
+                postOpenVerificationDisposition: "legacyReconciliationVerifiedTask3.22D"
+            )
+            try journalStore.save(journal)
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .canonicalZeroVerified,
+                postOpenVerificationDisposition: "canonicalZeroVerifiedTask3.22D"
+            )
+            try journalStore.save(journal)
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .destinationVerificationSucceeded,
+                postOpenVerificationDisposition: verification.evidence.journalSummary,
+                completionDisposition: "candidateEligibleForLaterAcceptance",
+                retryClassification: .noRetryRequired,
+                recoveryRequirement: .restoreFromVerifiedBackup,
+                startupOwnership: .released
+            )
+            try journalStore.save(journal)
+            return classified(.destinationVerified, journal: journal, container: nil, diagnostics: [])
         }
 
         if journal.phase < .postOpenVerificationStarted {
@@ -416,8 +493,14 @@ enum ScoreKeepMigrationOrchestrator {
         case .migrationAttemptStarted:
             return .discardIncompleteDisposableTarget
         case .containerConstructed, .destinationVerificationPending,
+             .destinationVerificationInProgress, .destinationMetadataVerified,
+             .legacyReconciliationVerified, .canonicalZeroVerified,
              .postOpenVerificationStarted, .postOpenVerificationPassed:
             return .verifyExistingTarget
+        case .destinationVerificationSucceeded:
+            return .restoreFromVerifiedBackup
+        case .destinationVerificationFailed:
+            return record.recoveryRequirement
         case .completionRecorded:
             return .noRecoveryRequired
         case .failedSafely:

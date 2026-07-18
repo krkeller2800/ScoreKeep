@@ -15,6 +15,17 @@ enum ScoreKeepMigrationJournalDiagnosticCode: String, CaseIterable, Codable, Has
     case proposedContainerConstructionFailed
     case constructionCompletionUncertain
     case postOpenVerificationFailed
+    case destinationCandidateUnreadable
+    case destinationMetadataMismatch
+    case destinationCountMismatch
+    case destinationIdentifierMismatch
+    case destinationRelationshipMismatch
+    case destinationUnexpectedCanonicalRecords
+    case destinationMissingCanonicalModel
+    case destinationSourceOrBackupChanged
+    case destinationJournalInconsistent
+    case destinationUnsupportedVerificationEvidence
+    case destinationVerificationInterrupted
     case completionEvidenceFailed
     case disableStateActive
     case ownershipConflict
@@ -76,6 +87,12 @@ enum ScoreKeepMigrationJournalPhase: String, CaseIterable, Codable, Comparable, 
     case migrationAttemptStarted
     case containerConstructed
     case destinationVerificationPending
+    case destinationVerificationInProgress
+    case destinationMetadataVerified
+    case legacyReconciliationVerified
+    case canonicalZeroVerified
+    case destinationVerificationSucceeded
+    case destinationVerificationFailed
     case postOpenVerificationStarted
     case postOpenVerificationPassed
     case completionRecorded
@@ -335,11 +352,13 @@ enum ScoreKeepMigrationJournalTransition {
 
     private static func isTerminalOverride(from: ScoreKeepMigrationJournalPhase, to: ScoreKeepMigrationJournalPhase) -> Bool {
         switch to {
-        case .failedSafely, .completionUncertain, .recoveryRequired, .disabled:
+        case .failedSafely, .completionUncertain, .recoveryRequired, .disabled, .destinationVerificationFailed:
             return from != .completionRecorded
         case .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted,
              .backupVerified, .workspaceCreationStarted, .workspaceVerified,
              .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
+             .destinationVerificationInProgress, .destinationMetadataVerified,
+             .legacyReconciliationVerified, .canonicalZeroVerified, .destinationVerificationSucceeded,
              .postOpenVerificationStarted, .postOpenVerificationPassed, .completionRecorded:
             return false
         }
