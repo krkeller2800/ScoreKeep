@@ -30,6 +30,7 @@ struct PlayersToScoreView: View {
     @State var totbox:[BoxScore] = Array(repeating: BoxScore(), count: 5)
     @State var iStat:InnStatus = InnStatus()
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
+    let liveScoringShellPresentation = LiveScoringShellPresentation()
 
     @State var theAtbat = Atbat(game: Game(date: "", location: "", highLights: "", hscore: 0, vscore: 0),
                                 team: Team(name: "", coach: "", details: ""),
@@ -84,14 +85,13 @@ struct PlayersToScoreView: View {
                                                     ForEach((1...maxCol), id: \.self) {ind in
                                                         let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
                                                         Button(action: {
-                                                            showingScoring.toggle()
-                                                            hasChanged = true
                                                             doAtbat(ind: ind, index: index, atbat: atbat)
                                                         }, label: {
                                                             Image("field").resizable().scaledToFit()
                                                         })
                                                         .frame(width: bSiz, height: bSiz)
                                                         .buttonStyle(GlowButtonStyle())
+                                                        .disabled(!liveScoringShellPresentation.scorecardCellIsEnabled(column: ind, sourceAtbat: atbat))
                                                     }
                                                 }
                                                 let mCol = Double(gWidth) - 150 - (Double(maxCol+1) * gridSz)
@@ -182,12 +182,14 @@ struct PlayersToScoreView: View {
             save: { try modelContext.save() }
         )
 
-        colbox = result.columnBoxes
-        batbox = result.batterBoxes
-        totbox = result.totalBoxes
-        iStat = result.inningStatus
+        let presentation = liveScoringShellPresentation.presentProjectionResult(result)
 
-        if let message = result.message {
+        colbox = presentation.columnBoxes
+        batbox = presentation.batterBoxes
+        totbox = presentation.totalBoxes
+        iStat = presentation.inningStatus
+
+        if let message = presentation.message {
             print(message)
         }
     }
@@ -232,7 +234,8 @@ struct PlayersToScoreView: View {
         return players.contains { $0.persistentModelID == playerID }
     }
 
-    func doAtbat(ind:Int, index:Int, atbat:Atbat) {
+    @discardableResult
+    func doAtbat(ind:Int, index:Int, atbat:Atbat) -> LiveScoringShellPresentation.SelectionPresentation {
         let result = liveScoringCoordinator.selectAtbat(
             column: ind,
             rowIndex: index,
@@ -242,14 +245,19 @@ struct PlayersToScoreView: View {
             modelContext: modelContext,
             save: { try modelContext.save() }
         )
+        let presentation = liveScoringShellPresentation.presentSelectionResult(result)
 
-        if let selectedAtbat = result.atbat {
+        if let selectedAtbat = presentation.selectedAtbat, presentation.shouldPresentScoringSheet {
             theAtbat = selectedAtbat
         }
+        showingScoring = presentation.shouldPresentScoringSheet
+        hasChanged = presentation.shouldMarkChanged
 
-        if let message = result.message {
+        if let message = presentation.message {
             print(message)
         }
+
+        return presentation
     }
 }
 struct ViewOffsetKey: PreferenceKey {
