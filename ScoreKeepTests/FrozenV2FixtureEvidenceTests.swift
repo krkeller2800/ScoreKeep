@@ -265,6 +265,374 @@ struct FrozenV2FixtureEvidenceTests {
     }
 }
 
+@MainActor
+@Suite("Task 3.22E migration acceptance")
+struct MigrationAcceptanceTask322ETests {
+    @Test("frozen V2 fixture migrates through copied workspace and remains unpromoted")
+    func frozenV2FixtureMigratesThroughCopiedWorkspaceAndRemainsUnpromoted() throws {
+        let manifest = try FrozenV2FixtureTestSupport.loadManifest()
+        let sourceURL = try FrozenV2FixtureTestSupport.copiedPrimaryStoreURL()
+        let sourceAssessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: sourceURL)
+        let sourceBefore = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL)
+        let root = temporaryRoot()
+        let backupURL = root.appendingPathComponent("backup/StoreFamily/FrozenV2Synthetic.sqlite")
+        let targetURL = root.appendingPathComponent("target/FrozenV2Synthetic.sqlite")
+        let journalStore = ScoreKeepMigrationJournalStore(directory: root.appendingPathComponent("journal", isDirectory: true))
+        let operation = operationIdentity(sourceIdentity: sourceBefore.diagnosticIdentity)
+
+        #expect(sourceAssessment.sourceClassification == .existingProposedV2Store)
+        #expect(sourceAssessment.matchingRegisteredVersions == ["V2"])
+        #expect(sourceAssessment.hashEntryCount == 7)
+        #expect(sourceBefore.fileNames == manifest.storeFamily.map(\.fileName).sorted())
+        #expect(Set(sourceAssessment.hashKeyNames).intersection(manifest.absentCanonicalModels).isEmpty)
+
+        let interrupted = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                operation: operation,
+                sourceURL: sourceURL,
+                backupURL: backupURL,
+                targetURL: targetURL,
+                interruptionPoint: .afterContainerConstructionReturns
+            ),
+            journalStore: journalStore
+        )
+        let candidateContainer = try #require(interrupted.container)
+        let expected = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: candidateContainer.mainContext)
+        let backupBeforeResume = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL)
+        let targetBeforeResume = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: targetURL)
+
+        assertBaseline(expected, matches: manifest)
+        #expect(interrupted.disposition == .interrupted)
+        #expect(interrupted.journal.phase == .containerConstructed)
+        #expect(interrupted.journal.operationIdentity == operation)
+        #expect(interrupted.writeReadiness.permitsBaseballWrites == false)
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL) == sourceBefore)
+        #expect(try ScoreKeepStoreFamilyDiscovery.validateBackup(source: sourceBefore, backup: backupBeforeResume, sourceURL: sourceURL, backupURL: backupURL))
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: sourceURL).sourceClassification == .existingProposedV2Store)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: backupURL).sourceClassification == .existingProposedV2Store)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: targetURL).sourceClassification == .existingProposedV3Store)
+
+        let verified = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                operation: operation,
+                sourceURL: sourceURL,
+                backupURL: backupURL,
+                targetURL: targetURL,
+                expected: expected,
+                expectedSourceIdentity: sourceBefore.diagnosticIdentity,
+                expectedBackupIdentity: backupBeforeResume.diagnosticIdentity
+            ),
+            journalStore: journalStore
+        )
+        let sourceAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL)
+        let backupAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL)
+        let targetAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: targetURL)
+
+        #expect(verified.disposition == .destinationVerified)
+        #expect(verified.journal.phase == .destinationVerificationSucceeded)
+        #expect(verified.journal.operationIdentity == operation)
+        #expect(verified.journal.completionDisposition == "candidateEligibleForLaterAcceptance")
+        #expect(verified.journal.recoveryRequirement == .restoreFromVerifiedBackup)
+        #expect(verified.journal.startupOwnership == .released)
+        #expect(verified.container == nil)
+        #expect(verified.writeReadiness.permitsBaseballWrites == false)
+        #expect(ScoreKeepStartupOutcomePolicy.map(orchestratorDisposition: verified.disposition) == .recoveryRequired)
+        #expect(sourceAfter == sourceBefore)
+        #expect(backupAfter == backupBeforeResume)
+        #expect(targetAfter.isComplete)
+        #expect(targetAfter.diagnosticIdentity == targetBeforeResume.diagnosticIdentity)
+        #expect(try ScoreKeepStoreFamilyDiscovery.validateBackup(source: sourceBefore, backup: backupAfter, sourceURL: sourceURL, backupURL: backupURL))
+        #expect(try FileManager.default.contentsOfDirectory(atPath: backupURL.deletingLastPathComponent().path).sorted() == sourceBefore.fileNames)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: sourceURL).sourceClassification == .existingProposedV2Store)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: backupURL).sourceClassification == .existingProposedV2Store)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: targetURL).sourceClassification == .existingProposedV3Store)
+        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("production scoring remains Legacy"))
+    }
+
+    @Test("metadata source failures fail closed before source migration")
+    func metadataSourceFailuresFailClosedBeforeSourceMigration() throws {
+        let sourceURL = try FrozenV2FixtureTestSupport.copiedPrimaryStoreURL()
+        let targetURL = temporaryRoot().appendingPathComponent("target/FrozenV2Synthetic.sqlite")
+        let v2 = try FrozenV2FixtureTestSupport.frozenV2Evidence()
+        let registered = Dictionary(uniqueKeysWithValues: ScoreKeepProductionStoreMetadataAssessment.registeredVersionEvidenceForTesting.map { ($0.0, $0.1) })
+        let v1 = try #require(registered["V1"])
+        let v3 = try #require(registered["V3"])
+        let missingHash = ScoreKeepCoreDataVersionHashEvidence(entries: Array(v2.entries.dropLast()))
+        let alteredHash = ScoreKeepCoreDataVersionHashEvidence(entries: [
+            .init(entityName: v2.entries[0].entityName, versionHash: Data([0]))
+        ] + v2.entries.dropFirst())
+        let extraEntity = ScoreKeepCoreDataVersionHashEvidence(entries: v2.entries + [
+            .init(entityName: "UnexpectedEntity", versionHash: Data([1]))
+        ])
+        let unknown = ScoreKeepCoreDataVersionHashEvidence.make(entityHashes: [("Unknown", Data([1]))])
+
+        #expect(matchesV2(missingHash) == false)
+        #expect(matchesV2(alteredHash) == false)
+        #expect(matchesV2(extraEntity) == false)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v2, versionIdentifiers: ["wrong-version"]).contains("V2") == false)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v1, versionIdentifiers: ["2.0.0"]).contains("V2") == false)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v3, versionIdentifiers: ["2.0.0"]).contains("V2") == false)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(unknown, versionIdentifiers: ["2.0.0"]).isEmpty)
+        #expect(ScoreKeepCoreDataVersionHashEvidence.make(from: ["Game": "malformed"]) == nil)
+        #expect(ScoreKeepSourceStoreClassification.existingProposedV3Store.requiresMigration == false)
+
+        for classification in failClosedSourceClassifications {
+            let factory = ScoreKeepProposedContainerFactory.construct(ScoreKeepProposedContainerFactoryInput(
+                storeLocation: .disposableMigrationTarget(url: targetURL, requiresFreshDestination: false),
+                writabilityMode: .writable,
+                startupIntent: .isolatedVerification,
+                sourceClassification: classification,
+                routeChoice: .proposedV3EligibleForIsolatedVerification
+            ))
+            #expect(factory.container == nil)
+            #expect(factory.disposition != .openedCompatibleSourceAndTransitionedToProposedV3)
+        }
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL).isComplete)
+    }
+
+    @Test("preservation migration and verification failures preserve rollback")
+    func preservationMigrationAndVerificationFailuresPreserveRollback() throws {
+        try verifyFailure(
+            factoryInjection: .containerConstructionFailure,
+            expectedDisposition: .constructionFailed,
+            expectedPhase: .failedSafely,
+            expectedDiagnostics: [.proposedContainerConstructionFailed]
+        )
+        try verifyFailure(
+            interruptionPoint: .afterPostOpenVerificationStarts,
+            expectedDisposition: .verificationFailed,
+            expectedPhase: .destinationVerificationFailed,
+            expectedDiagnostics: [.destinationVerificationInterrupted]
+        )
+
+        let sourceURL = try FrozenV2FixtureTestSupport.copiedPrimaryStoreURL()
+        let sourceBefore = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL)
+        let root = temporaryRoot()
+        let result = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                operation: operationIdentity(sourceIdentity: sourceBefore.diagnosticIdentity),
+                sourceURL: sourceURL,
+                backupURL: root.appendingPathComponent("backup/StoreFamily/FrozenV2Synthetic.sqlite"),
+                targetURL: root.appendingPathComponent("target/FrozenV2Synthetic.sqlite"),
+                semanticRestoreVerifier: { _ in false }
+            ),
+            journalStore: ScoreKeepMigrationJournalStore(directory: root.appendingPathComponent("journal", isDirectory: true))
+        )
+
+        #expect(result.disposition == .sourcePreservationFailed)
+        #expect(result.journal.phase == .recoveryRequired)
+        #expect(result.recoveryRequirement == .writesRemainProhibited)
+        #expect(result.failureDiagnosticIdentity == "semanticRestoreOpen.semanticBaselineMismatch")
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL) == sourceBefore)
+        #expect(result.writeReadiness.permitsBaseballWrites == false)
+    }
+
+    @Test("completed journal recovery states remain deterministic and non promotional")
+    func completedJournalRecoveryStatesRemainDeterministicAndNonPromotional() throws {
+        let phases: [(ScoreKeepMigrationJournalPhase, ScoreKeepMigrationRecoveryRequirement)] = [
+            (.destinationVerificationPending, .verifyExistingTarget),
+            (.destinationVerificationInProgress, .verifyExistingTarget),
+            (.destinationVerificationSucceeded, .restoreFromVerifiedBackup),
+            (.destinationVerificationFailed, .verifyExistingTarget),
+            (.containerConstructed, .verifyExistingTarget),
+            (.backupVerified, .reuseVerifiedBackup)
+        ]
+
+        for (phase, recovery) in phases {
+            var record = ScoreKeepMigrationJournalRecord.initial(
+                operationIdentity: operationIdentity(sourceIdentity: "source-\(phase.rawValue)"),
+                sourceStoreDiagnosticIdentity: "source-\(phase.rawValue)",
+                sourceClassification: .existingProposedV2Store,
+                disableState: .proposedTransitionExplicitlyAuthorized
+            )
+            record = try ScoreKeepMigrationJournalTransition.advance(
+                record,
+                to: phase,
+                backupVerificationDisposition: .backupVerified,
+                recoveryRequirement: recovery
+            )
+            #expect(ScoreKeepMigrationOrchestrator.reconcile(record) == recovery)
+            #expect(ScoreKeepStartupOutcomePolicy.workflow(for: .recoveryRequired).mayWriteRecords == false)
+        }
+
+        #expect(recoveryRoute(target: .existingProposedV3Store, active: .existingProposedV2Store, backupVerified: true) == .openCompletedTargetAsV3)
+        #expect(recoveryRoute(target: .unknownVersion, active: .existingProposedV2Store, backupVerified: true) == .activeV2RequiresFreshPreparation)
+        #expect(recoveryRoute(target: .unknownVersion, active: .existingProposedV3Store, backupVerified: true) == .openActiveStoreAsV3)
+        #expect(recoveryRoute(target: .existingProposedV2Store, active: .unknownVersion, backupVerified: true) == .recoverCompletedTargetV2ToFreshV3)
+        #expect(recoveryRoute(target: .existingProposedV2Store, active: .unknownVersion, backupVerified: false) == .failClosed)
+        #expect(recoveryRoute(target: .unknownVersion, active: .unknownVersion, backupVerified: true) == .failClosed)
+    }
+
+    @Test("duplicate checksum safety audit covers selected acceptance paths")
+    func duplicateChecksumSafetyAuditCoversSelectedAcceptancePaths() throws {
+        let factory = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/Common/ScoreKeepProposedContainerFactory.swift")
+        let versioned = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeepTests/VersionedCanonicalScoringPersistenceTests.swift")
+        let candidatePath = try #require(factory.range(of: "private static func constructV3CandidateFromCopiedV2Workspace"))
+        let candidateTail = factory[candidatePath.lowerBound...]
+        let candidateEnd = try #require(candidateTail.range(of: "private static func successDisposition"))
+        let candidateSource = candidateTail[..<candidateEnd.lowerBound]
+
+        #expect(candidateSource.contains("Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)"))
+        #expect(candidateSource.contains("migrationPlan: nil"))
+        #expect(candidateSource.contains("Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)") == false)
+        #expect(factory.contains("semanticVerifierUnavailableCurrentTargetV2AndV3DuplicateEffectiveChecksums"))
+        #expect(versioned.contains("testSource.contains(\"ModelContainer(for: v2Schema\") == false"))
+        #expect(versioned.contains("testSource.contains(\"Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)\") == false"))
+        #expect(versioned.contains("testSource.contains(\"ScoreKeepProposedCanonicalScoringStorageMigrationPlan\") == false"))
+    }
+
+    private var failClosedSourceClassifications: [ScoreKeepSourceStoreClassification] {
+        [
+            .proposedV1RecognizableStore,
+            .unknownVersion,
+            .unsupportedFutureVersion,
+            .unreadableStore,
+            .contradictoryMetadata,
+            .emptyCurrentUnversionedStore,
+            .populatedCurrentUnversionedStore
+        ]
+    }
+
+    private func verifyFailure(
+        interruptionPoint: ScoreKeepMigrationInterruptionPoint? = nil,
+        factoryInjection: ScoreKeepProposedContainerFactoryInjection? = nil,
+        expectedDisposition: ScoreKeepMigrationOrchestratorDisposition,
+        expectedPhase: ScoreKeepMigrationJournalPhase,
+        expectedDiagnostics: [ScoreKeepMigrationJournalDiagnosticCode]
+    ) throws {
+        let sourceURL = try FrozenV2FixtureTestSupport.copiedPrimaryStoreURL()
+        let sourceBefore = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL)
+        let root = temporaryRoot()
+        let backupURL = root.appendingPathComponent("backup/StoreFamily/FrozenV2Synthetic.sqlite")
+        let result = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                operation: operationIdentity(sourceIdentity: sourceBefore.diagnosticIdentity),
+                sourceURL: sourceURL,
+                backupURL: backupURL,
+                targetURL: root.appendingPathComponent("target/FrozenV2Synthetic.sqlite"),
+                interruptionPoint: interruptionPoint,
+                factoryInjection: factoryInjection
+            ),
+            journalStore: ScoreKeepMigrationJournalStore(directory: root.appendingPathComponent("journal", isDirectory: true))
+        )
+
+        #expect(result.disposition == expectedDisposition)
+        #expect(result.journal.phase == expectedPhase)
+        #expect(result.diagnostics == expectedDiagnostics)
+        #expect(result.writeReadiness.permitsBaseballWrites == false)
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL) == sourceBefore)
+        if FileManager.default.fileExists(atPath: backupURL.path) {
+            let backup = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL)
+            #expect(try ScoreKeepStoreFamilyDiscovery.validateBackup(source: sourceBefore, backup: backup, sourceURL: sourceURL, backupURL: backupURL))
+        }
+    }
+
+    private func input(
+        operation: ScoreKeepMigrationOperationIdentity,
+        sourceURL: URL,
+        backupURL: URL,
+        targetURL: URL,
+        interruptionPoint: ScoreKeepMigrationInterruptionPoint? = nil,
+        factoryInjection: ScoreKeepProposedContainerFactoryInjection? = nil,
+        semanticRestoreVerifier: ((URL) throws -> Bool)? = nil,
+        expected: ScoreKeepMigrationBaselineRecord? = nil,
+        expectedSourceIdentity: String? = nil,
+        expectedBackupIdentity: String? = nil
+    ) -> ScoreKeepMigrationOrchestratorInput {
+        ScoreKeepMigrationOrchestratorInput(
+            operationIdentity: operation,
+            sourceStoreURL: sourceURL,
+            backupStoreURL: backupURL,
+            targetStoreURL: targetURL,
+            sourceClassification: .existingProposedV2Store,
+            disableState: .proposedTransitionExplicitlyAuthorized,
+            authorizationEvidence: "task-3.22e-acceptance",
+            sourceClosureEvidence: .closedForDisposableVerification,
+            interruptionPoint: interruptionPoint,
+            factoryInjection: factoryInjection,
+            semanticRestoreVerifier: semanticRestoreVerifier ?? { restoreURL in
+                ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: restoreURL).sourceClassification == .existingProposedV2Store
+            },
+            postOpenVerifier: nil,
+            expectedSourceBaseline: expected,
+            expectedSourceFamilyIdentity: expectedSourceIdentity,
+            expectedBackupFamilyIdentity: expectedBackupIdentity
+        )
+    }
+
+    private func operationIdentity(sourceIdentity: String) -> ScoreKeepMigrationOperationIdentity {
+        ScoreKeepMigrationOperationIdentity(
+            sourceStoreIdentity: sourceIdentity,
+            sourceSchema: .existingProposedV2Store,
+            targetSchema: .proposedV3,
+            applicationMigrationGeneration: 322,
+            operationUUID: UUID(uuidString: "00000000-0000-0000-0000-00000003220e")!
+        )
+    }
+
+    private func assertBaseline(_ baseline: ScoreKeepMigrationBaselineRecord, matches manifest: FrozenV2FixtureManifest) {
+        #expect(baseline.gameCount == manifest.expectedRecordCounts["Game"])
+        #expect(baseline.teamCount == manifest.expectedRecordCounts["Team"])
+        #expect(baseline.playerCount == manifest.expectedRecordCounts["Player"])
+        #expect(baseline.lineupCount == manifest.expectedRecordCounts["Lineup"])
+        #expect(baseline.atbatCount == manifest.expectedRecordCounts["Atbat"])
+        #expect(baseline.pitcherCount == manifest.expectedRecordCounts["Pitcher"])
+        #expect(baseline.teamCreationOperationEvidenceCount == manifest.expectedRecordCounts["TeamCreationOperationEvidenceRecord"])
+        #expect(baseline.canonicalHistoryCount == 0)
+        #expect(baseline.canonicalEventCount == 0)
+        #expect(baseline.canonicalPayloadCount == 0)
+        #expect(baseline.canonicalOperationCount == 0)
+        #expect(baseline.canonicalCorrectionCount == 0)
+        #expect(baseline.stableIdentityFingerprint.isEmpty == false)
+        #expect(baseline.relationshipFingerprint.isEmpty == false)
+        #expect(baseline.orderingFingerprint.isEmpty == false)
+        #expect(baseline.scoreEvidence.isEmpty == false)
+        #expect(baseline.substitutionEvidence.isEmpty == false)
+        #expect(baseline.mediaOwnershipFingerprint.isEmpty == false)
+    }
+
+    private func matchesV2(_ evidence: ScoreKeepCoreDataVersionHashEvidence) -> Bool {
+        ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(evidence, versionIdentifiers: ["2.0.0"]).contains("V2")
+    }
+
+    private func recoveryRoute(
+        target: ScoreKeepSourceStoreClassification,
+        active: ScoreKeepSourceStoreClassification,
+        backupVerified: Bool
+    ) -> ScoreKeepCompletedJournalRecoveryRoute {
+        ScoreKeepCompletedJournalRecoveryRouter.route(
+            target: assessment(classification: target),
+            active: assessment(classification: active),
+            journalSourceClassification: .existingProposedV2Store,
+            backupVerified: backupVerified
+        )
+    }
+
+    private func assessment(classification: ScoreKeepSourceStoreClassification) -> ScoreKeepProductionStoreMetadataAssessment {
+        ScoreKeepProductionStoreMetadataAssessment(
+            sourceClassification: classification,
+            hashEntryCount: 0,
+            versionIdentifierCount: 0,
+            matchingRegisteredVersions: [],
+            selectedStartupRoute: "acceptance-\(classification.rawValue)",
+            hashKeyNames: [],
+            versionHashEvidence: nil,
+            versionHashEvidenceDigestPrefix: "none",
+            versionHashEvidenceMalformed: false,
+            familyDiagnosticIdentity: "family.acceptance",
+            primaryStoreDiagnosticIdentity: "primary.acceptance",
+            primaryPresent: classification != .noStoreExists,
+            walPresent: false,
+            shmPresent: false
+        )
+    }
+
+    private func temporaryRoot() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("ScoreKeepTask322EAcceptance-\(UUID().uuidString)", isDirectory: true)
+    }
+}
+
 private enum FrozenV2FixtureTestSupport {
     static func loadManifest() throws -> FrozenV2FixtureManifest {
         let data = try Data(contentsOf: manifestURL())
