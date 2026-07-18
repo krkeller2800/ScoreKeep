@@ -25,6 +25,111 @@ struct LiveScoringWorkflowCoordinator {
         let message: String?
     }
 
+    enum PreparedStateDisposition: Equatable {
+        case ready
+        case missingGame
+        case missingRequiredTeam
+        case missingLineup
+        case unavailableBatter
+        case unavailablePitcher
+        case inconsistentLegacyState
+        case unsupportedState
+    }
+
+    struct PreparedScore: Equatable {
+        let home: Int
+        let visiting: Int
+    }
+
+    struct PreparedTeamSnapshot: Equatable {
+        let identity: UUID
+        let name: String
+        let side: TeamSideRole
+    }
+
+    struct PreparedPlayerSnapshot: Equatable {
+        let identity: UUID
+        let name: String
+        let number: String
+        let battingOrder: Int
+    }
+
+    struct PreparedLineupEntry: Equatable {
+        let slot: Int
+        let player: PreparedPlayerSnapshot
+        let sourceAtbatIdentity: UUID
+        let isReplaced: Bool
+        let isIncoming: Bool
+    }
+
+    struct PreparedRunner: Equatable {
+        let player: PreparedPlayerSnapshot
+        let sourceAtbatIdentity: UUID
+    }
+
+    struct PreparedBaseOccupancy: Equatable {
+        let first: PreparedRunner?
+        let second: PreparedRunner?
+        let third: PreparedRunner?
+    }
+
+    struct PreparedPitcherSnapshot: Equatable {
+        let player: PreparedPlayerSnapshot
+        let team: PreparedTeamSnapshot
+        let appearanceIndex: Int
+        let startInning: Int
+        let startOuts: Int
+        let startBatterSequence: Int
+        let endInning: Int
+        let endOuts: Int
+        let endBatterSequence: Int
+    }
+
+    struct PreparedAtbatSnapshot: Equatable {
+        let identity: UUID
+        let player: PreparedPlayerSnapshot
+        let result: String
+        let maxBase: String
+        let outAt: String
+        let inning: CGFloat
+        let sequence: Int
+        let column: Int
+        let battingOrder: Int
+        let outs: Int
+    }
+
+    struct PreparedSubstitutionSnapshot: Equatable {
+        let order: Int
+        let outgoing: PreparedPlayerSnapshot
+        let incoming: PreparedPlayerSnapshot
+    }
+
+    struct PreparedLiveGameState: Equatable {
+        let disposition: PreparedStateDisposition
+        let gameIdentity: UUID?
+        let homeTeam: PreparedTeamSnapshot?
+        let visitingTeam: PreparedTeamSnapshot?
+        let battingSide: TeamSideRole
+        let battingTeam: PreparedTeamSnapshot?
+        let defensiveTeam: PreparedTeamSnapshot?
+        let inning: Int
+        let halfInning: TeamSideRole
+        let outs: Int
+        let score: PreparedScore
+        let bases: PreparedBaseOccupancy
+        let currentBatter: PreparedPlayerSnapshot?
+        let battingOrderPosition: Int?
+        let currentPitcher: PreparedPitcherSnapshot?
+        let latestScoringSequence: Int?
+        let currentScorecardColumn: Int
+        let currentOrPendingLegacyAtbat: PreparedAtbatSnapshot?
+        let lineup: [PreparedLineupEntry]
+        let pitcherAppearances: [PreparedPitcherSnapshot]
+        let substitutions: [PreparedSubstitutionSnapshot]
+        let warnings: [String]
+        let canScore: Bool
+    }
+
     typealias SaveAction = () throws -> Void
 
     private let common = Common()
@@ -135,6 +240,176 @@ struct LiveScoringWorkflowCoordinator {
             totalBoxes: totalBoxes,
             inningStatus: inningStatus,
             message: nil
+        )
+    }
+
+    func prepareLiveGameState(
+        game: Game?,
+        battingTeam: Team?,
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher]
+    ) -> PreparedLiveGameState {
+        guard let game else {
+            return unavailablePreparedState(.missingGame, warnings: ["preparedLiveGameState.missingGame"])
+        }
+
+        guard let homeTeam = game.hteam, let visitingTeam = game.vteam else {
+            return unavailablePreparedState(
+                .missingRequiredTeam,
+                game: game,
+                warnings: ["preparedLiveGameState.missingRequiredTeam"]
+            )
+        }
+
+        guard let battingTeam else {
+            return unavailablePreparedState(
+                .missingRequiredTeam,
+                game: game,
+                homeTeam: homeTeam,
+                visitingTeam: visitingTeam,
+                warnings: ["preparedLiveGameState.missingBattingTeam"]
+            )
+        }
+
+        let battingSide: TeamSideRole
+        let defensiveTeam: Team
+        if sameModel(battingTeam, homeTeam) {
+            battingSide = .home
+            defensiveTeam = visitingTeam
+        } else if sameModel(battingTeam, visitingTeam) {
+            battingSide = .visiting
+            defensiveTeam = homeTeam
+        } else {
+            return unavailablePreparedState(
+                .missingRequiredTeam,
+                game: game,
+                homeTeam: homeTeam,
+                visitingTeam: visitingTeam,
+                warnings: ["preparedLiveGameState.battingTeamNotInGame"]
+            )
+        }
+
+        let score = PreparedScore(home: game.hscore, visiting: game.vscore)
+        guard score.home >= 0, score.visiting >= 0 else {
+            return unavailablePreparedState(
+                .inconsistentLegacyState,
+                game: game,
+                homeTeam: homeTeam,
+                visitingTeam: visitingTeam,
+                battingTeam: battingTeam,
+                battingSide: battingSide,
+                defensiveTeam: defensiveTeam,
+                warnings: ["preparedLiveGameState.negativeStoredScore"]
+            )
+        }
+
+        let gameAtbats = displayedAtbats
+            .filter { sameModel($0.game, game) && sameModel($0.team, battingTeam) }
+            .sorted(by: atbatPrecedes)
+        guard gameAtbats.count == displayedAtbats.count else {
+            return unavailablePreparedState(
+                .inconsistentLegacyState,
+                game: game,
+                homeTeam: homeTeam,
+                visitingTeam: visitingTeam,
+                battingTeam: battingTeam,
+                battingSide: battingSide,
+                defensiveTeam: defensiveTeam,
+                warnings: ["preparedLiveGameState.unrelatedAtbatExcluded"]
+            )
+        }
+
+        let lineup = preparedLineup(from: gameAtbats, game: game)
+        guard lineup.isEmpty == false else {
+            return unavailablePreparedState(
+                .missingLineup,
+                game: game,
+                homeTeam: homeTeam,
+                visitingTeam: visitingTeam,
+                battingTeam: battingTeam,
+                battingSide: battingSide,
+                defensiveTeam: defensiveTeam,
+                warnings: ["preparedLiveGameState.missingLineup"]
+            )
+        }
+
+        let completedAtbats = gameAtbats
+            .filter { $0.result != "Result" }
+            .sorted(by: atbatPrecedes)
+        guard completedAtbats.allSatisfy({ (0...3).contains($0.outs) }) else {
+            return unavailablePreparedState(
+                .inconsistentLegacyState,
+                game: game,
+                homeTeam: homeTeam,
+                visitingTeam: visitingTeam,
+                battingTeam: battingTeam,
+                battingSide: battingSide,
+                defensiveTeam: defensiveTeam,
+                warnings: ["preparedLiveGameState.invalidOutCount"]
+            )
+        }
+
+        let baseState = preparedBaseOccupancy(from: completedAtbats)
+        let lastCompleted = completedAtbats.last
+        let inning = max(1, Int((lastCompleted?.inning ?? 1).rounded(.up)))
+        let outs = lastCompleted?.outs ?? 0
+        let currentColumn = preparedCurrentColumn(after: lastCompleted, lineupCount: lineup.count)
+        let currentBatterEntry = preparedCurrentBatter(after: lastCompleted, lineup: lineup)
+        let preparedPitchers = preparedPitcherAppearances(from: pitchers, game: game, defensiveTeam: defensiveTeam)
+        let currentPitcher = preparedPitchers.last
+        let pendingAtbat = preparedPendingAtbat(
+            in: gameAtbats,
+            currentBatter: currentBatterEntry?.player,
+            currentColumn: currentColumn
+        )
+        var warnings: [String] = []
+
+        if currentBatterEntry == nil {
+            warnings.append("preparedLiveGameState.unavailableBatter")
+        }
+        if currentPitcher == nil {
+            warnings.append("preparedLiveGameState.unavailablePitcher")
+        }
+        if pitchers.contains(where: { !sameModel($0.game, game) }) {
+            warnings.append("preparedLiveGameState.unrelatedPitcherExcluded")
+        }
+        if hasAmbiguousPitcherOrdering(preparedPitchers) {
+            warnings.append("preparedLiveGameState.ambiguousPitcherOrdering")
+        }
+
+        let disposition: PreparedStateDisposition
+        if currentBatterEntry == nil {
+            disposition = .unavailableBatter
+        } else if currentPitcher == nil {
+            disposition = .unavailablePitcher
+        } else {
+            disposition = .ready
+        }
+
+        return PreparedLiveGameState(
+            disposition: disposition,
+            gameIdentity: game.ident,
+            homeTeam: preparedTeam(homeTeam, side: .home),
+            visitingTeam: preparedTeam(visitingTeam, side: .visiting),
+            battingSide: battingSide,
+            battingTeam: preparedTeam(battingTeam, side: battingSide),
+            defensiveTeam: preparedTeam(defensiveTeam, side: battingSide == .home ? .visiting : .home),
+            inning: inning,
+            halfInning: battingSide,
+            outs: outs,
+            score: score,
+            bases: baseState,
+            currentBatter: currentBatterEntry?.player,
+            battingOrderPosition: currentBatterEntry?.slot,
+            currentPitcher: currentPitcher,
+            latestScoringSequence: lastCompleted?.seq,
+            currentScorecardColumn: currentColumn,
+            currentOrPendingLegacyAtbat: pendingAtbat,
+            lineup: lineup,
+            pitcherAppearances: preparedPitchers,
+            substitutions: preparedSubstitutions(in: game),
+            warnings: warnings.sorted(),
+            canScore: disposition == .ready
         )
     }
 
@@ -392,5 +667,330 @@ struct LiveScoringWorkflowCoordinator {
         } catch {
             return (.persistenceFailed, "Error saving pitcher markers: \(error)")
         }
+    }
+
+    private func unavailablePreparedState(
+        _ disposition: PreparedStateDisposition,
+        game: Game? = nil,
+        homeTeam: Team? = nil,
+        visitingTeam: Team? = nil,
+        battingTeam: Team? = nil,
+        battingSide: TeamSideRole = .unresolved,
+        defensiveTeam: Team? = nil,
+        warnings: [String]
+    ) -> PreparedLiveGameState {
+        PreparedLiveGameState(
+            disposition: disposition,
+            gameIdentity: game?.ident,
+            homeTeam: homeTeam.map { preparedTeam($0, side: .home) },
+            visitingTeam: visitingTeam.map { preparedTeam($0, side: .visiting) },
+            battingSide: battingSide,
+            battingTeam: battingTeam.map { preparedTeam($0, side: battingSide) },
+            defensiveTeam: defensiveTeam.map { preparedTeam($0, side: battingSide == .home ? .visiting : .home) },
+            inning: 1,
+            halfInning: battingSide,
+            outs: 0,
+            score: PreparedScore(home: max(0, game?.hscore ?? 0), visiting: max(0, game?.vscore ?? 0)),
+            bases: PreparedBaseOccupancy(first: nil, second: nil, third: nil),
+            currentBatter: nil,
+            battingOrderPosition: nil,
+            currentPitcher: nil,
+            latestScoringSequence: nil,
+            currentScorecardColumn: 1,
+            currentOrPendingLegacyAtbat: nil,
+            lineup: [],
+            pitcherAppearances: [],
+            substitutions: game.map(preparedSubstitutions(in:)) ?? [],
+            warnings: warnings.sorted(),
+            canScore: false
+        )
+    }
+
+    private func preparedLineup(from atbats: [Atbat], game: Game) -> [PreparedLineupEntry] {
+        atbats
+            .filter { $0.col == 1 && $0.batOrder != 99 }
+            .sorted {
+                ($0.batOrder, $0.seq, $0.player.identifier.uuidString, $0.ident.uuidString) <
+                ($1.batOrder, $1.seq, $1.player.identifier.uuidString, $1.ident.uuidString)
+            }
+            .map {
+                PreparedLineupEntry(
+                    slot: $0.batOrder,
+                    player: preparedPlayer($0.player),
+                    sourceAtbatIdentity: $0.ident,
+                    isReplaced: containsModel($0.player, in: game.replaced),
+                    isIncoming: containsModel($0.player, in: game.incomings)
+                )
+            }
+    }
+
+    private func preparedCurrentBatter(
+        after lastCompleted: Atbat?,
+        lineup: [PreparedLineupEntry]
+    ) -> PreparedLineupEntry? {
+        guard lineup.isEmpty == false else { return nil }
+        guard let lastCompleted else { return lineup.first }
+
+        if let next = lineup.first(where: { $0.slot > lastCompleted.batOrder }) {
+            return next
+        }
+        return lineup.first
+    }
+
+    private func preparedCurrentColumn(after lastCompleted: Atbat?, lineupCount: Int) -> Int {
+        guard let lastCompleted else { return 1 }
+        guard lineupCount > 0 else { return max(1, lastCompleted.col) }
+        return lastCompleted.batOrder >= lineupCount ? lastCompleted.col + 1 : max(1, lastCompleted.col)
+    }
+
+    private func preparedPendingAtbat(
+        in atbats: [Atbat],
+        currentBatter: PreparedPlayerSnapshot?,
+        currentColumn: Int
+    ) -> PreparedAtbatSnapshot? {
+        guard let currentBatter else { return nil }
+        return atbats
+            .filter {
+                $0.result == "Result" &&
+                $0.col == currentColumn &&
+                $0.player.identifier == currentBatter.identity
+            }
+            .sorted(by: atbatPrecedes)
+            .first
+            .map(preparedAtbat)
+    }
+
+    private func preparedBaseOccupancy(from completedAtbats: [Atbat]) -> PreparedBaseOccupancy {
+        let usedAtbats = completedAtbats.filter { $0.result != "Result" }
+        let inning = usedAtbats.last?.inning.rounded(.up) ?? 0
+        let inningAtbats = usedAtbats
+            .filter {
+                ($0.inning.rounded(.up) == inning || ($0.inning.rounded(.up) == 0 && inning == 1)) &&
+                common.onresults.contains($0.result)
+            }
+            .sorted(by: atbatPrecedes)
+
+        var currentMaxBase = 0
+        var first: PreparedRunner?
+        var second: PreparedRunner?
+        var third: PreparedRunner?
+        let maxbases = ["First", "Second", "Third", "Home"]
+        let maxHits = ["Single", "Double", "Triple", "Home Run"]
+
+        for (index, atbat) in inningAtbats.reversed().enumerated() {
+            let maxBase = projectedMaxBase(
+                for: atbat,
+                index: index,
+                currentMaxBase: &currentMaxBase,
+                maxbases: maxbases,
+                maxHits: maxHits
+            )
+
+            guard atbat.outAt == "Safe" else { continue }
+            let runner = PreparedRunner(player: preparedPlayer(atbat.player), sourceAtbatIdentity: atbat.ident)
+            if maxBase == "Third" {
+                third = runner
+            } else if maxBase == "Second" {
+                second = runner
+            } else if maxBase == "First" {
+                first = runner
+            }
+        }
+
+        return PreparedBaseOccupancy(first: first, second: second, third: third)
+    }
+
+    private func projectedMaxBase(
+        for atbat: Atbat,
+        index: Int,
+        currentMaxBase: inout Int,
+        maxbases: [String],
+        maxHits: [String]
+    ) -> String {
+        let maxBaseIndex = maxbases.firstIndex(of: atbat.maxbase) ?? -1
+        let maxHitIndex = projectedHitIndex(for: atbat.result, maxHits: maxHits)
+        var projected = atbat.maxbase
+
+        if atbat.maxbase == "No Bases" || maxHitIndex > maxBaseIndex {
+            projected = projectedBase(for: atbat.result)
+        }
+
+        if index == 0 {
+            currentMaxBase = maxbases.firstIndex(of: projected) ?? -1
+        }
+
+        if currentMaxBase >= (maxbases.firstIndex(of: projected) ?? -1) && index != 0 && currentMaxBase != 3 && atbat.outAt == "Safe" {
+            projected = maxbases[currentMaxBase + 1]
+            currentMaxBase += 1
+        } else if currentMaxBase >= 3 && atbat.outAt == "Safe" {
+            projected = maxbases[3]
+        } else if index != 0 && atbat.outAt == "Safe" {
+            currentMaxBase = maxbases.firstIndex(of: projected) ?? -1
+        }
+
+        return projected
+    }
+
+    private func projectedHitIndex(for result: String, maxHits: [String]) -> Int {
+        switch result {
+        case "Walk", "Dropped 3rd Strike", "Hit By Pitch", "Catcher Interference":
+            return 0
+        default:
+            return maxHits.firstIndex(of: result) ?? -1
+        }
+    }
+
+    private func projectedBase(for result: String) -> String {
+        switch result {
+        case "Dropped 3rd Strike", "Walk", "Error", "Fielder's Choice", "Catcher Interference", "Hit By Pitch", "Single":
+            return "First"
+        case "Double":
+            return "Second"
+        case "Triple":
+            return "Third"
+        case "Home Run":
+            return "Home"
+        default:
+            return result
+        }
+    }
+
+    private func preparedPitcherAppearances(
+        from pitchers: [Pitcher],
+        game: Game,
+        defensiveTeam: Team
+    ) -> [PreparedPitcherSnapshot] {
+        pitchers
+            .filter { sameModel($0.game, game) && sameModel($0.team, defensiveTeam) }
+            .sorted(by: pitcherPrecedes)
+            .enumerated()
+            .map { index, pitcher in
+                PreparedPitcherSnapshot(
+                    player: preparedPlayer(pitcher.player),
+                    team: preparedTeam(pitcher.team, side: sameModel(pitcher.team, game.hteam) ? .home : .visiting),
+                    appearanceIndex: index + 1,
+                    startInning: pitcher.startInn,
+                    startOuts: pitcher.sOuts,
+                    startBatterSequence: pitcher.sBats,
+                    endInning: pitcher.endInn,
+                    endOuts: pitcher.eOuts,
+                    endBatterSequence: pitcher.eBats
+                )
+            }
+    }
+
+    private func hasAmbiguousPitcherOrdering(_ pitchers: [PreparedPitcherSnapshot]) -> Bool {
+        guard pitchers.count > 1 else { return false }
+        var seen: Set<String> = []
+        for pitcher in pitchers {
+            let marker = "\(pitcher.startInning)-\(pitcher.startOuts)-\(pitcher.startBatterSequence)-\(pitcher.endInning)-\(pitcher.endOuts)-\(pitcher.endBatterSequence)"
+            if seen.contains(marker) {
+                return true
+            }
+            seen.insert(marker)
+        }
+        return false
+    }
+
+    private func preparedSubstitutions(in game: Game) -> [PreparedSubstitutionSnapshot] {
+        zip(game.replaced, game.incomings)
+            .enumerated()
+            .map { index, pair in
+                PreparedSubstitutionSnapshot(
+                    order: index + 1,
+                    outgoing: preparedPlayer(pair.0),
+                    incoming: preparedPlayer(pair.1)
+                )
+            }
+    }
+
+    private func preparedAtbat(_ atbat: Atbat) -> PreparedAtbatSnapshot {
+        PreparedAtbatSnapshot(
+            identity: atbat.ident,
+            player: preparedPlayer(atbat.player),
+            result: atbat.result,
+            maxBase: atbat.maxbase,
+            outAt: atbat.outAt,
+            inning: atbat.inning,
+            sequence: atbat.seq,
+            column: atbat.col,
+            battingOrder: atbat.batOrder,
+            outs: atbat.outs
+        )
+    }
+
+    private func preparedTeam(_ team: Team, side: TeamSideRole) -> PreparedTeamSnapshot {
+        PreparedTeamSnapshot(identity: team.ident, name: team.name, side: side)
+    }
+
+    private func preparedPlayer(_ player: Player) -> PreparedPlayerSnapshot {
+        PreparedPlayerSnapshot(
+            identity: player.identifier,
+            name: player.name,
+            number: player.number,
+            battingOrder: player.batOrder
+        )
+    }
+
+    private func sameModel(_ lhs: Game, _ rhs: Game) -> Bool {
+        lhs.ident == rhs.ident
+    }
+
+    private func sameModel(_ lhs: Team, _ rhs: Team?) -> Bool {
+        lhs.ident == rhs?.ident
+    }
+
+    private func sameModel(_ lhs: Team, _ rhs: Team) -> Bool {
+        lhs.ident == rhs.ident
+    }
+
+    private func containsModel(_ player: Player, in players: [Player]) -> Bool {
+        players.contains { $0.identifier == player.identifier }
+    }
+
+    private func atbatPrecedes(_ lhs: Atbat, _ rhs: Atbat) -> Bool {
+        (
+            lhs.col,
+            lhs.seq,
+            lhs.batOrder,
+            lhs.player.identifier.uuidString,
+            lhs.ident.uuidString
+        ) <
+        (
+            rhs.col,
+            rhs.seq,
+            rhs.batOrder,
+            rhs.player.identifier.uuidString,
+            rhs.ident.uuidString
+        )
+    }
+
+    private func pitcherPrecedes(_ lhs: Pitcher, _ rhs: Pitcher) -> Bool {
+        let leftValues = [
+            lhs.startInn,
+            lhs.sOuts,
+            lhs.sBats,
+            lhs.endInn,
+            lhs.eOuts,
+            lhs.eBats
+        ]
+        let rightValues = [
+            rhs.startInn,
+            rhs.sOuts,
+            rhs.sBats,
+            rhs.endInn,
+            rhs.eOuts,
+            rhs.eBats
+        ]
+
+        if leftValues != rightValues {
+            return leftValues.lexicographicallyPrecedes(rightValues)
+        }
+
+        if lhs.player.identifier != rhs.player.identifier {
+            return lhs.player.identifier.uuidString < rhs.player.identifier.uuidString
+        }
+
+        return lhs.ident.uuidString < rhs.ident.uuidString
     }
 }

@@ -29,6 +29,7 @@ struct PlayersToScoreView: View {
     @State var batbox:[BoxScore] = Array(repeating: BoxScore(), count: 20)
     @State var totbox:[BoxScore] = Array(repeating: BoxScore(), count: 5)
     @State var iStat:InnStatus = InnStatus()
+    @State private var preparedLiveGameState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
 
@@ -175,6 +176,19 @@ struct PlayersToScoreView: View {
         return CGRect(x: newx, y: 0, width: bSize, height: bSize)
     }
     func refreshLiveScoringWorkflow() {
+        let battingTeam = atbats.first?.team ?? teamForName(teamName)
+        let preparedResult = liveScoringCoordinator.prepareLiveGameState(
+            game: game,
+            battingTeam: battingTeam,
+            displayedAtbats: atbats,
+            pitchers: pitchers
+        )
+        let preparedPresentation = liveScoringShellPresentation.presentPreparedState(preparedResult)
+        preparedLiveGameState = preparedPresentation.preparedState
+        if let message = preparedPresentation.message {
+            print(message)
+        }
+
         let result = liveScoringCoordinator.refreshProjections(
             displayedAtbats: atbats,
             pitchers: pitchers,
@@ -232,6 +246,16 @@ struct PlayersToScoreView: View {
     private func containsPlayer(_ player: Player, in players: [Player]) -> Bool {
         let playerID = player.persistentModelID
         return players.contains { $0.persistentModelID == playerID }
+    }
+
+    private func teamForName(_ name: String) -> Team? {
+        if game.hteam?.name == name {
+            return game.hteam
+        }
+        if game.vteam?.name == name {
+            return game.vteam
+        }
+        return nil
     }
 
     @discardableResult

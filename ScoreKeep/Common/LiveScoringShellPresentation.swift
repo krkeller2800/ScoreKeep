@@ -19,6 +19,12 @@ struct LiveScoringShellPresentation {
         let message: String?
     }
 
+    struct PreparedStatePresentation {
+        let preparedState: LiveScoringWorkflowCoordinator.PreparedLiveGameState
+        let canScore: Bool
+        let message: String?
+    }
+
     func scorecardCellIsEnabled(column: Int, sourceAtbat: Atbat?) -> Bool {
         column > 0 && sourceAtbat != nil
     }
@@ -42,6 +48,14 @@ struct LiveScoringShellPresentation {
             totalBoxes: result.totalBoxes,
             inningStatus: result.inningStatus,
             message: result.message
+        )
+    }
+
+    func presentPreparedState(_ state: LiveScoringWorkflowCoordinator.PreparedLiveGameState) -> PreparedStatePresentation {
+        PreparedStatePresentation(
+            preparedState: state,
+            canScore: state.canScore,
+            message: state.warnings.first
         )
     }
 }

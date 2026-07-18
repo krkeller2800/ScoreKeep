@@ -139,6 +139,184 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(result.message?.contains("Error saving new atbats") == true)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("prepared live game state preserves visitor half legacy facts without writing canonical records")
+    func preparedLiveGameStatePreservesVisitorHalfLegacyFactsWithoutWritingCanonicalRecords() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.game.hscore = 3
+        fixture.game.vscore = 2
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.inning = 0.1
+        fixture.visitingFirst.seq = 1
+        fixture.visitingFirst.outs = 0
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let state = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+
+        #expect(state.disposition == .ready)
+        #expect(state.canScore)
+        #expect(state.gameIdentity == fixture.game.ident)
+        #expect(state.battingSide == .visiting)
+        #expect(state.halfInning == .visiting)
+        #expect(state.inning == 1)
+        #expect(state.outs == 0)
+        #expect(state.score == .init(home: 3, visiting: 2))
+        #expect(state.bases.first?.player.identity == fixture.visitingFirst.player.identifier)
+        #expect(state.currentBatter?.identity == fixture.visitingSecond.player.identifier)
+        #expect(state.battingOrderPosition == 2)
+        #expect(state.currentPitcher?.player.identity == fixture.homePitcher.identifier)
+        #expect(state.latestScoringSequence == 1)
+        #expect(state.currentScorecardColumn == 1)
+        #expect(state.lineup.map(\.slot) == [1, 2])
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("prepared live game state preserves home half identity and defensive pitcher")
+    func preparedLiveGameStatePreservesHomeHalfIdentityAndDefensivePitcher() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let visitorPitcher = Player(name: "Visitor Pitcher", number: "7", position: "P", batDir: "R", batOrder: 3, team: fixture.visitingTeam)
+        let homeBatter = Player(name: "Home One", number: "4", position: "CF", batDir: "L", batOrder: 1, team: fixture.homeTeam)
+        let homeAtbat = Atbat(game: fixture.game, team: fixture.homeTeam, player: homeBatter, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        let pitcher = Pitcher(player: visitorPitcher, team: fixture.visitingTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(visitorPitcher)
+        store.context.insert(homeBatter)
+        store.context.insert(homeAtbat)
+        store.context.insert(pitcher)
+        fixture.homeTeam.players.append(homeBatter)
+        fixture.visitingTeam.players.append(visitorPitcher)
+        fixture.game.players.append(contentsOf: [visitorPitcher, homeBatter])
+        fixture.game.atbats.append(homeAtbat)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let state = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.homeTeam,
+            displayedAtbats: [homeAtbat],
+            pitchers: [pitcher]
+        )
+
+        #expect(state.disposition == .ready)
+        #expect(state.battingSide == .home)
+        #expect(state.halfInning == .home)
+        #expect(state.battingTeam?.identity == fixture.homeTeam.ident)
+        #expect(state.defensiveTeam?.identity == fixture.visitingTeam.ident)
+        #expect(state.currentBatter?.identity == homeBatter.identifier)
+        #expect(state.currentPitcher?.player.identity == visitorPitcher.identifier)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("prepared live game state is deterministic and read-only")
+    func preparedLiveGameStateIsDeterministicAndReadOnly() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let before = Snapshot.capture(fixture.game)
+
+        let first = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats.reversed(), pitchers: [pitcher])
+        let second = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let after = Snapshot.capture(fixture.game)
+
+        #expect(first == second)
+        #expect(before == after)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("prepared live game state reflects legacy substitution arrays and pitch hitter lineup entry")
+    func preparedLiveGameStateReflectsLegacySubstitutionArraysAndPitchHitterLineupEntry() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let incoming = Player(name: "Incoming Visitor", number: "12", position: "RF", batDir: "R", batOrder: 3, team: fixture.visitingTeam)
+        let pitchHitter = Atbat(game: fixture.game, team: fixture.visitingTeam, player: incoming, result: "Pitch Hitter", maxbase: "No Bases", batOrder: 3, outAt: "Safe", inning: 1, seq: 3, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(incoming)
+        store.context.insert(pitchHitter)
+        store.context.insert(pitcher)
+        fixture.visitingTeam.players.append(incoming)
+        fixture.game.players.append(incoming)
+        fixture.game.atbats.append(pitchHitter)
+        fixture.game.pitchers.append(pitcher)
+        fixture.game.replaced.append(fixture.visitingSecond.player)
+        fixture.game.incomings.append(incoming)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let state = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: [fixture.visitingFirst, fixture.visitingSecond, pitchHitter],
+            pitchers: [pitcher]
+        )
+
+        #expect(state.disposition == .ready)
+        #expect(state.lineup.map(\.slot) == [1, 2, 3])
+        #expect(state.lineup.last?.isIncoming == true)
+        #expect(state.lineup[1].isReplaced)
+        #expect(state.substitutions.count == 1)
+        #expect(state.substitutions.first?.outgoing.identity == fixture.visitingSecond.player.identifier)
+        #expect(state.substitutions.first?.incoming.identity == incoming.identifier)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("prepared live game state fails closed for missing pitcher and inconsistent legacy input")
+    func preparedLiveGameStateFailsClosedForMissingPitcherAndInconsistentLegacyInput() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let otherFixture = Fixture.insertGame(into: store.context, location: "Other Field")
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let missingPitcher = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: []
+        )
+        let unrelatedAtbat = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats + [otherFixture.visitingFirst],
+            pitchers: []
+        )
+        fixture.visitingFirst.outs = 4
+        fixture.visitingFirst.result = "Ground Out"
+        let invalidOuts = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: []
+        )
+
+        #expect(missingPitcher.disposition == .unavailablePitcher)
+        #expect(!missingPitcher.canScore)
+        #expect(missingPitcher.warnings == ["preparedLiveGameState.unavailablePitcher"])
+        #expect(unrelatedAtbat.disposition == .inconsistentLegacyState)
+        #expect(unrelatedAtbat.warnings == ["preparedLiveGameState.unrelatedAtbatExcluded"])
+        #expect(invalidOuts.disposition == .inconsistentLegacyState)
+        #expect(invalidOuts.warnings == ["preparedLiveGameState.invalidOutCount"])
+        #expect(try store.fetchLegacyAtbats().count == 4)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 private struct Store {
@@ -177,7 +355,7 @@ private struct Fixture {
         [visitingFirst, visitingSecond]
     }
 
-    static func insertGame(into context: ModelContext) -> Fixture {
+    static func insertGame(into context: ModelContext, location: String = "Task 5.10 Field") -> Fixture {
         let visitingTeam = Team(name: "Visitors", coach: "", details: "")
         let homeTeam = Team(name: "Home", coach: "", details: "")
         let visitingFirstPlayer = Player(name: "Visitor One", number: "1", position: "SS", batDir: "R", batOrder: 1, team: visitingTeam)
@@ -185,7 +363,7 @@ private struct Fixture {
         let homePitcher = Player(name: "Home Pitcher", number: "9", position: "P", batDir: "R", batOrder: 1, team: homeTeam)
         let game = Game(
             date: "2026-07-18T12:00:00Z",
-            location: "Task 5.10 Field",
+            location: location,
             highLights: "",
             hscore: 0,
             vscore: 0,
@@ -253,3 +431,70 @@ private struct Fixture {
 }
 
 private struct InjectedSaveError: Error {}
+
+private struct Snapshot: Equatable {
+    let gameHomeScore: Int
+    let gameVisitingScore: Int
+    let atbats: [AtbatSnapshot]
+    let pitchers: [PitcherSnapshot]
+
+    static func capture(_ game: Game) -> Snapshot {
+        Snapshot(
+            gameHomeScore: game.hscore,
+            gameVisitingScore: game.vscore,
+            atbats: game.atbats
+                .sorted {
+                    ($0.col, $0.seq, $0.batOrder, $0.ident.uuidString) <
+                    ($1.col, $1.seq, $1.batOrder, $1.ident.uuidString)
+                }
+                .map(AtbatSnapshot.init),
+            pitchers: game.pitchers
+                .sorted { $0.ident.uuidString < $1.ident.uuidString }
+                .map(PitcherSnapshot.init)
+        )
+    }
+}
+
+private struct AtbatSnapshot: Equatable {
+    let identity: UUID
+    let result: String
+    let maxbase: String
+    let outAt: String
+    let inning: CGFloat
+    let seq: Int
+    let col: Int
+    let batOrder: Int
+    let outs: Int
+
+    init(_ atbat: Atbat) {
+        identity = atbat.ident
+        result = atbat.result
+        maxbase = atbat.maxbase
+        outAt = atbat.outAt
+        inning = atbat.inning
+        seq = atbat.seq
+        col = atbat.col
+        batOrder = atbat.batOrder
+        outs = atbat.outs
+    }
+}
+
+private struct PitcherSnapshot: Equatable {
+    let identity: UUID
+    let startInn: Int
+    let sOuts: Int
+    let sBats: Int
+    let endInn: Int
+    let eOuts: Int
+    let eBats: Int
+
+    init(_ pitcher: Pitcher) {
+        identity = pitcher.ident
+        startInn = pitcher.startInn
+        sOuts = pitcher.sOuts
+        sBats = pitcher.sBats
+        endInn = pitcher.endInn
+        eOuts = pitcher.eOuts
+        eBats = pitcher.eBats
+    }
+}
