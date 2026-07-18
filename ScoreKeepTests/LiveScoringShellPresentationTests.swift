@@ -168,6 +168,36 @@ struct LiveScoringShellPresentationTests {
         #expect(!failed.shouldMarkChanged)
         #expect(failed.message == "Error saving scoring action.")
     }
+
+    @Test("additional choice preparation presents pending choices without marking changed")
+    func additionalChoicePreparationPresentsPendingChoicesWithoutMarkingChanged() {
+        let presenter = LiveScoringShellPresentation()
+        let pending = LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice(
+            originalScoringAction: .legacyResult("Fielder's Choice"),
+            requiredChoiceCategory: "runnerMovementAndRecordedOut",
+            gameIdentity: UUID(uuidString: "97000000-0000-0000-0000-000000000001")!,
+            atbatIdentity: UUID(uuidString: "97000000-0000-0000-0000-000000000002")!,
+            legacyResult: "Fielder's Choice",
+            choices: .init(legacyResult: "Fielder's Choice", maxBase: "First", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true, playRecord: ""),
+            availableMaxBases: ["No Bases", "First", "Second", "Third", "Home"],
+            availableOutAtBases: ["Safe", "First", "Second", "Third", "Home"],
+            availableRBIs: [0, 1, 2, 3, 4],
+            availableStolenBases: [0, 1, 2, 3],
+            allowsEarnedRunChoice: true,
+            allowsPlayRecordChoice: true,
+            validationWarnings: []
+        )
+
+        let presentation = presenter.presentAdditionalChoicePreparation(.init(disposition: .pending, pendingChoice: pending, actionState: nil, message: nil))
+        let failed = presenter.presentAdditionalChoicePreparation(.init(disposition: .unsupportedAction, pendingChoice: nil, actionState: nil, message: "Unsupported"))
+
+        #expect(presentation.shouldPresentAdditionalChoices)
+        #expect(!presentation.shouldMarkChanged)
+        #expect(presentation.pendingChoice == pending)
+        #expect(!failed.shouldPresentAdditionalChoices)
+        #expect(!failed.shouldMarkChanged)
+        #expect(failed.message == "Unsupported")
+    }
 }
 
 private enum Fixture {

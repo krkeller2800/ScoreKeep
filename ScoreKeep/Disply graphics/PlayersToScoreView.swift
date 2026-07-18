@@ -163,7 +163,9 @@ struct PlayersToScoreView: View {
                     atbat: $theAtbat,
                     showingScoring: $showingScoring,
                     enabledActionPresentation: enabledActionPresentation,
-                    submitScoringAction: submitScoringAction
+                    submitScoringAction: submitScoringAction,
+                    prepareAdditionalChoiceScoringAction: prepareAdditionalChoiceScoringAction,
+                    submitAdditionalChoiceScoringAction: submitAdditionalChoiceScoringAction
                 )
             }
         }
@@ -354,6 +356,65 @@ struct PlayersToScoreView: View {
         let presentation = liveScoringShellPresentation.presentSubmissionResult(
             submission,
             requiresAdditionalChoice: requiresAdditionalChoice
+        )
+
+        hasChanged = presentation.shouldMarkChanged
+        if presentation.shouldDismissScoringSheet {
+            showingScoring = false
+        }
+        refreshLiveScoringWorkflow()
+
+        if let message = presentation.message {
+            print(message)
+        }
+
+        return presentation
+    }
+
+    @discardableResult
+    func prepareAdditionalChoiceScoringAction(_ result: String) -> LiveScoringShellPresentation.AdditionalChoicePresentation {
+        let battingTeam = theAtbat.team
+        let displayedAtbats = atbats.contains(where: { $0.ident == theAtbat.ident }) ? atbats : atbats + [theAtbat]
+        let preparation = liveScoringCoordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: result,
+            targetAtbat: theAtbat,
+            game: game,
+            battingTeam: battingTeam,
+            displayedAtbats: displayedAtbats,
+            pitchers: pitchers,
+            supportedLegacyResults: com.onresults + com.outresults
+        )
+        let presentation = liveScoringShellPresentation.presentAdditionalChoicePreparation(preparation)
+
+        hasChanged = presentation.shouldMarkChanged
+        if let message = presentation.message {
+            print(message)
+        }
+
+        return presentation
+    }
+
+    @discardableResult
+    func submitAdditionalChoiceScoringAction(
+        pendingChoice: LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice,
+        choices: LiveScoringWorkflowCoordinator.AdditionalScoringChoices
+    ) -> LiveScoringShellPresentation.SubmissionPresentation {
+        let battingTeam = theAtbat.team
+        let displayedAtbats = atbats.contains(where: { $0.ident == theAtbat.ident }) ? atbats : atbats + [theAtbat]
+        let submission = liveScoringCoordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pendingChoice,
+            choices: choices,
+            targetAtbat: theAtbat,
+            game: game,
+            battingTeam: battingTeam,
+            displayedAtbats: displayedAtbats,
+            pitchers: pitchers,
+            supportedLegacyResults: com.onresults + com.outresults,
+            save: { try modelContext.save() }
+        )
+        let presentation = liveScoringShellPresentation.presentSubmissionResult(
+            submission,
+            requiresAdditionalChoice: false
         )
 
         hasChanged = presentation.shouldMarkChanged

@@ -338,7 +338,8 @@ struct drawoutAt: View {
 
 struct fielderButtons: View {
     var size: CGSize
-    var atbat: Atbat
+    var result: String
+    @Binding var playRecord: String
     @State var showShadow1 = false
     @State var showShadow2 = false
     @State var showShadow3 = false
@@ -348,14 +349,29 @@ struct fielderButtons: View {
     @State var showShadow7 = false
     @State var showShadow8 = false
     @State var showShadow9 = false
+    init(size: CGSize, atbat: Atbat) {
+        self.size = size
+        self.result = atbat.result
+        _playRecord = Binding(
+            get: { atbat.playRec },
+            set: { atbat.playRec = $0 }
+        )
+    }
+
+    init(size: CGSize, result: String, playRecord: Binding<String>) {
+        self.size = size
+        self.result = result
+        _playRecord = playRecord
+    }
+
     var body: some View {
         let sz = UIDevice.type == "iPhone" ? 32.5: 45.0
         let phone = UIDevice.type == "iPhone" ? true : false
         Button("\n\n\nLeft") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-F7" : atbat.result == "Line Out" ? "-L7" : "-7"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-F7" : result == "Line Out" ? "-L7" : "-7"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "F7" : atbat.result == "Line Out" ? "L7" : "7"
+                playRecord += result == "Fly Out" ? "F7" : result == "Line Out" ? "L7" : "7"
             }
         }
         .foregroundColor(showShadow7 ? .red : .black).italic().font(.caption)
@@ -368,17 +384,17 @@ struct fielderButtons: View {
                 .frame(width: sz, height: sz)
                 .position(x:(phone ? 0.33 :0.15) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         }
-        .onChange (of: atbat.playRec) {
+        .onChange (of: playRecord) {
             setflags()
         }
         .onAppear() {
             setflags()
         }
         Button("\n\n\nCenter") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-F8" : atbat.result == "Line Out" ? "-L8" : "-8"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-F8" : result == "Line Out" ? "-L8" : "-8"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "F8" : atbat.result == "Line Out" ? "L8" : "8"
+                playRecord += result == "Fly Out" ? "F8" : result == "Line Out" ? "L8" : "8"
             }
         }
         .foregroundColor(showShadow8 ? .red : .black).italic().font(.caption)
@@ -392,10 +408,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.5 :0.5) * size.width, y:(phone ? 0.5 : 0.35) * size.height)
         }
         Button("\n\n\nRight") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-F9" : atbat.result == "Line Out" ? "-L9" : "-9"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-F9" : result == "Line Out" ? "-L9" : "-9"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "F9" : atbat.result == "Line Out" ? "L9" : "9"
+                playRecord += result == "Fly Out" ? "F9" : result == "Line Out" ? "L9" : "9"
             }
         }
         .foregroundColor(showShadow9 ? .red : .black).italic().font(.caption)
@@ -409,10 +425,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.67 :0.85) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         }
         Button("\n\n\n3rd") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P5" : atbat.result == "Line Out" ? "-L5" : "-5"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-P5" : result == "Line Out" ? "-L5" : "-5"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P5" : atbat.result == "Line Out" ? "L5": "5"
+                playRecord += result == "Fly Out" ? "P5" : result == "Line Out" ? "L5": "5"
             }
         }
         .foregroundColor(showShadow5 ? .red : .black).italic().font(.caption)
@@ -426,10 +442,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.4 :0.25) * size.width, y:(phone ? 0.68 : 0.59) * size.height)
         }
         Button("\n\n\nShort") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P6" : atbat.result == "Line Out" ? "-L6" : "-6"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-P6" : result == "Line Out" ? "-L6" : "-6"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P6" : atbat.result == "Line Out" ? "L6" : "6"
+                playRecord += result == "Fly Out" ? "P6" : result == "Line Out" ? "L6" : "6"
             }
         }
         .foregroundColor(showShadow6 ? .red : .black).italic().font(.caption)
@@ -443,10 +459,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.46 : 0.36) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         }
         Button("\n\n\n2nd") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P4" : atbat.result == "Line Out" ? "-L4" : "-4"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-P4" : result == "Line Out" ? "-L4" : "-4"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P4" : atbat.result == "Line Out" ? "L4" : "4"
+                playRecord += result == "Fly Out" ? "P4" : result == "Line Out" ? "L4" : "4"
             }
         }
         .foregroundColor(showShadow4 ? .red : .black).bold().italic().font(.caption)
@@ -460,10 +476,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.54 : 0.64) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         }
         Button("\n\n\n1st") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P3" : atbat.result == "Line Out" ? "-L3" : "-3"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-P3" : result == "Line Out" ? "-L3" : "-3"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P3" : atbat.result == "Line Out" ? "L3" : "3"
+                playRecord += result == "Fly Out" ? "P3" : result == "Line Out" ? "L3" : "3"
             }        }
         .foregroundColor(showShadow3 ? .red : .black).italic().font(.caption)
         .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
@@ -476,10 +492,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
         }
         Button("\n\n\nPitch") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P1" : atbat.result == "Line Out" ? "-L1" : "-1"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-P1" : result == "Line Out" ? "-L1" : "-1"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P1" : atbat.result == "Line Out" ? "L1" : "1"
+                playRecord += result == "Fly Out" ? "P1" : result == "Line Out" ? "L1" : "1"
             }
         }
         .foregroundColor(showShadow1 ? .red : .black).italic().font(.caption)
@@ -493,10 +509,10 @@ struct fielderButtons: View {
                 .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.77 : 0.7) * size.height)
         }
         Button("\n\nCatch") {
-            if atbat.playRec.count > 0 {
-                atbat.playRec += atbat.result == "Fly Out" ? "-P2" : atbat.result == "Line Out" ? "-L2" : "-2"
+            if playRecord.count > 0 {
+                playRecord += result == "Fly Out" ? "-P2" : result == "Line Out" ? "-L2" : "-2"
             } else {
-                atbat.playRec += atbat.result == "Fly Out" ? "P2" : atbat.result == "Line Out" ? "L2" : "2"
+                playRecord += result == "Fly Out" ? "P2" : result == "Line Out" ? "L2" : "2"
             }
         }
         .foregroundColor(showShadow2 ? .red : .black).bold().italic().font(.caption)
@@ -511,15 +527,15 @@ struct fielderButtons: View {
         }
     }
     func setflags() {
-        showShadow1 = atbat.playRec.contains("1") ? true : false
-        showShadow2 = atbat.playRec.contains("2") ? true : false
-        showShadow3 = atbat.playRec.contains("3") ? true : false
-        showShadow4 = atbat.playRec.contains("4") ? true : false
-        showShadow5 = atbat.playRec.contains("5") ? true : false
-        showShadow6 = atbat.playRec.contains("6") ? true : false
-        showShadow7 = atbat.playRec.contains("7") ? true : false
-        showShadow8 = atbat.playRec.contains("8") ? true : false
-        showShadow9 = atbat.playRec.contains("9") ? true : false
+        showShadow1 = playRecord.contains("1") ? true : false
+        showShadow2 = playRecord.contains("2") ? true : false
+        showShadow3 = playRecord.contains("3") ? true : false
+        showShadow4 = playRecord.contains("4") ? true : false
+        showShadow5 = playRecord.contains("5") ? true : false
+        showShadow6 = playRecord.contains("6") ? true : false
+        showShadow7 = playRecord.contains("7") ? true : false
+        showShadow8 = playRecord.contains("8") ? true : false
+        showShadow9 = playRecord.contains("9") ? true : false
 
     }
 }

@@ -20,21 +20,34 @@ struct ScoreGameView: View {
     @State private var playRec: String = ""
     @State private var onBase: String = "Result"
     @State private var batOut: String = "Result"
+    @State private var pendingAdditionalChoice: LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice?
+    @State private var pendingMaxBase: String = "No Bases"
+    @State private var pendingOutAt: String = "Safe"
+    @State private var pendingRBIs: Int = 0
+    @State private var pendingStolenBases: Int = 0
+    @State private var pendingEarnedRun: Bool = true
+    @State private var pendingPlayRecord: String = ""
 
     let enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation?
     let submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)?
+    let prepareAdditionalChoiceScoringAction: ((String) -> LiveScoringShellPresentation.AdditionalChoicePresentation)?
+    let submitAdditionalChoiceScoringAction: ((LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice, LiveScoringWorkflowCoordinator.AdditionalScoringChoices) -> LiveScoringShellPresentation.SubmissionPresentation)?
     let com:Common = Common()
 
     init(
         atbat: Binding<Atbat>,
         showingScoring: Binding<Bool>,
         enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation? = nil,
-        submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil
+        submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil,
+        prepareAdditionalChoiceScoringAction: ((String) -> LiveScoringShellPresentation.AdditionalChoicePresentation)? = nil,
+        submitAdditionalChoiceScoringAction: ((LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice, LiveScoringWorkflowCoordinator.AdditionalScoringChoices) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil
     ) {
         _atbat = atbat
         _showingScoring = showingScoring
         self.enabledActionPresentation = enabledActionPresentation
         self.submitScoringAction = submitScoringAction
+        self.prepareAdditionalChoiceScoringAction = prepareAdditionalChoiceScoringAction
+        self.submitAdditionalChoiceScoringAction = submitAdditionalChoiceScoringAction
     }
     
     var body: some View {
@@ -43,8 +56,15 @@ struct ScoreGameView: View {
                 VStack(spacing:0) {
                     HStack(spacing:0) {
                         Button("Done", action: {
-                            showingScoring.toggle()
-                            if atbat.result == "Result" {
+                            if let pendingAdditionalChoice {
+                                let presentation = finalizeAdditionalChoice(pendingAdditionalChoice)
+                                if presentation?.shouldDismissScoringSheet == true {
+                                    showingScoring.toggle()
+                                }
+                            } else {
+                                showingScoring.toggle()
+                            }
+                            if atbat.result == "Result" && pendingAdditionalChoice == nil {
                                 if atbat.col != 1 {
                                     atbat.game.atbats.removeAll() {$0 == atbat}
                                     delAtbat = true
@@ -73,7 +93,7 @@ struct ScoreGameView: View {
 
                     }
                     HStack {
-                        Picker("RBI", selection: $atbat.rbis) {
+                        Picker("RBI", selection: rbiBinding) {
                             let rbis = ["RBIs","1 RBI","2 RBIs","3 RBIs","4 RBIs"]
                             ForEach(Array(rbis.enumerated()), id: \.1) { index, rbi in
                                 Text(rbi).tag(index)
@@ -84,7 +104,7 @@ struct ScoreGameView: View {
                         Spacer()
                         Text("\(atbat.player.number) \(atbat.player.name)").font(.title3)
                         Spacer()
-                        Picker("Steal", selection: $atbat.stolenBases) {
+                        Picker("Steal", selection: stolenBaseBinding) {
                             let rbis = ["Steals","1 Stolen","2 Stolen","3 Stolen"]
                             ForEach(Array(rbis.enumerated()), id: \.1) { index, rbi in
                                 Text(rbi).tag(index)
@@ -128,7 +148,7 @@ struct ScoreGameView: View {
                          .border(.gray).cornerRadius(10).accentColor(.black)
                          .onChange(of: onBase) {
                              if onBase != "Result" {
-                                 submitResult(onBase)
+                                 selectResult(onBase)
                                  batOut = "Result"
                              }
                          }
@@ -155,12 +175,12 @@ struct ScoreGameView: View {
                          .border(.gray).cornerRadius(10).accentColor(.black)
                          .onChange(of: batOut) {
                              if batOut != "Result" {
-                                 submitResult(batOut)
+                                 selectResult(batOut)
                                  onBase = "Result"
                              }
                          }
                          Spacer()
-                        Picker("Running", selection: $atbat.maxbase) {
+                        Picker("Running", selection: maxBaseBinding) {
                             Text("No Bases").tag("No Bases")
                             let bases = ["","First","Second","Third","Home"]
                             ForEach (bases, id: \.self) { base in
@@ -170,7 +190,7 @@ struct ScoreGameView: View {
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
                          .border(.gray).cornerRadius(10).accentColor(.black)
                         Spacer()
-                        Picker("Out", selection: $atbat.outAt) {
+                        Picker("Out", selection: outAtBinding) {
                             Text("Safe").tag("Safe")
                             let outs = ["","First","Second","Third","Home"]
                             ForEach (outs, id: \.self) { out in
@@ -196,7 +216,9 @@ struct ScoreGameView: View {
                         if atbat.outAt != "Safe" {
                             recPlay = true
                         } else {
-                            atbat.playRec = ""
+                            if pendingAdditionalChoice == nil {
+                                atbat.playRec = ""
+                            }
                             recPlay = false
                             showingScoring.toggle()
                         }
@@ -219,14 +241,16 @@ struct ScoreGameView: View {
                         earnedRun = atbat.earnedRun
                     }
                     .onDisappear {
-                        setEndOfInning()
+                        if pendingAdditionalChoice == nil {
+                            setEndOfInning()
+                        }
                         if delAtbat {
                             modelContext.delete(atbat)
                         }
                     }
                     Spacer()
                     HStack (spacing: 0){
-                        if com.onresults.contains(atbat.result) {
+                        if com.onresults.contains(displayedResult) {
                             Text("\nIf batter scores:").padding(.leading, 10).font(.title3)
                         }
                         Spacer()
@@ -235,20 +259,19 @@ struct ScoreGameView: View {
                         }
                     }
                     HStack {
-                        if com.onresults.contains(atbat.result) {
-                            Button(earnedRun ? "Run Earned" : "Run Unearned", action: {
-                                earnedRun.toggle()
-                                atbat.earnedRun = earnedRun
+                        if com.onresults.contains(displayedResult) {
+                            Button(earnedRunText, action: {
+                                toggleEarnedRun()
                             })
-                            .frame(maxWidth: 130,maxHeight: 30, alignment:.center).background(earnedRun ? .green.opacity(0.5) : .red.opacity(0.5))
+                            .frame(maxWidth: 130,maxHeight: 30, alignment:.center).background(currentEarnedRun ? .green.opacity(0.5) : .red.opacity(0.5))
                             .border(.gray).cornerRadius(10).accentColor(.black).padding([.leading, .trailing, .bottom], 15)
                         }
                         Spacer()
                         if recPlay {
                             Spacer()
-                            Text(atbat.playRec).padding(.trailing,15)
+                            Text(currentPlayRecord).padding(.trailing,15)
                             Button("Clear", action: {
-                                 atbat.playRec = ""
+                                 clearPlayRecord()
                              })
                              .frame(maxWidth: 50,maxHeight: 30, alignment:.center).background(.red.opacity(0.5))
                              .border(.gray).cornerRadius(10).accentColor(.black).padding([.bottom,.trailing], 15)
@@ -258,9 +281,9 @@ struct ScoreGameView: View {
                 }
                 .background(RoundedRectangle(cornerRadius: 15).fill(Color.yellow.opacity(0.1)).stroke(.black, lineWidth: 8))
                 if recPlay {
-                    fielderButtons(size: geometry.size, atbat: atbat)
+                    fielderButtons(size: geometry.size, result: displayedResult, playRecord: playRecordBinding)
                 }
-                if let idx = com.battings.firstIndex(where: { $0 == atbat.result }) {
+                if let idx = com.battings.firstIndex(where: { $0 == displayedResult }) {
                     let abb = com.batAbbrevs[idx]
                     drawIt(size: geometry.size, atbat: atbat, abb: abb)
                 }
@@ -271,7 +294,7 @@ struct ScoreGameView: View {
                         .position(x:0.5 * geometry.size.width, y:0.7 * geometry.size.height)
                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 15).rotationEffect(.degrees(47))
                         .position(x:0.43 * geometry.size.width, y:0.81 * geometry.size.height)
-                    if com.onresults.contains(atbat.result) || atbat.result == "Result" {
+                    if com.onresults.contains(displayedResult) || displayedResult == "Result" {
                         Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 11)
                             .position(x:0.5 * geometry.size.width, y:0.92 * geometry.size.height)
                         Path() {
@@ -345,6 +368,167 @@ struct ScoreGameView: View {
                     modelContext.delete(dup)
                 }
             }
+        }
+    }
+
+    private var displayedResult: String {
+        pendingAdditionalChoice?.legacyResult ?? atbat.result
+    }
+
+    private var currentEarnedRun: Bool {
+        pendingAdditionalChoice == nil ? earnedRun : pendingEarnedRun
+    }
+
+    private var earnedRunText: String {
+        currentEarnedRun ? "Run Earned" : "Run Unearned"
+    }
+
+    private var currentPlayRecord: String {
+        pendingAdditionalChoice == nil ? atbat.playRec : pendingPlayRecord
+    }
+
+    private var rbiBinding: Binding<Int> {
+        Binding(
+            get: { pendingAdditionalChoice == nil ? atbat.rbis : pendingRBIs },
+            set: { value in
+                if pendingAdditionalChoice == nil {
+                    atbat.rbis = value
+                } else {
+                    pendingRBIs = value
+                }
+            }
+        )
+    }
+
+    private var stolenBaseBinding: Binding<Int> {
+        Binding(
+            get: { pendingAdditionalChoice == nil ? atbat.stolenBases : pendingStolenBases },
+            set: { value in
+                if pendingAdditionalChoice == nil {
+                    atbat.stolenBases = value
+                } else {
+                    pendingStolenBases = value
+                }
+            }
+        )
+    }
+
+    private var maxBaseBinding: Binding<String> {
+        Binding(
+            get: { pendingAdditionalChoice == nil ? atbat.maxbase : pendingMaxBase },
+            set: { value in
+                if pendingAdditionalChoice == nil {
+                    atbat.maxbase = value
+                } else {
+                    pendingMaxBase = value
+                }
+            }
+        )
+    }
+
+    private var outAtBinding: Binding<String> {
+        Binding(
+            get: { pendingAdditionalChoice == nil ? atbat.outAt : pendingOutAt },
+            set: { value in
+                if pendingAdditionalChoice == nil {
+                    atbat.outAt = value
+                } else {
+                    pendingOutAt = value
+                    if value == "Safe" {
+                        pendingPlayRecord = ""
+                        recPlay = com.recOuts.contains(displayedResult)
+                    } else {
+                        recPlay = true
+                    }
+                }
+            }
+        )
+    }
+
+    private var playRecordBinding: Binding<String> {
+        Binding(
+            get: { pendingAdditionalChoice == nil ? atbat.playRec : pendingPlayRecord },
+            set: { value in
+                if pendingAdditionalChoice == nil {
+                    atbat.playRec = value
+                } else {
+                    pendingPlayRecord = value
+                }
+            }
+        )
+    }
+
+    private func selectResult(_ result: String) {
+        if requiresAdditionalChoice(result), let prepareAdditionalChoiceScoringAction {
+            let presentation = prepareAdditionalChoiceScoringAction(result)
+            if let pending = presentation.pendingChoice, presentation.shouldPresentAdditionalChoices {
+                beginAdditionalChoice(pending)
+            }
+            if let message = presentation.message {
+                print(message)
+            }
+        } else {
+            submitResult(result)
+        }
+    }
+
+    private func requiresAdditionalChoice(_ result: String) -> Bool {
+        com.onresults.contains(result) || com.recOuts.contains(result)
+    }
+
+    private func beginAdditionalChoice(_ pending: LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice) {
+        pendingAdditionalChoice = pending
+        pendingMaxBase = pending.choices.maxBase
+        pendingOutAt = pending.choices.outAt
+        pendingRBIs = pending.choices.rbis
+        pendingStolenBases = pending.choices.stolenBases
+        pendingEarnedRun = pending.choices.earnedRun
+        pendingPlayRecord = pending.choices.playRecord
+        earnedRun = pending.choices.earnedRun
+        recPlay = pending.allowsPlayRecordChoice || pending.choices.outAt != "Safe"
+    }
+
+    @discardableResult
+    private func finalizeAdditionalChoice(
+        _ pending: LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice
+    ) -> LiveScoringShellPresentation.SubmissionPresentation? {
+        guard let submitAdditionalChoiceScoringAction else { return nil }
+        let choices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: pending.legacyResult,
+            maxBase: pendingMaxBase,
+            outAt: pendingOutAt,
+            rbis: pendingRBIs,
+            stolenBases: pendingStolenBases,
+            earnedRun: pendingEarnedRun,
+            playRecord: pendingPlayRecord
+        )
+        let presentation = submitAdditionalChoiceScoringAction(pending, choices)
+        if presentation.disposition == .accepted || presentation.disposition == .duplicatePrevented {
+            pendingAdditionalChoice = nil
+            earnedRun = atbat.earnedRun
+            recPlay = com.recOuts.contains(atbat.result) || atbat.outAt != "Safe"
+        }
+        if let message = presentation.message {
+            print(message)
+        }
+        return presentation
+    }
+
+    private func toggleEarnedRun() {
+        if pendingAdditionalChoice == nil {
+            earnedRun.toggle()
+            atbat.earnedRun = earnedRun
+        } else {
+            pendingEarnedRun.toggle()
+            earnedRun = pendingEarnedRun
+        }
+    }
+
+    private func clearPlayRecord() {
+        if pendingAdditionalChoice == nil {
+            atbat.playRec = ""
+        } else {
+            pendingPlayRecord = ""
         }
     }
 

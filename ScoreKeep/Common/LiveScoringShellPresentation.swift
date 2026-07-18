@@ -59,6 +59,14 @@ struct LiveScoringShellPresentation {
         let message: String?
     }
 
+    struct AdditionalChoicePresentation {
+        let disposition: LiveScoringWorkflowCoordinator.AdditionalChoiceDisposition
+        let pendingChoice: LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice?
+        let shouldPresentAdditionalChoices: Bool
+        let shouldMarkChanged: Bool
+        let message: String?
+    }
+
     func scorecardCellIsEnabled(column: Int, sourceAtbat: Atbat?) -> Bool {
         column > 0 && sourceAtbat != nil
     }
@@ -123,6 +131,19 @@ struct LiveScoringShellPresentation {
             submittedAtbat: result.atbat,
             shouldDismissScoringSheet: accepted && !requiresAdditionalChoice,
             shouldMarkChanged: result.disposition == .accepted,
+            message: result.message
+        )
+    }
+
+    func presentAdditionalChoicePreparation(
+        _ result: LiveScoringWorkflowCoordinator.AdditionalChoicePreparationResult
+    ) -> AdditionalChoicePresentation {
+        let pending = result.disposition == .pending && result.pendingChoice != nil
+        return AdditionalChoicePresentation(
+            disposition: result.disposition,
+            pendingChoice: result.pendingChoice,
+            shouldPresentAdditionalChoices: pending,
+            shouldMarkChanged: false,
             message: result.message
         )
     }
