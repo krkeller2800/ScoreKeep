@@ -11,10 +11,8 @@ import os.log
 
 @main
 struct ScoreKeepApp: App {
-    private static let schemaDiagnosticArgument = "-ScoreKeepSchemaDiagnostic"
-    private static var isSchemaDiagnosticMode: Bool {
-        ProcessInfo.processInfo.arguments.contains(schemaDiagnosticArgument)
-            || CommandLine.arguments.contains(schemaDiagnosticArgument)
+    private static var launchMode: ScoreKeepLaunchMode {
+        ScoreKeepLaunchIsolation.mode()
     }
 
     // Shared purchase manager for the entire app
@@ -26,9 +24,12 @@ struct ScoreKeepApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if Self.isSchemaDiagnosticMode {
+            switch Self.launchMode {
+            case .unitTestHostIsolation:
+                ScoreKeepUnitTestHostIsolationView()
+            case .schemaDiagnostic:
                 ScoreKeepSchemaDiagnosticView()
-            } else {
+            case .production:
                 ScoreKeepProductionStartupHost {
                     Group {
                         if UIDevice.type == "iPad" {
@@ -85,6 +86,12 @@ struct ScoreKeepApp: App {
     }
 }
 
+private struct ScoreKeepUnitTestHostIsolationView: View {
+    var body: some View {
+        Color.clear
+            .accessibilityHidden(true)
+    }
+}
 
 private struct SeederView: View {
     @Environment(\.modelContext) private var modelContext
