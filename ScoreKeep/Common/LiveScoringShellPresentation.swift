@@ -34,6 +34,23 @@ struct LiveScoringShellPresentation {
         let message: String?
     }
 
+    struct EnabledActionPresentation {
+        let identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity
+        let isEnabled: Bool
+        let accessibilityLabel: String
+        let accessibilityHint: String?
+        let warningMessage: String?
+    }
+
+    struct EnabledActionSetPresentation {
+        let actionSet: LiveScoringWorkflowCoordinator.EnabledScoringActionSet
+        let actions: [EnabledActionPresentation]
+
+        func state(for identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity) -> EnabledActionPresentation? {
+            actions.first { $0.identity == identity }
+        }
+    }
+
     func scorecardCellIsEnabled(column: Int, sourceAtbat: Atbat?) -> Bool {
         column > 0 && sourceAtbat != nil
     }
@@ -77,5 +94,37 @@ struct LiveScoringShellPresentation {
             outs: state.outs,
             message: state.warnings.first
         )
+    }
+
+    func presentEnabledActionSet(
+        _ actionSet: LiveScoringWorkflowCoordinator.EnabledScoringActionSet
+    ) -> EnabledActionSetPresentation {
+        EnabledActionSetPresentation(
+            actionSet: actionSet,
+            actions: actionSet.actions.map(presentEnabledAction)
+        )
+    }
+
+    private func presentEnabledAction(
+        _ state: LiveScoringWorkflowCoordinator.EnabledScoringActionState
+    ) -> EnabledActionPresentation {
+        EnabledActionPresentation(
+            identity: state.identity,
+            isEnabled: state.isEnabled,
+            accessibilityLabel: accessibilityLabel(for: state.identity),
+            accessibilityHint: state.unavailableReason,
+            warningMessage: state.warnings.first
+        )
+    }
+
+    private func accessibilityLabel(for identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity) -> String {
+        switch identity {
+        case let .scorecardCell(column, battingOrder):
+            return "Score batter \(battingOrder), column \(column)"
+        case let .legacyResult(result):
+            return result
+        case let .unsupported(result):
+            return result
+        }
     }
 }

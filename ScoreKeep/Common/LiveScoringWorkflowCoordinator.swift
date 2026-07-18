@@ -44,6 +44,41 @@ struct LiveScoringWorkflowCoordinator {
         let canPresentScoringLine: Bool
     }
 
+    enum ScoringActionIdentity: Hashable {
+        case scorecardCell(column: Int, battingOrder: Int)
+        case legacyResult(String)
+        case unsupported(String)
+    }
+
+    enum EnabledActionDisposition: Equatable {
+        case enabled
+        case enabledWithWarnings
+        case disabledPreparedStateUnavailable
+        case disabledPresentationUnavailable
+        case disabledValidationRejected
+        case disabledUnsupported
+    }
+
+    struct EnabledScoringActionState: Equatable {
+        let identity: ScoringActionIdentity
+        let isEnabled: Bool
+        let disposition: EnabledActionDisposition
+        let validationDisposition: CanonicalValidationDisposition?
+        let unavailableReason: String?
+        let warnings: [String]
+    }
+
+    struct EnabledScoringActionSet: Equatable {
+        let preparedState: PreparedLiveGameState
+        let semanticScoreState: SemanticScoreState?
+        let actions: [EnabledScoringActionState]
+        let warnings: [String]
+
+        func state(for identity: ScoringActionIdentity) -> EnabledScoringActionState? {
+            actions.first { $0.identity == identity }
+        }
+    }
+
     enum PreparedStateDisposition: Equatable {
         case ready
         case missingGame
@@ -131,6 +166,8 @@ struct LiveScoringWorkflowCoordinator {
         let battingSide: TeamSideRole
         let battingTeam: PreparedTeamSnapshot?
         let defensiveTeam: PreparedTeamSnapshot?
+        let configuredInningCount: Int?
+        let everyoneHits: Bool?
         let inning: Int
         let halfInning: TeamSideRole
         let outs: Int
@@ -413,6 +450,8 @@ struct LiveScoringWorkflowCoordinator {
             battingSide: battingSide,
             battingTeam: preparedTeam(battingTeam, side: battingSide),
             defensiveTeam: preparedTeam(defensiveTeam, side: battingSide == .home ? .visiting : .home),
+            configuredInningCount: game.numInnings,
+            everyoneHits: game.everyOneHits,
             inning: inning,
             halfInning: battingSide,
             outs: outs,
@@ -493,6 +532,40 @@ struct LiveScoringWorkflowCoordinator {
                 scoreMatchesStored: scoreMatchesStored
             ),
             canPresentScoringLine: true
+        )
+    }
+
+    func enabledScoringActions(
+        preparedState: PreparedLiveGameState,
+        semanticScoreState: SemanticScoreState?,
+        displayedAtbats: [Atbat],
+        supportedLegacyResults: [String]
+    ) -> EnabledScoringActionSet {
+        let resultActions = supportedLegacyResults
+            .filter { $0.isEmpty == false }
+            .map {
+                enabledState(
+                    for: .legacyResult($0),
+                    command: command(forLegacyResult: $0, preparedState: preparedState),
+                    preparedState: preparedState,
+                    semanticScoreState: semanticScoreState
+                )
+            }
+
+        let cellActions = preparedState.lineup.map {
+            enabledScorecardCell(
+                column: preparedState.currentScorecardColumn,
+                lineupEntry: $0,
+                preparedState: preparedState,
+                semanticScoreState: semanticScoreState
+            )
+        }
+
+        return EnabledScoringActionSet(
+            preparedState: preparedState,
+            semanticScoreState: semanticScoreState,
+            actions: (cellActions + resultActions).sorted(by: enabledActionPrecedes),
+            warnings: ((semanticScoreState?.warnings ?? []) + preparedState.warnings).sorted()
         )
     }
 
@@ -765,6 +838,255 @@ struct LiveScoringWorkflowCoordinator {
         return warnings.sorted()
     }
 
+    private func enabledScorecardCell(
+        column: Int,
+        lineupEntry: PreparedLineupEntry,
+        preparedState: PreparedLiveGameState,
+        semanticScoreState: SemanticScoreState?
+    ) -> EnabledScoringActionState {
+        let identity = ScoringActionIdentity.scorecardCell(column: column, battingOrder: lineupEntry.slot)
+        guard column > 0 else {
+            return disabledAction(identity, disposition: .disabledPresentationUnavailable, reason: "Scorecard column is unavailable.")
+        }
+        guard preparedState.canScore else {
+            return disabledAction(identity, disposition: .disabledPreparedStateUnavailable, reason: unavailableReason(forPreparedState: preparedState))
+        }
+        guard semanticScoreState?.canPresentScoringLine ?? false else {
+            return disabledAction(identity, disposition: .disabledPresentationUnavailable, reason: "Scoring state is not ready for this at-bat.")
+        }
+
+        return EnabledScoringActionState(
+            identity: identity,
+            isEnabled: true,
+            disposition: .enabled,
+            validationDisposition: nil,
+            unavailableReason: nil,
+            warnings: []
+        )
+    }
+
+    private func enabledState(
+        for identity: ScoringActionIdentity,
+        command: CanonicalScoringCommand?,
+        preparedState: PreparedLiveGameState,
+        semanticScoreState: SemanticScoreState?
+    ) -> EnabledScoringActionState {
+        guard preparedState.canScore else {
+            return disabledAction(identity, disposition: .disabledPreparedStateUnavailable, reason: unavailableReason(forPreparedState: preparedState))
+        }
+        guard semanticScoreState?.canPresentScoringLine ?? false else {
+            return disabledAction(identity, disposition: .disabledPresentationUnavailable, reason: "Scoring state is not ready for this action.")
+        }
+        guard let command else {
+            return disabledAction(identity, disposition: .disabledUnsupported, reason: "This scoring choice is not supported for the current game state.")
+        }
+
+        let input = scoringCommandInputState(from: preparedState)
+        let validation = CanonicalScoringCommandValidator.validate(command, against: input, sourceLocation: "Task 7.3 enabled action state")
+        guard validation.mayApplyInMemory else {
+            return EnabledScoringActionState(
+                identity: identity,
+                isEnabled: false,
+                disposition: validation.result.disposition == .unsupported ? .disabledUnsupported : .disabledValidationRejected,
+                validationDisposition: validation.result.disposition,
+                unavailableReason: unavailableReason(for: validation),
+                warnings: validation.result.findings.map(\.code).sorted()
+            )
+        }
+
+        return EnabledScoringActionState(
+            identity: identity,
+            isEnabled: true,
+            disposition: validation.result.disposition == .validWithWarnings ? .enabledWithWarnings : .enabled,
+            validationDisposition: validation.result.disposition,
+            unavailableReason: nil,
+            warnings: validation.result.findings.map(\.code).sorted()
+        )
+    }
+
+    private func scoringCommandInputState(from preparedState: PreparedLiveGameState) -> CanonicalScoringCommandInputState {
+        CanonicalScoringCommandInputState(
+            game: canonicalGame(from: preparedState),
+            battingSide: preparedState.battingSide,
+            inning: CanonicalHalfInning(
+                number: .known(preparedState.inning),
+                half: .known(preparedState.halfInning == .home ? .bottom : .top),
+                expectedInnings: expectedInnings(from: preparedState.configuredInningCount),
+                source: .currentGameRecord
+            ),
+            outs: CanonicalOutsState(outs: .known(preparedState.outs), source: .currentGameRecord),
+            baseOccupancy: canonicalBaseOccupancy(from: preparedState.bases),
+            count: .unsupportedRepositoryEvidence,
+            score: CanonicalProjectedScore(home: preparedState.score.home, visiting: preparedState.score.visiting),
+            currentBatter: preparedState.currentBatter.map { lineupParticipant(from: $0, gameIdentity: preparedState.gameIdentity, side: preparedState.battingSide) },
+            lineupParticipants: preparedState.lineup.map { lineupParticipant(from: $0.player, gameIdentity: preparedState.gameIdentity, side: preparedState.battingSide) },
+            pitcherResponsibility: preparedState.currentPitcher.map { pitcherResponsibility(from: $0, gameIdentity: preparedState.gameIdentity) }
+        )
+    }
+
+    private func command(forLegacyResult rawResult: String, preparedState: PreparedLiveGameState) -> CanonicalScoringCommand? {
+        guard let gameIdentity = preparedState.gameIdentity else { return nil }
+        return CanonicalScoringCommandVocabulary.command(
+            rawResult: rawResult,
+            gameIdentity: .valid(gameIdentity),
+            teamSide: preparedState.battingSide,
+            batter: preparedState.currentBatter.map { lineupParticipant(from: $0, gameIdentity: preparedState.gameIdentity, side: preparedState.battingSide) },
+            proposedEventIdentity: preparedState.currentOrPendingLegacyAtbat.map { .valid($0.identity) } ?? .missing,
+            source: .scoringView
+        )
+    }
+
+    private func canonicalGame(from preparedState: PreparedLiveGameState) -> CanonicalGameIdentity {
+        CanonicalGameIdentity(
+            identity: preparedState.gameIdentity.map { .valid($0) } ?? .missing,
+            displayEvidence: GameDisplayEvidence(
+                homeTeamName: preparedState.homeTeam?.name,
+                visitingTeamName: preparedState.visitingTeam?.name,
+                storedHomeScore: preparedState.score.home,
+                storedVisitingScore: preparedState.score.visiting
+            ),
+            configuration: gameConfiguration(from: preparedState),
+            origin: .unknown,
+            lifecycle: preparedState.canScore ? .inProgress : .incomplete,
+            source: .currentGameRecord
+        )
+    }
+
+    private func gameConfiguration(from preparedState: PreparedLiveGameState) -> GameConfigurationEvidence {
+        guard let configuredInningCount = preparedState.configuredInningCount,
+              let everyoneHits = preparedState.everyoneHits else {
+            return .missing
+        }
+        return .configured(
+            expectedInnings: expectedInnings(from: configuredInningCount),
+            lineupMode: everyoneHits ? .everyoneHits : .traditional
+        )
+    }
+
+    private func expectedInnings(from configuredInningCount: Int?) -> ExpectedInningCountEvidence {
+        guard let configuredInningCount else { return .missing }
+        return configuredInningCount <= 0 ? .invalid(configuredInningCount) : .known(configuredInningCount)
+    }
+
+    private func canonicalBaseOccupancy(from bases: PreparedBaseOccupancy) -> CanonicalBaseOccupancy {
+        var runnerStates: [RunnerStateEvidence] = []
+        if let first = bases.first { runnerStates.append(.activeOccupant(base: .first, runner: runnerIdentity(from: first))) }
+        if let second = bases.second { runnerStates.append(.activeOccupant(base: .second, runner: runnerIdentity(from: second))) }
+        if let third = bases.third { runnerStates.append(.activeOccupant(base: .third, runner: runnerIdentity(from: third))) }
+        return CanonicalBaseOccupancy(runnerStates: runnerStates, source: .currentGameRecord)
+    }
+
+    private func lineupParticipant(from player: PreparedPlayerSnapshot, gameIdentity: UUID?, side: TeamSideRole) -> LineupParticipantEvidence {
+        let reusablePlayer = ReusableCanonicalPlayer(
+            identity: .valid(player.identity),
+            display: playerDisplay(from: player),
+            source: .historicalGameParticipation
+        )
+        return .gameParticipant(GamePlayerParticipation(
+            participantIdentity: .valid(player.identity),
+            gameIdentity: gameIdentity.map { .valid($0) } ?? .missing,
+            playerResolution: .reusablePlayer(reusablePlayer),
+            teamEvidence: .gameSide(GameSideTeamParticipation(
+                gameIdentity: gameIdentity.map { .valid($0) } ?? .missing,
+                role: side,
+                resolution: .unknown(TeamDisplayEvidence())
+            )),
+            historicalDisplay: playerDisplay(from: player),
+            roles: [.batter],
+            source: .historicalGameParticipation
+        ))
+    }
+
+    private func runnerIdentity(from runner: PreparedRunner) -> RunnerIdentityEvidence {
+        .knownHistoricalParticipant(.valid(runner.player.identity), playerDisplay(from: runner.player))
+    }
+
+    private func pitcherResponsibility(from pitcher: PreparedPitcherSnapshot, gameIdentity: UUID?) -> CanonicalPitcherResponsibilityEvidence {
+        let appearance = CanonicalPitcherAppearanceEvidence(
+            appearanceIdentity: .valid(pitcher.player.identity),
+            reusablePitcherIdentity: .valid(pitcher.player.identity),
+            gameIdentity: gameIdentity.map { .valid($0) } ?? .missing,
+            teamSide: pitcher.team.side,
+            appearanceOrder: .init(kind: .pitcherAppearance, value: pitcher.appearanceIndex),
+            roleEvidence: [.activePitcher],
+            historicalDisplayEvidence: playerDisplay(from: pitcher.player),
+            source: .currentPitcherRecord
+        )
+        return CanonicalPitcherResponsibilityEvidence(
+            eventIdentity: .missing,
+            gameIdentity: gameIdentity.map { .valid($0) } ?? .missing,
+            teamSide: pitcher.team.side,
+            responsibility: .explicitPitcher(appearance),
+            source: .currentPitcherRecord
+        )
+    }
+
+    private func playerDisplay(from player: PreparedPlayerSnapshot) -> PlayerDisplayEvidence {
+        PlayerDisplayEvidence(
+            name: .present(player.name),
+            jerseyNumber: .present(player.number)
+        )
+    }
+
+    private func disabledAction(
+        _ identity: ScoringActionIdentity,
+        disposition: EnabledActionDisposition,
+        reason: String
+    ) -> EnabledScoringActionState {
+        EnabledScoringActionState(
+            identity: identity,
+            isEnabled: false,
+            disposition: disposition,
+            validationDisposition: nil,
+            unavailableReason: reason,
+            warnings: []
+        )
+    }
+
+    private func unavailableReason(forPreparedState preparedState: PreparedLiveGameState) -> String {
+        switch preparedState.disposition {
+        case .ready:
+            return "This scoring action is unavailable."
+        case .missingGame:
+            return "A game is required before scoring."
+        case .missingRequiredTeam:
+            return "Both teams are required before scoring."
+        case .missingLineup:
+            return "A batting lineup is required before scoring."
+        case .unavailableBatter:
+            return "A current batter is required before scoring."
+        case .unavailablePitcher:
+            return "A current pitcher is required before scoring."
+        case .inconsistentLegacyState:
+            return "The current game state must be reviewed before scoring."
+        case .unsupportedState:
+            return "This game state is not supported for scoring."
+        }
+    }
+
+    private func unavailableReason(for validation: CanonicalScoringCommandValidation) -> String {
+        let sortedFindings = validation.result.findings.sorted(by: { $0.code < $1.code })
+        if let finding = sortedFindings.first(where: { $0.disposition != .validWithWarnings }) ?? sortedFindings.first {
+            return finding.summary
+        }
+        return "This scoring choice is not available for the current game state."
+    }
+
+    private func enabledActionPrecedes(_ lhs: EnabledScoringActionState, _ rhs: EnabledScoringActionState) -> Bool {
+        enabledActionSortKey(lhs.identity) < enabledActionSortKey(rhs.identity)
+    }
+
+    private func enabledActionSortKey(_ identity: ScoringActionIdentity) -> String {
+        switch identity {
+        case let .scorecardCell(column, battingOrder):
+            return "0-\(column)-\(battingOrder)"
+        case let .legacyResult(result):
+            return "1-\(result)"
+        case let .unsupported(result):
+            return "2-\(result)"
+        }
+    }
+
     private func runnerIdentity(from atbat: Atbat) -> RunnerIdentityEvidence {
         .knownHistoricalParticipant(
             .valid(atbat.player.identifier),
@@ -795,6 +1117,8 @@ struct LiveScoringWorkflowCoordinator {
             battingSide: battingSide,
             battingTeam: battingTeam.map { preparedTeam($0, side: battingSide) },
             defensiveTeam: defensiveTeam.map { preparedTeam($0, side: battingSide == .home ? .visiting : .home) },
+            configuredInningCount: game?.numInnings,
+            everyoneHits: game?.everyOneHits,
             inning: 1,
             halfInning: battingSide,
             outs: 0,

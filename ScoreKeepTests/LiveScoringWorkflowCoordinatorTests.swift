@@ -242,6 +242,38 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
+    @Test("prepared live game state carries exact legacy game configuration evidence")
+    func preparedLiveGameStateCarriesExactLegacyGameConfigurationEvidence() throws {
+        let store = try Store()
+        let sevenInningFixture = Fixture.insertGame(into: store.context, location: "Seven Inning Field", everyOneHits: true, numInnings: 7)
+        let nineInningFixture = Fixture.insertGame(into: store.context, location: "Nine Inning Field", everyOneHits: false, numInnings: 9)
+        let sevenPitcher = Pitcher(player: sevenInningFixture.homePitcher, team: sevenInningFixture.homeTeam, game: sevenInningFixture.game, startInn: 1, endInn: 1)
+        let ninePitcher = Pitcher(player: nineInningFixture.homePitcher, team: nineInningFixture.homeTeam, game: nineInningFixture.game, startInn: 1, endInn: 1)
+        store.context.insert(sevenPitcher)
+        store.context.insert(ninePitcher)
+        sevenInningFixture.game.pitchers.append(sevenPitcher)
+        nineInningFixture.game.pitchers.append(ninePitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let beforeSeven = Snapshot.capture(sevenInningFixture.game)
+
+        let seven = coordinator.prepareLiveGameState(game: sevenInningFixture.game, battingTeam: sevenInningFixture.visitingTeam, displayedAtbats: sevenInningFixture.displayedAtbats, pitchers: [sevenPitcher])
+        let sevenRepeat = coordinator.prepareLiveGameState(game: sevenInningFixture.game, battingTeam: sevenInningFixture.visitingTeam, displayedAtbats: sevenInningFixture.displayedAtbats, pitchers: [sevenPitcher])
+        let nine = coordinator.prepareLiveGameState(game: nineInningFixture.game, battingTeam: nineInningFixture.visitingTeam, displayedAtbats: nineInningFixture.displayedAtbats, pitchers: [ninePitcher])
+        let afterSeven = Snapshot.capture(sevenInningFixture.game)
+
+        #expect(seven.configuredInningCount == 7)
+        #expect(seven.everyoneHits == true)
+        #expect(nine.configuredInningCount == 9)
+        #expect(nine.everyoneHits == false)
+        #expect(seven == sevenRepeat)
+        #expect(beforeSeven == afterSeven)
+        #expect(seven.score == .init(home: 0, visiting: 0))
+        #expect(seven.lineup.map(\.slot) == [1, 2])
+        #expect(try store.fetchLegacyAtbats().count == 4)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
     @Test("prepared live game state reflects legacy substitution arrays and pitch hitter lineup entry")
     func preparedLiveGameStateReflectsLegacySubstitutionArraysAndPitchHitterLineupEntry() throws {
         let store = try Store()
@@ -408,6 +440,106 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(semantic.warnings.contains("semanticScoreState.preparedStateUnavailable"))
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("enabled action state enables supported choices from valid prepared state")
+    func enabledActionStateEnablesSupportedChoicesFromValidPreparedState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let prepared = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let actions = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single", "Ground Out"])
+
+        #expect(actions.state(for: .legacyResult("Single"))?.isEnabled == true)
+        #expect(actions.state(for: .legacyResult("Single"))?.validationDisposition == .valid)
+        #expect(actions.state(for: .legacyResult("Ground Out"))?.isEnabled == true)
+        #expect(actions.state(for: .scorecardCell(column: 1, battingOrder: 1))?.isEnabled == true)
+        #expect(actions.actions.filter { !$0.isEnabled }.allSatisfy { $0.unavailableReason?.isEmpty == false })
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("enabled action state disables validation rejection with accessible deterministic reason")
+    func enabledActionStateDisablesValidationRejectionWithAccessibleDeterministicReason() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.visitingFirst.result = "Ground Out"
+        fixture.visitingFirst.outs = 3
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let prepared = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let first = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
+        let second = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
+
+        let single = try #require(first.state(for: .legacyResult("Single")))
+        #expect(!single.isEnabled)
+        #expect(single.disposition == .disabledValidationRejected)
+        #expect(single.validationDisposition == .rejected)
+        #expect(single.unavailableReason == "A new scoring command cannot apply after an existing third-out context in this foundation.")
+        #expect(first == second)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("enabled action state disables unsupported and unavailable prepared actions with reasons")
+    func enabledActionStateDisablesUnsupportedAndUnavailablePreparedActionsWithReasons() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let prepared = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [])
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let unavailable = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
+
+        #expect(unavailable.state(for: .legacyResult("Single"))?.isEnabled == false)
+        #expect(unavailable.state(for: .legacyResult("Single"))?.unavailableReason == "A current pitcher is required before scoring.")
+
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let ready = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let readySemantic = coordinator.semanticScoreState(preparedState: ready, displayedAtbats: fixture.displayedAtbats)
+        let unsupported = coordinator.enabledScoringActions(preparedState: ready, semanticScoreState: readySemantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Moon Shot"])
+        let unsupportedAction = try #require(unsupported.state(for: .legacyResult("Moon Shot")))
+
+        #expect(!unsupportedAction.isEnabled)
+        #expect(unsupportedAction.disposition == .disabledUnsupported)
+        #expect(unsupportedAction.unavailableReason == "Legacy scoring result is preserved but unsupported by accepted command vocabulary.")
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("enabled action state preserves prepared and semantic score state")
+    func enabledActionStatePreservesPreparedAndSemanticScoreState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let before = Snapshot.capture(fixture.game)
+
+        let prepared = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let actions = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single", "Ground Out"])
+        let after = Snapshot.capture(fixture.game)
+
+        #expect(actions.preparedState == prepared)
+        #expect(actions.semanticScoreState == semantic)
+        #expect(before == after)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 private struct Store {
@@ -446,7 +578,12 @@ private struct Fixture {
         [visitingFirst, visitingSecond]
     }
 
-    static func insertGame(into context: ModelContext, location: String = "Task 5.10 Field") -> Fixture {
+    static func insertGame(
+        into context: ModelContext,
+        location: String = "Task 5.10 Field",
+        everyOneHits: Bool = false,
+        numInnings: Int = 9
+    ) -> Fixture {
         let visitingTeam = Team(name: "Visitors", coach: "", details: "")
         let homeTeam = Team(name: "Home", coach: "", details: "")
         let visitingFirstPlayer = Player(name: "Visitor One", number: "1", position: "SS", batDir: "R", batOrder: 1, team: visitingTeam)
@@ -458,6 +595,8 @@ private struct Fixture {
             highLights: "",
             hscore: 0,
             vscore: 0,
+            everyOneHits: everyOneHits,
+            numInnings: numInnings,
             vteam: visitingTeam,
             hteam: homeTeam
         )

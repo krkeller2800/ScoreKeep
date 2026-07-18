@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ScoreKeep
 
@@ -113,6 +114,33 @@ struct LiveScoringShellPresentationTests {
         #expect(presentation.outs == 2)
         #expect(presentation.message == "semanticScoreState.storedScoreMismatch")
     }
+
+    @Test("enabled action presentation exposes disabled reason for accessibility")
+    func enabledActionPresentationExposesDisabledReasonForAccessibility() {
+        let presenter = LiveScoringShellPresentation()
+        let prepared = Fixture.preparedState(canScore: false)
+        let disabled = LiveScoringWorkflowCoordinator.EnabledScoringActionState(
+            identity: .legacyResult("Single"),
+            isEnabled: false,
+            disposition: .disabledPreparedStateUnavailable,
+            validationDisposition: nil,
+            unavailableReason: "A current pitcher is required before scoring.",
+            warnings: []
+        )
+        let actionSet = LiveScoringWorkflowCoordinator.EnabledScoringActionSet(
+            preparedState: prepared,
+            semanticScoreState: nil,
+            actions: [disabled],
+            warnings: []
+        )
+
+        let presentation = presenter.presentEnabledActionSet(actionSet)
+        let action = presentation.state(for: .legacyResult("Single"))
+
+        #expect(action?.isEnabled == false)
+        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityHint == "A current pitcher is required before scoring.")
+    }
 }
 
 private enum Fixture {
@@ -121,5 +149,37 @@ private enum Fixture {
         let player = Player(name: "Visitor One", number: "1", position: "SS", batDir: "R", batOrder: 1, team: team)
         let game = Game(date: "2026-07-18T12:00:00Z", location: "Task 6.9 Field", highLights: "", hscore: 0, vscore: 0, vteam: team, hteam: Team(name: "Home", coach: "", details: ""))
         return Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+    }
+
+    static func preparedState(canScore: Bool) -> LiveScoringWorkflowCoordinator.PreparedLiveGameState {
+        let homeTeamID = UUID()
+        let visitingTeamID = UUID()
+        return LiveScoringWorkflowCoordinator.PreparedLiveGameState(
+            disposition: canScore ? .ready : .unavailablePitcher,
+            gameIdentity: UUID(uuidString: "97000000-0000-0000-0000-000000000001"),
+            homeTeam: .init(identity: homeTeamID, name: "Home", side: .home),
+            visitingTeam: .init(identity: visitingTeamID, name: "Visitors", side: .visiting),
+            battingSide: .visiting,
+            battingTeam: .init(identity: visitingTeamID, name: "Visitors", side: .visiting),
+            defensiveTeam: .init(identity: homeTeamID, name: "Home", side: .home),
+            configuredInningCount: 9,
+            everyoneHits: false,
+            inning: 1,
+            halfInning: .visiting,
+            outs: 0,
+            score: .init(home: 0, visiting: 0),
+            bases: .init(first: nil, second: nil, third: nil),
+            currentBatter: nil,
+            battingOrderPosition: nil,
+            currentPitcher: nil,
+            latestScoringSequence: nil,
+            currentScorecardColumn: 1,
+            currentOrPendingLegacyAtbat: nil,
+            lineup: [],
+            pitcherAppearances: [],
+            substitutions: [],
+            warnings: canScore ? [] : ["preparedLiveGameState.unavailablePitcher"],
+            canScore: canScore
+        )
     }
 }

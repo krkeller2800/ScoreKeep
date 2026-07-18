@@ -21,7 +21,18 @@ struct ScoreGameView: View {
     @State private var onBase: String = "Result"
     @State private var batOut: String = "Result"
 
+    let enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation?
     let com:Common = Common()
+
+    init(
+        atbat: Binding<Atbat>,
+        showingScoring: Binding<Bool>,
+        enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation? = nil
+    ) {
+        _atbat = atbat
+        _showingScoring = showingScoring
+        self.enabledActionPresentation = enabledActionPresentation
+    }
     
     var body: some View {
         Section {
@@ -97,7 +108,14 @@ struct ScoreGameView: View {
                             Divider()
                             let bats = com.onresults
                             ForEach (bats, id: \.self) { batting in
-                                (batting != "") ? Text(batting).tag(batting): nil
+                                if batting != "" {
+                                    let action = resultPresentation(for: batting)
+                                    Text(batting)
+                                        .tag(batting)
+                                        .disabled(!action.isEnabled)
+                                        .accessibilityLabel(action.accessibilityLabel)
+                                        .accessibilityHint(action.accessibilityHint ?? "")
+                                }
                                 if batting == "Dropped 3rd Stike" || batting == "Fielder's Choice" || batting == "Home Run" {
                                     Divider()
                                 }
@@ -117,7 +135,14 @@ struct ScoreGameView: View {
                             Divider()
                             let bats = com.outresults
                             ForEach (bats, id: \.self) { batting in
-                                (batting != "") ? Text(batting).tag(batting): nil
+                                if batting != "" {
+                                    let action = resultPresentation(for: batting)
+                                    Text(batting)
+                                        .tag(batting)
+                                        .disabled(!action.isEnabled)
+                                        .accessibilityLabel(action.accessibilityLabel)
+                                        .accessibilityHint(action.accessibilityHint ?? "")
+                                }
                                 if batting == "Strikeout Looking" {
                                     Divider()
                                 }
@@ -288,10 +313,6 @@ struct ScoreGameView: View {
             }
         }
     }
-    init(atbat: Binding<Atbat>, showingScoring: Binding<Bool>) {
-        _atbat = atbat
-        _showingScoring = showingScoring
-    }
     func setEndOfInning () {
      
         var inning = 0
@@ -335,5 +356,18 @@ struct ScoreGameView: View {
             }
         }
     }
- }
 
+    private func resultPresentation(for result: String) -> LiveScoringShellPresentation.EnabledActionPresentation {
+        let identity = LiveScoringWorkflowCoordinator.ScoringActionIdentity.legacyResult(result)
+        if let action = enabledActionPresentation?.state(for: identity) {
+            return action
+        }
+        return LiveScoringShellPresentation.EnabledActionPresentation(
+            identity: identity,
+            isEnabled: false,
+            accessibilityLabel: result,
+            accessibilityHint: "Scoring state is not ready for this action.",
+            warningMessage: nil
+        )
+    }
+ }

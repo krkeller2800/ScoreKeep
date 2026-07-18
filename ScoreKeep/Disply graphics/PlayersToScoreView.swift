@@ -31,8 +31,10 @@ struct PlayersToScoreView: View {
     @State var iStat:InnStatus = InnStatus()
     @State private var preparedLiveGameState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
     @State private var semanticScorePresentation: LiveScoringShellPresentation.SemanticScorePresentation?
+    @State private var enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation?
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
+    let com = Common()
 
     @State var theAtbat = Atbat(game: Game(date: "", location: "", highLights: "", hscore: 0, vscore: 0),
                                 team: Team(name: "", coach: "", details: ""),
@@ -96,7 +98,9 @@ struct PlayersToScoreView: View {
                                                         })
                                                         .frame(width: bSiz, height: bSiz)
                                                         .buttonStyle(GlowButtonStyle())
-                                                        .disabled(!liveScoringShellPresentation.scorecardCellIsEnabled(column: ind, sourceAtbat: atbat))
+                                                        .disabled(!scorecardCellPresentation(column: ind, atbat: atbat).isEnabled)
+                                                        .accessibilityLabel(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityLabel)
+                                                        .accessibilityHint(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityHint ?? "")
                                                     }
                                                 }
                                                 let mCol = Double(gWidth) - 150 - (Double(maxCol+1) * gridSz)
@@ -154,7 +158,13 @@ struct PlayersToScoreView: View {
                 }
 
             }
-            .sheet(isPresented: $showingScoring) { ScoreGameView(atbat: $theAtbat, showingScoring: $showingScoring) }
+            .sheet(isPresented: $showingScoring) {
+                ScoreGameView(
+                    atbat: $theAtbat,
+                    showingScoring: $showingScoring,
+                    enabledActionPresentation: enabledActionPresentation
+                )
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
                 
@@ -201,6 +211,13 @@ struct PlayersToScoreView: View {
         if let message = scorePresentation.message {
             print(message)
         }
+        let enabledActions = liveScoringCoordinator.enabledScoringActions(
+            preparedState: preparedPresentation.preparedState,
+            semanticScoreState: semanticState,
+            displayedAtbats: atbats,
+            supportedLegacyResults: com.onresults + com.outresults
+        )
+        enabledActionPresentation = liveScoringShellPresentation.presentEnabledActionSet(enabledActions)
 
         let result = liveScoringCoordinator.refreshProjections(
             displayedAtbats: atbats,
@@ -259,6 +276,27 @@ struct PlayersToScoreView: View {
     private func containsPlayer(_ player: Player, in players: [Player]) -> Bool {
         let playerID = player.persistentModelID
         return players.contains { $0.persistentModelID == playerID }
+    }
+
+    private func scorecardCellPresentation(
+        column: Int,
+        atbat: Atbat
+    ) -> LiveScoringShellPresentation.EnabledActionPresentation {
+        let identity = LiveScoringWorkflowCoordinator.ScoringActionIdentity.scorecardCell(
+            column: column,
+            battingOrder: atbat.batOrder
+        )
+        if let presentation = enabledActionPresentation?.state(for: identity) {
+            return presentation
+        }
+        let enabled = liveScoringShellPresentation.scorecardCellIsEnabled(column: column, sourceAtbat: atbat)
+        return LiveScoringShellPresentation.EnabledActionPresentation(
+            identity: identity,
+            isEnabled: enabled,
+            accessibilityLabel: "Score batter \(atbat.batOrder), column \(column)",
+            accessibilityHint: enabled ? nil : "Scorecard selection is unavailable.",
+            warningMessage: nil
+        )
     }
 
     private func teamForName(_ name: String) -> Team? {
