@@ -1533,3 +1533,16 @@ The approved design is:
 - Difficult runner-out ambiguity is representable through stable runner identity, event sequence, runner-out payload, third-out evidence, and explicit ambiguity classifications.
 
 Task 3.22 should implement only the Proposed V3 storage and migration boundary. It must not route production scoring, persist live scoring commands, synthesize canonical history, retire Legacy storage, or begin Task 3.20.
+
+<!-- MARK: - 31. Task 3.23 Implementation Boundary -->
+## 31. Task 3.23 Implementation Boundary
+
+Task 3.23 implements `CanonicalScoringTransactionAdapter` as the first production-compiled but non-routed canonical scoring write boundary. The adapter owns transaction coordination for accepted value-only scoring requests. SwiftUI, Legacy scoring views, reports, statistics, imports, exports, startup migration, and scoring-authority routing do not call it.
+
+Transaction ownership is one dedicated SwiftData `ModelContext` per adapter request with autosave disabled. Accepted requests perform duplicate/conflict lookup, target validation, sequence allocation, pending graph insertion, one explicit save, and fresh-context verification. Validation failures and unsupported commands do not create durable operation evidence. Save failures roll back pending inserts and reconcile by durable operation lookup before allowing safe retry.
+
+Durable idempotency is `CanonicalScoringOperationEvidenceRecord.operationIdentity` plus a request fingerprint over the operation mode, game identity, event identity, payload fingerprint, correction identity, target identity, and expected target fingerprint. Exact retries return deterministic already-applied results. Conflicting reuse of an operation identity fails closed. Near-concurrent duplicates converge through persistent uniqueness and fresh-context reconciliation.
+
+Corrections are append-only replacement operations. A correction writes a new operation, replacement event envelope, payload, and correction/supersession record that references the original event and replacement event. The original event and payload are not rewritten or deleted. Missing, wrong-game, already superseded, self-referential, or fingerprint-mismatched targets fail closed. One accepted supersession per original event is enforced by adapter validation because compound uniqueness remains outside the iOS 17.6 schema boundary.
+
+The schema remains Proposed V3 with exactly five canonical scoring models. No V1 or V2 schema changed, no sixth canonical model was added, no Legacy history was backfilled, and production scoring remains Legacy. Persisted replay, corrected active-state synthesis, report/statistics routing, production scoring cutover, historical-game backfill, and Legacy scoring retirement remain later tasks.

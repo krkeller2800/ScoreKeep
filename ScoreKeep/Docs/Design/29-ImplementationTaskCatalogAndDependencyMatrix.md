@@ -243,6 +243,16 @@ Task 3.22F cleanup record: obsolete duplicate-checksum investigation scaffolding
 
 Final Task 3.22 review accepted the Path C safety substitute for the missing independent frozen V2 semantic open: exact metadata identity, source-family discovery and preservation, operation-scoped copied-workspace migration, V3 semantic reconciliation, canonical-zero verification, and retained rollback. Task 3.22 intentionally ends with the V3 candidate marked destination verified and eligible for later acceptance, without production promotion, active-store replacement, canonical scoring writes, or Legacy scoring retirement. Task 3.22 is complete; Task 3.23 remains blocked until separately authorized.
 
+### Task 3.23 Completion Record - Scoring Transaction, Correction, Supersession, and Idempotency Adapter
+
+Task 3.23 is complete as a bounded non-routed canonical scoring transaction adapter. The implemented boundary accepts value-only approved scoring requests, uses a dedicated SwiftData `ModelContext` with autosave disabled, performs duplicate and conflict lookup before insertion, allocates a game-scoped commit sequence inside the transaction, inserts canonical history, operation evidence, event envelope, payload, and accepted correction evidence as one pending graph, performs one explicit save for accepted mutations, and verifies completion through a fresh context. Returned results are value-only and no managed objects escape the boundary.
+
+Idempotency is durable through `CanonicalScoringOperationEvidenceRecord.operationIdentity` and request fingerprints. Exact retries return deterministic already-applied evidence without duplicate canonical rows. Reuse of one operation identity for different payload or correction evidence fails closed as a conflict. Save failure rolls back pending inserts and reconciles by fresh durable lookup; near-concurrent duplicates converge to one accepted operation. Validation failure creates no durable canonical rows.
+
+Corrections are append-only replacement operations. A correction creates a new operation, a new replacement event, a new payload, and a `CanonicalScoringCorrectionRecord` that identifies the original target and replacement event. The original event and payload remain unchanged. Missing targets, wrong-game targets, self-supersession, fingerprint mismatch, and already superseded targets fail closed. The current policy allows one accepted supersession per original event; replay interpretation and active corrected-state synthesis remain Task 3.24 or later work.
+
+Production scoring remains Legacy. No SwiftUI scoring control, Legacy scoring writer, report, statistics, import/export, migration, startup promotion, or scoring-authority route calls this adapter. No V1 or V2 schema changed, no sixth canonical model was added, no historical Legacy game receives synthesized canonical history, and no selected Task 3.23 test constructs runtime-effective V2 and V3 together.
+
 <!-- MARK: - 10. Phase 4 Task Catalog - Compatibility Import and Export -->
 ## 10. Phase 4 Task Catalog - Compatibility Import and Export
 
