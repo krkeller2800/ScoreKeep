@@ -214,8 +214,8 @@ struct ScoreContentView: View {
                     columnVisability = .doubleColumn
                 }
             }
-            .navigationDestination(for: Team.self) { team in
-                EditTeamView(navigationPath: $path, team: team)
+            .navigationDestination(for: TeamNavigationDestination.self) { destination in
+                TeamNavigationDestinationView(destination: destination, navigationPath: $path)
             }
             .onChange(of: isSearching) {
                 if isSearching == false {
@@ -268,7 +268,7 @@ struct ScoreContentView: View {
         let team = Team(name: "", coach: "", details: "")
         modelContext.insert(team)
         try? modelContext.save()
-        path.append(team)
+        path.append(TeamNavigationDestination(teamIdentity: team.ident))
     }
 
     // MARK: - Paywall sheet content (extracted)

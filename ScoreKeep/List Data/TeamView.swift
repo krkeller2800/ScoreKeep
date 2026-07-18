@@ -9,6 +9,32 @@ import SwiftUI
 import SwiftData
 import Foundation
 @MainActor
+struct TeamNavigationDestination: Hashable {
+    let teamIdentity: UUID
+}
+
+struct TeamNavigationDestinationView: View {
+    @Binding var navigationPath: NavigationPath
+    @Query private var teams: [Team]
+
+    init(destination: TeamNavigationDestination, navigationPath: Binding<NavigationPath>) {
+        _navigationPath = navigationPath
+        let teamIdentity = destination.teamIdentity
+        _teams = Query(filter: #Predicate<Team> { team in
+            team.ident == teamIdentity
+        })
+    }
+
+    var body: some View {
+        if let team = teams.first {
+            EditTeamView(navigationPath: $navigationPath, team: team)
+        } else {
+            Text("Team not found")
+        }
+    }
+}
+
+@MainActor
 struct TeamView: View {
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject private var teamCreationRoutes: SimpleTeamCreationRoutingService
@@ -76,7 +102,7 @@ struct TeamView: View {
                 .accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(20).padding(.leading,5)
             }
             ForEach(teams) { team in
-                NavigationLink(value: team) {
+                NavigationLink(value: TeamNavigationDestination(teamIdentity: team.ident)) {
                     HStack {
                         HStack {
                             if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
@@ -264,5 +290,4 @@ struct TeamView: View {
         return submission
     }
 }
-
 

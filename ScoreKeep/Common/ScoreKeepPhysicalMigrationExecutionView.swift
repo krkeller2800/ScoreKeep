@@ -47,7 +47,7 @@ struct ScoreKeepPhysicalMigrationExecutionView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("ScoreKeep Migration Test")
                 .font(.title2.weight(.semibold))
-            Text("Proposed V2 Migration")
+            Text("Proposed V3 Migration")
                 .font(.headline)
             Text("Disposable Test Data Only")
                 .font(.subheadline.weight(.semibold))
@@ -171,7 +171,7 @@ struct ScoreKeepPhysicalMigrationExecutionPreflight: Hashable, Sendable {
         migrationIsComplete == false
             && protectedDataState == .available
             && safety.identity.isDisposableMigrationTestIdentity
-            && safety.mode == .proposedV2Migration
+            && safety.mode == .proposedV3Migration
             && baselineLoadResult.record != nil
             && storeFamilyIdentity != nil
             && operationIdentity != nil
@@ -211,7 +211,7 @@ struct ScoreKeepPhysicalMigrationExecutionPreflight: Hashable, Sendable {
         var codes: [String] = []
         if protectedDataState != .available { codes.append("migration.start.blocked.protectedDataUnavailable") }
         if safety.identity.isDisposableMigrationTestIdentity == false { codes.append("migration.start.blocked.invalidBundle") }
-        if safety.mode != .proposedV2Migration { codes.append("migration.start.blocked.invalidMode") }
+        if safety.mode != .proposedV3Migration { codes.append("migration.start.blocked.invalidMode") }
         if baseline.record == nil { codes.append("migration.start.blocked.baselineMissing") }
         if family == nil { codes.append("migration.start.blocked.storeFamilyMissing") }
         if journal?.phase == .completionRecorded { codes.append("migration.completed.reauthorizationBlocked") }
@@ -264,7 +264,7 @@ struct ScoreKeepPhysicalMigrationExecutionPreflight: Hashable, Sendable {
         ScoreKeepMigrationOperationIdentity(
             sourceStoreIdentity: sourceStoreIdentity,
             sourceSchema: .populatedCurrentUnversionedStore,
-            targetSchema: .proposedV2,
+            targetSchema: .proposedV3,
             applicationMigrationGeneration: 1,
             operationUUID: deterministicUUID(seed: sourceStoreIdentity)
         )
@@ -374,21 +374,16 @@ enum ScoreKeepPhysicalMigrationExecutor {
     }
 
     private static func proposedContainer(url: URL) throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V2.models)
-        let configuration = ModelConfiguration("ScoreKeepPhysicalMigrationFreshVerification", schema: schema, url: url, allowsSave: false)
-        return try ModelContainer(for: schema, migrationPlan: ScoreKeepProposedTeamCreationEvidenceMigrationPlan.self, configurations: [configuration])
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+        let configuration = ModelConfiguration("ScoreKeepPhysicalMigrationFreshVerification", url: url, allowsSave: false)
+        return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     static func freshProposedComparison(targetURL: URL, backupURL: URL? = nil, baseline: ScoreKeepMigrationBaselineRecord) throws -> String {
-        let container = try proposedContainer(url: targetURL)
-        if let backupURL {
-            let original = try currentUnversionedContainer(url: backupURL, allowsSave: false)
-            return try ScoreKeepPostMigrationAuthorizedAdditiveComparison.compare(
-                proposedContainer: container,
-                originalContainer: original,
-                storedBaseline: baseline
-            ).status.rawValue
+        guard backupURL == nil else {
+            return "blocked.semanticVerifierUnavailable.currentTargetV2AndV3DuplicateEffectiveChecksums"
         }
+        let container = try proposedContainer(url: targetURL)
         let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
         return baselineMatches(record, baseline) ? "matchesStoredLegacyBaseline" : "mismatchRequiresReview"
     }
@@ -400,6 +395,11 @@ enum ScoreKeepPhysicalMigrationExecutor {
             && lhs.lineupCount == rhs.lineupCount
             && lhs.atbatCount == rhs.atbatCount
             && lhs.pitcherCount == rhs.pitcherCount
+            && lhs.canonicalHistoryCount == rhs.canonicalHistoryCount
+            && lhs.canonicalEventCount == rhs.canonicalEventCount
+            && lhs.canonicalPayloadCount == rhs.canonicalPayloadCount
+            && lhs.canonicalOperationCount == rhs.canonicalOperationCount
+            && lhs.canonicalCorrectionCount == rhs.canonicalCorrectionCount
             && lhs.stableIdentityFingerprint == rhs.stableIdentityFingerprint
             && lhs.relationshipFingerprint == rhs.relationshipFingerprint
             && lhs.orderingFingerprint == rhs.orderingFingerprint
@@ -526,6 +526,11 @@ enum ScoreKeepPostMigrationAuthorizedAdditiveComparison {
             && lhs.lineupCount == rhs.lineupCount
             && lhs.atbatCount == rhs.atbatCount
             && lhs.pitcherCount == rhs.pitcherCount
+            && lhs.canonicalHistoryCount == rhs.canonicalHistoryCount
+            && lhs.canonicalEventCount == rhs.canonicalEventCount
+            && lhs.canonicalPayloadCount == rhs.canonicalPayloadCount
+            && lhs.canonicalOperationCount == rhs.canonicalOperationCount
+            && lhs.canonicalCorrectionCount == rhs.canonicalCorrectionCount
             && lhs.stableIdentityFingerprint == rhs.stableIdentityFingerprint
             && lhs.relationshipFingerprint == rhs.relationshipFingerprint
             && lhs.orderingFingerprint == rhs.orderingFingerprint
@@ -543,6 +548,11 @@ enum ScoreKeepPostMigrationAuthorizedAdditiveComparison {
         if lhs.lineupCount != rhs.lineupCount { codes.append("lineupCountDiffers") }
         if lhs.atbatCount != rhs.atbatCount { codes.append("atbatCountDiffers") }
         if lhs.pitcherCount != rhs.pitcherCount { codes.append("pitcherCountDiffers") }
+        if lhs.canonicalHistoryCount != rhs.canonicalHistoryCount { codes.append("canonicalHistoryCountDiffers") }
+        if lhs.canonicalEventCount != rhs.canonicalEventCount { codes.append("canonicalEventCountDiffers") }
+        if lhs.canonicalPayloadCount != rhs.canonicalPayloadCount { codes.append("canonicalPayloadCountDiffers") }
+        if lhs.canonicalOperationCount != rhs.canonicalOperationCount { codes.append("canonicalOperationCountDiffers") }
+        if lhs.canonicalCorrectionCount != rhs.canonicalCorrectionCount { codes.append("canonicalCorrectionCountDiffers") }
         if lhs.stableIdentityFingerprint != rhs.stableIdentityFingerprint { codes.append("stableIdentityFingerprintDiffers") }
         if lhs.relationshipFingerprint != rhs.relationshipFingerprint { codes.append("relationshipFingerprintDiffers") }
         if lhs.orderingFingerprint != rhs.orderingFingerprint { codes.append("relationshipOrderingFingerprintDiffers") }

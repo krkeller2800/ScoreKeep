@@ -85,7 +85,7 @@ struct ContentView: View {
                         let team = Team(name: "", coach: "", details: "")
                         modelContext.insert(team)
                         try? modelContext.save()
-                        path.append(team)
+                        path.append(TeamNavigationDestination(teamIdentity: team.ident))
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -108,8 +108,8 @@ struct ContentView: View {
             .onChange(of: sortDescriptor) {
                 sortOrder = sortDescriptor
             }
-            .navigationDestination(for: Team.self) { team in
-                EditTeamView(navigationPath: $path, team: team)
+            .navigationDestination(for: TeamNavigationDestination.self) { destination in
+                TeamNavigationDestinationView(destination: destination, navigationPath: $path)
             }
             .onAppear {
                 if UIDevice.type == "iPhone" {
@@ -136,4 +136,3 @@ struct ContentView: View {
         try? modelContext.save()
     }
 }
-

@@ -104,14 +104,14 @@ enum IsolatedUnversionedProductionStoreSupport {
     }
 
     static func proposedV1Container(url: URL) throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V1.models)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V1.self)
         let configuration = ModelConfiguration("ProposedV1Recognition", schema: schema, url: url, allowsSave: true)
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     static func proposedV2Container(url: URL) throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V2.models)
-        let configuration = ModelConfiguration("ProposedV2Migration", schema: schema, url: url, allowsSave: true)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)
+        let configuration = ModelConfiguration("ProposedV2Migration", url: url, allowsSave: true)
         return try ModelContainer(for: schema, migrationPlan: ScoreKeepProposedTeamCreationEvidenceMigrationPlan.self, configurations: [configuration])
     }
 

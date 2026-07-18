@@ -7,8 +7,8 @@ import Testing
 @MainActor
 @Suite("Migration orchestrator disposable integration")
 struct ScoreKeepMigrationOrchestratorTests {
-    @Test("orchestrator preserves source migrates target and records sidecar completion")
-    func orchestratorPreservesSourceMigratesTargetAndRecordsSidecarCompletion() throws {
+    @Test("orchestrator preserves unsupported unversioned source and fails closed before V3 construction")
+    func orchestratorPreservesUnsupportedUnversionedSourceAndFailsClosedBeforeV3Construction() throws {
         let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.representative)
         let originalSourceFingerprint = try IsolatedUnversionedProductionStoreSupport.storeFamilyFingerprint(for: source.url)
         let journalStore = try journalStore()
@@ -25,15 +25,14 @@ struct ScoreKeepMigrationOrchestratorTests {
             journalStore: journalStore
         )
 
-        #expect(result.disposition == .completed)
-        #expect(result.journal.phase == .completionRecorded)
-        #expect(result.journal.completionDisposition == "sidecarCompletionRecorded")
+        #expect(result.disposition == .constructionFailed)
+        #expect(result.journal.phase == .failedSafely)
+        #expect(result.journal.containerConstructionDisposition == .unsafe)
+        #expect(result.recoveryRequirement == .discardIncompleteDisposableTarget)
+        #expect(result.diagnostics == [.proposedContainerConstructionFailed])
         #expect(result.writeReadiness.permitsBaseballWrites == false)
-        #expect(result.writeReadiness.blockingReasons.contains("routeNotActive"))
         #expect(try IsolatedUnversionedProductionStoreSupport.storeFamilyFingerprint(for: source.url) == originalSourceFingerprint)
-        let migrated = try #require(result.container)
-        #expect(try IsolatedUnversionedProductionStoreSupport.snapshot(from: migrated, fixtureIdentity: UnversionedStoreScenario.representative.rawValue) == source.snapshot)
-        #expect(try IsolatedUnversionedProductionStoreSupport.evidenceCount(in: migrated) == 0)
+        #expect(result.container == nil)
     }
 
     @Test("disable state and ownership conflicts prohibit orchestration")
@@ -76,8 +75,8 @@ struct ScoreKeepMigrationOrchestratorTests {
         #expect(conflictResult.journal.startupOwnership == .conflictingOwners)
     }
 
-    @Test("factory and verification failures classify recovery without write readiness")
-    func factoryAndVerificationFailuresClassifyRecoveryWithoutWriteReadiness() throws {
+    @Test("factory failures and blocked hosted verification classify recovery without write readiness")
+    func factoryFailuresAndBlockedHostedVerificationClassifyRecoveryWithoutWriteReadiness() throws {
         let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
         let factoryFailure = try ScoreKeepMigrationOrchestrator.run(
             input: input(
@@ -94,7 +93,7 @@ struct ScoreKeepMigrationOrchestratorTests {
         #expect(factoryFailure.diagnostics == [.proposedContainerConstructionFailed])
         #expect(factoryFailure.writeReadiness.permitsBaseballWrites == false)
 
-        let verificationFailure = try ScoreKeepMigrationOrchestrator.run(
+        let blockedHostedVerification = try ScoreKeepMigrationOrchestrator.run(
             input: input(
                 source: source,
                 backupURL: try storeURL(),
@@ -104,10 +103,32 @@ struct ScoreKeepMigrationOrchestratorTests {
             ),
             journalStore: try journalStore()
         )
-        #expect(verificationFailure.disposition == .verificationFailed)
-        #expect(verificationFailure.journal.recoveryRequirement == .verifyExistingTarget)
-        #expect(verificationFailure.diagnostics == [.postOpenVerificationFailed])
-        #expect(verificationFailure.writeReadiness.permitsBaseballWrites == false)
+        #expect(blockedHostedVerification.disposition == .constructionFailed)
+        #expect(blockedHostedVerification.journal.recoveryRequirement == .writesRemainProhibited)
+        #expect(blockedHostedVerification.journal.containerConstructionDisposition == .unsafe)
+        #expect(blockedHostedVerification.diagnostics == [.proposedContainerConstructionFailed])
+        #expect(blockedHostedVerification.writeReadiness.permitsBaseballWrites == false)
+    }
+
+    @Test("source preservation failure carries sanitized backup verification identity")
+    func sourcePreservationFailureCarriesSanitizedBackupVerificationIdentity() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let result = try ScoreKeepMigrationOrchestrator.run(
+            input: input(
+                source: source,
+                backupURL: try storeURL(fileName: "Different.store"),
+                targetURL: try storeURL(),
+                journalStoreIdentity: "orchestrator-source-preservation-diagnostic"
+            ),
+            journalStore: try journalStore()
+        )
+
+        #expect(result.disposition == .sourcePreservationFailed)
+        #expect(result.journal.phase == .recoveryRequired)
+        #expect(result.recoveryRequirement == .writesRemainProhibited)
+        #expect(result.failureDiagnosticIdentity == "backupVerificationFailed.memberInventoryMismatch")
+        #expect(result.failureDiagnosticIdentity?.contains("/") == false)
+        #expect(result.writeReadiness.permitsBaseballWrites == false)
     }
 
     @Test("interruption points reconcile deterministically with same operation identity")
@@ -126,10 +147,15 @@ struct ScoreKeepMigrationOrchestratorTests {
                 journalStore: journalStore
             )
 
-            #expect(result.disposition == .interrupted)
+            if unsupportedUnversionedConstructionAlreadyReached(at: point) {
+                #expect(result.disposition == .constructionFailed)
+                #expect(result.journal.containerConstructionDisposition == .unsafe)
+            } else {
+                #expect(result.disposition == .interrupted)
+            }
             let freshLoad = journalStore.load()
             #expect(freshLoad.record?.operationIdentity == result.journal.operationIdentity)
-            #expect(ScoreKeepMigrationOrchestrator.reconcile(freshLoad.record) != .noRecoveryRequired || point == .afterCompletionRecordingSucceeds || point == .afterOwnershipFinalization)
+            #expect(ScoreKeepMigrationOrchestrator.reconcile(freshLoad.record) != .noRecoveryRequired)
             #expect(result.writeReadiness.permitsBaseballWrites == false)
         }
     }
@@ -165,11 +191,24 @@ struct ScoreKeepMigrationOrchestratorTests {
 
         #expect(interrupted.disposition == .interrupted)
         #expect(ScoreKeepMigrationOrchestrator.reconcile(interrupted.journal) == .reuseVerifiedBackup)
-        #expect(resumed.disposition == .completed)
+        #expect(resumed.disposition == .constructionFailed)
         #expect(resumed.journal.operationIdentity == interrupted.journal.operationIdentity)
         #expect(resumed.journal.backupIdentity == backupIdentity)
-        #expect(resumed.journal.phase == .completionRecorded)
+        #expect(resumed.journal.phase == .failedSafely)
+        #expect(resumed.journal.containerConstructionDisposition == .unsafe)
         #expect(resumed.writeReadiness.permitsBaseballWrites == false)
+    }
+
+    private func unsupportedUnversionedConstructionAlreadyReached(at point: ScoreKeepMigrationInterruptionPoint) -> Bool {
+        switch point {
+        case .afterContainerConstructionReturns, .afterPostOpenVerificationStarts, .afterPostOpenVerificationPasses,
+             .afterCompletionRecordingStarts, .afterCompletionRecordingSucceeds, .afterOwnershipFinalization:
+            return true
+        case .afterJournalCreation, .afterDisableStateResolution, .afterOwnershipClaim,
+             .afterSourceClassification, .afterBackupCopyStart, .afterBackupCopyCompletion,
+             .afterBackupVerification, .afterMigrationAttemptRecording, .afterContainerConstructionBegins:
+            return false
+        }
     }
 
     private func input(
@@ -215,12 +254,12 @@ struct ScoreKeepMigrationOrchestratorTests {
         return ScoreKeepMigrationJournalStore(directory: directory)
     }
 
-    private func storeURL() throws -> URL {
+    private func storeURL(fileName: String = "ScoreKeep.store") throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ScoreKeepMigrationOrchestratorTests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("ScoreKeep.store")
+        return directory.appendingPathComponent(fileName)
     }
 
     private func operationIdentity(storeIdentity: String) -> ScoreKeepMigrationOperationIdentity {

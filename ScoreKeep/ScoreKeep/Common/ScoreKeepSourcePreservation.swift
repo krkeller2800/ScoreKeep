@@ -76,8 +76,73 @@ enum ScoreKeepSourcePreservationError: Error, Equatable {
     case destinationNotFresh
     case storeFamilyIncomplete
     case copyFailedBeforeCompletion
-    case backupVerificationFailed
-    case semanticVerificationFailed
+    case backupVerificationFailed(ScoreKeepSourcePreservationBackupVerificationFailure)
+    case semanticVerificationFailed(ScoreKeepSourcePreservationSemanticVerificationFailure)
+}
+
+enum ScoreKeepSourcePreservationBackupVerificationFailure: String, Equatable, Sendable {
+    case sourceDestinationIdentityCollision
+    case sourceChanged
+    case memberInventoryMismatch
+    case primaryMismatch
+    case walMismatch
+    case shmMismatch
+    case copiedIdentityMismatch
+}
+
+enum ScoreKeepSourcePreservationSemanticVerificationFailure: Equatable, Sendable {
+    case semanticRestoreOpen(String)
+    case semanticBaselineMismatch
+}
+
+struct ScoreKeepSourcePreservationSemanticRestoreOpenDiagnosticError: Error, Equatable, Sendable {
+    let diagnostic: String
+}
+
+enum ScoreKeepSourcePreservationErrorIdentity {
+    static func make(_ error: Error) -> String {
+        guard let preservationError = error as? ScoreKeepSourcePreservationError else {
+            return "backupVerificationFailed.unknown"
+        }
+        switch preservationError {
+        case .productionPathRejected:
+            return "backupVerificationFailed.productionPathRejected"
+        case .sourceNotClosed:
+            return "backupVerificationFailed.sourceNotClosed"
+        case .sourceUnavailable:
+            return "backupVerificationFailed.sourceUnavailable"
+        case .destinationNotFresh:
+            return "backupVerificationFailed.destinationNotFresh"
+        case .storeFamilyIncomplete:
+            return "backupVerificationFailed.storeFamilyIncomplete"
+        case .copyFailedBeforeCompletion:
+            return "backupVerificationFailed.copyFailedBeforeCompletion"
+        case .backupVerificationFailed(let failure):
+            return "backupVerificationFailed.\(failure.rawValue)"
+        case .semanticVerificationFailed(let failure):
+            switch failure {
+            case .semanticRestoreOpen(let diagnostic):
+                return "semanticRestoreOpen.\(sanitizedDiagnostic(diagnostic))"
+            case .semanticBaselineMismatch:
+                return "semanticRestoreOpen.semanticBaselineMismatch"
+            }
+        }
+    }
+
+    static func semanticRestoreOpenDiagnostic(for error: Error) -> String {
+        if let diagnostic = error as? ScoreKeepSourcePreservationSemanticRestoreOpenDiagnosticError {
+            return diagnostic.diagnostic
+        }
+        let nsError = error as NSError
+        return "unknown.\(sanitizedDiagnostic(nsError.domain)).\(nsError.code)"
+    }
+
+    private static func sanitizedDiagnostic(_ diagnostic: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._+-"))
+        return String(diagnostic.unicodeScalars.map { scalar in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        })
+    }
 }
 
 enum ScoreKeepSourcePreservationExecutor {
@@ -121,15 +186,14 @@ enum ScoreKeepSourcePreservationExecutor {
 
         let backupAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: request.backupStoreURL, fileManager: fileManager)
         let sourceAfter = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: request.sourceStoreURL, fileManager: fileManager)
-        let fileVerificationPassed = try ScoreKeepStoreFamilyDiscovery.validateBackup(
-            source: sourceBefore,
-            backup: backupAfter,
+        if let verificationFailure = backupVerificationFailure(
+            sourceBefore: sourceBefore,
+            backupAfter: backupAfter,
+            sourceAfter: sourceAfter,
             sourceURL: request.sourceStoreURL,
             backupURL: request.backupStoreURL
-        ) && sourceBefore == sourceAfter
-
-        guard fileVerificationPassed else {
-            throw ScoreKeepSourcePreservationError.backupVerificationFailed
+        ) {
+            throw ScoreKeepSourcePreservationError.backupVerificationFailed(verificationFailure)
         }
 
         let semanticVerificationPassed: Bool
@@ -140,13 +204,19 @@ enum ScoreKeepSourcePreservationExecutor {
                 let restoreMemberURL = restoreURL.deletingLastPathComponent().appendingPathComponent(member.fileName)
                 try fileManager.copyItem(at: backupMemberURL, to: restoreMemberURL)
             }
-            semanticVerificationPassed = try semanticRestoreVerifier(restoreURL)
+            do {
+                semanticVerificationPassed = try semanticRestoreVerifier(restoreURL)
+            } catch {
+                throw ScoreKeepSourcePreservationError.semanticVerificationFailed(
+                    .semanticRestoreOpen(ScoreKeepSourcePreservationErrorIdentity.semanticRestoreOpenDiagnostic(for: error))
+                )
+            }
         } else {
             semanticVerificationPassed = true
         }
 
         guard semanticVerificationPassed else {
-            throw ScoreKeepSourcePreservationError.semanticVerificationFailed
+            throw ScoreKeepSourcePreservationError.semanticVerificationFailed(.semanticBaselineMismatch)
         }
 
         return ScoreKeepSourcePreservationEvidence(
@@ -167,6 +237,47 @@ enum ScoreKeepSourcePreservationExecutor {
             .appendingPathComponent("restore-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: restoreDirectory, withIntermediateDirectories: true)
         return restoreDirectory.appendingPathComponent(backupStoreURL.lastPathComponent)
+    }
+
+    private static func backupVerificationFailure(
+        sourceBefore: ScoreKeepStoreFamilyDescriptor,
+        backupAfter: ScoreKeepStoreFamilyDescriptor,
+        sourceAfter: ScoreKeepStoreFamilyDescriptor,
+        sourceURL: URL,
+        backupURL: URL
+    ) -> ScoreKeepSourcePreservationBackupVerificationFailure? {
+        guard sourceURL.deletingLastPathComponent().standardizedFileURL != backupURL.deletingLastPathComponent().standardizedFileURL else {
+            return .sourceDestinationIdentityCollision
+        }
+        guard sourceBefore == sourceAfter else {
+            return .sourceChanged
+        }
+        guard sourceBefore.storeFileName == backupAfter.storeFileName,
+              sourceBefore.fileNames == backupAfter.fileNames else {
+            return .memberInventoryMismatch
+        }
+        for sourceMember in sourceBefore.members {
+            guard let backupMember = backupAfter.member(named: sourceMember.fileName) else {
+                return .memberInventoryMismatch
+            }
+            guard backupMember.byteCount == sourceMember.byteCount,
+                  backupMember.fingerprint == sourceMember.fingerprint else {
+                switch sourceMember.role {
+                case .primary:
+                    return .primaryMismatch
+                case .wal:
+                    return .walMismatch
+                case .shm:
+                    return .shmMismatch
+                case .unexpectedRelated:
+                    return .memberInventoryMismatch
+                }
+            }
+        }
+        guard sourceBefore.diagnosticIdentity == backupAfter.diagnosticIdentity else {
+            return .copiedIdentityMismatch
+        }
+        return nil
     }
 }
 

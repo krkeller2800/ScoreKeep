@@ -13,20 +13,20 @@ enum IsolatedVersionedTeamCreationEvidenceSupport {
     }
 
     static func v2InMemoryContainer() throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V2.models)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     static func v1DiskContainer(url: URL) throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V1.models)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V1.self)
         let configuration = ModelConfiguration("ProposedV1", schema: schema, url: url, allowsSave: true)
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
     static func v2DiskContainer(url: URL) throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V2.models)
-        let configuration = ModelConfiguration("ProposedV2", schema: schema, url: url, allowsSave: true)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)
+        let configuration = ModelConfiguration("ProposedV2", url: url, allowsSave: true)
         return try ModelContainer(for: schema, migrationPlan: ScoreKeepProposedTeamCreationEvidenceMigrationPlan.self, configurations: [configuration])
     }
 

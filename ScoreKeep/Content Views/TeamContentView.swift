@@ -36,8 +36,8 @@ struct TeamContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             TeamView(searchString: searchText, sortOrder: sortDescriptor)
-                .navigationDestination(for: Team.self) { team in
-                    EditTeamView(navigationPath: $path, team: team)
+                .navigationDestination(for: TeamNavigationDestination.self) { destination in
+                    TeamNavigationDestinationView(destination: destination, navigationPath: $path)
                 }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
@@ -87,7 +87,7 @@ struct TeamContentView: View {
     func addTeam() {
         let team = Team(name: "" ,coach: "",details: "")
         modelContext.insert(team)
-        path.append(team)
+        path.append(TeamNavigationDestination(teamIdentity: team.ident))
         try? modelContext.save()
     }
 }

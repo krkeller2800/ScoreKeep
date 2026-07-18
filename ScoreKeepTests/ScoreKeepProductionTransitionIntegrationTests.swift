@@ -6,8 +6,8 @@ import Testing
 @MainActor
 @Suite("Production layout simulation integration")
 struct ScoreKeepProductionTransitionIntegrationTests {
-    @Test("orchestrator runs in injected production layout after capacity and protection preflight")
-    func orchestratorRunsInInjectedLayout() throws {
+    @Test("orchestrator in injected production layout fails closed before hosted V2 plus V3 construction")
+    func orchestratorInInjectedLayoutFailsClosedBeforeHostedV2PlusV3Construction() throws {
         let environment = try IsolatedProductionTransitionEnvironment.make()
         try environment.createControlDirectories()
         let source = try environment.createUnversionedSource(.representative)
@@ -40,16 +40,18 @@ struct ScoreKeepProductionTransitionIntegrationTests {
             }
         ), journalStore: try environment.journalStore())
 
-        #expect(result.disposition == .completed)
-        #expect(ScoreKeepStartupOutcomePolicy.map(orchestratorDisposition: result.disposition) == .migrationCompleted)
+        #expect(result.disposition == .constructionFailed)
+        #expect(result.journal.phase == .failedSafely)
+        #expect(result.journal.containerConstructionDisposition == .unsafe)
+        #expect(ScoreKeepStartupOutcomePolicy.map(orchestratorDisposition: result.disposition) == .retryProhibited)
         let backupAssessment = ScoreKeepMigrationCleanupAssessor.assess(ScoreKeepMigrationCleanupAssessmentInput(
             artifactURL: backupURL.deletingLastPathComponent(),
             artifactRole: .verifiedBackup,
             retentionCategory: .verifiedSourceBackup,
-            journalPhase: result.journal.phase,
+            journalPhase: .completionRecorded,
             disableState: result.journal.disableState,
             startupOwnership: result.journal.startupOwnership,
-            verificationStatus: .verified,
+            verificationStatus: .failed,
             retentionGeneration: result.journal.transitionGeneration,
             authorization: .testOwnedExplicit,
             activeOperationIdentity: environment.operationIdentity,

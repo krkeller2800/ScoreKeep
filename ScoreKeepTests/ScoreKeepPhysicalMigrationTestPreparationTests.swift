@@ -19,7 +19,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
             #expect(ScoreKeepPhysicalMigrationTestSafety.evaluate().authorization == .notMigrationTestBuild)
         case .legacyStore:
             #expect(ScoreKeepPhysicalMigrationTestSafety.evaluate().authorization == .authorizedLegacyOnly)
-        case .proposedV2Migration:
+        case .proposedV3Migration:
             #expect(ScoreKeepPhysicalMigrationTestSafety.evaluate().authorization == .proposedMigrationDisabledPendingManualBaseline)
         }
     }
@@ -32,7 +32,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
         )
         let proposedMismatch = ScoreKeepPhysicalMigrationTestSafety.evaluate(
             bundleIdentifier: ScoreKeepPhysicalMigrationTestIdentity.productionBundleIdentifier,
-            mode: .proposedV2Migration
+            mode: .proposedV3Migration
         )
         #expect(legacyMismatch.authorization == .invalidBundleModePairing)
         #expect(proposedMismatch.authorization == .invalidBundleModePairing)
@@ -53,7 +53,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
     func proposedModeIsDisabled() {
         let safety = ScoreKeepPhysicalMigrationTestSafety.evaluate(
             bundleIdentifier: ScoreKeepPhysicalMigrationTestIdentity.disposableBundleIdentifier,
-            mode: .proposedV2Migration
+            mode: .proposedV3Migration
         )
         #expect(safety.authorization == .proposedMigrationDisabledPendingManualBaseline)
         #expect(safety.authorization.permitsProposedMigration == false)
@@ -165,7 +165,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
         let baseline = try baselineRecord()
         let safety = ScoreKeepPhysicalMigrationTestSafety.evaluate(
             bundleIdentifier: ScoreKeepPhysicalMigrationTestIdentity.disposableBundleIdentifier,
-            mode: .proposedV2Migration
+            mode: .proposedV3Migration
         )
         let operation = ScoreKeepMigrationOperationIdentity(
             sourceStoreIdentity: "test-source",
@@ -224,7 +224,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
             protectedDataState: .available,
             safety: ScoreKeepPhysicalMigrationTestSafety.evaluate(
                 bundleIdentifier: ScoreKeepPhysicalMigrationTestIdentity.disposableBundleIdentifier,
-                mode: .proposedV2Migration
+                mode: .proposedV3Migration
             ),
             baselineLoadResult: .loaded(baseline),
             layout: ScoreKeepProductionMigrationLayout.resolve(applicationSupportRoot: root),
@@ -250,7 +250,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
             protectedDataState: .available,
             safety: ScoreKeepPhysicalMigrationTestSafety.evaluate(
                 bundleIdentifier: ScoreKeepPhysicalMigrationTestIdentity.productionBundleIdentifier,
-                mode: .proposedV2Migration
+                mode: .proposedV3Migration
             ),
             baselineLoadResult: .missing,
             layout: ScoreKeepProductionMigrationLayout.resolve(applicationSupportRoot: root),
@@ -815,7 +815,7 @@ struct ScoreKeepPhysicalMigrationTestPreparationTests {
 
     @MainActor
     private func makeProposedContainer() throws -> ModelContainer {
-        let schema = Schema(ScoreKeepProposedVersionedSchema.V2.models)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         return try ModelContainer(for: schema, configurations: [configuration])
     }

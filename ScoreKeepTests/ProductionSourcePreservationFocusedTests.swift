@@ -152,12 +152,126 @@ struct ScoreKeepSourcePreservationTests {
         }
     }
 
-    private func backupStoreURL() throws -> URL {
+    @Test("preservation reports mismatched copied family inventory when backup basename differs")
+    func preservationReportsMismatchedCopiedFamilyInventoryWhenBackupBasenameDiffers() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let backupURL = try backupStoreURL(fileName: "Different.store")
+
+        #expect(throws: ScoreKeepSourcePreservationError.backupVerificationFailed(.memberInventoryMismatch)) {
+            try ScoreKeepSourcePreservationExecutor.preserve(
+                ScoreKeepSourcePreservationRequest(
+                    sourceStoreURL: source.url,
+                    backupStoreURL: backupURL,
+                    sourceLocation: .disposableTestStore,
+                    sourceClosureEvidence: .closedForDisposableVerification,
+                    allowIncompleteTestOwnedBackupRemoval: true,
+                    semanticRestoreVerifier: nil
+                )
+            )
+        }
+    }
+
+    @Test("semantic restore verification distinguishes open failure from baseline mismatch")
+    func semanticRestoreVerificationDistinguishesOpenFailureFromBaselineMismatch() throws {
+        let throwingSource = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        do {
+            _ = try ScoreKeepSourcePreservationExecutor.preserve(
+                ScoreKeepSourcePreservationRequest(
+                    sourceStoreURL: throwingSource.url,
+                    backupStoreURL: try backupStoreURL(fileName: throwingSource.url.lastPathComponent),
+                    sourceLocation: .disposableTestStore,
+                    sourceClosureEvidence: .closedForDisposableVerification,
+                    allowIncompleteTestOwnedBackupRemoval: true,
+                    semanticRestoreVerifier: { _ in
+                        throw ScoreKeepSourcePreservationSemanticRestoreOpenDiagnosticError(diagnostic: "containerOpenFailed.incompatibleModel")
+                    }
+                )
+            )
+            Issue.record("Semantic restore open failure unexpectedly succeeded.")
+        } catch ScoreKeepSourcePreservationError.semanticVerificationFailed(.semanticRestoreOpen(let diagnostic)) {
+            #expect(diagnostic == "containerOpenFailed.incompatibleModel")
+            #expect(ScoreKeepSourcePreservationErrorIdentity.make(ScoreKeepSourcePreservationError.semanticVerificationFailed(.semanticRestoreOpen(diagnostic))) == "semanticRestoreOpen.containerOpenFailed.incompatibleModel")
+        } catch {
+            Issue.record("Unexpected semantic restore error: \(error)")
+        }
+
+        let mismatchSource = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        #expect(throws: ScoreKeepSourcePreservationError.semanticVerificationFailed(.semanticBaselineMismatch)) {
+            try ScoreKeepSourcePreservationExecutor.preserve(
+                ScoreKeepSourcePreservationRequest(
+                    sourceStoreURL: mismatchSource.url,
+                    backupStoreURL: try backupStoreURL(fileName: mismatchSource.url.lastPathComponent),
+                    sourceLocation: .disposableTestStore,
+                    sourceClosureEvidence: .closedForDisposableVerification,
+                    allowIncompleteTestOwnedBackupRemoval: true,
+                    semanticRestoreVerifier: { _ in false }
+                )
+            )
+        }
+    }
+
+    @Test("verified backup family can be preserved into a distinct fresh fallback family")
+    func verifiedBackupFamilyCanBePreservedIntoDistinctFreshFallbackFamily() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let verifiedBackupURL = try backupStoreURL()
+        let verifiedBackup = try ScoreKeepSourcePreservationExecutor.preserve(
+            ScoreKeepSourcePreservationRequest(
+                sourceStoreURL: source.url,
+                backupStoreURL: verifiedBackupURL,
+                sourceLocation: .disposableTestStore,
+                sourceClosureEvidence: .closedForDisposableVerification,
+                allowIncompleteTestOwnedBackupRemoval: true,
+                semanticRestoreVerifier: nil
+            )
+        )
+        let operationDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ScoreKeepSourcePreservationTests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: operationDirectory, withIntermediateDirectories: true)
+        try Data([1]).write(to: operationDirectory.appendingPathComponent("v2-intermediate.store"))
+
+        let sameDirectoryFallbackURL = operationDirectory.appendingPathComponent(verifiedBackupURL.lastPathComponent)
+        #expect(throws: ScoreKeepSourcePreservationError.destinationNotFresh) {
+            try ScoreKeepSourcePreservationExecutor.preserve(
+                ScoreKeepSourcePreservationRequest(
+                    sourceStoreURL: verifiedBackupURL,
+                    backupStoreURL: sameDirectoryFallbackURL,
+                    sourceLocation: .disposableTestStore,
+                    sourceClosureEvidence: .closedForDisposableVerification,
+                    allowIncompleteTestOwnedBackupRemoval: true,
+                    semanticRestoreVerifier: nil
+                )
+            )
+        }
+
+        let fallbackURL = operationDirectory
+            .appendingPathComponent("V2FallbackStoreFamily-v1", isDirectory: true)
+            .appendingPathComponent(verifiedBackupURL.lastPathComponent, isDirectory: false)
+        let fallback = try ScoreKeepSourcePreservationExecutor.preserve(
+            ScoreKeepSourcePreservationRequest(
+                sourceStoreURL: verifiedBackupURL,
+                backupStoreURL: fallbackURL,
+                sourceLocation: .disposableTestStore,
+                sourceClosureEvidence: .closedForDisposableVerification,
+                allowIncompleteTestOwnedBackupRemoval: true,
+                semanticRestoreVerifier: nil
+            )
+        )
+
+        #expect(verifiedBackup.backupAfter == fallback.sourceBefore)
+        #expect(fallback.sourceBefore == fallback.sourceAfter)
+        #expect(fallback.backupAfter.storeFileName == verifiedBackupURL.lastPathComponent)
+        #expect(fallback.fileVerificationPassed)
+        #expect(fallback.backupIdentity == fallback.backupAfter.diagnosticIdentity)
+        #expect(fallbackURL.deletingLastPathComponent().standardizedFileURL != verifiedBackupURL.deletingLastPathComponent().standardizedFileURL)
+    }
+
+    private func backupStoreURL(fileName: String = "ScoreKeep.store") throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("ScoreKeepSourcePreservationTests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("ScoreKeep.store")
+        return directory.appendingPathComponent(fileName)
     }
 }
 #endif

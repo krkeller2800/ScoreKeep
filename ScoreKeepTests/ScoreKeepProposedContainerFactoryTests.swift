@@ -6,42 +6,31 @@ import Testing
 @MainActor
 @Suite("Proposed container factory startup verification")
 struct ScoreKeepProposedContainerFactoryTests {
-    @Test("explicit disposable URL constructs new empty Proposed V2 store")
-    func explicitDisposableURLConstructsNewEmptyProposedV2Store() throws {
+    @Test("explicit disposable URL constructs new empty Proposed V3 store")
+    func explicitDisposableURLConstructsNewEmptyProposedV3Store() throws {
         let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
         let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .noStoreExists))
 
-        #expect(result.disposition == .constructedNewEmptyProposedV2Store)
+        #expect(result.disposition == .constructedNewEmptyProposedV3Store)
         #expect(result.container != nil)
         #expect(result.verificationStillRequired)
         #expect(try IsolatedUnversionedProductionStoreSupport.evidenceCount(in: result.container!) == 0)
     }
 
-    @Test("empty minimal representative and edge unversioned stores transition to Proposed V2")
-    func unversionedStoresTransitionToProposedV2() throws {
+    @Test("hosted current-target unversioned stores fail closed before V2 plus V3 construction")
+    func unversionedStoresFailClosedBeforeV2PlusV3Construction() throws {
         for scenario in UnversionedStoreScenario.allCases {
             let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(scenario)
             let result = ScoreKeepProposedContainerFactory.construct(input(url: source.url, source: scenario == .empty ? .emptyCurrentUnversionedStore : .populatedCurrentUnversionedStore))
 
-            #expect(result.disposition == .openedCompatibleUnversionedSourceAndTransitionedToProposedV2)
-            #expect(result.container != nil)
-            let migrated = try IsolatedUnversionedProductionStoreSupport.snapshot(from: result.container!, fixtureIdentity: scenario.rawValue)
-            #expect(migrated.counts == source.snapshot.counts)
-            #expect(migrated.gameIDs == source.snapshot.gameIDs)
-            #expect(migrated.teamIDs == source.snapshot.teamIDs)
-            #expect(migrated.playerIDs == source.snapshot.playerIDs)
-            #expect(migrated.lineups == source.snapshot.lineups)
-            #expect(migrated.atbatSequences == source.snapshot.atbatSequences)
-            #expect(migrated.scorecardColumns == source.snapshot.scorecardColumns)
-            #expect(migrated.storedScores == source.snapshot.storedScores)
-            #expect(migrated.playerPhotoFingerprints == source.snapshot.playerPhotoFingerprints)
-            #expect(migrated.teamLogoFingerprints == source.snapshot.teamLogoFingerprints)
-            #expect(try IsolatedUnversionedProductionStoreSupport.evidenceCount(in: result.container!) == 0)
+            #expect(result.disposition == .unsafe)
+            #expect(result.container == nil)
+            #expect(result.verificationStillRequired == false)
         }
     }
 
-    @Test("existing Proposed V2 store reopens repeatedly")
-    func existingProposedV2StoreReopensRepeatedly() throws {
+    @Test("existing Proposed V2 store is blocked in the hosted current target")
+    func existingProposedV2StoreIsBlockedInHostedCurrentTarget() throws {
         let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
         let first = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .noStoreExists))
         #expect(first.container != nil)
@@ -49,10 +38,10 @@ struct ScoreKeepProposedContainerFactoryTests {
         let second = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV2Store))
         let third = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV2Store))
 
-        #expect(second.disposition == .openedExistingProposedV2Store)
-        #expect(third.disposition == .openedExistingProposedV2Store)
-        #expect(try IsolatedUnversionedProductionStoreSupport.evidenceCount(in: second.container!) == 0)
-        #expect(try IsolatedUnversionedProductionStoreSupport.evidenceCount(in: third.container!) == 0)
+        #expect(second.disposition == .semanticVerifierUnavailableCurrentTargetV2AndV3DuplicateEffectiveChecksums)
+        #expect(third.disposition == .semanticVerifierUnavailableCurrentTargetV2AndV3DuplicateEffectiveChecksums)
+        #expect(second.container == nil)
+        #expect(third.container == nil)
     }
 
     @Test("read only configuration opens for diagnosis and prohibits write readiness")
@@ -61,7 +50,7 @@ struct ScoreKeepProposedContainerFactoryTests {
         let writable = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .noStoreExists))
         #expect(writable.container != nil)
 
-        let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV2Store, mode: .readOnlyDiagnosis, intent: .readOnlyDiagnosis))
+        let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV3Store, mode: .readOnlyDiagnosis, intent: .readOnlyDiagnosis))
 
         #expect(result.disposition == .openedReadOnlyForDiagnosis)
         #expect(result.diagnostics.stableDiagnosticCodes.contains("startup.factory.openedReadOnlyForDiagnosis"))
@@ -74,7 +63,7 @@ struct ScoreKeepProposedContainerFactoryTests {
             writabilityMode: .writable,
             startupIntent: .productionTransitionPreparation,
             sourceClassification: .noStoreExists,
-            routeChoice: .proposedV2EligibleForIsolatedVerification
+            routeChoice: .proposedV3EligibleForIsolatedVerification
         ))
         #expect(production.disposition == .unsafe)
 
@@ -92,7 +81,7 @@ struct ScoreKeepProposedContainerFactoryTests {
             writabilityMode: .writable,
             startupIntent: .isolatedVerification,
             sourceClassification: .noStoreExists,
-            routeChoice: .proposedV2EligibleForIsolatedVerification
+            routeChoice: .proposedV3EligibleForIsolatedVerification
         ))
         #expect(nonEmpty.disposition == .unsafe)
 
@@ -106,7 +95,7 @@ struct ScoreKeepProposedContainerFactoryTests {
         source: ScoreKeepSourceStoreClassification,
         mode: ScoreKeepStartupWritabilityMode = .writable,
         intent: ScoreKeepStartupIntent = .isolatedVerification,
-        route: ScoreKeepSchemaRouteChoice = .proposedV2EligibleForIsolatedVerification,
+        route: ScoreKeepSchemaRouteChoice = .proposedV3EligibleForIsolatedVerification,
         injection: ScoreKeepProposedContainerFactoryInjection? = nil
     ) -> ScoreKeepProposedContainerFactoryInput {
         ScoreKeepProposedContainerFactoryInput(

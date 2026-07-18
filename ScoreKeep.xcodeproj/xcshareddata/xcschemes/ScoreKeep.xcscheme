@@ -55,6 +55,12 @@
             ReferencedContainer = "container:ScoreKeep.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "-ScoreKeepSchemaDiagnostic"
+            isEnabled = "NO">
+         </CommandLineArgument>
+      </CommandLineArguments>
       <StoreKitConfigurationFileReference
          identifier = "../../ScoreKeep.storekit">
       </StoreKitConfigurationFileReference>

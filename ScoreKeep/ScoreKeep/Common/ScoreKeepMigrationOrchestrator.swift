@@ -39,6 +39,7 @@ struct ScoreKeepMigrationOrchestratorResult {
     let writeReadiness: ScoreKeepWriteReadinessResult
     let recoveryRequirement: ScoreKeepMigrationRecoveryRequirement
     let diagnostics: [ScoreKeepMigrationJournalDiagnosticCode]
+    let failureDiagnosticIdentity: String?
 }
 
 struct ScoreKeepMigrationOrchestratorInput {
@@ -197,7 +198,13 @@ enum ScoreKeepMigrationOrchestrator {
                     diagnosticCodes: [.recoveryRequired]
                 )
                 try journalStore.save(journal)
-                return classified(.sourcePreservationFailed, journal: journal, container: nil, diagnostics: [.recoveryRequired])
+                return classified(
+                    .sourcePreservationFailed,
+                    journal: journal,
+                    container: nil,
+                    diagnostics: [.recoveryRequired],
+                    failureDiagnosticIdentity: ScoreKeepSourcePreservationErrorIdentity.make(error)
+                )
             }
 
             if input.interruptionPoint == .afterBackupCopyCompletion {
@@ -244,7 +251,7 @@ enum ScoreKeepMigrationOrchestrator {
                 writabilityMode: .writable,
                 startupIntent: .isolatedVerification,
                 sourceClassification: input.sourceClassification,
-                routeChoice: .proposedV2EligibleForIsolatedVerification,
+                routeChoice: .proposedV3EligibleForIsolatedVerification,
                 failureInjection: input.factoryInjection
             )
         )
@@ -372,7 +379,8 @@ enum ScoreKeepMigrationOrchestrator {
         _ disposition: ScoreKeepMigrationOrchestratorDisposition,
         journal: ScoreKeepMigrationJournalRecord,
         container: ModelContainer?,
-        diagnostics: [ScoreKeepMigrationJournalDiagnosticCode]
+        diagnostics: [ScoreKeepMigrationJournalDiagnosticCode],
+        failureDiagnosticIdentity: String? = nil
     ) -> ScoreKeepMigrationOrchestratorResult {
         let readiness = ScoreKeepWriteReadinessEvaluator.evaluate(
             ScoreKeepWriteReadinessInput(
@@ -383,7 +391,7 @@ enum ScoreKeepMigrationOrchestrator {
                 completionEvidenceReconciled: journal.completionDisposition == "sidecarCompletionRecorded",
                 hasUncertainty: journal.phase == .completionUncertain,
                 recoveryRequired: journal.recoveryRequirement != .noRecoveryRequired,
-                routeChoice: .proposedV2PreparedButDisabled,
+                routeChoice: .proposedV3PreparedButDisabled,
                 proposedSchemaActive: false,
                 storeIsWritable: false,
                 oneWriterPolicyAvailable: journal.startupOwnership != .conflictingOwners,
@@ -397,7 +405,8 @@ enum ScoreKeepMigrationOrchestrator {
             container: container,
             writeReadiness: readiness,
             recoveryRequirement: reconcile(journal),
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            failureDiagnosticIdentity: failureDiagnosticIdentity
         )
     }
 

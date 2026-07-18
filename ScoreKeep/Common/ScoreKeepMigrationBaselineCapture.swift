@@ -11,6 +11,12 @@ struct ScoreKeepMigrationBaselineRecord: Codable, Hashable, Sendable {
     let lineupCount: Int
     let atbatCount: Int
     let pitcherCount: Int
+    let teamCreationOperationEvidenceCount: Int
+    let canonicalHistoryCount: Int
+    let canonicalEventCount: Int
+    let canonicalPayloadCount: Int
+    let canonicalOperationCount: Int
+    let canonicalCorrectionCount: Int
     let stableIdentityFingerprint: String
     let relationshipFingerprint: String
     let orderingFingerprint: String
@@ -27,7 +33,7 @@ struct ScoreKeepMigrationBaselineRecord: Codable, Hashable, Sendable {
         [
             "Baseline: \(status)",
             "Schema: \(schemaClassification)",
-            "Counts: games=\(gameCount), teams=\(teamCount), players=\(playerCount), lineups=\(lineupCount), atbats=\(atbatCount), pitchers=\(pitcherCount)",
+            "Counts: games=\(gameCount), teams=\(teamCount), players=\(playerCount), lineups=\(lineupCount), atbats=\(atbatCount), pitchers=\(pitcherCount), teamOps=\(teamCreationOperationEvidenceCount), canonicalHistories=\(canonicalHistoryCount), canonicalEvents=\(canonicalEventCount), canonicalPayloads=\(canonicalPayloadCount), canonicalOps=\(canonicalOperationCount), canonicalCorrections=\(canonicalCorrectionCount)",
             "Score: \(scoreEvidence)",
             "Substitutions: \(substitutionEvidence)",
             "Runner Sequence: \(difficultRunnerSequence.status)",
@@ -112,6 +118,12 @@ enum ScoreKeepMigrationBaselineCapture {
         let lineups = try modelContext.fetch(FetchDescriptor<Lineup>())
         let atbats = try modelContext.fetch(FetchDescriptor<Atbat>())
         let pitchers = try modelContext.fetch(FetchDescriptor<Pitcher>())
+        let teamCreationOperationEvidenceCount = (try? modelContext.fetch(FetchDescriptor<TeamCreationOperationEvidenceRecord>()).count) ?? 0
+        let canonicalHistoryCount = (try? modelContext.fetch(FetchDescriptor<CanonicalGameHistoryRecord>()).count) ?? 0
+        let canonicalEventCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringEventEnvelopeRecord>()).count) ?? 0
+        let canonicalPayloadCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringEventPayloadRecord>()).count) ?? 0
+        let canonicalOperationCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringOperationEvidenceRecord>()).count) ?? 0
+        let canonicalCorrectionCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringCorrectionRecord>()).count) ?? 0
 
         return ScoreKeepMigrationBaselineRecord(
             schemaVersion: 1,
@@ -122,6 +134,12 @@ enum ScoreKeepMigrationBaselineCapture {
             lineupCount: lineups.count,
             atbatCount: atbats.count,
             pitcherCount: pitchers.count,
+            teamCreationOperationEvidenceCount: teamCreationOperationEvidenceCount,
+            canonicalHistoryCount: canonicalHistoryCount,
+            canonicalEventCount: canonicalEventCount,
+            canonicalPayloadCount: canonicalPayloadCount,
+            canonicalOperationCount: canonicalOperationCount,
+            canonicalCorrectionCount: canonicalCorrectionCount,
             stableIdentityFingerprint: stableIdentityFingerprint(games: games, teams: teams, players: players, lineups: lineups, atbats: atbats, pitchers: pitchers),
             relationshipFingerprint: relationshipFingerprint(games: games, teams: teams, players: players, lineups: lineups, atbats: atbats, pitchers: pitchers),
             orderingFingerprint: orderingFingerprint(games: games, lineups: lineups, atbats: atbats, pitchers: pitchers),

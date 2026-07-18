@@ -359,8 +359,8 @@ struct PasteView: View {
                     PlayersOnTeamView(team: team, searchString: "", sortOrder: sortOrder)
                 }
             }
-            .navigationDestination(for: Team.self) { team in
-                EditTeamView(navigationPath: $navigationPath, team: team)
+            .navigationDestination(for: TeamNavigationDestination.self) { destination in
+                TeamNavigationDestinationView(destination: destination, navigationPath: $navigationPath)
             }
             .navigationDestination(for: Player.self) { player in
                 if let team {

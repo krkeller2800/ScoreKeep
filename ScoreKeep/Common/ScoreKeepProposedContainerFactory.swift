@@ -21,6 +21,9 @@ enum ScoreKeepProposedContainerConstructionDisposition: String, CaseIterable, Ha
     case constructedNewEmptyProposedV2Store
     case openedCompatibleUnversionedSourceAndTransitionedToProposedV2
     case openedExistingProposedV2Store
+    case constructedNewEmptyProposedV3Store
+    case openedCompatibleSourceAndTransitionedToProposedV3
+    case openedExistingProposedV3Store
     case openedReadOnlyForDiagnosis
     case sourceUnavailable
     case sourceVersionUnknown
@@ -31,6 +34,7 @@ enum ScoreKeepProposedContainerConstructionDisposition: String, CaseIterable, Ha
     case migrationCompletionUncertain
     case containerCreatedVerificationPending
     case verificationFailed
+    case semanticVerifierUnavailableCurrentTargetV2AndV3DuplicateEffectiveChecksums
     case recoveryRequired
     case writesProhibited
     case disabledByRoutePolicy
@@ -51,8 +55,8 @@ struct ScoreKeepProposedContainerFactoryInput: Hashable, Sendable {
     init(
         storeLocation: ScoreKeepStartupStoreLocation,
         writabilityMode: ScoreKeepStartupWritabilityMode,
-        schemaSelection: ScoreKeepProposedSchemaSelection = .proposedV2,
-        migrationPlanSelection: ScoreKeepProposedMigrationPlanSelection = .provenV1ToV2TeamCreationEvidencePlan,
+        schemaSelection: ScoreKeepProposedSchemaSelection = .proposedV3,
+        migrationPlanSelection: ScoreKeepProposedMigrationPlanSelection = .provenV1ToV3CanonicalScoringStoragePlan,
         startupIntent: ScoreKeepStartupIntent,
         sourceClassification: ScoreKeepSourceStoreClassification,
         routeChoice: ScoreKeepSchemaRouteChoice,
@@ -80,12 +84,17 @@ struct ScoreKeepProposedContainerFactoryResult {
         case .constructedNewEmptyProposedV2Store,
              .openedCompatibleUnversionedSourceAndTransitionedToProposedV2,
              .openedExistingProposedV2Store,
+             .constructedNewEmptyProposedV3Store,
+             .openedCompatibleSourceAndTransitionedToProposedV3,
+             .openedExistingProposedV3Store,
              .openedReadOnlyForDiagnosis,
              .containerCreatedVerificationPending:
             return true
         case .sourceUnavailable, .sourceVersionUnknown, .unsupportedFutureSchema,
              .migrationInProgress, .migrationInterrupted, .migrationFailedSafely,
-             .migrationCompletionUncertain, .verificationFailed, .recoveryRequired,
+             .migrationCompletionUncertain, .verificationFailed,
+             .semanticVerifierUnavailableCurrentTargetV2AndV3DuplicateEffectiveChecksums,
+             .recoveryRequired,
              .writesProhibited, .disabledByRoutePolicy, .unsafe, .internalConfigurationError:
             return false
         }
@@ -99,12 +108,13 @@ enum ScoreKeepProposedContainerFactory {
             return injectedResult(for: injected, input: input)
         }
 
-        guard input.schemaSelection == .proposedV2,
-              input.migrationPlanSelection == .provenV1ToV2TeamCreationEvidencePlan else {
+        guard input.schemaSelection == .proposedV3,
+              input.migrationPlanSelection == .provenV1ToV3CanonicalScoringStoragePlan else {
             return classified(.internalConfigurationError, input: input)
         }
 
         guard input.routeChoice != .proposedV2PreparedButDisabled,
+              input.routeChoice != .proposedV3PreparedButDisabled,
               input.routeChoice != .legacyUnversionedProductionStartup else {
             return classified(.disabledByRoutePolicy, input: input)
         }
@@ -121,7 +131,12 @@ enum ScoreKeepProposedContainerFactory {
             return classified(.unsafe, input: input)
         }
 
-        guard input.sourceClassification.isSupportedForProposedV2Startup else {
+        let supportedSourceClassifications: Set<ScoreKeepSourceStoreClassification> = [
+            .noStoreExists,
+            .existingProposedV3Store,
+            .convertedProposedV3Store
+        ]
+        guard supportedSourceClassifications.contains(input.sourceClassification) else {
             switch input.sourceClassification {
             case .unknownVersion:
                 return classified(.sourceVersionUnknown, input: input)
@@ -131,22 +146,23 @@ enum ScoreKeepProposedContainerFactory {
                 return classified(.sourceUnavailable, input: input)
             case .readOnlyDiagnosisRequired:
                 return classified(.writesProhibited, input: input)
+            case .existingProposedV2Store, .convertedProposedV2Store:
+                return classified(.semanticVerifierUnavailableCurrentTargetV2AndV3DuplicateEffectiveChecksums, input: input)
             default:
                 return classified(.unsafe, input: input)
             }
         }
 
         do {
-            let schema = Schema(ScoreKeepProposedVersionedSchema.V2.models)
+            let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
             let configuration = ModelConfiguration(
-                "ScoreKeepProposedV2StartupReadiness",
-                schema: schema,
+                "ScoreKeepProposedV3StartupReadiness",
                 url: url,
                 allowsSave: input.writabilityMode == .writable
             )
             let container = try ModelContainer(
                 for: schema,
-                migrationPlan: ScoreKeepProposedTeamCreationEvidenceMigrationPlan.self,
+                migrationPlan: nil,
                 configurations: [configuration]
             )
             return ScoreKeepProposedContainerFactoryResult(
@@ -165,11 +181,12 @@ enum ScoreKeepProposedContainerFactory {
         }
         switch input.sourceClassification {
         case .noStoreExists:
-            return .constructedNewEmptyProposedV2Store
-        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore:
-            return .openedCompatibleUnversionedSourceAndTransitionedToProposedV2
-        case .existingProposedV2Store, .convertedProposedV2Store:
-            return .openedExistingProposedV2Store
+            return .constructedNewEmptyProposedV3Store
+        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore,
+             .existingProposedV2Store, .convertedProposedV2Store:
+            return .openedCompatibleSourceAndTransitionedToProposedV3
+        case .existingProposedV3Store, .convertedProposedV3Store:
+            return .openedExistingProposedV3Store
         case .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
              .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
              .migrationEvidenceMissing, .migrationEvidenceUncertain, .readOnlyDiagnosisRequired:

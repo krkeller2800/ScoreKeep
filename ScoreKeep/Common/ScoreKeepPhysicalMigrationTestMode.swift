@@ -22,11 +22,11 @@ struct ScoreKeepPhysicalMigrationTestIdentity: Hashable, Sendable {
 enum ScoreKeepPhysicalMigrationTestMode: String, CaseIterable, Codable, Hashable, Sendable {
     case production
     case legacyStore
-    case proposedV2Migration
+    case proposedV3Migration
 
     static var compiledMode: ScoreKeepPhysicalMigrationTestMode {
         #if SCOREKEEP_MIGRATION_TEST_PROPOSED
-        return .proposedV2Migration
+        return .proposedV3Migration
         #elseif SCOREKEEP_MIGRATION_TEST_LEGACY
         return .legacyStore
         #else
@@ -40,8 +40,8 @@ enum ScoreKeepPhysicalMigrationTestMode: String, CaseIterable, Codable, Hashable
             return "Production"
         case .legacyStore:
             return "Legacy Store"
-        case .proposedV2Migration:
-            return "Proposed V2 Migration"
+        case .proposedV3Migration:
+            return "Proposed V3 Migration"
         }
     }
 
@@ -51,8 +51,8 @@ enum ScoreKeepPhysicalMigrationTestMode: String, CaseIterable, Codable, Hashable
             return "Production legacy SwiftData"
         case .legacyStore:
             return "Unversioned legacy SwiftData"
-        case .proposedV2Migration:
-            return "Prepared Proposed V2, disabled"
+        case .proposedV3Migration:
+            return "Prepared Proposed V3, disabled"
         }
     }
 }
@@ -101,7 +101,7 @@ struct ScoreKeepPhysicalMigrationTestSafety: Hashable, Sendable {
                 authorization: .authorizedLegacyOnly,
                 stableDiagnosticCodes: ["migrationTest.legacyOnly", "migrationTest.proposedNotRun"]
             )
-        case .proposedV2Migration:
+        case .proposedV3Migration:
             return ScoreKeepPhysicalMigrationTestSafety(
                 identity: identity,
                 mode: mode,

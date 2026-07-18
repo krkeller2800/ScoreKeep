@@ -50,6 +50,17 @@ struct ScoreKeepProductionMigrationLayout: Hashable, Sendable {
         temporaryTargetsRoot.appendingPathComponent(operationDirectoryName(for: operationIdentity), isDirectory: true).appendingPathComponent(storeFileName, isDirectory: false)
     }
 
+    func operationTemporaryTargetStoreFamilyURL(
+        operationIdentity: ScoreKeepMigrationOperationIdentity,
+        familyDirectoryName: String,
+        storeFileName: String = activeStoreFileName
+    ) -> URL {
+        temporaryTargetsRoot
+            .appendingPathComponent(operationDirectoryName(for: operationIdentity), isDirectory: true)
+            .appendingPathComponent(familyDirectoryName, isDirectory: true)
+            .appendingPathComponent(storeFileName, isDirectory: false)
+    }
+
     func operationIncompleteTargetURL(operationIdentity: ScoreKeepMigrationOperationIdentity, storeFileName: String = activeStoreFileName) -> URL {
         incompleteTargetsRoot.appendingPathComponent(operationDirectoryName(for: operationIdentity), isDirectory: true).appendingPathComponent(storeFileName, isDirectory: false)
     }

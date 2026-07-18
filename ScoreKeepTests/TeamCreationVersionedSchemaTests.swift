@@ -12,9 +12,11 @@ struct TeamCreationVersionedSchemaTests {
         #expect(ScoreKeepProposedVersionedSchema.V2.versionIdentifier == Schema.Version(2, 0, 0))
         #expect(ScoreKeepProposedVersionedSchema.v1ModelNames == ["Game", "Team", "Player", "Atbat", "Lineup", "Pitcher"])
         #expect(ScoreKeepProposedVersionedSchema.v2AddedModelNames == ["TeamCreationOperationEvidenceRecord"])
+        #expect(ScoreKeepProposedVersionedSchema.v3AddedModelNames == CanonicalScoringPersistenceModelBoundary.implementationModelNames)
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV1RepresentsCurrentKnownModelSet)
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV2AddsOnlyOperationEvidence)
-        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerIsUnchanged)
+        #expect(ScoreKeepProposedSchemaAssessment.current.proposedV3AddsOnlyCanonicalScoringStorage)
+        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV3)
     }
 
     @Test("operation evidence model stores only scalar operation metadata")

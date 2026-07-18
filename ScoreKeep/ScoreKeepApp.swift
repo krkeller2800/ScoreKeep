@@ -11,6 +11,12 @@ import os.log
 
 @main
 struct ScoreKeepApp: App {
+    private static let schemaDiagnosticArgument = "-ScoreKeepSchemaDiagnostic"
+    private static var isSchemaDiagnosticMode: Bool {
+        ProcessInfo.processInfo.arguments.contains(schemaDiagnosticArgument)
+            || CommandLine.arguments.contains(schemaDiagnosticArgument)
+    }
+
     // Shared purchase manager for the entire app
     @StateObject private var purchaseManager = PurchaseManager()
     @StateObject private var router = AppRouter()
@@ -18,60 +24,129 @@ struct ScoreKeepApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeededInitialGame") private var hasSeededInitialGame = false
 
+    init() {
+        print("SCHEMA_DIAGNOSTIC appInit launchArgumentPresent=\(Self.isSchemaDiagnosticMode)")
+    }
+
     var body: some Scene {
         WindowGroup {
-            ScoreKeepProductionStartupHost {
-                Group {
-                    if UIDevice.type == "iPad" {
-                        StartView()
-                            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-                    } else if UIDevice.type == "iPhone" {
-                        StartPhoneView()
-                            .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-                    }
-                }
-                .environmentObject(purchaseManager)
-                .environmentObject(router)
-                .environmentObject(announcements)
-                .task {
-                    await purchaseManager.loadProducts()
-                    await purchaseManager.refreshEntitlements()
-                    await announcements.refresh()
-                }
-                .onChange(of: scenePhase) {
-                    if scenePhase == .active {
-                        Task {
-                            await purchaseManager.refreshEntitlements()
-                            if purchaseManager.seasonPassProduct == nil {
-                                await purchaseManager.loadProducts()
-                            }
-                            await announcements.refresh()
+            if Self.isSchemaDiagnosticMode {
+                ScoreKeepSchemaDiagnosticView()
+            } else {
+                ScoreKeepProductionStartupHost {
+                    Group {
+                        if UIDevice.type == "iPad" {
+                            StartView()
+                                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
+                        } else if UIDevice.type == "iPhone" {
+                            StartPhoneView()
+                                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                         }
                     }
-                }
-                .onOpenURL { url in
-                    if let dest = parseDeepLink(url) {
-                        router.destination = dest
+                    .environmentObject(purchaseManager)
+                    .environmentObject(router)
+                    .environmentObject(announcements)
+                    .task {
+                        await purchaseManager.loadProducts()
+                        await purchaseManager.refreshEntitlements()
+                        await announcements.refresh()
                     }
-                }
-                .sheet(isPresented: $announcements.isPresenting) {
-                    AnnouncementSheet()
-                        .environmentObject(announcements)
-                }
-                // Inject a hidden seeding runner once the modelContext exists
-                .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
-                #if SCOREKEEP_MIGRATION_TEST
-                .modifier(ScoreKeepPhysicalMigrationTestOverlay())
-                #endif
-                .onAppear {
-                    let fm = FileManager.default
-                    if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
-                        print("Documents directory path: \(documents.path)")
+                    .onChange(of: scenePhase) {
+                        if scenePhase == .active {
+                            Task {
+                                await purchaseManager.refreshEntitlements()
+                                if purchaseManager.seasonPassProduct == nil {
+                                    await purchaseManager.loadProducts()
+                                }
+                                await announcements.refresh()
+                            }
+                        }
+                    }
+                    .onOpenURL { url in
+                        if let dest = parseDeepLink(url) {
+                            router.destination = dest
+                        }
+                    }
+                    .sheet(isPresented: $announcements.isPresenting) {
+                        AnnouncementSheet()
+                            .environmentObject(announcements)
+                    }
+                    // Inject a hidden seeding runner once the modelContext exists
+                    .background(SeederView(hasSeededInitialGame: $hasSeededInitialGame))
+                    #if SCOREKEEP_MIGRATION_TEST
+                    .modifier(ScoreKeepPhysicalMigrationTestOverlay())
+                    #endif
+                    .onAppear {
+                        let fm = FileManager.default
+                        if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
+                            print("Documents directory path: \(documents.path)")
+                        }
                     }
                 }
             }
         }
         .handlesExternalEvents(matching: ["*"])
+    }
+}
+
+private struct ScoreKeepSchemaDiagnosticView: View {
+    init() {
+        print("SCHEMA_DIAGNOSTIC entered")
+    }
+
+    var body: some View {
+        Text("ScoreKeep Schema Diagnostic")
+            .onAppear {
+                print("SCHEMA_DIAGNOSTIC appeared")
+            }
+            .task {
+                ScoreKeepSchemaDiagnosticReporter.report()
+            }
+    }
+}
+
+private enum ScoreKeepSchemaDiagnosticReporter {
+    static func report() {
+        reportSchema("V2", ScoreKeepProposedVersionedSchema.V2.self)
+        reportSchema("V3", ScoreKeepProposedVersionedSchema.V3.self)
+        print("SCHEMA_DIAGNOSTIC stageEvaluationBegin")
+        let planSchemas = ScoreKeepProposedCanonicalScoringStorageMigrationPlan.schemas.map {
+            "\(String(describing: $0)):\($0.versionIdentifier.description)"
+        }.joined(separator: ",")
+        print("SCHEMA_DIAGNOSTIC planSchemasEvaluated=\(planSchemas)")
+        let stages = ScoreKeepProposedCanonicalScoringStorageMigrationPlan.stages
+        print("SCHEMA_DIAGNOSTIC stageEvaluationSucceeded stageCount=\(stages.count)")
+        print("SCHEMA_DIAGNOSTIC freshV2ToV3MigrationSkipped reason=currentTargetV2AndV3DuplicateEffectiveChecksums")
+        reportProductionMetadataClassification()
+    }
+
+    private static func reportSchema(_ label: String, _ schemaType: any VersionedSchema.Type) {
+        let schema = Schema(versionedSchema: schemaType)
+        print("SCHEMA_DIAGNOSTIC schema=\(label) version=\(schemaType.versionIdentifier.description) entityCount=\(schema.entities.count) schemaInventoryOnly=true")
+        for entity in schema.entities.sorted(by: { $0.name < $1.name }) {
+            let properties = entity.properties
+                .map { String(describing: $0) }
+                .sorted()
+                .joined(separator: "|")
+            print("SCHEMA_DIAGNOSTIC entity=\(label).\(entity.name) properties=\(properties)")
+        }
+    }
+
+    private static func reportProductionMetadataClassification() {
+        let root = ScoreKeepPhysicalDeviceDiagnostics.applicationSupportRoot()
+        let layout = ScoreKeepProductionMigrationLayout.resolve(applicationSupportRoot: root)
+        let assessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: layout.activeStore)
+        let journal = ScoreKeepMigrationJournalStore(directory: layout.journal.deletingLastPathComponent()).load()
+        let journalStatus: String
+        if let record = journal.record {
+            journalStatus = "\(record.phase.rawValue):\(record.sourceClassification.rawValue)"
+        } else if journal.error != nil {
+            journalStatus = "unreadable"
+        } else {
+            journalStatus = "absent"
+        }
+        let matchingVersions = assessment.matchingRegisteredVersions.joined(separator: "+")
+        print("SCHEMA_DIAGNOSTIC productionSourceClassification=\(assessment.sourceClassification.rawValue) hashEntryCount=\(assessment.hashEntryCount) versionIdentifierCount=\(assessment.versionIdentifierCount) matchingRegisteredVersions=\(matchingVersions) selectedStartupRoute=\(assessment.selectedStartupRoute) journal=\(journalStatus)")
     }
 }
 

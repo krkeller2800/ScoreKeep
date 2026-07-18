@@ -154,8 +154,8 @@ struct ImportPlayersView: View {
                     .navigationDestination(for: Player.self) { player in
                         EditPlayerView( player: player, team: tm, navigationPath: $navigationPath)
                     }
-                    .navigationDestination(for: Team.self) { team in
-                        EditTeamView(navigationPath: $navigationPath, team: team)
+                    .navigationDestination(for: TeamNavigationDestination.self) { destination in
+                        TeamNavigationDestinationView(destination: destination, navigationPath: $navigationPath)
                     }
                     .onAppear() {
                         columnVisibility = .detailOnly
