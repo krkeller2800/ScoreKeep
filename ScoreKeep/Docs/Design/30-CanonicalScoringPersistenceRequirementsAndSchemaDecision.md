@@ -1568,3 +1568,94 @@ The approved scenario persists a first accepted scoring operation, a second dist
 Failure coverage is intentionally bounded to rehearsal-level risks: conflicting reuse of an operation identity and a missing correction target fail closed in the disposable store without claiming success, adding unintended canonical rows, mutating Legacy rows, touching production paths, or interfering with cleanup. Lower-level malformed payload, sequence, operation, and supersession cases remain covered by Task 3.23 and Task 3.24 tests.
 
 Completion evidence is automated test evidence only. Xcode hosted unit-test execution may launch the ScoreKeep app process, so the app entry point uses `ScoreKeepLaunchIsolation` to detect XCTest before production startup and render an inert host view. This prevents `ScoreKeepProductionStartupHost`, production `ModelContainer` construction, migration recovery UI, seeding, StoreKit startup tasks, entitlement refresh tasks, and ordinary simulator store access during the hosted unit-test run. Manual simulator or device rehearsal is omitted because the disposable file-backed integration boundary satisfies the catalog without manual active-container launch, user data, production startup, or a separate manual procedure. Remaining work before scoring-authority readiness and production routing is Task 2.21 renewed readiness, then any later explicitly approved Task 7.21 bounded routing decision.
+
+<!-- MARK: - 34. Legacy Scoring Operation Evidence Authority -->
+## 34. Legacy Scoring Operation Evidence Authority
+
+This section completes implementation-catalog Task 7.7A as a documentation-only schema decision for durable Legacy scoring-operation evidence. It does not implement production code, tests, schema declarations, migration code, recovery code, routing, canonical writes, historical backfill, or Task 7.7 duplicate-prevention behavior.
+
+The confirmed Task 7.7 blocker is that durable idempotency across persistence retry and resume cannot be implemented from current Legacy persisted evidence. Document 29 defines Task 7.7 as enforcing idempotency across persistence retry and resume. `LiveScoringWorkflowCoordinator.SaveAction` is a throwing save closure, `submitScoringAction` mutates `Atbat.result` and related ordinary-result defaults before calling `save`, and `submitAdditionalChoiceScoringAction` mutates `Atbat.result`, `maxbase`, `outAt`, `rbis`, `stolenBases`, `earnedRun`, `playRec`, and end-of-inning evidence before calling `save`. On thrown save, the coordinator restores in-memory fields, but that restoration does not prove the database did not commit.
+
+Legacy persisted model evidence is insufficient for durable operation reconciliation. `Game` stores game identity, scores, teams, players, at-bats, lineups, pitchers, and substitution arrays. `Atbat` stores scoring facts and projections such as result, max base, base-path out, inning, sequence, column, RBI, outs, sacrifice, stolen-base, earned-run, play record, and end-of-inning state. `Player` and `Pitcher` store roster, participant, appearance, and aggregate evidence. None stores a scoring-operation identity, request fingerprint, accepted outcome reference, conflict classification, or completion proof for a retryable live-scoring submission.
+
+The selected responsibility is `Legacy scoring-operation evidence`: durable application/persistence evidence associated with the Legacy live-scoring writer. It may prove that a logical Legacy scoring submission was accepted, rejected, conflicted, or unresolved. It must not become a third baseball-fact authority. Legacy `Atbat`, `Game`, `Player`, and `Pitcher` facts remain the production baseball facts for ordinary scoring until a later routing decision changes that authority.
+
+This responsibility is preferable to mutable `Atbat` facts alone because current `Atbat` fields cannot distinguish first acceptance, exact retry, conflicting reuse, and committed-but-unacknowledged success. It is preferable to an in-memory registry because Task 7.7 requires resume across fresh workflow instances or relaunch. It is preferable to canonical shadow writing because Documents 29, 30, and the renewed Task 2.21 readiness baseline keep `CanonicalScoringTransactionAdapter` non-routed for ordinary production scoring and prohibit ordinary canonical writes, dual writes, and historical canonical backfill. It is preferable to overloading an unrelated field because display, scoring, and projection fields would become ambiguous and would mix baseball facts with operation evidence. It is preferable to modifying V3 in place because `ScoreKeepProposedVersionedSchema.V3` is the established 12-model versioned schema and repository policy adds persisted responsibility through a later schema version rather than silently changing a frozen version.
+
+<!-- MARK: - 35. Minimum Durable Evidence and Identity Lifecycle -->
+## 35. Minimum Durable Evidence and Identity Lifecycle
+
+The later implementation should persist only the minimum evidence required for Task 7.7:
+
+- Stable logical operation identity.
+- Deterministic request fingerprint.
+- Target game identity.
+- Target at-bat identity.
+- Submission family, such as ordinary result or additional-choice final submission.
+- Accepted-result classification.
+- Accepted-outcome reference or sufficient authoritative link to the Legacy `Atbat` outcome.
+- Completion or disposition state.
+- Ordering or creation evidence only when required to reconcile same-target attempts safely.
+- Conflict detection evidence.
+
+The durable evidence must not add analytics, UI state, navigation state, display strings, general audit text, full request snapshots, raw errors, purchase evidence, allowance evidence, or duplicated canonical baseball-event history without a separately proven need.
+
+Operation identity is owned by the application-service submission boundary for the Legacy writer, not by SwiftData object identity, not by `Atbat.ident` alone, not by current time, not by mutable score projections, and not by display text. The identity is created before the first persistence attempt for a logical scoring intent. It is retained with the pending submission through retry. Resume means rebuilding enough workflow state after interruption or failure to reuse the same operation identity for the same logical intent, target game, target at-bat, submission family, and payload. A genuinely new user intent receives a new identity.
+
+Exact retry is recognized by the same operation identity, same game, same target at-bat, same submission family, and same request fingerprint, with durable accepted evidence. Conflicting reuse is the same operation identity with a different fingerprint, target, game, family, or accepted facts; it must fail closed and must not overwrite accepted Legacy scoring facts. Operation identity may be cleared from transient UI state only after the durable disposition is accepted, rejected, conflicted, or explicitly unresolved in a way that the later implementation can reconcile from storage.
+
+The request fingerprint is a deterministic semantic fingerprint of the submitted Legacy scoring operation. It must cover operation identity, target game identity, target at-bat identity, submission family, selected Legacy result, additional-choice values when present, and any accepted-outcome reference required to return the same result. It must not depend on current time, memory addresses, localized display text, relationship-array order, mutable replay projections, or regenerated per-callback values.
+
+<!-- MARK: - 36. Retry Resume Reconciliation and Atomicity -->
+## 36. Retry Resume Reconciliation and Atomicity
+
+Task 7.7 requires an application/persistence boundary that resolves uncertain save outcomes. The later implementation must save the Legacy scoring mutation and its operation evidence atomically. If the operation evidence saves without the Legacy mutation, or the Legacy mutation saves without operation evidence, retry and resume remain unsafe.
+
+After any thrown or uncertain save, the owner must perform a fresh-context lookup before deciding whether retry is safe. The lookup must compare exact operation identity and request fingerprint. When exact accepted evidence exists, the boundary returns the existing accepted outcome rather than attempting a second mutation. When the identity exists with different facts, the boundary returns a safe conflict. Retry is allowed only when authoritative persisted evidence proves no prior accepted operation exists for the identity and target.
+
+The reconciliation owner must be a fresh-context Legacy scoring-operation evidence lookup associated with the Legacy writer. No such owner exists today. In-memory restoration of `Atbat` fields is useful for presentation cleanup but is not durable noncommit proof. A thrown `ModelContext.save()` or injected `SaveAction` error is completion-uncertain unless durable lookup proves otherwise.
+
+The canonical adapter is precedent for the shape of the boundary, not an authorized production writer for ordinary Legacy scoring. `CanonicalScoringTransactionAdapter` owns operation identity, request fingerprinting, duplicate lookup, one explicit save, rollback, fresh-context verification, exact retry, and conflict classification for canonical rows. Ordinary production scoring still does not call that adapter, does not write canonical records, and does not read canonical replay as its active production source.
+
+The supported retry and resume lifetime for the later Legacy evidence is the lifetime needed to protect a logical operation across the persistence retry and workflow resume cases in Task 7.7. The evidence should remain durable after acceptance so delayed duplicate callbacks, scene interruption, process termination, and future reconciliation can identify already accepted operations. Retention beyond that idempotency and support boundary is a later policy question and must not become broad analytics or audit logging by default.
+
+<!-- MARK: - 37. Correction Deletion and Substitution Boundary -->
+## 37. Correction Deletion and Substitution Boundary
+
+Legacy scoring-operation evidence records that an original operation reached a disposition. It must not be silently erased merely because mutable Legacy scoring facts later change through correction, deletion, replacement, or substitution workflows.
+
+For Task 7.7, the required evidence covers initial ordinary and additional-choice live-scoring submission idempotency only. If a later correction, deletion, replacement, or substitution workflow requires durable idempotency, that later workflow should receive a separate operation identity and separately authorized operation-evidence semantics. This decision does not expand into canonical correction history and does not authorize rewriting canonical or Legacy history as an audit log.
+
+Accepted-outcome references may become historical if the target `Atbat` is later corrected, deleted, or replaced. The original operation evidence should remain durable as proof of the original accepted, rejected, conflicted, or unresolved submission, while the later authorized workflow owns any new baseball mutation and its own idempotency. Substitution evidence remains Legacy `Game.replaced`, `Game.incomings`, player order, affected `Atbat` ordering, and pitcher participation evidence until a later substitution authority changes that boundary.
+
+<!-- MARK: - 38. Schema Version Migration Rollback and Retirement Decision -->
+## 38. Schema Version Migration Rollback and Retirement Decision
+
+A new schema version is required before Task 7.7 can be implemented. Adding persisted Legacy scoring-operation evidence is a new stored responsibility. It must not modify V1, V2, or V3 in place. `ScoreKeepProposedVersionedSchema.V1` remains six Legacy models, V2 remains those six plus `TeamCreationOperationEvidenceRecord`, and V3 remains those seven plus exactly five canonical scoring storage models, for exactly 12 models.
+
+The later versioned implementation should define a new version after V3 that contains all existing V3 responsibilities plus one Legacy scoring-operation evidence responsibility. The design consequence is a 13-model destination schema, stated here only as an approved future design requirement, not as an implemented fact. No schema has changed in this task.
+
+Migration source is V3 and migration destination is the new version. Empty stores migrate with empty Legacy scoring-operation evidence. Existing Legacy games migrate without synthesized operation evidence and without historical canonical backfill, because current Legacy records cannot prove historical operation identities or request fingerprints. Canonical-zero preservation remains required for Legacy-origin history: migration must not create canonical histories, operations, events, payloads, or corrections for ordinary Legacy games.
+
+Migration and recovery must follow the repository's established source-preservation and fail-closed policy. The protected source store family must be preserved before migration work. Failed or interrupted migration must retain source and backup evidence, avoid partially promoting an unverified target, and classify recovery without fabricating operation evidence. Unsupported source versions, unknown metadata, contradictory stores, incomplete sidecars, or unavailable semantic verification must fail closed. Rollback compatibility must preserve the ability to keep using the prior Legacy-authoritative data or a retained backup according to the existing migration retention boundary.
+
+The evidence is eventually retired or ignored only when Legacy ordinary scoring is retired by a later approved routing and cleanup sequence. Until then it belongs to the Legacy writer and remains distinct from canonical scoring authority. Even after canonical routing, historical Legacy operation evidence may remain support or compatibility evidence rather than baseball-event truth.
+
+<!-- MARK: - 39. Task 7.7 Prerequisites and Current Production Boundary -->
+## 39. Task 7.7 Prerequisites and Current Production Boundary
+
+Task 7.7 remains blocked. Its exact prerequisite is completion of a separately authorized versioned implementation task that adds the new schema version, durable Legacy scoring-operation evidence model, atomic Legacy writer boundary, fresh-context reconciliation owner, migration, recovery, rollback, and focused persistence verification. Document 29 catalogs that implementation as Task 7.7B, `Versioned Legacy scoring operation evidence implementation`.
+
+Task 7.7B must prove at least these acceptance points before Task 7.7 resumes:
+
+- Legacy scoring mutation and operation evidence save atomically.
+- Exact retry returns the existing accepted outcome.
+- Conflicting operation-identity reuse fails closed.
+- Thrown or uncertain save performs fresh-context lookup before retry.
+- Retry is allowed only when durable evidence proves no prior accepted operation exists.
+- Migration from V3 preserves Legacy facts, keeps canonical scoring rows zero for Legacy-origin history, and creates no historical backfill.
+- Failed and interrupted migration retain source and backup evidence and recover fail-closed.
+- Rollback or disable behavior does not corrupt existing Legacy scoring facts.
+- Correction, deletion, replacement, and substitution remain outside Task 7.7 unless separately authorized.
+
+Production scoring remains Legacy. Ordinary scoring performs no canonical writes. No historical canonical backfill exists. V3 remains exactly 12 models. No schema has yet changed. Canonical operation evidence is precedent but is not authorized as the Legacy production writer. The new evidence is not a baseball-fact source of truth. Task 7.8 has not begun.
