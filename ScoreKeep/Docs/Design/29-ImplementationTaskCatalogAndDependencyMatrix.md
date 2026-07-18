@@ -335,6 +335,14 @@ Phase 5 introduces workflow coordination boundaries. It must not invent concrete
 | 5.20 Restore/status-check coordination | Coordinate restore/check status without mutating baseball records. | PurchaseManager, paywall. | Phase 9 entitlement. | Prepares restore workflow authority. | Restore uncertainty is not data loss or success. | production-source/test |
 | 5.21 Allowance-backed continuation and pending restoration | Coordinate continuation after free allowance and app interruption. | Keychain counters, score/share flows. | 5.9, 5.17, Phase 9. | Prepares allowance workflow authority. | Idempotent continuation; no duplicate counter write. | vertical slice/test |
 
+### Task 5.10 Completion Record - Live Scoring Workflow Coordination
+
+Task 5.10 is complete as a production-compiled Legacy live-scoring workflow coordination boundary. `LiveScoringWorkflowCoordinator` owns the initial scorecard-cell selection workflow, duplicate placeholder prevention for an already selected cell, Legacy placeholder `Atbat` creation, score/inning/out/base projection refresh, pitcher marker refresh, and classified validation or persistence outcomes for those coordinated steps.
+
+Presentation still owns navigation, sheets, selected team state, draw state, and displaying the returned projection values. `ScoreGameView` still owns the current Legacy scoring edit sheet behavior for result, RBI, stolen-base, earned-run, play-record, end-of-inning, deletion, and cancellation semantics; those remain Task 5.11 correction/delete workflow scope rather than Task 5.10. The domain and Phase 2 scoring APIs remain non-routed authorities for meaning and verification only. Persistence remains the current Legacy SwiftData path through `Game`, `Atbat`, and `Pitcher`; no normal scoring path calls `CanonicalScoringTransactionAdapter` or `CanonicalPersistedScoringReplayVerifier`.
+
+Focused verification uses disposable in-memory V3 stores to prove existing-cell selection does not duplicate at-bats, empty-cell selection creates one Legacy placeholder at-bat, projection refresh preserves established Legacy scoring and pitcher-marker outcomes, invalid selection fails closed, injected save failure is not reported as success, and no canonical scoring records are written. This completion unblocks Task 6.9 live-scoring shell presentation only. It does not begin Task 6.9, Task 7.1, Phase 7 live-scoring routing, production canonical scoring, historical canonical backfill, dual writing, schema migration, Legacy persistence retirement, or Legacy scoring retirement.
+
 <!-- MARK: - 12. Phase 6 Task Catalog - Presentation and Navigation Replacement -->
 ## 12. Phase 6 Task Catalog - Presentation and Navigation Replacement
 
