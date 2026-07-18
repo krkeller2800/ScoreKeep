@@ -233,6 +233,8 @@ Cleanup candidates inspected: `-ScoreKeepSchemaDiagnostic` launch support is use
 
 Task 3.22A decision record: Document 31, `Frozen V2 Store Verification Architecture`, selects metadata-gated copied-workspace migration with V3 destination semantic verification and retained rollback as the production architecture. A V2-only target is allowed only as supporting test or fixture evidence unless a separate production extension architecture is approved. An authoritative frozen Core Data V2 model is deferred unless an exact historical model artifact or fixture-proven supported reconstruction is obtained. Tasks 3.22B through 3.22F are required prerequisites before Task 3.22 may resume. Task 3.22 remains blocked, production scoring remains Legacy, and Task 3.23 remains blocked.
 
+Task 3.22C implementation record: the production boundary now identifies frozen Proposed V2 only by exact persistent-store metadata from the Task 3.22B evidence, preserves the complete source family, creates an operation-scoped copied workspace from the verified backup, attempts V3 candidate construction only in that workspace, and stops at destination verification pending. The boundary does not perform Task 3.22D semantic reconciliation, atomic replacement, canonical scoring writes, Legacy scoring retirement, Task 3.22 resumption, or Task 3.23. Task 3.22 remains blocked, production scoring remains Legacy, and Task 3.23 remains blocked.
+
 <!-- MARK: - 10. Phase 4 Task Catalog - Compatibility Import and Export -->
 ## 10. Phase 4 Task Catalog - Compatibility Import and Export
 

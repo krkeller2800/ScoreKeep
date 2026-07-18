@@ -611,3 +611,14 @@ The fixture data is deterministic and synthetic. It contains synthetic team, pla
 This evidence supports Tasks 3.22C through 3.22E for metadata-gated source identity, store-family preservation, copied-workspace migration, fixture rollback/interruption tests, and destination canonical-zero verification. It does not prove independent pre-migration source semantic opening inside the current V3 app target, and it must not be used to justify constructing runtime-effective V2 and V3 SwiftData schemas together in the current hosted target.
 
 Task 3.22 remains blocked pending Tasks 3.22C through 3.22F. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
+
+<!-- MARK: - 20. Task 3.22C Implementation Boundary -->
+## 20. Task 3.22C Implementation Boundary
+
+Task 3.22C implements the metadata-gated copied-workspace boundary selected by this document. Production V2 qualification now requires exact Core Data persistent-store metadata for the frozen seven-entity Proposed V2 inventory, including exact entity count, exact entity names, exact version-hash bytes from the Task 3.22B manifest, store version identifier `2.0.0`, and absence of the five V3 canonical scoring model names. V1, V3, missing, altered, extra, unknown, unreadable, malformed, and unsupported metadata remain distinct fail-closed outcomes.
+
+The production boundary preserves the complete discovered source store family before migration work, verifies the preserved backup by file identity, creates an operation-scoped copied workspace from the verified backup, and runs the candidate V3 construction only against that copied workspace. The active source and retained backup are not used as migration scratchpads, are not promoted, and are not replaced by Task 3.22C.
+
+The migration journal now records explicit copied-workspace phases: `workspaceCreationStarted`, `workspaceVerified`, and `destinationVerificationPending`. Retry preserves the same operation identity, reuses an already verified backup, and deterministically recreates incomplete copied workspaces under the operation target directory. A V2 candidate that opens as V3 stops at `destinationVerificationPending` with `pendingTask3.22D`; no completion, write-readiness, active-store replacement, canonical history synthesis, or Legacy scoring retirement is claimed.
+
+Destination semantic reconciliation, canonical-zero proof after migration, atomic replacement, completed-journal promotion, rollback reconciliation, manual acceptance, temporary diagnostic cleanup, Task 3.22 resumption, and Task 3.23 remain deferred to Tasks 3.22D through 3.22F. Production scoring remains Legacy, and Task 3.22 remains blocked.

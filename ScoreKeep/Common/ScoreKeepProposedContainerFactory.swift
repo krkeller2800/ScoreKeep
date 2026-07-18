@@ -137,6 +137,12 @@ enum ScoreKeepProposedContainerFactory {
             .convertedProposedV3Store
         ]
         guard supportedSourceClassifications.contains(input.sourceClassification) else {
+            if input.sourceClassification == .existingProposedV2Store,
+               input.storeLocation.kind == .disposableMigrationTarget,
+               input.startupIntent == .isolatedVerification,
+               input.routeChoice == .proposedV3EligibleForIsolatedVerification {
+                return constructV3CandidateFromCopiedV2Workspace(input, url: url)
+            }
             switch input.sourceClassification {
             case .unknownVersion:
                 return classified(.sourceVersionUnknown, input: input)
@@ -169,6 +175,32 @@ enum ScoreKeepProposedContainerFactory {
                 disposition: successDisposition(for: input),
                 container: container,
                 diagnostics: diagnostics(successDisposition(for: input), input: input)
+            )
+        } catch {
+            return classified(.migrationFailedSafely, input: input)
+        }
+    }
+
+    private static func constructV3CandidateFromCopiedV2Workspace(
+        _ input: ScoreKeepProposedContainerFactoryInput,
+        url: URL
+    ) -> ScoreKeepProposedContainerFactoryResult {
+        do {
+            let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+            let configuration = ModelConfiguration(
+                "ScoreKeepCopiedWorkspaceV2ToV3Candidate",
+                url: url,
+                allowsSave: input.writabilityMode == .writable
+            )
+            let container = try ModelContainer(
+                for: schema,
+                migrationPlan: nil,
+                configurations: [configuration]
+            )
+            return ScoreKeepProposedContainerFactoryResult(
+                disposition: .openedCompatibleSourceAndTransitionedToProposedV3,
+                container: container,
+                diagnostics: diagnostics(.openedCompatibleSourceAndTransitionedToProposedV3, input: input)
             )
         } catch {
             return classified(.migrationFailedSafely, input: input)

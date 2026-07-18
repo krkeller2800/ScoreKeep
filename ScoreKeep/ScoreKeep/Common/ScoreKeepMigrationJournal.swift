@@ -10,6 +10,8 @@ enum ScoreKeepMigrationJournalDiagnosticCode: String, CaseIterable, Codable, Has
     case backupCopyFailed
     case backupFingerprintMismatch
     case backupSemanticMismatch
+    case workspaceCopyFailed
+    case workspaceFingerprintMismatch
     case proposedContainerConstructionFailed
     case constructionCompletionUncertain
     case postOpenVerificationFailed
@@ -69,8 +71,11 @@ enum ScoreKeepMigrationJournalPhase: String, CaseIterable, Codable, Comparable, 
     case sourceClassified
     case sourcePreservationStarted
     case backupVerified
+    case workspaceCreationStarted
+    case workspaceVerified
     case migrationAttemptStarted
     case containerConstructed
+    case destinationVerificationPending
     case postOpenVerificationStarted
     case postOpenVerificationPassed
     case completionRecorded
@@ -333,7 +338,8 @@ enum ScoreKeepMigrationJournalTransition {
         case .failedSafely, .completionUncertain, .recoveryRequired, .disabled:
             return from != .completionRecorded
         case .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted,
-             .backupVerified, .migrationAttemptStarted, .containerConstructed,
+             .backupVerified, .workspaceCreationStarted, .workspaceVerified,
+             .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
              .postOpenVerificationStarted, .postOpenVerificationPassed, .completionRecorded:
             return false
         }

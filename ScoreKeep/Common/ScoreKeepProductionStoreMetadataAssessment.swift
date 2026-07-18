@@ -149,11 +149,13 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
                 options: nil
             )
             let hashes = metadata[NSStoreModelVersionHashesKey] as? [String: Any] ?? [:]
-            let identifiers = metadata[NSStoreModelVersionIdentifiersKey] as? [Any] ?? []
+            let identifiers = (metadata[NSStoreModelVersionIdentifiersKey] as? [Any] ?? [])
+                .map { String(describing: $0) }
+                .sorted()
             let evidence = ScoreKeepCoreDataVersionHashEvidence.make(from: hashes)
             let evidenceMalformed = evidence == nil && hashes.isEmpty == false
             let hashKeyNames = evidence?.entityNames ?? hashes.keys.sorted()
-            let matches = evidence.map { registeredVersionMatches(for: $0) } ?? []
+            let matches = evidence.map { registeredVersionMatches(for: $0, versionIdentifiers: identifiers) } ?? []
             let classification = classification(for: matches, evidence: evidence, malformed: evidenceMalformed)
             return ScoreKeepProductionStoreMetadataAssessment(
                 sourceClassification: classification,
@@ -199,9 +201,16 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
         return [family.storeFileName, "\(primary.byteCount)", primary.fingerprint].joined(separator: "|")
     }
 
-    private static func registeredVersionMatches(for evidence: ScoreKeepCoreDataVersionHashEvidence) -> [String] {
+    private static func registeredVersionMatches(
+        for evidence: ScoreKeepCoreDataVersionHashEvidence,
+        versionIdentifiers: [String]? = nil
+    ) -> [String] {
         registeredVersionEvidence.compactMap { label, expectedEvidence in
-            exactlyMatches(observed: evidence, expected: expectedEvidence) ? label : nil
+            guard exactlyMatches(observed: evidence, expected: expectedEvidence) else { return nil }
+            if label == "V2", let versionIdentifiers {
+                return versionIdentifiers == frozenV2VersionIdentifiers ? label : nil
+            }
+            return label
         }
     }
 
@@ -216,6 +225,13 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
 
     static func registeredVersionMatchesForTesting(_ evidence: ScoreKeepCoreDataVersionHashEvidence) -> [String] {
         registeredVersionMatches(for: evidence)
+    }
+
+    static func registeredVersionMatchesForTesting(
+        _ evidence: ScoreKeepCoreDataVersionHashEvidence,
+        versionIdentifiers: [String]
+    ) -> [String] {
+        registeredVersionMatches(for: evidence, versionIdentifiers: versionIdentifiers)
     }
 
     static var registeredVersionEvidenceForTesting: [(String, ScoreKeepCoreDataVersionHashEvidence)] {
@@ -245,14 +261,38 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
     private static let registeredVersionEvidence: [(String, ScoreKeepCoreDataVersionHashEvidence)] = {
         let schemas: [(String, any VersionedSchema.Type)] = [
             ("V1", ScoreKeepProposedVersionedSchema.V1.self),
-            ("V2", ScoreKeepProposedVersionedSchema.V2.self),
             ("V3", ScoreKeepProposedVersionedSchema.V3.self)
         ]
-        return schemas.compactMap { label, schema in
+        var evidence: [(String, ScoreKeepCoreDataVersionHashEvidence)] = schemas.compactMap { label, schema in
             guard let evidence = expectedEvidence(for: schema, label: label) else { return nil }
             return (label, evidence)
         }
+        evidence.append(("V2", frozenV2Evidence))
+        return evidence.sorted { $0.0 < $1.0 }
     }()
+
+    private static let frozenV2VersionIdentifiers = ["2.0.0"]
+
+    private static let frozenV2Evidence = ScoreKeepCoreDataVersionHashEvidence.make(entityHashes: [
+        ("Atbat", data(hex: "afc9dce8f1cf0398d9fbd611fe1c096179ca1057d7e31bc58a75eab71c2822c5")),
+        ("Game", data(hex: "f5352b9e7cd9b12f45c972c481f1f82d3a78da932c6d626d52e66b0a21cf376c")),
+        ("Lineup", data(hex: "c46059d17934e7733c89816dcf7406161f4192b95dfc1e2ba27683b7739bed34")),
+        ("Pitcher", data(hex: "9fd67dc2eac273f0272fbc7a5fe1d1f2105cec4b1b5d147c69f704229a296247")),
+        ("Player", data(hex: "99e2a334aa67b4cfdbf23952b49d166513c410dd000dac9c717601ab16c962d4")),
+        ("Team", data(hex: "df7326e2246a984f4740b9dd7e39381d57ec3a7ae6894092ca76553778415cae")),
+        ("TeamCreationOperationEvidenceRecord", data(hex: "b120193e905d792a95dabe0fbd2f772b58f1735779b354af0e44e3c78d4b9ec5"))
+    ])
+
+    private static func data(hex: String) -> Data {
+        var data = Data()
+        var index = hex.startIndex
+        while index < hex.endIndex {
+            let next = hex.index(index, offsetBy: 2)
+            data.append(UInt8(hex[index..<next], radix: 16) ?? 0)
+            index = next
+        }
+        return data
+    }
 
     private static func expectedEvidence(
         for schemaType: any VersionedSchema.Type,
@@ -550,7 +590,8 @@ enum ScoreKeepCompletedJournalV2RecoveryGenerationPlanner {
         case .completionRecorded:
             return .usableExisting
         case .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted,
-             .backupVerified, .migrationAttemptStarted, .containerConstructed,
+             .backupVerified, .workspaceCreationStarted, .workspaceVerified,
+             .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
              .postOpenVerificationStarted, .postOpenVerificationPassed:
             return .usableExisting
         }
@@ -564,7 +605,8 @@ enum ScoreKeepCompletedJournalV2RecoveryGenerationPlanner {
             switch phase {
             case nil, .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted:
                 return .failedPreserved
-            case .backupVerified, .migrationAttemptStarted, .containerConstructed,
+            case .backupVerified, .workspaceCreationStarted, .workspaceVerified,
+                 .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
                  .postOpenVerificationStarted, .postOpenVerificationPassed, .completionRecorded,
                  .recoveryRequired, .failedSafely, .completionUncertain, .disabled:
                 break

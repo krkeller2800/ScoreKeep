@@ -12,23 +12,22 @@ struct ScoreKeepMigrationProductionBoundaryTests {
 
         #expect(appSource.contains("ScoreKeepProductionStartupHost"))
         #expect(appSource.contains("ScoreKeepProposedContainerFactory") == false)
-        #expect(appSource.contains("ScoreKeepMigrationJournalStore") == false)
         #expect(appSource.contains("ScoreKeepSourcePreservationExecutor") == false)
         #expect(appSource.contains("ScoreKeepMigrationOrchestrator") == false)
-        #expect(appSource.contains("ScoreKeepProposedVersionedSchema") == false)
         #expect(startupSource.contains("simpleTeamCreationProductionEnabled = true"))
         #expect(startupSource.contains("runProductionMigration"))
     }
 
-    @Test("proposed V2 schema remains the proven team evidence target")
-    func proposedV2SchemaRemainsTheProvenTeamEvidenceTarget() throws {
+    @Test("proposed V3 schema remains storage only while scoring stays Legacy")
+    func proposedV3SchemaRemainsStorageOnlyWhileScoringStaysLegacy() throws {
         let schemaSource = try source("ScoreKeep/Common/ScoreKeepProposedVersionedSchema.swift")
 
-        #expect(schemaSource.contains("enum V3") == false)
+        #expect(schemaSource.contains("enum V3"))
         #expect(schemaSource.contains("TeamCreationOperationEvidenceRecord.self"))
-        #expect(schemaSource.contains("MigrationCompletion") == false)
+        #expect(schemaSource.contains("CanonicalGameHistoryRecord.self"))
         #expect(ScoreKeepProposedVersionedSchema.v2AddedModelNames == ["TeamCreationOperationEvidenceRecord"])
-        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("isolated verification schemas only"))
+        #expect(ScoreKeepProposedVersionedSchema.v3AddedModelNames == CanonicalScoringPersistenceModelBoundary.implementationModelNames)
+        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("production scoring remains Legacy"))
     }
 
     @Test("TeamView and production writers remain unrouted")

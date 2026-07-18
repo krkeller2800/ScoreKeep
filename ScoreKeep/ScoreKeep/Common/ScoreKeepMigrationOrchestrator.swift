@@ -9,6 +9,8 @@ enum ScoreKeepMigrationInterruptionPoint: String, CaseIterable, Hashable, Sendab
     case afterBackupCopyStart
     case afterBackupCopyCompletion
     case afterBackupVerification
+    case afterWorkspaceCreationStarted
+    case afterWorkspaceVerification
     case afterMigrationAttemptRecording
     case afterContainerConstructionBegins
     case afterContainerConstructionReturns
@@ -25,7 +27,9 @@ enum ScoreKeepMigrationOrchestratorDisposition: String, CaseIterable, Hashable, 
     case disabled
     case ownershipConflict
     case sourcePreservationFailed
+    case workspaceCreationFailed
     case constructionFailed
+    case destinationVerificationPending
     case verificationFailed
     case completionEvidenceFailed
     case recoveryRequired
@@ -233,8 +237,53 @@ enum ScoreKeepMigrationOrchestrator {
             try journalStore.save(journal)
         }
 
-        if preservationRequired && journal.phase < .migrationAttemptStarted {
-            try copyStoreFamily(from: input.backupStoreURL, to: input.targetStoreURL)
+        if preservationRequired && journal.phase < .workspaceVerified {
+            if journal.phase < .workspaceCreationStarted {
+                journal = try ScoreKeepMigrationJournalTransition.advance(
+                    journal,
+                    to: .workspaceCreationStarted,
+                    retryClassification: .retryRequiresFreshTargetCopy
+                )
+                try journalStore.save(journal)
+            }
+            if input.interruptionPoint == .afterWorkspaceCreationStarted {
+                return interrupted(journal)
+            }
+
+            do {
+                let workspace = try copyStoreFamily(
+                    from: input.backupStoreURL,
+                    to: input.targetStoreURL,
+                    replacingIncompleteDestination: true
+                )
+                guard workspace.isComplete else {
+                    throw ScoreKeepStoreFamilyError.primaryStoreMissing
+                }
+            } catch {
+                journal = try ScoreKeepMigrationJournalTransition.advance(
+                    journal,
+                    to: .failedSafely,
+                    recoveryRequirement: .discardIncompleteDisposableTarget,
+                    diagnosticCodes: [.workspaceCopyFailed]
+                )
+                try journalStore.save(journal)
+                return classified(
+                    .workspaceCreationFailed,
+                    journal: journal,
+                    container: nil,
+                    diagnostics: [.workspaceCopyFailed]
+                )
+            }
+
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .workspaceVerified,
+                retryClassification: .retryRequiresFreshTargetCopy
+            )
+            try journalStore.save(journal)
+            if input.interruptionPoint == .afterWorkspaceVerification {
+                return interrupted(journal)
+            }
         }
 
         if journal.phase < .migrationAttemptStarted {
@@ -278,6 +327,17 @@ enum ScoreKeepMigrationOrchestrator {
         }
         if input.interruptionPoint == .afterContainerConstructionReturns {
             return interrupted(journal, container: container)
+        }
+
+        if input.sourceClassification == .existingProposedV2Store || input.sourceClassification == .convertedProposedV2Store {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .destinationVerificationPending,
+                postOpenVerificationDisposition: "pendingTask3.22D",
+                recoveryRequirement: .verifyExistingTarget
+            )
+            try journalStore.save(journal)
+            return classified(.destinationVerificationPending, journal: journal, container: nil, diagnostics: [])
         }
 
         if journal.phase < .postOpenVerificationStarted {
@@ -351,9 +411,12 @@ enum ScoreKeepMigrationOrchestrator {
             return .retryPreflightWithSameOperationIdentity
         case .backupVerified:
             return .reuseVerifiedBackup
+        case .workspaceCreationStarted, .workspaceVerified:
+            return .discardIncompleteDisposableTarget
         case .migrationAttemptStarted:
             return .discardIncompleteDisposableTarget
-        case .containerConstructed, .postOpenVerificationStarted, .postOpenVerificationPassed:
+        case .containerConstructed, .destinationVerificationPending,
+             .postOpenVerificationStarted, .postOpenVerificationPassed:
             return .verifyExistingTarget
         case .completionRecorded:
             return .noRecoveryRequired
@@ -410,12 +473,25 @@ enum ScoreKeepMigrationOrchestrator {
         )
     }
 
-    private static func copyStoreFamily(from sourceURL: URL, to destinationURL: URL, fileManager: FileManager = .default) throws {
+    @discardableResult
+    private static func copyStoreFamily(
+        from sourceURL: URL,
+        to destinationURL: URL,
+        replacingIncompleteDestination: Bool = false,
+        fileManager: FileManager = .default
+    ) throws -> ScoreKeepStoreFamilyDescriptor {
         let destinationDirectory = destinationURL.deletingLastPathComponent()
+        guard sourceURL.deletingLastPathComponent().standardizedFileURL != destinationDirectory.standardizedFileURL else {
+            throw ScoreKeepStoreFamilyError.backupDirectoryMatchesSource
+        }
         if fileManager.fileExists(atPath: destinationDirectory.path) {
             let contents = try fileManager.contentsOfDirectory(atPath: destinationDirectory.path)
-            guard contents.isEmpty else {
-                throw ScoreKeepStoreFamilyError.backupDirectoryNotFresh
+            if contents.isEmpty == false {
+                guard replacingIncompleteDestination else {
+                    throw ScoreKeepStoreFamilyError.backupDirectoryNotFresh
+                }
+                try fileManager.removeItem(at: destinationDirectory)
+                try fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
             }
         } else {
             try fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
@@ -426,6 +502,16 @@ enum ScoreKeepMigrationOrchestrator {
             let destinationMemberURL = destinationDirectory.appendingPathComponent(member.fileName)
             try fileManager.copyItem(at: sourceMemberURL, to: destinationMemberURL)
         }
+        let copied = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: destinationURL, fileManager: fileManager)
+        guard try ScoreKeepStoreFamilyDiscovery.validateBackup(
+            source: family,
+            backup: copied,
+            sourceURL: sourceURL,
+            backupURL: destinationURL
+        ) else {
+            throw ScoreKeepStoreFamilyError.backupDirectoryNotFresh
+        }
+        return copied
     }
 }
 

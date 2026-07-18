@@ -206,7 +206,8 @@ struct ScoreKeepMigrationOrchestratorTests {
             return true
         case .afterJournalCreation, .afterDisableStateResolution, .afterOwnershipClaim,
              .afterSourceClassification, .afterBackupCopyStart, .afterBackupCopyCompletion,
-             .afterBackupVerification, .afterMigrationAttemptRecording, .afterContainerConstructionBegins:
+             .afterBackupVerification, .afterWorkspaceCreationStarted, .afterWorkspaceVerification,
+             .afterMigrationAttemptRecording, .afterContainerConstructionBegins:
             return false
         }
     }

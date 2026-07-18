@@ -1114,6 +1114,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         let sourceClassification = family == nil ? .noStoreExists : metadataAssessment.sourceClassification
         let supportedStartupClassifications: Set<ScoreKeepSourceStoreClassification> = [
             .noStoreExists,
+            .existingProposedV2Store,
             .existingProposedV3Store,
             .convertedProposedV3Store
         ]
@@ -1181,6 +1182,9 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                     interruptionPoint: nil,
                     factoryInjection: nil,
                     semanticRestoreVerifier: sourceClassification.requiresMigration ? { restoreURL in
+                        if sourceClassification == .existingProposedV2Store {
+                            return ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: restoreURL, fileManager: fileManager).sourceClassification == .existingProposedV2Store
+                        }
                         let restored = try Self.currentUnversionedContainer(url: restoreURL, allowsSave: false)
                         let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
                         preservedBaseline = record
@@ -1206,6 +1210,19 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                     migrationPhase: result.journal.phase.rawValue,
                     targetVerification: result.journal.postOpenVerificationDisposition,
                     retryAllowed: retryAllowed
+                ))
+                return
+            }
+            guard sourceClassification != .existingProposedV2Store else {
+                status = .blocked(recoveryPresentation(
+                    code: .postMigrationVerificationFailed,
+                    protectedDataState: currentProtectedDataState(),
+                    capacityStatus: "capacity.sufficient",
+                    sourceStatus: sourceClassification.rawValue,
+                    backupStatus: result.journal.backupVerificationDisposition == .backupVerified ? "present" : "uncertain",
+                    migrationPhase: result.journal.phase.rawValue,
+                    targetVerification: "pendingTask3.22D",
+                    retryAllowed: false
                 ))
                 return
             }
@@ -1365,8 +1382,12 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             return .migrationRecoveryRequired
         case .sourcePreservationFailed:
             return .backupVerificationFailed
+        case .workspaceCreationFailed:
+            return .migrationRecoveryRequired
         case .constructionFailed:
             return .proposedOpenFailed
+        case .destinationVerificationPending:
+            return .postMigrationVerificationFailed
         case .verificationFailed:
             return .postMigrationVerificationFailed
         case .completionEvidenceFailed:
@@ -1751,7 +1772,8 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         switch phase {
         case nil, .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted:
             return artifactDirectories.contains { directoryHasContents($0, fileManager: fileManager) }
-        case .backupVerified, .migrationAttemptStarted, .containerConstructed,
+        case .backupVerified, .workspaceCreationStarted, .workspaceVerified,
+             .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,
              .postOpenVerificationStarted, .postOpenVerificationPassed, .completionRecorded,
              .recoveryRequired, .failedSafely, .completionUncertain, .disabled:
             return false

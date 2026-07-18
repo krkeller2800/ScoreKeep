@@ -60,11 +60,11 @@ struct CompletedJournalRecoveryRoutingTests {
     func recognizableV1RecoveryPathIsRetainedAsBlockedDiagnosticScaffolding() throws {
         let source = try productionStartupHostSource()
         let routeCase = try #require(source.range(of: "case .recoverActiveV1ToFreshV3:"))
-        let blocker = try #require(source.range(of: "semanticVerifierUnavailable.currentTargetV2AndV3DuplicateEffectiveChecksums"))
         let retainedHelper = try #require(source.range(of: "private func recoverActiveV1ThroughFreshV3"))
 
-        #expect(routeCase.lowerBound < blocker.lowerBound)
-        #expect(blocker.lowerBound < retainedHelper.lowerBound)
+        #expect(routeCase.lowerBound < retainedHelper.lowerBound)
+        #expect(source[routeCase.lowerBound..<retainedHelper.lowerBound].contains("migrationRecoveryRequired"))
+        #expect(source.contains("semanticVerifierUnavailable.currentTargetV2AndV3DuplicateEffectiveChecksums"))
     }
 
     @Test("completed V2 recovery helper is retained but production switch fails closed before calling it")
@@ -494,7 +494,7 @@ struct CompletedJournalRecoveryRoutingTests {
 
         #expect(source.contains("let sourceBefore = try ScoreKeepStoreFamilyDiscovery.discover"))
         #expect(source.contains("let sourceAfter = try ScoreKeepStoreFamilyDiscovery.discover"))
-        #expect(source.contains("&& sourceBefore == sourceAfter"))
+        #expect(source.contains("guard sourceBefore == sourceAfter else"))
         #expect(source.contains("throw ScoreKeepSourcePreservationError.backupVerificationFailed(verificationFailure)"))
     }
 

@@ -15,7 +15,7 @@ struct ScoreKeepStartupReadinessTests {
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.unsupportedFutureVersion))
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.migrationEvidenceUncertain))
         #expect(ScoreKeepSourceStoreClassification.populatedCurrentUnversionedStore.requiresMigration)
-        #expect(ScoreKeepSourceStoreClassification.existingProposedV2Store.requiresMigration == false)
+        #expect(ScoreKeepSourceStoreClassification.existingProposedV2Store.requiresMigration)
     }
 
     @Test("migration snapshot is shallow immutable startup authority")
