@@ -17,6 +17,7 @@ struct ScoreKeepMigrationBaselineRecord: Codable, Hashable, Sendable {
     let canonicalPayloadCount: Int
     let canonicalOperationCount: Int
     let canonicalCorrectionCount: Int
+    let legacyScoringOperationEvidenceCount: Int
     let stableIdentityFingerprint: String
     let relationshipFingerprint: String
     let orderingFingerprint: String
@@ -33,7 +34,7 @@ struct ScoreKeepMigrationBaselineRecord: Codable, Hashable, Sendable {
         [
             "Baseline: \(status)",
             "Schema: \(schemaClassification)",
-            "Counts: games=\(gameCount), teams=\(teamCount), players=\(playerCount), lineups=\(lineupCount), atbats=\(atbatCount), pitchers=\(pitcherCount), teamOps=\(teamCreationOperationEvidenceCount), canonicalHistories=\(canonicalHistoryCount), canonicalEvents=\(canonicalEventCount), canonicalPayloads=\(canonicalPayloadCount), canonicalOps=\(canonicalOperationCount), canonicalCorrections=\(canonicalCorrectionCount)",
+            "Counts: games=\(gameCount), teams=\(teamCount), players=\(playerCount), lineups=\(lineupCount), atbats=\(atbatCount), pitchers=\(pitcherCount), teamOps=\(teamCreationOperationEvidenceCount), canonicalHistories=\(canonicalHistoryCount), canonicalEvents=\(canonicalEventCount), canonicalPayloads=\(canonicalPayloadCount), canonicalOps=\(canonicalOperationCount), canonicalCorrections=\(canonicalCorrectionCount), legacyScoringOps=\(legacyScoringOperationEvidenceCount)",
             "Score: \(scoreEvidence)",
             "Substitutions: \(substitutionEvidence)",
             "Runner Sequence: \(difficultRunnerSequence.status)",
@@ -124,6 +125,7 @@ enum ScoreKeepMigrationBaselineCapture {
         let canonicalPayloadCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringEventPayloadRecord>()).count) ?? 0
         let canonicalOperationCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringOperationEvidenceRecord>()).count) ?? 0
         let canonicalCorrectionCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringCorrectionRecord>()).count) ?? 0
+        let legacyScoringOperationEvidenceCount = (try? modelContext.fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>()).count) ?? 0
 
         return ScoreKeepMigrationBaselineRecord(
             schemaVersion: 1,
@@ -140,6 +142,7 @@ enum ScoreKeepMigrationBaselineCapture {
             canonicalPayloadCount: canonicalPayloadCount,
             canonicalOperationCount: canonicalOperationCount,
             canonicalCorrectionCount: canonicalCorrectionCount,
+            legacyScoringOperationEvidenceCount: legacyScoringOperationEvidenceCount,
             stableIdentityFingerprint: stableIdentityFingerprint(games: games, teams: teams, players: players, lineups: lineups, atbats: atbats, pitchers: pitchers),
             relationshipFingerprint: relationshipFingerprint(games: games, teams: teams, players: players, lineups: lineups, atbats: atbats, pitchers: pitchers),
             orderingFingerprint: orderingFingerprint(games: games, lineups: lineups, atbats: atbats, pitchers: pitchers),

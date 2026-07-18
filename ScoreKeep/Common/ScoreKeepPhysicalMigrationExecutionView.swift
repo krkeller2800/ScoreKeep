@@ -407,6 +407,7 @@ enum ScoreKeepPhysicalMigrationExecutor {
             && lhs.canonicalPayloadCount == rhs.canonicalPayloadCount
             && lhs.canonicalOperationCount == rhs.canonicalOperationCount
             && lhs.canonicalCorrectionCount == rhs.canonicalCorrectionCount
+            && lhs.legacyScoringOperationEvidenceCount == rhs.legacyScoringOperationEvidenceCount
             && lhs.stableIdentityFingerprint == rhs.stableIdentityFingerprint
             && lhs.relationshipFingerprint == rhs.relationshipFingerprint
             && lhs.orderingFingerprint == rhs.orderingFingerprint
@@ -538,6 +539,7 @@ enum ScoreKeepPostMigrationAuthorizedAdditiveComparison {
             && lhs.canonicalPayloadCount == rhs.canonicalPayloadCount
             && lhs.canonicalOperationCount == rhs.canonicalOperationCount
             && lhs.canonicalCorrectionCount == rhs.canonicalCorrectionCount
+            && lhs.legacyScoringOperationEvidenceCount == rhs.legacyScoringOperationEvidenceCount
             && lhs.stableIdentityFingerprint == rhs.stableIdentityFingerprint
             && lhs.relationshipFingerprint == rhs.relationshipFingerprint
             && lhs.orderingFingerprint == rhs.orderingFingerprint
@@ -560,6 +562,7 @@ enum ScoreKeepPostMigrationAuthorizedAdditiveComparison {
         if lhs.canonicalPayloadCount != rhs.canonicalPayloadCount { codes.append("canonicalPayloadCountDiffers") }
         if lhs.canonicalOperationCount != rhs.canonicalOperationCount { codes.append("canonicalOperationCountDiffers") }
         if lhs.canonicalCorrectionCount != rhs.canonicalCorrectionCount { codes.append("canonicalCorrectionCountDiffers") }
+        if lhs.legacyScoringOperationEvidenceCount != rhs.legacyScoringOperationEvidenceCount { codes.append("legacyScoringOperationEvidenceCountDiffers") }
         if lhs.stableIdentityFingerprint != rhs.stableIdentityFingerprint { codes.append("stableIdentityFingerprintDiffers") }
         if lhs.relationshipFingerprint != rhs.relationshipFingerprint { codes.append("relationshipFingerprintDiffers") }
         if lhs.orderingFingerprint != rhs.orderingFingerprint { codes.append("relationshipOrderingFingerprintDiffers") }

@@ -159,6 +159,9 @@ enum ScoreKeepDestinationVerifier {
                   observed.canonicalCorrectionCount == 0 else {
                 return result(input: input, candidateIdentity: candidateIdentity, sourceIdentity: sourceIdentity, backupIdentity: backupIdentity, observed: observed, expected: expected, metadataDigest: assessment.versionHashEvidenceDigestPrefix, failure: .unexpectedCanonicalRecords)
             }
+            guard observed.legacyScoringOperationEvidenceCount == expected.legacyScoringOperationEvidenceCount else {
+                return result(input: input, candidateIdentity: candidateIdentity, sourceIdentity: sourceIdentity, backupIdentity: backupIdentity, observed: observed, expected: expected, metadataDigest: assessment.versionHashEvidenceDigestPrefix, failure: .countMismatch)
+            }
             guard observed.scoreEvidence == expected.scoreEvidence,
                   observed.substitutionEvidence == expected.substitutionEvidence,
                   observed.mediaOwnershipFingerprint == expected.mediaOwnershipFingerprint,
@@ -216,7 +219,8 @@ enum ScoreKeepDestinationVerifier {
             "CanonicalScoringEventEnvelopeRecord": record.canonicalEventCount,
             "CanonicalScoringEventPayloadRecord": record.canonicalPayloadCount,
             "CanonicalScoringOperationEvidenceRecord": record.canonicalOperationCount,
-            "CanonicalScoringCorrectionRecord": record.canonicalCorrectionCount
+            "CanonicalScoringCorrectionRecord": record.canonicalCorrectionCount,
+            "LegacyScoringOperationEvidenceRecord": record.legacyScoringOperationEvidenceCount
         ]
     }
 

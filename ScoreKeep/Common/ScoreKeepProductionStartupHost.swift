@@ -638,6 +638,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                             && record.canonicalPayloadCount == 0
                             && record.canonicalOperationCount == 0
                             && record.canonicalCorrectionCount == 0
+                            && record.legacyScoringOperationEvidenceCount == expectedBaseline.legacyScoringOperationEvidenceCount
                     }
                 ),
                 journalStore: recoveryJournalStore
@@ -1041,6 +1042,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                   v3Baseline.canonicalPayloadCount == 0,
                   v3Baseline.canonicalOperationCount == 0,
                   v3Baseline.canonicalCorrectionCount == 0,
+                  v3Baseline.legacyScoringOperationEvidenceCount == 0,
                   ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: v3URL, fileManager: fileManager).sourceClassification == .existingProposedV3Store else {
                 throw ScoreKeepStagedV1RecoveryError.v3VerificationFailed
             }
@@ -1568,6 +1570,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             && lhs.canonicalPayloadCount == rhs.canonicalPayloadCount
             && lhs.canonicalOperationCount == rhs.canonicalOperationCount
             && lhs.canonicalCorrectionCount == rhs.canonicalCorrectionCount
+            && lhs.legacyScoringOperationEvidenceCount == rhs.legacyScoringOperationEvidenceCount
             && lhs.stableIdentityFingerprint == rhs.stableIdentityFingerprint
             && lhs.relationshipFingerprint == rhs.relationshipFingerprint
             && lhs.orderingFingerprint == rhs.orderingFingerprint
