@@ -22,16 +22,19 @@ struct ScoreGameView: View {
     @State private var batOut: String = "Result"
 
     let enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation?
+    let submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)?
     let com:Common = Common()
 
     init(
         atbat: Binding<Atbat>,
         showingScoring: Binding<Bool>,
-        enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation? = nil
+        enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation? = nil,
+        submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil
     ) {
         _atbat = atbat
         _showingScoring = showingScoring
         self.enabledActionPresentation = enabledActionPresentation
+        self.submitScoringAction = submitScoringAction
     }
     
     var body: some View {
@@ -125,7 +128,7 @@ struct ScoreGameView: View {
                          .border(.gray).cornerRadius(10).accentColor(.black)
                          .onChange(of: onBase) {
                              if onBase != "Result" {
-                                 atbat.result = onBase
+                                 submitResult(onBase)
                                  batOut = "Result"
                              }
                          }
@@ -152,7 +155,7 @@ struct ScoreGameView: View {
                          .border(.gray).cornerRadius(10).accentColor(.black)
                          .onChange(of: batOut) {
                              if batOut != "Result" {
-                                 atbat.result = batOut
+                                 submitResult(batOut)
                                  onBase = "Result"
                              }
                          }
@@ -180,25 +183,13 @@ struct ScoreGameView: View {
                     }
                     .padding(.leading, 0)
                     .onChange(of: atbat.result) {
-                        if atbat.result == "Result" {
-                            if atbat.col != 1 {
-                                atbat.game.atbats.removeAll() {$0 == atbat}
-                                delAtbat = true
-                           }
-                        }
                         if atbat.result == "Dropped 3rd Strike" || atbat.result == "Error" {
                             earnedRun = false
-                            atbat.earnedRun = false
                         }
                         if !com.recOuts.contains(atbat.result) || atbat.outAt != "Safe"  {
-                            atbat.playRec = ""
                             recPlay = false
-                            showingScoring.toggle()
                         } else {
                             recPlay = true
-                        }
-                        if atbat.result != "Result" {
-                            setEndOfInning()
                         }
                     }
                     .onChange(of: atbat.outAt) {
@@ -355,6 +346,23 @@ struct ScoreGameView: View {
                 }
             }
         }
+    }
+
+    @discardableResult
+    private func submitResult(_ result: String) -> LiveScoringShellPresentation.SubmissionPresentation? {
+        if let submitScoringAction {
+            let presentation = submitScoringAction(result)
+            if presentation.disposition == .accepted || presentation.disposition == .duplicatePrevented {
+                recPlay = com.recOuts.contains(result) || atbat.outAt != "Safe"
+                if result == "Dropped 3rd Strike" || result == "Error" {
+                    earnedRun = false
+                }
+            }
+            return presentation
+        }
+
+        atbat.result = result
+        return nil
     }
 
     private func resultPresentation(for result: String) -> LiveScoringShellPresentation.EnabledActionPresentation {

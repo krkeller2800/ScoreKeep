@@ -79,6 +79,25 @@ struct LiveScoringWorkflowCoordinator {
         }
     }
 
+    enum SubmissionDisposition: Equatable {
+        case accepted
+        case validationRejected
+        case unavailablePreparedState
+        case disabledAction
+        case cancellation
+        case persistenceFailed
+        case unsupportedAction
+        case duplicatePrevented
+        case conflict
+    }
+
+    struct ScoringSubmissionResult {
+        let disposition: SubmissionDisposition
+        let atbat: Atbat?
+        let actionState: EnabledScoringActionState?
+        let message: String?
+    }
+
     enum PreparedStateDisposition: Equatable {
         case ready
         case missingGame
@@ -189,6 +208,53 @@ struct LiveScoringWorkflowCoordinator {
     typealias SaveAction = () throws -> Void
 
     private let common = Common()
+
+    private struct LegacyAtbatSubmissionSnapshot {
+        let result: String
+        let maxbase: String
+        let outAt: String
+        let rbis: Int
+        let outs: Int
+        let sacFly: Int
+        let sacBunt: Int
+        let stolenBases: Int
+        let earnedRun: Bool
+        let playRec: String
+        let endOfInning: Bool
+        let gameEndOfInningFlags: [(UUID, Bool)]
+
+        init(_ atbat: Atbat) {
+            result = atbat.result
+            maxbase = atbat.maxbase
+            outAt = atbat.outAt
+            rbis = atbat.rbis
+            outs = atbat.outs
+            sacFly = atbat.sacFly
+            sacBunt = atbat.sacBunt
+            stolenBases = atbat.stolenBases
+            earnedRun = atbat.earnedRun
+            playRec = atbat.playRec
+            endOfInning = atbat.endOfInning
+            gameEndOfInningFlags = atbat.game.atbats.map { ($0.ident, $0.endOfInning) }
+        }
+
+        func restore(to atbat: Atbat) {
+            atbat.result = result
+            atbat.maxbase = maxbase
+            atbat.outAt = outAt
+            atbat.rbis = rbis
+            atbat.outs = outs
+            atbat.sacFly = sacFly
+            atbat.sacBunt = sacBunt
+            atbat.stolenBases = stolenBases
+            atbat.earnedRun = earnedRun
+            atbat.playRec = playRec
+            atbat.endOfInning = endOfInning
+            for (identity, endOfInning) in gameEndOfInningFlags {
+                atbat.game.atbats.first { $0.ident == identity }?.endOfInning = endOfInning
+            }
+        }
+    }
 
     func selectAtbat(
         column: Int,
@@ -567,6 +633,133 @@ struct LiveScoringWorkflowCoordinator {
             actions: (cellActions + resultActions).sorted(by: enabledActionPrecedes),
             warnings: ((semanticScoreState?.warnings ?? []) + preparedState.warnings).sorted()
         )
+    }
+
+    func submitScoringAction(
+        legacyResult: String,
+        targetAtbat: Atbat?,
+        game: Game,
+        battingTeam: Team?,
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher],
+        supportedLegacyResults: [String],
+        save: SaveAction
+    ) -> ScoringSubmissionResult {
+        guard legacyResult != "Result" else {
+            return ScoringSubmissionResult(
+                disposition: .cancellation,
+                atbat: targetAtbat,
+                actionState: nil,
+                message: "No scoring action was submitted."
+            )
+        }
+
+        guard supportedLegacyResults.contains(legacyResult) else {
+            return ScoringSubmissionResult(
+                disposition: .unsupportedAction,
+                atbat: targetAtbat,
+                actionState: nil,
+                message: "This scoring choice is not supported for the current game state."
+            )
+        }
+
+        guard let targetAtbat else {
+            return ScoringSubmissionResult(
+                disposition: .unavailablePreparedState,
+                atbat: nil,
+                actionState: nil,
+                message: "An at-bat is required before scoring."
+            )
+        }
+
+        let preparedState = prepareLiveGameState(
+            game: game,
+            battingTeam: battingTeam,
+            displayedAtbats: displayedAtbats,
+            pitchers: pitchers
+        )
+        guard preparedState.canScore else {
+            return ScoringSubmissionResult(
+                disposition: .unavailablePreparedState,
+                atbat: targetAtbat,
+                actionState: nil,
+                message: unavailableReason(forPreparedState: preparedState)
+            )
+        }
+
+        let semanticState = semanticScoreState(preparedState: preparedState, displayedAtbats: displayedAtbats)
+        let actionSet = enabledScoringActions(
+            preparedState: preparedState,
+            semanticScoreState: semanticState,
+            displayedAtbats: displayedAtbats,
+            supportedLegacyResults: supportedLegacyResults
+        )
+        guard let actionState = actionSet.state(for: .legacyResult(legacyResult)) else {
+            return ScoringSubmissionResult(
+                disposition: .unsupportedAction,
+                atbat: targetAtbat,
+                actionState: nil,
+                message: "This scoring choice is not supported for the current game state."
+            )
+        }
+        guard actionState.isEnabled else {
+            let disposition: SubmissionDisposition
+            switch actionState.disposition {
+            case .disabledUnsupported:
+                disposition = .unsupportedAction
+            case .disabledValidationRejected:
+                disposition = .validationRejected
+            default:
+                disposition = .disabledAction
+            }
+            return ScoringSubmissionResult(
+                disposition: disposition,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: actionState.unavailableReason
+            )
+        }
+
+        guard targetAtbat.result != legacyResult else {
+            return ScoringSubmissionResult(
+                disposition: .duplicatePrevented,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: nil
+            )
+        }
+
+        guard preparedState.currentOrPendingLegacyAtbat?.identity == targetAtbat.ident else {
+            return ScoringSubmissionResult(
+                disposition: .conflict,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: "The scoring state changed before this action could be submitted."
+            )
+        }
+
+        let previous = LegacyAtbatSubmissionSnapshot(targetAtbat)
+        targetAtbat.result = legacyResult
+        applyOrdinaryResultDefaults(to: targetAtbat)
+        markEndOfInning(for: targetAtbat)
+
+        do {
+            try save()
+            return ScoringSubmissionResult(
+                disposition: .accepted,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: nil
+            )
+        } catch {
+            previous.restore(to: targetAtbat)
+            return ScoringSubmissionResult(
+                disposition: .persistenceFailed,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: "Error saving scoring action: \(error)"
+            )
+        }
     }
 
     private func sequenceGame(
@@ -1041,6 +1234,50 @@ struct LiveScoringWorkflowCoordinator {
             unavailableReason: reason,
             warnings: []
         )
+    }
+
+    private func applyOrdinaryResultDefaults(to atbat: Atbat) {
+        if atbat.result == "Dropped 3rd Strike" || atbat.result == "Error" {
+            atbat.earnedRun = false
+        }
+        if !common.recOuts.contains(atbat.result) || atbat.outAt != "Safe" {
+            atbat.playRec = ""
+        }
+    }
+
+    private func markEndOfInning(for selectedAtbat: Atbat) {
+        var inning = 0
+        var outs = 0
+        let completedAtbats = selectedAtbat.game.atbats
+            .filter { $0.team == selectedAtbat.team && $0.result != "Result" }
+            .sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+
+        for atbat in completedAtbats {
+            atbat.endOfInning = false
+            inning += outs % 3 == 0 ? 1 : 0
+            if common.outresults.contains(atbat.result) || atbat.outAt != "Safe" {
+                outs += 1
+            }
+        }
+
+        let innings = outs / 3
+        let out = outs % 3
+        guard innings > 0 else { return }
+
+        for inning in 1...innings {
+            if inning <= innings || out == 0 {
+                let inningAtbats = selectedAtbat.game.atbats
+                    .filter {
+                        $0.team == selectedAtbat.team &&
+                        $0.result != "Result" &&
+                        $0.result != "Pitch Hitter" &&
+                        ($0.inning >= CGFloat(inning - 1) && $0.inning <= CGFloat(inning))
+                    }
+                    .sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+                inningAtbats.last?.endOfInning = true
+            }
+        }
+        selectedAtbat.sacFly = selectedAtbat.sacFly != 0 ? 0 : -1
     }
 
     private func unavailableReason(forPreparedState preparedState: PreparedLiveGameState) -> String {

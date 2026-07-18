@@ -540,6 +540,190 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.fetchLegacyAtbats().count == 2)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("scoring action submission accepts one ordinary legacy result and writes no canonical records")
+    func scoringActionSubmissionAcceptsOneOrdinaryLegacyResultAndWritesNoCanonicalRecords() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let result = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try store.context.save() }
+        )
+
+        #expect(result.disposition == .accepted)
+        #expect(result.atbat?.ident == fixture.visitingFirst.ident)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(fixture.visitingFirst.maxbase == "No Bases")
+        #expect(fixture.game.atbats.filter { $0.result == "Single" }.count == 1)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("submission revalidates current state and fails closed after stale enabled state")
+    func submissionRevalidatesCurrentStateAndFailsClosedAfterStaleEnabledState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let prepared = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let enabled = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
+
+        let result = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+
+        #expect(enabled.state(for: .legacyResult("Single"))?.isEnabled == true)
+        #expect(result.disposition == .unavailablePreparedState)
+        #expect(result.message == "A current pitcher is required before scoring.")
+        #expect(fixture.visitingFirst.result == "Result")
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("disabled unsupported cancellation duplicate conflict and persistence failure submissions do not create extra outcomes")
+    func disabledUnsupportedCancellationDuplicateConflictAndPersistenceFailureSubmissionsDoNotCreateExtraOutcomes() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let validationFixture = Fixture.insertGame(into: store.context, location: "Validation Field")
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        let validationPitcher = Fixture.insertPitcher(for: validationFixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        validationFixture.visitingFirst.result = "Ground Out"
+        validationFixture.visitingFirst.outs = 3
+        let validationRejected = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: validationFixture.visitingSecond,
+            game: validationFixture.game,
+            battingTeam: validationFixture.visitingTeam,
+            displayedAtbats: validationFixture.displayedAtbats,
+            pitchers: [validationPitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+        let cancellation = coordinator.submitScoringAction(
+            legacyResult: "Result",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+        let unsupported = coordinator.submitScoringAction(
+            legacyResult: "Moon Shot",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+        let conflict = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingSecond,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+        let persistenceFailure = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { throw InjectedSaveError() }
+        )
+        let accepted = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+        let duplicate = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+
+        #expect(validationRejected.disposition == .validationRejected)
+        #expect(validationFixture.visitingSecond.result == "Result")
+        #expect(cancellation.disposition == .cancellation)
+        #expect(unsupported.disposition == .unsupportedAction)
+        #expect(conflict.disposition == .conflict)
+        #expect(persistenceFailure.disposition == .persistenceFailed)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(accepted.disposition == .accepted)
+        #expect(duplicate.disposition == .duplicatePrevented)
+        #expect(fixture.game.atbats.filter { $0.result == "Single" }.count == 1)
+        #expect(fixture.visitingSecond.result == "Result")
+        #expect(try store.fetchLegacyAtbats().count == 4)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("scoring action submission leaves unrelated games unaffected")
+    func scoringActionSubmissionLeavesUnrelatedGamesUnaffected() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let unrelated = Fixture.insertGame(into: store.context, location: "Other Field")
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        _ = Fixture.insertPitcher(for: unrelated, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let unrelatedBefore = Snapshot.capture(unrelated.game)
+
+        let result = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() }
+        )
+        let unrelatedAfter = Snapshot.capture(unrelated.game)
+
+        #expect(result.disposition == .accepted)
+        #expect(unrelatedBefore == unrelatedAfter)
+        #expect(try store.fetchLegacyAtbats().count == 4)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 private struct Store {
@@ -657,6 +841,13 @@ private struct Fixture {
             visitingSecond: visitingSecond,
             homePitcher: homePitcher
         )
+    }
+
+    static func insertPitcher(for fixture: Fixture, into context: ModelContext) -> Pitcher {
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        return pitcher
     }
 }
 

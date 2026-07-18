@@ -51,6 +51,14 @@ struct LiveScoringShellPresentation {
         }
     }
 
+    struct SubmissionPresentation {
+        let disposition: LiveScoringWorkflowCoordinator.SubmissionDisposition
+        let submittedAtbat: Atbat?
+        let shouldDismissScoringSheet: Bool
+        let shouldMarkChanged: Bool
+        let message: String?
+    }
+
     func scorecardCellIsEnabled(column: Int, sourceAtbat: Atbat?) -> Bool {
         column > 0 && sourceAtbat != nil
     }
@@ -102,6 +110,20 @@ struct LiveScoringShellPresentation {
         EnabledActionSetPresentation(
             actionSet: actionSet,
             actions: actionSet.actions.map(presentEnabledAction)
+        )
+    }
+
+    func presentSubmissionResult(
+        _ result: LiveScoringWorkflowCoordinator.ScoringSubmissionResult,
+        requiresAdditionalChoice: Bool
+    ) -> SubmissionPresentation {
+        let accepted = result.disposition == .accepted || result.disposition == .duplicatePrevented
+        return SubmissionPresentation(
+            disposition: result.disposition,
+            submittedAtbat: result.atbat,
+            shouldDismissScoringSheet: accepted && !requiresAdditionalChoice,
+            shouldMarkChanged: result.disposition == .accepted,
+            message: result.message
         )
     }
 

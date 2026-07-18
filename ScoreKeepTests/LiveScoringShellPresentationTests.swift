@@ -141,6 +141,33 @@ struct LiveScoringShellPresentationTests {
         #expect(action?.accessibilityLabel == "Single")
         #expect(action?.accessibilityHint == "A current pitcher is required before scoring.")
     }
+
+    @Test("submission presentation dismisses only accepted ordinary outcomes without additional choices")
+    func submissionPresentationDismissesOnlyAcceptedOrdinaryOutcomesWithoutAdditionalChoices() {
+        let atbat = Fixture.atbat()
+        let presenter = LiveScoringShellPresentation()
+
+        let accepted = presenter.presentSubmissionResult(
+            .init(disposition: .accepted, atbat: atbat, actionState: nil, message: nil),
+            requiresAdditionalChoice: false
+        )
+        let needsChoice = presenter.presentSubmissionResult(
+            .init(disposition: .accepted, atbat: atbat, actionState: nil, message: nil),
+            requiresAdditionalChoice: true
+        )
+        let failed = presenter.presentSubmissionResult(
+            .init(disposition: .persistenceFailed, atbat: atbat, actionState: nil, message: "Error saving scoring action."),
+            requiresAdditionalChoice: false
+        )
+
+        #expect(accepted.shouldDismissScoringSheet)
+        #expect(accepted.shouldMarkChanged)
+        #expect(!needsChoice.shouldDismissScoringSheet)
+        #expect(needsChoice.shouldMarkChanged)
+        #expect(!failed.shouldDismissScoringSheet)
+        #expect(!failed.shouldMarkChanged)
+        #expect(failed.message == "Error saving scoring action.")
+    }
 }
 
 private enum Fixture {
