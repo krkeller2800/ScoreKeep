@@ -1,0 +1,303 @@
+import CoreData
+import CryptoKit
+import Foundation
+import SwiftData
+
+@Model
+class Game {
+    var ident: UUID
+    var date: String
+    var location: String
+    var highLights: String
+    var hscore: Int
+    var vscore: Int
+    var everyOneHits: Bool
+    var numInnings: Int
+    var vteam: Team?
+    var hteam: Team?
+    var players = [Player]()
+    var atbats = [Atbat]()
+    var lineups = [Lineup]()
+    var pitchers = [Pitcher]()
+    var replaced = [Player]()
+    var incomings = [Player]()
+
+    init(ident: UUID = UUID(), date: String, location: String, highLights: String, hscore: Int, vscore: Int, everyOneHits: Bool = false, numInnings: Int = 9, vteam: Team? = nil, hteam: Team? = nil, players: [Player] = [Player](), atbats: [Atbat] = [Atbat](), lineups: [Lineup] = [Lineup](), pitchers: [Pitcher] = [Pitcher](), replaced: [Player] = [Player](), incomings: [Player] = [Player]()) {
+        self.ident = ident
+        self.date = date
+        self.location = location
+        self.highLights = highLights
+        self.hscore = hscore
+        self.vscore = vscore
+        self.everyOneHits = everyOneHits
+        self.numInnings = numInnings
+        self.vteam = vteam
+        self.hteam = hteam
+        self.players = players
+        self.atbats = atbats
+        self.lineups = lineups
+        self.pitchers = pitchers
+        self.replaced = replaced
+        self.incomings = incomings
+    }
+}
+
+@Model
+class Team {
+    var ident: UUID
+    var name: String
+    var coach: String
+    var details: String
+    var players = [Player]()
+    var games = [Game]()
+    @Attribute(.externalStorage) var logo: Data?
+
+    init(ident: UUID = UUID(), name: String, coach: String, details: String, players: [Player] = [Player](), games: [Game] = [Game](), logo: Data? = nil) {
+        self.ident = ident
+        self.name = name
+        self.coach = coach
+        self.details = details
+        self.players = players
+        self.games = games
+        self.logo = logo
+    }
+}
+
+@Model
+class Player {
+    var identifier: UUID
+    var name: String
+    var number: String
+    var position: String
+    var batDir: String
+    var batOrder: Int
+    var team: Team?
+    var atbat = [Atbat]()
+    @Attribute(.externalStorage) var photo: Data?
+
+    init(identifier: UUID = UUID(), name: String, number: String, position: String, batDir: String, batOrder: Int, team: Team? = nil, atbat: [Atbat] = [Atbat](), photo: Data? = nil) {
+        self.identifier = identifier
+        self.name = name
+        self.number = number
+        self.position = position
+        self.batDir = batDir
+        self.batOrder = batOrder
+        self.team = team
+        self.atbat = atbat
+        self.photo = photo
+    }
+}
+
+@Model
+class Atbat {
+    var ident: UUID
+    var game: Game
+    var team: Team
+    var player: Player
+    var result: String
+    var maxbase: String
+    var batOrder: Int
+    var outAt: String
+    var inning: CGFloat
+    var seq: Int
+    var col: Int
+    var rbis: Int
+    var outs: Int
+    var sacFly: Int
+    var sacBunt: Int
+    var stolenBases: Int
+    var earnedRun: Bool
+    var playRec: String
+    var endOfInning: Bool
+
+    init(ident: UUID = UUID(), game: Game, team: Team, player: Player, result: String, maxbase: String, batOrder: Int, outAt: String, inning: CGFloat, seq: Int, col: Int, rbis: Int, outs: Int, sacFly: Int, sacBunt: Int, stolenBases: Int, earnedRun: Bool = true, playRec: String = "", endOfInning: Bool = false) {
+        self.ident = ident
+        self.game = game
+        self.team = team
+        self.player = player
+        self.result = result
+        self.maxbase = maxbase
+        self.batOrder = batOrder
+        self.outAt = outAt
+        self.inning = inning
+        self.seq = seq
+        self.col = col
+        self.rbis = rbis
+        self.outs = outs
+        self.sacFly = sacFly
+        self.sacBunt = sacBunt
+        self.stolenBases = stolenBases
+        self.earnedRun = earnedRun
+        self.playRec = playRec
+        self.endOfInning = endOfInning
+    }
+}
+
+@Model
+class Lineup {
+    var ident: UUID
+    var everyoneHits: Bool
+    var game: Game
+    var team: Team
+    var inning: Int
+    var players = [Player]()
+
+    init(ident: UUID = UUID(), everyoneHits: Bool, game: Game, team: Team, inning: Int, players: [Player] = [Player]()) {
+        self.ident = ident
+        self.everyoneHits = everyoneHits
+        self.game = game
+        self.team = team
+        self.inning = inning
+        self.players = players
+    }
+}
+
+@Model
+class Pitcher {
+    var ident: UUID
+    var player: Player
+    var team: Team
+    var game: Game
+    var startInn: Int
+    var sOuts: Int
+    var sBats: Int
+    var endInn: Int
+    var eOuts: Int
+    var eBats: Int
+    var strikeOuts: Int
+    var walks: Int
+    var hits: Int
+    var runs: Int
+    var won: Bool
+
+    init(ident: UUID = UUID(), player: Player, team: Team, game: Game, startInn: Int = 0, sOuts: Int = 0, sBats: Int = 0, endInn: Int = 0, eOuts: Int = 0, eBats: Int = 0, strikeOuts: Int = 0, walks: Int = 0, hits: Int = 0, runs: Int = 0, won: Bool = false) {
+        self.ident = ident
+        self.player = player
+        self.team = team
+        self.game = game
+        self.startInn = startInn
+        self.sOuts = sOuts
+        self.sBats = sBats
+        self.endInn = endInn
+        self.eOuts = eOuts
+        self.eBats = eBats
+        self.strikeOuts = strikeOuts
+        self.walks = walks
+        self.hits = hits
+        self.runs = runs
+        self.won = won
+    }
+}
+
+@Model
+final class TeamCreationOperationEvidenceRecord {
+    @Attribute(.unique) var operationIdentity: String
+    var targetTeamIdentity: UUID
+    var requestFingerprint: String
+    var phase: String
+    var completionProof: String
+    var finalDisposition: String
+    var retryClassification: String
+    var reviewRequired: Bool
+    var diagnosticCodesStorage: String
+    var source: String
+    var evidenceSchemaVersion: Int
+
+    init(operationIdentity: String, targetTeamIdentity: UUID, requestFingerprint: String, phase: String, completionProof: String, finalDisposition: String, retryClassification: String, reviewRequired: Bool, diagnosticCodesStorage: String, source: String, evidenceSchemaVersion: Int = 1) {
+        self.operationIdentity = operationIdentity
+        self.targetTeamIdentity = targetTeamIdentity
+        self.requestFingerprint = requestFingerprint
+        self.phase = phase
+        self.completionProof = completionProof
+        self.finalDisposition = finalDisposition
+        self.retryClassification = retryClassification
+        self.reviewRequired = reviewRequired
+        self.diagnosticCodesStorage = diagnosticCodesStorage
+        self.source = source
+        self.evidenceSchemaVersion = evidenceSchemaVersion
+    }
+}
+
+enum V2: VersionedSchema {
+    static var versionIdentifier = Schema.Version(2, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [Game.self, Team.self, Player.self, Atbat.self, Lineup.self, Pitcher.self, TeamCreationOperationEvidenceRecord.self]
+    }
+}
+
+let output = URL(fileURLWithPath: CommandLine.arguments[1])
+try? FileManager.default.removeItem(at: output.deletingLastPathComponent())
+try FileManager.default.createDirectory(at: output.deletingLastPathComponent(), withIntermediateDirectories: true)
+let schema = Schema(versionedSchema: V2.self)
+let configuration = ModelConfiguration("FrozenV2Synthetic", schema: schema, url: output, allowsSave: true)
+let container = try ModelContainer(for: schema, configurations: [configuration])
+let context = ModelContext(container)
+
+let home = Team(ident: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!, name: "Synthetic Home", coach: "Synthetic Coach A", details: "Synthetic home fixture team")
+let visitor = Team(ident: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!, name: "Synthetic Visitor", coach: "", details: "")
+let homeOne = Player(identifier: UUID(uuidString: "20000000-0000-0000-0000-000000000001")!, name: "Synthetic Batter One", number: "1", position: "Catcher", batDir: "R", batOrder: 1, team: home)
+let homeTwo = Player(identifier: UUID(uuidString: "20000000-0000-0000-0000-000000000002")!, name: "Synthetic Batter Two", number: "", position: "", batDir: "", batOrder: 2, team: home)
+let visitorOne = Player(identifier: UUID(uuidString: "20000000-0000-0000-0000-000000000003")!, name: "Synthetic Pitcher One", number: "9", position: "Starting Pitcher", batDir: "L", batOrder: 1, team: visitor)
+let visitorTwo = Player(identifier: UUID(uuidString: "20000000-0000-0000-0000-000000000004")!, name: "Synthetic Visitor Reserve", number: "12", position: "Right Fielder", batDir: "R", batOrder: 0, team: visitor)
+home.players = [homeOne, homeTwo]
+visitor.players = [visitorOne, visitorTwo]
+
+let game = Game(ident: UUID(uuidString: "30000000-0000-0000-0000-000000000001")!, date: "2026-01-15T12:00:00Z", location: "Synthetic Park", highLights: "Synthetic fixture only", hscore: 1, vscore: 0, everyOneHits: true, numInnings: 6, vteam: visitor, hteam: home, players: [homeOne, homeTwo, visitorOne, visitorTwo], replaced: [homeTwo], incomings: [visitorTwo])
+home.games = [game]
+visitor.games = [game]
+
+let atbatOne = Atbat(ident: UUID(uuidString: "40000000-0000-0000-0000-000000000001")!, game: game, team: home, player: homeOne, result: "Single", maxbase: "1B", batOrder: 1, outAt: "", inning: 1.0, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0, earnedRun: true, playRec: "synthetic single", endOfInning: false)
+let atbatTwo = Atbat(ident: UUID(uuidString: "40000000-0000-0000-0000-000000000002")!, game: game, team: home, player: homeTwo, result: "Ground Out", maxbase: "", batOrder: 2, outAt: "1B", inning: 1.0, seq: 2, col: 1, rbis: 1, outs: 1, sacFly: 0, sacBunt: 0, stolenBases: 0, earnedRun: true, playRec: "", endOfInning: false)
+game.atbats = [atbatOne, atbatTwo]
+homeOne.atbat = [atbatOne]
+homeTwo.atbat = [atbatTwo]
+
+let lineup = Lineup(ident: UUID(uuidString: "50000000-0000-0000-0000-000000000001")!, everyoneHits: true, game: game, team: home, inning: 1, players: [homeOne, homeTwo])
+game.lineups = [lineup]
+let pitcher = Pitcher(ident: UUID(uuidString: "60000000-0000-0000-0000-000000000001")!, player: visitorOne, team: visitor, game: game, startInn: 1, sOuts: 0, sBats: 1, endInn: 1, eOuts: 1, eBats: 2, strikeOuts: 0, walks: 0, hits: 1, runs: 1, won: false)
+game.pitchers = [pitcher]
+
+let evidence = TeamCreationOperationEvidenceRecord(operationIdentity: "synthetic-team-operation-001", targetTeamIdentity: home.ident, requestFingerprint: "synthetic-request-fingerprint-001", phase: "completed", completionProof: "synthetic-team-created", finalDisposition: "succeeded", retryClassification: "idempotentRepeat", reviewRequired: false, diagnosticCodesStorage: "none", source: "task-3.22b-historical-v2-generator", evidenceSchemaVersion: 1)
+
+context.insert(home)
+context.insert(visitor)
+context.insert(homeOne)
+context.insert(homeTwo)
+context.insert(visitorOne)
+context.insert(visitorTwo)
+context.insert(game)
+context.insert(atbatOne)
+context.insert(atbatTwo)
+context.insert(lineup)
+context.insert(pitcher)
+context.insert(evidence)
+try context.save()
+
+let reload = ModelContext(container)
+let persistedGames = try reload.fetch(FetchDescriptor<Game>())
+let persistedTeams = try reload.fetch(FetchDescriptor<Team>())
+let persistedPlayers = try reload.fetch(FetchDescriptor<Player>())
+let persistedAtbats = try reload.fetch(FetchDescriptor<Atbat>())
+let persistedLineups = try reload.fetch(FetchDescriptor<Lineup>())
+let persistedPitchers = try reload.fetch(FetchDescriptor<Pitcher>())
+let persistedEvidence = try reload.fetch(FetchDescriptor<TeamCreationOperationEvidenceRecord>())
+precondition(persistedGames.count == 1)
+precondition(persistedTeams.count == 2)
+precondition(persistedPlayers.count == 4)
+precondition(persistedAtbats.count == 2)
+precondition(persistedLineups.count == 1)
+precondition(persistedPitchers.count == 1)
+precondition(persistedEvidence.count == 1)
+let persistedGame = persistedGames.first!
+precondition(persistedGame.hteam?.ident == home.ident)
+precondition(persistedGame.vteam?.ident == visitor.ident)
+precondition(persistedGame.players.count == 4)
+precondition(persistedGame.atbats.count == 2)
+precondition(persistedGame.lineups.count == 1)
+precondition(persistedGame.pitchers.count == 1)
+precondition(persistedGame.replaced.count == 1)
+precondition(persistedGame.incomings.count == 1)
+
+let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(ofType: NSSQLiteStoreType, at: output)
+let hashes = metadata[NSStoreModelVersionHashesKey] as? [String: Data] ?? [:]
+print(hashes.keys.sorted().joined(separator: ","))

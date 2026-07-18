@@ -596,3 +596,18 @@ Task 3.22 may resume only after all of the following are true:
 - Task 3.23 remains blocked until Task 3.22 is complete and verified.
 
 Until those criteria are met, Task 3.22 remains blocked and Task 3.23 remains blocked.
+
+<!-- MARK: - 19. Task 3.22B Fixture Acquisition Evidence -->
+## 19. Task 3.22B Fixture Acquisition Evidence
+
+Task 3.22B acquired one representative synthetic frozen Proposed V2 store-family fixture under `ScoreKeep/Docs/Verification/Fixtures/FrozenV2/RepresentativeSyntheticV2`. Its evidence manifest is `FrozenV2SyntheticEvidence.json`, and its standalone regeneration support is under `ScoreKeep/Docs/Verification/Fixtures/FrozenV2/Support`.
+
+The fixture provenance is commit `91dd5c3fd26301e47f898dfaeedbde9cde35a3d9`, the immediate pre-V3 runtime source inspected for this task. At that commit, `ScoreKeepProposedVersionedSchema` declared V1 and V2 only; V2 declared `Game`, `Team`, `Player`, `Atbat`, `Lineup`, `Pitcher`, and `TeamCreationOperationEvidenceRecord`; no V3 canonical scoring models or V2-to-V3 canonical scoring migration plan were linked into the fixture generator. The generator is committed as `GenerateFrozenV2SyntheticFixture.swift.txt` so it is available for review and regeneration without becoming app-target source.
+
+The committed fixture family contains `FrozenV2Synthetic.sqlite`, `FrozenV2Synthetic.sqlite-shm`, and `FrozenV2Synthetic.sqlite-wal`. The manifest records exact Core Data persistent-store model-version hashes, store version identifier `2.0.0`, SHA-256 digests and byte counts for every family member, expected V2 record counts, expected relationship facts, and zero expectations for all five V3 canonical scoring models.
+
+The fixture data is deterministic and synthetic. It contains synthetic team, player, game, at-bat, lineup, pitcher, replacement, and team-creation operation evidence values only. No real production store, simulator store, protected recovery backup, personal application data, device identifier, account identifier, secret, credential, signing material, real team history, or real game history was used.
+
+This evidence supports Tasks 3.22C through 3.22E for metadata-gated source identity, store-family preservation, copied-workspace migration, fixture rollback/interruption tests, and destination canonical-zero verification. It does not prove independent pre-migration source semantic opening inside the current V3 app target, and it must not be used to justify constructing runtime-effective V2 and V3 SwiftData schemas together in the current hosted target.
+
+Task 3.22 remains blocked pending Tasks 3.22C through 3.22F. Task 3.23 remains blocked, production scoring remains Legacy, and no production writer synthesizes canonical scoring history for Legacy games.
