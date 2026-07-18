@@ -25,6 +25,25 @@ struct LiveScoringWorkflowCoordinator {
         let message: String?
     }
 
+    enum SemanticScoreDisposition: Equatable {
+        case ready
+        case preparedStateUnavailable
+        case storedScoreMismatch
+    }
+
+    struct SemanticScoreState: Equatable {
+        let disposition: SemanticScoreDisposition
+        let score: PreparedScore
+        let storedScore: PreparedScore
+        let battingSide: TeamSideRole
+        let inning: Int
+        let halfInning: TeamSideRole
+        let outs: Int
+        let bases: PreparedBaseOccupancy
+        let warnings: [String]
+        let canPresentScoringLine: Bool
+    }
+
     enum PreparedStateDisposition: Equatable {
         case ready
         case missingGame
@@ -413,6 +432,70 @@ struct LiveScoringWorkflowCoordinator {
         )
     }
 
+    func semanticScoreState(
+        preparedState: PreparedLiveGameState,
+        displayedAtbats: [Atbat]
+    ) -> SemanticScoreState {
+        guard preparedState.disposition == .ready else {
+            return SemanticScoreState(
+                disposition: .preparedStateUnavailable,
+                score: preparedState.score,
+                storedScore: preparedState.score,
+                battingSide: preparedState.battingSide,
+                inning: preparedState.inning,
+                halfInning: preparedState.halfInning,
+                outs: preparedState.outs,
+                bases: preparedState.bases,
+                warnings: (preparedState.warnings + ["semanticScoreState.preparedStateUnavailable"]).sorted(),
+                canPresentScoringLine: false
+            )
+        }
+
+        let scoredRunners = displayedAtbats
+            .filter { $0.result != "Result" && $0.maxbase == "Home" }
+            .map(runnerIdentity)
+        let storedScore = CanonicalProjectedScore(
+            home: preparedState.score.home,
+            visiting: preparedState.score.visiting
+        )
+        let inputScore: CanonicalProjectedScore
+
+        switch preparedState.battingSide {
+        case .home:
+            inputScore = CanonicalProjectedScore(home: 0, visiting: preparedState.score.visiting)
+        case .visiting:
+            inputScore = CanonicalProjectedScore(home: preparedState.score.home, visiting: 0)
+        case .unresolved:
+            inputScore = storedScore
+        }
+
+        let calculated = CanonicalScoreCalculation.calculate(.init(
+            inputScore: inputScore,
+            battingSide: preparedState.battingSide,
+            scoredRunners: scoredRunners,
+            storedScoreEvidence: storedScore
+        ))
+        let score = PreparedScore(home: calculated.resultingScore.home, visiting: calculated.resultingScore.visiting)
+        let scoreMatchesStored = calculated.storedScoreMatchesProjection ?? false
+
+        return SemanticScoreState(
+            disposition: scoreMatchesStored ? .ready : .storedScoreMismatch,
+            score: score,
+            storedScore: preparedState.score,
+            battingSide: preparedState.battingSide,
+            inning: preparedState.inning,
+            halfInning: preparedState.halfInning,
+            outs: preparedState.outs,
+            bases: preparedState.bases,
+            warnings: semanticScoreWarnings(
+                preparedState: preparedState,
+                calculated: calculated,
+                scoreMatchesStored: scoreMatchesStored
+            ),
+            canPresentScoringLine: true
+        )
+    }
+
     private func sequenceGame(
         displayedAtbats: [Atbat],
         columnBoxes: inout [BoxScore],
@@ -667,6 +750,31 @@ struct LiveScoringWorkflowCoordinator {
         } catch {
             return (.persistenceFailed, "Error saving pitcher markers: \(error)")
         }
+    }
+
+    private func semanticScoreWarnings(
+        preparedState: PreparedLiveGameState,
+        calculated: CanonicalScoreCalculationResult,
+        scoreMatchesStored: Bool
+    ) -> [String] {
+        var warnings = preparedState.warnings
+        if scoreMatchesStored == false {
+            warnings.append("semanticScoreState.storedScoreMismatch")
+        }
+        warnings.append(contentsOf: calculated.validation.findings.map(\.code))
+        return warnings.sorted()
+    }
+
+    private func runnerIdentity(from atbat: Atbat) -> RunnerIdentityEvidence {
+        .knownHistoricalParticipant(
+            .valid(atbat.player.identifier),
+            PlayerDisplayEvidence(
+                name: .present(atbat.player.name),
+                jerseyNumber: .present(atbat.player.number),
+                position: .present(atbat.player.position),
+                battingDirection: .present(atbat.player.batDir)
+            )
+        )
     }
 
     private func unavailablePreparedState(

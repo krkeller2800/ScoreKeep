@@ -88,6 +88,31 @@ struct LiveScoringShellPresentationTests {
         #expect(!presenter.scorecardCellIsEnabled(column: 0, sourceAtbat: atbat))
         #expect(!presenter.scorecardCellIsEnabled(column: 1, sourceAtbat: nil))
     }
+
+    @Test("semantic score presentation displays coordinator-provided score and line state")
+    func semanticScorePresentationDisplaysCoordinatorProvidedScoreAndLineState() {
+        let presenter = LiveScoringShellPresentation()
+        let state = LiveScoringWorkflowCoordinator.SemanticScoreState(
+            disposition: .storedScoreMismatch,
+            score: .init(home: 4, visiting: 3),
+            storedScore: .init(home: 5, visiting: 3),
+            battingSide: .home,
+            inning: 6,
+            halfInning: .home,
+            outs: 2,
+            bases: .init(first: nil, second: nil, third: nil),
+            warnings: ["semanticScoreState.storedScoreMismatch"],
+            canPresentScoringLine: true
+        )
+
+        let presentation = presenter.presentSemanticScoreState(state)
+
+        #expect(presentation.homeScore == 4)
+        #expect(presentation.visitingScore == 3)
+        #expect(presentation.inning == 6)
+        #expect(presentation.outs == 2)
+        #expect(presentation.message == "semanticScoreState.storedScoreMismatch")
+    }
 }
 
 private enum Fixture {

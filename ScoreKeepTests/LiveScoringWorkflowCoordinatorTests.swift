@@ -317,6 +317,97 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.fetchLegacyAtbats().count == 4)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("semantic score state presents projected score and current line from prepared state")
+    func semanticScoreStatePresentsProjectedScoreAndCurrentLineFromPreparedState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.game.hscore = 0
+        fixture.game.vscore = 1
+        fixture.visitingFirst.result = "Home Run"
+        fixture.visitingFirst.maxbase = "Home"
+        fixture.visitingFirst.inning = 0.1
+        fixture.visitingFirst.seq = 1
+        fixture.visitingFirst.outs = 0
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+
+        #expect(semantic.disposition == .ready)
+        #expect(semantic.score == .init(home: 0, visiting: 1))
+        #expect(semantic.storedScore == .init(home: 0, visiting: 1))
+        #expect(semantic.battingSide == .visiting)
+        #expect(semantic.inning == 1)
+        #expect(semantic.outs == 0)
+        #expect(semantic.canPresentScoringLine)
+        #expect(semantic.warnings.isEmpty)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("semantic score state classifies stored score mismatch without mutating legacy state")
+    func semanticScoreStateClassifiesStoredScoreMismatchWithoutMutatingLegacyState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.game.hscore = 0
+        fixture.game.vscore = 2
+        fixture.visitingFirst.result = "Home Run"
+        fixture.visitingFirst.maxbase = "Home"
+        let pitcher = Pitcher(player: fixture.homePitcher, team: fixture.homeTeam, game: fixture.game, startInn: 1, endInn: 1)
+        store.context.insert(pitcher)
+        fixture.game.pitchers.append(pitcher)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let before = Snapshot.capture(fixture.game)
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let after = Snapshot.capture(fixture.game)
+
+        #expect(semantic.disposition == .storedScoreMismatch)
+        #expect(semantic.score == .init(home: 0, visiting: 1))
+        #expect(semantic.storedScore == .init(home: 0, visiting: 2))
+        #expect(semantic.warnings.contains("semanticScoreState.storedScoreMismatch"))
+        #expect(before == after)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("semantic score state fails closed when prepared state is unavailable")
+    func semanticScoreStateFailsClosedWhenPreparedStateIsUnavailable() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: []
+        )
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+
+        #expect(prepared.disposition == .unavailablePitcher)
+        #expect(semantic.disposition == .preparedStateUnavailable)
+        #expect(!semantic.canPresentScoringLine)
+        #expect(semantic.score == prepared.score)
+        #expect(semantic.warnings.contains("semanticScoreState.preparedStateUnavailable"))
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 private struct Store {

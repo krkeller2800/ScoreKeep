@@ -30,6 +30,7 @@ struct PlayersToScoreView: View {
     @State var totbox:[BoxScore] = Array(repeating: BoxScore(), count: 5)
     @State var iStat:InnStatus = InnStatus()
     @State private var preparedLiveGameState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
+    @State private var semanticScorePresentation: LiveScoringShellPresentation.SemanticScorePresentation?
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
 
@@ -44,6 +45,9 @@ struct PlayersToScoreView: View {
                 let gWidth = geometry.size.width
                 drawIndicator(iStat:iStat,size:geometry.size,colbox:colbox,space:calcSpace(gWidth: gWidth))
                 drawBoxScore(game:game,size:geometry.size)
+                if let semanticScorePresentation {
+                    semanticScoreLine(presentation: semanticScorePresentation, size: geometry.size)
+                }
                 drawInnings(game: game, atbats: atbats, space: calcSpace(gWidth: gWidth),offset: offset,gWidth: gWidth)
                 VStack ( spacing: 0) {
                     HStack(alignment: .top) {
@@ -188,6 +192,15 @@ struct PlayersToScoreView: View {
         if let message = preparedPresentation.message {
             print(message)
         }
+        let semanticState = liveScoringCoordinator.semanticScoreState(
+            preparedState: preparedPresentation.preparedState,
+            displayedAtbats: atbats
+        )
+        let scorePresentation = liveScoringShellPresentation.presentSemanticScoreState(semanticState)
+        semanticScorePresentation = scorePresentation
+        if let message = scorePresentation.message {
+            print(message)
+        }
 
         let result = liveScoringCoordinator.refreshProjections(
             displayedAtbats: atbats,
@@ -282,6 +295,24 @@ struct PlayersToScoreView: View {
         }
 
         return presentation
+    }
+
+    private func semanticScoreLine(
+        presentation: LiveScoringShellPresentation.SemanticScorePresentation,
+        size: CGSize
+    ) -> some View {
+        let half = presentation.semanticScoreState.halfInning == .visiting ? "Top" : "Bottom"
+        let text = "V \(presentation.visitingScore)  H \(presentation.homeScore)   \(half) \(presentation.inning)   \(presentation.outs) out\(presentation.outs == 1 ? "" : "s")"
+
+        return Text(text)
+            .font(.caption)
+            .bold()
+            .foregroundColor(.black)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color.white.opacity(0.85))
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black.opacity(0.25), lineWidth: 1))
+            .position(x: min(size.width - 120, max(120, size.width * 0.5)), y: 18)
     }
 }
 struct ViewOffsetKey: PreferenceKey {

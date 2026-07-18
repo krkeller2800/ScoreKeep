@@ -25,6 +25,15 @@ struct LiveScoringShellPresentation {
         let message: String?
     }
 
+    struct SemanticScorePresentation {
+        let semanticScoreState: LiveScoringWorkflowCoordinator.SemanticScoreState
+        let homeScore: Int
+        let visitingScore: Int
+        let inning: Int
+        let outs: Int
+        let message: String?
+    }
+
     func scorecardCellIsEnabled(column: Int, sourceAtbat: Atbat?) -> Bool {
         column > 0 && sourceAtbat != nil
     }
@@ -55,6 +64,17 @@ struct LiveScoringShellPresentation {
         PreparedStatePresentation(
             preparedState: state,
             canScore: state.canScore,
+            message: state.warnings.first
+        )
+    }
+
+    func presentSemanticScoreState(_ state: LiveScoringWorkflowCoordinator.SemanticScoreState) -> SemanticScorePresentation {
+        SemanticScorePresentation(
+            semanticScoreState: state,
+            homeScore: state.canPresentScoringLine ? state.score.home : state.storedScore.home,
+            visitingScore: state.canPresentScoringLine ? state.score.visiting : state.storedScore.visiting,
+            inning: state.inning,
+            outs: state.outs,
             message: state.warnings.first
         )
     }
