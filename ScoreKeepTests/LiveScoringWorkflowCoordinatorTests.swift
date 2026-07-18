@@ -696,6 +696,188 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
+    @Test("rapid repeated ordinary scoring input persists one accepted legacy outcome")
+    func rapidRepeatedOrdinaryScoringInputPersistsOneAcceptedLegacyOutcome() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let unrelated = Fixture.insertGame(into: store.context, location: "Task 7.6 Other Field")
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        _ = Fixture.insertPitcher(for: unrelated, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let saves = SaveRecorder { try store.context.save() }
+        let unrelatedBefore = Snapshot.capture(unrelated.game)
+
+        let first = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+        let immediateRepeat = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+        let delayedCallbackRepeat = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+        let retryAfterDuplicatePrevented = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+
+        #expect(first.disposition == .accepted)
+        #expect(immediateRepeat.disposition == .duplicatePrevented)
+        #expect(delayedCallbackRepeat.disposition == .duplicatePrevented)
+        #expect(retryAfterDuplicatePrevented.disposition == .duplicatePrevented)
+        #expect(saves.attempts == 1)
+        #expect(fixture.game.atbats.filter { $0.result == "Single" }.count == 1)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(fixture.visitingFirst.maxbase == "No Bases")
+        #expect(fixture.visitingSecond.result == "Result")
+        #expect(Snapshot.capture(unrelated.game) == unrelatedBefore)
+        #expect(try store.fetchLegacyAtbats().count == 4)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("repeated ordinary cancellation and unsupported input remain deterministic no-ops")
+    func repeatedOrdinaryCancellationAndUnsupportedInputRemainDeterministicNoOps() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let saves = SaveRecorder { try store.context.save() }
+        let before = Snapshot.capture(fixture.game)
+
+        let firstCancellation = coordinator.submitScoringAction(
+            legacyResult: "Result",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: saves.save
+        )
+        let repeatedCancellation = coordinator.submitScoringAction(
+            legacyResult: "Result",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: saves.save
+        )
+        let unsupported = coordinator.submitScoringAction(
+            legacyResult: "Moon Shot",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: saves.save
+        )
+        let unsupportedRetry = coordinator.submitScoringAction(
+            legacyResult: "Moon Shot",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: saves.save
+        )
+
+        #expect(firstCancellation.disposition == .cancellation)
+        #expect(repeatedCancellation.disposition == .cancellation)
+        #expect(unsupported.disposition == .unsupportedAction)
+        #expect(unsupportedRetry.disposition == .unsupportedAction)
+        #expect(saves.attempts == 0)
+        #expect(Snapshot.capture(fixture.game) == before)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("ordinary retry after persistence failure restores fields then accepts once")
+    func ordinaryRetryAfterPersistenceFailureRestoresFieldsThenAcceptsOnce() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let saves = SaveRecorder { try store.context.save() }
+        saves.failNextSave()
+        let before = Snapshot.capture(fixture.game)
+
+        let failed = coordinator.submitScoringAction(
+            legacyResult: "Ground Out",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+        let afterFailure = Snapshot.capture(fixture.game)
+        let acceptedRetry = coordinator.submitScoringAction(
+            legacyResult: "Ground Out",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+        let successRetry = coordinator.submitScoringAction(
+            legacyResult: "Ground Out",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: saves.save
+        )
+
+        #expect(failed.disposition == .persistenceFailed)
+        #expect(afterFailure == before)
+        #expect(acceptedRetry.disposition == .accepted)
+        #expect(successRetry.disposition == .duplicatePrevented)
+        #expect(saves.attempts == 2)
+        #expect(fixture.game.atbats.filter { $0.result == "Ground Out" }.count == 1)
+        #expect(fixture.visitingFirst.outs == 0)
+        #expect(fixture.visitingSecond.result == "Result")
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
     @Test("scoring action submission leaves unrelated games unaffected")
     func scoringActionSubmissionLeavesUnrelatedGamesUnaffected() throws {
         let store = try Store()
@@ -824,6 +1006,295 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(fixture.visitingFirst.playRec == "6-4")
         #expect(fixture.game.atbats.filter { $0.result == "Fielder's Choice" }.count == 1)
         #expect(Snapshot.capture(unrelated.game) == unrelatedBefore)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("rapid repeated additional-choice final input persists one accepted legacy outcome")
+    func rapidRepeatedAdditionalChoiceFinalInputPersistsOneAcceptedLegacyOutcome() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let unrelated = Fixture.insertGame(into: store.context, location: "Task 7.6 Additional Other Field")
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        _ = Fixture.insertPitcher(for: unrelated, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let saves = SaveRecorder { try store.context.save() }
+        let unrelatedBefore = Snapshot.capture(unrelated.game)
+        let preparation = coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Fielder's Choice",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        )
+        let repeatedPreparation = coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Fielder's Choice",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        )
+        let pending = try #require(preparation.pendingChoice)
+        let choices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Fielder's Choice",
+            maxBase: "First",
+            outAt: "Second",
+            rbis: 1,
+            stolenBases: 1,
+            earnedRun: false,
+            playRecord: "6-4"
+        )
+
+        let accepted = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let immediateRepeat = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let delayedFinalCallback = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let sheetDismissalCallback = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: nil,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let repeatedSheetDismissalCallback = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: nil,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+
+        #expect(preparation.disposition == .pending)
+        #expect(repeatedPreparation.disposition == .pending)
+        #expect(accepted.disposition == .accepted)
+        #expect(immediateRepeat.disposition == .duplicatePrevented)
+        #expect(delayedFinalCallback.disposition == .duplicatePrevented)
+        #expect(sheetDismissalCallback.disposition == .cancellation)
+        #expect(repeatedSheetDismissalCallback.disposition == .cancellation)
+        #expect(saves.attempts == 1)
+        #expect(fixture.game.atbats.filter { $0.result == "Fielder's Choice" }.count == 1)
+        #expect(fixture.visitingFirst.maxbase == "First")
+        #expect(fixture.visitingFirst.outAt == "Second")
+        #expect(fixture.visitingFirst.rbis == 1)
+        #expect(fixture.visitingFirst.stolenBases == 1)
+        #expect(fixture.visitingFirst.earnedRun == false)
+        #expect(fixture.visitingFirst.playRec == "6-4")
+        #expect(fixture.visitingSecond.result == "Result")
+        #expect(Snapshot.capture(unrelated.game) == unrelatedBefore)
+        #expect(try store.fetchLegacyAtbats().count == 4)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("additional-choice retry after persistence failure restores fields then accepts once")
+    func additionalChoiceRetryAfterPersistenceFailureRestoresFieldsThenAcceptsOnce() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let saves = SaveRecorder { try store.context.save() }
+        saves.failNextSave()
+        let before = Snapshot.capture(fixture.game)
+        let preparation = coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        )
+        let pending = try #require(preparation.pendingChoice)
+        let choices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Single",
+            maxBase: "Home",
+            outAt: "Safe",
+            rbis: 1,
+            stolenBases: 0,
+            earnedRun: true,
+            playRecord: ""
+        )
+
+        let failed = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let afterFailure = Snapshot.capture(fixture.game)
+        let acceptedRetry = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let duplicateRetry = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+
+        #expect(failed.disposition == .persistenceFailed)
+        #expect(afterFailure == before)
+        #expect(acceptedRetry.disposition == .accepted)
+        #expect(duplicateRetry.disposition == .duplicatePrevented)
+        #expect(saves.attempts == 2)
+        #expect(fixture.game.atbats.filter { $0.result == "Single" }.count == 1)
+        #expect(fixture.visitingFirst.maxbase == "Home")
+        #expect(fixture.visitingFirst.rbis == 1)
+        #expect(fixture.visitingSecond.result == "Result")
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("additional-choice stale and conflicting repeated callbacks fail closed")
+    func additionalChoiceStaleAndConflictingRepeatedCallbacksFailClosed() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let staleFixture = Fixture.insertGame(into: store.context, location: "Task 7.6 Stale Field")
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        let stalePitcher = Fixture.insertPitcher(for: staleFixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let saves = SaveRecorder { try store.context.save() }
+        let preparation = coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        )
+        let pending = try #require(preparation.pendingChoice)
+        let acceptedChoices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Single",
+            maxBase: "First",
+            outAt: "Safe",
+            rbis: 0,
+            stolenBases: 0,
+            earnedRun: true,
+            playRecord: ""
+        )
+        let conflictingChoices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Single",
+            maxBase: "Home",
+            outAt: "Safe",
+            rbis: 1,
+            stolenBases: 0,
+            earnedRun: false,
+            playRecord: ""
+        )
+        let stalePreparation = coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Single",
+            targetAtbat: staleFixture.visitingFirst,
+            game: staleFixture.game,
+            battingTeam: staleFixture.visitingTeam,
+            displayedAtbats: staleFixture.displayedAtbats,
+            pitchers: [stalePitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        )
+        let stalePending = try #require(stalePreparation.pendingChoice)
+
+        let accepted = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: acceptedChoices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        let conflictingRepeat = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: conflictingChoices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+        staleFixture.visitingSecond.result = "Single"
+        let stale = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: stalePending,
+            choices: acceptedChoices,
+            targetAtbat: staleFixture.visitingFirst,
+            game: staleFixture.game,
+            battingTeam: staleFixture.visitingTeam,
+            displayedAtbats: staleFixture.displayedAtbats,
+            pitchers: [stalePitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: saves.save
+        )
+
+        #expect(accepted.disposition == .accepted)
+        #expect(conflictingRepeat.disposition == .conflict)
+        #expect(stale.disposition == .conflict)
+        #expect(saves.attempts == 1)
+        #expect(fixture.visitingFirst.maxbase == "First")
+        #expect(fixture.visitingFirst.rbis == 0)
+        #expect(fixture.visitingFirst.earnedRun == true)
+        #expect(staleFixture.visitingFirst.result == "Result")
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
@@ -1050,6 +1521,30 @@ private struct Fixture {
 }
 
 private struct InjectedSaveError: Error {}
+
+@MainActor
+private final class SaveRecorder {
+    private let action: () throws -> Void
+    private var shouldFailNextSave = false
+    private(set) var attempts = 0
+
+    init(action: @escaping () throws -> Void) {
+        self.action = action
+    }
+
+    func failNextSave() {
+        shouldFailNextSave = true
+    }
+
+    func save() throws {
+        attempts += 1
+        if shouldFailNextSave {
+            shouldFailNextSave = false
+            throw InjectedSaveError()
+        }
+        try action()
+    }
+}
 
 private struct Snapshot: Equatable {
     let gameHomeScore: Int
