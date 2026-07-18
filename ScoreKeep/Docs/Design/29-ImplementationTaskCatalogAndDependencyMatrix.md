@@ -269,6 +269,14 @@ The rehearsal sequence accepts an initial Single, accepts a second Walk, retries
 
 Failure rehearsal covers conflicting operation-identity reuse and missing correction target evidence in the same disposable boundary. Both fail closed without adding canonical rows beyond the already accepted operation and without changing Legacy game, team, player, at-bat, lineup, or pitcher snapshots. The store family is removed after each test. Xcode hosted unit-test execution may launch the ScoreKeep app process, but `ScoreKeepLaunchIsolation` detects the XCTest environment before production startup and renders an inert host view without `ScoreKeepProductionStartupHost`, production `ModelContainer` construction, seeding, migration recovery UI, or ordinary simulator store access. No manual production-app launch, production startup, production scoring route, SwiftUI scoring control, report/statistics/export path, migration promotion, historical backfill, V1/V2 schema, V3 model inventory, StoreKit task, entitlement task, user data, active simulator store data, or Xcode user-state is changed by this task. Manual rehearsal was omitted because the catalog is satisfied by automated disposable file-backed evidence and no approved active-container launch procedure is required.
 
+### Task 2.21 Completion Record - Renewed Scoring-Authority Readiness After Persistence Foundations
+
+Task 2.21 is complete as a documentation-only renewed readiness review after Tasks 3.22 through 3.25. The review is recorded in `ScoreKeep/Docs/Verification/ScoringAuthorityRoutingAndRetirementSplitBaseline.md` sections 25 through 35. It confirms that canonical scoring persistence, the non-routed transaction adapter, persisted replay verification, migration compatibility evidence, disposable file-backed rehearsal, and production isolation are sufficient to permit planning of a limited production scoring-routing boundary while retaining Legacy authority and rollback.
+
+The readiness classification is conditionally ready, with named prerequisites. The persistence-readiness dependency for Task 7.21 planning is satisfied, but Task 7.21 is not ready to start production routing until Task 7.19 internal routing evidence, explicit production activation approval, exact first command-family selection, UI/application operation-identity ownership, canonical failure policy, user-visible failure behavior, correction/undo/delete/substitution mapping, repeated-input and concurrency behavior, rollback or feature-disable policy, report/statistics coexistence, observability, staged deployment, and acceptance/manual testing are resolved.
+
+Production scoring remains Legacy. No production scoring route, canonical shadow write, dual write, scoring-authority cutover, report/statistics migration, historical canonical backfill, active-store promotion, Legacy scoring retirement, Task 7.21 implementation, V1/V2/V3 schema change, production startup change, StoreKit change, user data access, active simulator data access, Xcode user-state change, or project-file backup change occurred in Task 2.21.
+
 <!-- MARK: - 10. Phase 4 Task Catalog - Compatibility Import and Export -->
 ## 10. Phase 4 Task Catalog - Compatibility Import and Export
 
@@ -640,13 +648,11 @@ The current debug-only free-game reset behavior is repository evidence and risk.
 
 The task catalog itself may need an update process as implementation reveals new evidence. Such updates should be documentation-only tasks that explain why a dependency changed.
 
-<!-- MARK: - 27. Recommended First Implementation Task -->
-## 27. Recommended First Implementation Task
+<!-- MARK: - 27. Recommended Next Implementation Work -->
+## 27. Recommended Next Implementation Work
 
-Recommended next implementation task after this amendment: `3.21 Canonical scoring persistence requirements and schema decision`.
+Recommended next implementation work after the renewed Task 2.21 review is not direct production scoring routing. Task 7.21 still depends on Task 7.19 internal routing and explicit production activation approval, and the renewed readiness record names the unresolved routing policies that must be settled before any production scoring command family can route.
 
-This is the required next task because Task 2.20 completed as a blocked preparation verdict and confirmed that production scoring cannot route until exact canonical scoring-event persistence, durable operation identity, correction and supersession evidence, idempotency evidence, relaunch-safe replay source, and schema-version policy are designed. Task 3.20 remains Legacy persistence retirement and is not authority to invent scoring persistence.
+The persistence-readiness dependency for Task 7.21 planning is satisfied by Tasks 3.22 through 3.25 and renewed Task 2.21. Production routing remains blocked until the first command family, Legacy-versus-canonical authority model, operation-identity owner, failure policy, correction/undo/delete/substitution mapping, repeated-input behavior, rollback or disable mechanism, report/statistics coexistence, observability, staged deployment, and acceptance/manual testing are explicitly authorized and verified. Task 3.20 remains Legacy persistence retirement and is not authority to remove Legacy scoring.
 
-Task 3.21 may inspect Documents 17 through 24 and 26 through 29, scoring and persistence verification baselines, current SwiftData model evidence, current scoring route evidence, and Apple SwiftData save/autosave documentation. It may produce a documentation-only requirements and schema-decision artifact or update the catalog if repository convention requires it.
-
-Task 3.21 must not implement code, schemas, migrations, adapters, tests, production routing, Legacy retirement, or synthesized canonical history for existing games. Verification should confirm the branch, working tree, authoritative evidence inspected, no unsupported implementation claims, documentation-only diff, and that production scoring remains Legacy.
+Task 7.21, when separately authorized after its remaining prerequisites, may route at most one approved scoring command family and must retain Legacy for all unrouted scoring and rollback. It must not synthesize canonical history for existing games, perform report/statistics migration, retire Legacy scoring, or broaden beyond the approved bounded slice.
