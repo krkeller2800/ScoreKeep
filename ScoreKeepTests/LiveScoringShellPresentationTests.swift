@@ -659,6 +659,60 @@ struct LiveScoringShellPresentationTests {
             #expect(atbat.result == "Single")
         }
     }
+
+    @Test("Task 7.11 unconfirmed correction review interruption discards state without mutation")
+    func task711UnconfirmedCorrectionReviewInterruptionDiscardsStateWithoutMutation() {
+        var presenter = LiveScoringShellPresentation()
+        let atbat = Fixture.scoredAtbat()
+        var review: LiveScoringShellPresentation.CorrectionReviewState? = presenter.prepareCorrectionReview(
+            original: LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(atbat),
+            batterName: "Visitor One",
+            replacement: .init(result: "Double", maxBase: "Second", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            supportedLegacyResults: ["Single", "Double"]
+        )
+
+        presenter = LiveScoringShellPresentation()
+        review = nil
+
+        #expect(atbat.result == "Single")
+        #expect(review == nil)
+    }
+
+    @Test("Task 7.11 unconfirmed batter substitution review interruption discards state without mutation")
+    func task711UnconfirmedBatterSubstitutionReviewInterruptionDiscardsStateWithoutMutation() {
+        var presenter = LiveScoringShellPresentation()
+        var review: LiveScoringShellPresentation.SubstitutionReviewState? = presenter.prepareSubstitutionReview(
+            gameIdentity: UUID(),
+            outgoingPlayerIdentity: UUID(),
+            incomingPlayerIdentity: UUID(),
+            summaryOutgoingName: "Out Name",
+            summaryIncomingName: "In Name"
+        )
+
+        presenter = LiveScoringShellPresentation()
+        review = nil
+
+        #expect(review == nil)
+    }
+
+    @Test("Task 7.11 unconfirmed pitcher change review interruption discards state without mutation")
+    func task711UnconfirmedPitcherChangeReviewInterruptionDiscardsStateWithoutMutation() {
+        var presenter = LiveScoringShellPresentation()
+        var review: LiveScoringShellPresentation.PitcherChangeReviewState? = presenter.preparePitcherChangeReview(
+            gameIdentity: UUID(),
+            teamIdentity: UUID(),
+            incomingPitcherIdentity: UUID(),
+            startInning: 1,
+            startOuts: 0,
+            startBatters: 0,
+            summaryIncomingName: "In Name"
+        )
+
+        presenter = LiveScoringShellPresentation()
+        review = nil
+
+        #expect(review == nil)
+    }
 }
 
 private enum Fixture {

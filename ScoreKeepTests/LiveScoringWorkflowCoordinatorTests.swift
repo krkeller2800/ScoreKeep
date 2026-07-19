@@ -2225,6 +2225,253 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.legacyScoringOperationEvidenceCount() == 0)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("Task 7.11 accepted save followed by coordinator recreation does not lose or duplicate event")
+    func task711AcceptedSaveFollowedByCoordinatorRecreation() throws {
+        let store = try Store(fileBackedName: "Task711CoordinatorRecreation")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+
+        let operationIdentity = UUID(uuidString: "71100000-0000-0000-0000-000000000711")!
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let result = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try store.context.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        #expect(result.disposition == .accepted)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+
+        let newCoordinator = LiveScoringWorkflowCoordinator()
+        let prepared = newCoordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats,
+            pitchers: [pitcher]
+        )
+
+        #expect(prepared.disposition == .ready)
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.11 reopening the same game repeatedly does not resubmit or duplicate event")
+    func task711ReopeningSameGameRepeatedlyDoesNotResubmit() throws {
+        let store = try Store(fileBackedName: "Task711Reopening")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+
+        let operationIdentity = UUID(uuidString: "71100000-0000-0000-0000-000000000712")!
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let result = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try store.context.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        #expect(result.disposition == .accepted)
+
+        let prepareAgain = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats,
+            pitchers: [pitcher]
+        )
+
+        #expect(prepareAgain.disposition == .ready)
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.11 repeated identical submission after recreation uses Task 7.7 safety")
+    func task711RepeatedIdenticalSubmissionAfterRecreation() throws {
+        let store = try Store(fileBackedName: "Task711RepeatedSubmission")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let operationIdentity = UUID(uuidString: "71100000-0000-0000-0000-000000000713")!
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let first = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try store.context.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        #expect(first.disposition == .accepted)
+
+        let newCoordinator = LiveScoringWorkflowCoordinator()
+        let newAdapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+        let second = newCoordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try store.context.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: newAdapter,
+            modelContext: store.context
+        )
+
+        #expect(second.disposition == .duplicatePrevented)
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.11 save failure followed by reconstruction leaves no partial state")
+    func task711SaveFailureFollowedByReconstruction() throws {
+        let store = try Store(fileBackedName: "Task711SaveFailure")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let operationIdentity = UUID(uuidString: "71100000-0000-0000-0000-000000000714")!
+
+        var coordinator: LiveScoringWorkflowCoordinator? = LiveScoringWorkflowCoordinator()
+        let failingAdapter = LegacyScoringOperationEvidenceAdapter(
+            container: store.container,
+            dependencies: LegacyScoringOperationEvidenceDependencies(injectedFailures: [.save])
+        )
+
+        let failed = coordinator!.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try store.context.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: failingAdapter,
+            modelContext: store.context
+        )
+        #expect(failed.disposition == .persistenceFailed)
+
+        coordinator = nil
+        let newCoordinator = LiveScoringWorkflowCoordinator()
+        let prepared = newCoordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats,
+            pitchers: [pitcher]
+        )
+
+        #expect(prepared.disposition == .ready)
+        #expect(fixture.visitingFirst.result == "Result")
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 0)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.11 accepted save followed by container recreation does not lose or duplicate event")
+    func task711AcceptedSaveFollowedByContainerRecreation() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Task711ContainerRecreation-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Store.sqlite")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
+        let configuration = ModelConfiguration("LiveScoringWorkflowCoordinatorTests-Task711Recreation", url: url)
+        var container: ModelContainer? = try ModelContainer(for: schema, configurations: [configuration])
+        var context: ModelContext? = ModelContext(container!)
+
+        let fixture = Fixture.insertGame(into: context!)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: context!)
+        let gameIdentity = fixture.game.ident
+        let targetIdentity = fixture.visitingFirst.ident
+        try context!.save()
+
+        let operationIdentity = UUID(uuidString: "71100000-0000-0000-0000-000000000715")!
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: container!)
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let result = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try context!.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: adapter,
+            modelContext: context!
+        )
+        #expect(result.disposition == .accepted)
+
+        context = nil
+        container = nil
+
+        let newContainer = try ModelContainer(for: schema, configurations: [configuration])
+        let newContext = ModelContext(newContainer)
+
+        var evidenceDescriptor = FetchDescriptor<LegacyScoringOperationEvidenceRecord>()
+        let evidence = try newContext.fetch(evidenceDescriptor)
+        #expect(evidence.count == 1)
+        #expect(evidence.first?.operationIdentity == operationIdentity)
+
+        var gameDescriptor = FetchDescriptor<Game>()
+        let games = try newContext.fetch(gameDescriptor)
+        let reloadedGame = try #require(games.first { $0.ident == gameIdentity })
+
+        let reloadedTarget = try #require(reloadedGame.atbats.first { $0.ident == targetIdentity })
+        #expect(reloadedTarget.result == "Single")
+        #expect(reloadedGame.atbats.count == 2)
+
+        let canonicalRecords = try newContext.fetchCount(FetchDescriptor<CanonicalGameHistoryRecord>())
+        #expect(canonicalRecords == 0)
+
+        let reloadedPitcher = try #require(try newContext.fetch(FetchDescriptor<Pitcher>()).first)
+        let newCoordinator = LiveScoringWorkflowCoordinator()
+        let prepared = newCoordinator.prepareLiveGameState(
+            game: reloadedGame,
+            battingTeam: reloadedGame.vteam!,
+            displayedAtbats: reloadedGame.atbats,
+            pitchers: [reloadedPitcher]
+        )
+        #expect(prepared.disposition == .ready)
+        #expect(reloadedGame.atbats.count == 2)
+
+        try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
 }
 
 @MainActor
