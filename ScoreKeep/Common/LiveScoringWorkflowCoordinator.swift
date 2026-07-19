@@ -96,6 +96,24 @@ struct LiveScoringWorkflowCoordinator {
         let atbat: Atbat?
         let actionState: EnabledScoringActionState?
         let message: String?
+        let operationIdentity: UUID?
+        let operationEvidenceResult: LegacyScoringOperationEvidenceTransactionResult?
+
+        init(
+            disposition: SubmissionDisposition,
+            atbat: Atbat?,
+            actionState: EnabledScoringActionState?,
+            message: String?,
+            operationIdentity: UUID? = nil,
+            operationEvidenceResult: LegacyScoringOperationEvidenceTransactionResult? = nil
+        ) {
+            self.disposition = disposition
+            self.atbat = atbat
+            self.actionState = actionState
+            self.message = message
+            self.operationIdentity = operationIdentity
+            self.operationEvidenceResult = operationEvidenceResult
+        }
     }
 
     enum AdditionalChoiceDisposition: Equatable {
@@ -119,6 +137,7 @@ struct LiveScoringWorkflowCoordinator {
     }
 
     struct PendingAdditionalScoringChoice: Equatable {
+        let operationIdentity: UUID
         let originalScoringAction: ScoringActionIdentity
         let requiredChoiceCategory: String
         let gameIdentity: UUID
@@ -301,6 +320,10 @@ struct LiveScoringWorkflowCoordinator {
                 atbat.game.atbats.first { $0.ident == identity }?.endOfInning = endOfInning
             }
         }
+    }
+
+    private enum LiveScoringOperationEvidenceMutationError: Error {
+        case targetAlreadyScored
     }
 
     func selectAtbat(
@@ -690,7 +713,10 @@ struct LiveScoringWorkflowCoordinator {
         displayedAtbats: [Atbat],
         pitchers: [Pitcher],
         supportedLegacyResults: [String],
-        save: SaveAction
+        save: SaveAction,
+        operationIdentity: UUID? = nil,
+        operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter? = nil,
+        modelContext: ModelContext? = nil
     ) -> ScoringSubmissionResult {
         let validation = validateSubmission(
             legacyResult: legacyResult,
@@ -708,6 +734,46 @@ struct LiveScoringWorkflowCoordinator {
             return validation.result
         }
         let actionState = validation.result.actionState
+
+        if let operationIdentity, let operationEvidenceAdapter, let modelContext {
+            let previous = LegacyAtbatSubmissionSnapshot(targetAtbat)
+            let request = ordinaryOperationRequest(
+                operationIdentity: operationIdentity,
+                legacyResult: legacyResult,
+                targetAtbat: targetAtbat,
+                game: game,
+                battingTeam: battingTeam,
+                preparedState: validation.preparedState
+            )
+            let evidenceResult = operationEvidenceAdapter.apply(request, in: modelContext) { _ in
+                guard targetAtbat.result == "Result" else {
+                    throw LiveScoringOperationEvidenceMutationError.targetAlreadyScored
+                }
+                targetAtbat.result = legacyResult
+                applyOrdinaryResultDefaults(to: targetAtbat)
+                markEndOfInning(for: targetAtbat)
+            }
+            if evidenceResult.transaction.disposition == .saveFailed,
+               evidenceResult.lookupResult.classification == .noEvidence {
+                previous.restore(to: targetAtbat)
+            }
+            return scoringSubmissionResult(
+                from: evidenceResult,
+                atbat: targetAtbat,
+                actionState: actionState,
+                failureMessage: "Error saving scoring action."
+            )
+        }
+
+        if operationIdentity != nil || operationEvidenceAdapter != nil || modelContext != nil {
+            return ScoringSubmissionResult(
+                disposition: .unsupportedAction,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: "Durable duplicate prevention is unavailable for this scoring action.",
+                operationIdentity: operationIdentity
+            )
+        }
 
         guard targetAtbat.result != legacyResult else {
             return ScoringSubmissionResult(
@@ -791,6 +857,7 @@ struct LiveScoringWorkflowCoordinator {
         return AdditionalChoicePreparationResult(
             disposition: .pending,
             pendingChoice: PendingAdditionalScoringChoice(
+                operationIdentity: UUID(),
                 originalScoringAction: .legacyResult(legacyResult),
                 requiredChoiceCategory: additionalChoiceCategory(for: legacyResult),
                 gameIdentity: game.ident,
@@ -819,7 +886,9 @@ struct LiveScoringWorkflowCoordinator {
         displayedAtbats: [Atbat],
         pitchers: [Pitcher],
         supportedLegacyResults: [String],
-        save: SaveAction
+        save: SaveAction,
+        operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter? = nil,
+        modelContext: ModelContext? = nil
     ) -> ScoringSubmissionResult {
         guard let pendingChoice else {
             return ScoringSubmissionResult(disposition: .cancellation, atbat: targetAtbat, actionState: nil, message: "No additional scoring choice was submitted.")
@@ -852,6 +921,55 @@ struct LiveScoringWorkflowCoordinator {
             return validation.result
         }
         let actionState = validation.result.actionState
+
+        if let operationEvidenceAdapter, let modelContext {
+            let previous = LegacyAtbatSubmissionSnapshot(targetAtbat)
+            let request = additionalChoiceOperationRequest(
+                operationIdentity: pendingChoice.operationIdentity,
+                choices: choices,
+                targetAtbat: targetAtbat,
+                game: game,
+                battingTeam: battingTeam,
+                preparedState: validation.preparedState
+            )
+            let evidenceResult = operationEvidenceAdapter.apply(request, in: modelContext) { _ in
+                guard targetAtbat.result == "Result" else {
+                    throw LiveScoringOperationEvidenceMutationError.targetAlreadyScored
+                }
+                targetAtbat.result = choices.legacyResult
+                applyOrdinaryResultDefaults(to: targetAtbat)
+                targetAtbat.maxbase = choices.maxBase
+                targetAtbat.outAt = choices.outAt
+                targetAtbat.rbis = choices.rbis
+                targetAtbat.stolenBases = choices.stolenBases
+                targetAtbat.earnedRun = choices.earnedRun
+                targetAtbat.playRec = choices.playRecord
+                if !common.recOuts.contains(targetAtbat.result) && targetAtbat.outAt == "Safe" {
+                    targetAtbat.playRec = ""
+                }
+                markEndOfInning(for: targetAtbat)
+            }
+            if evidenceResult.transaction.disposition == .saveFailed,
+               evidenceResult.lookupResult.classification == .noEvidence {
+                previous.restore(to: targetAtbat)
+            }
+            return scoringSubmissionResult(
+                from: evidenceResult,
+                atbat: targetAtbat,
+                actionState: actionState,
+                failureMessage: "Error saving scoring action."
+            )
+        }
+
+        if operationEvidenceAdapter != nil || modelContext != nil {
+            return ScoringSubmissionResult(
+                disposition: .unsupportedAction,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: "Durable duplicate prevention is unavailable for this scoring action.",
+                operationIdentity: pendingChoice.operationIdentity
+            )
+        }
 
         if targetAtbat.result == choices.legacyResult && currentAdditionalChoices(for: targetAtbat, legacyResult: choices.legacyResult) == choices {
             return ScoringSubmissionResult(disposition: .duplicatePrevented, atbat: targetAtbat, actionState: actionState, message: nil)
@@ -1363,6 +1481,138 @@ struct LiveScoringWorkflowCoordinator {
         }
         if !common.recOuts.contains(atbat.result) || atbat.outAt != "Safe" {
             atbat.playRec = ""
+        }
+    }
+
+    private func ordinaryOperationRequest(
+        operationIdentity: UUID,
+        legacyResult: String,
+        targetAtbat: Atbat,
+        game: Game,
+        battingTeam: Team?,
+        preparedState: PreparedLiveGameState?
+    ) -> LegacyScoringOperationRequestFacts {
+        var facts = sharedOperationFacts(
+            targetAtbat: targetAtbat,
+            game: game,
+            battingTeam: battingTeam,
+            preparedState: preparedState
+        )
+        facts.append("selectedResult=\(legacyResult)")
+        facts.append("ordinaryDefaults=earnedRunAndPlayRecord")
+        return LegacyScoringOperationRequestFacts(
+            operationIdentity: operationIdentity,
+            targetGameIdentity: game.ident,
+            targetAtbatIdentity: targetAtbat.ident,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.ordinarySubmissionFamily,
+            acceptedResultClassification: legacyResult,
+            acceptedOutcomeReference: acceptedOutcomeReference(for: targetAtbat),
+            deterministicRequestFacts: facts
+        )
+    }
+
+    private func additionalChoiceOperationRequest(
+        operationIdentity: UUID,
+        choices: AdditionalScoringChoices,
+        targetAtbat: Atbat,
+        game: Game,
+        battingTeam: Team?,
+        preparedState: PreparedLiveGameState?
+    ) -> LegacyScoringOperationRequestFacts {
+        var facts = sharedOperationFacts(
+            targetAtbat: targetAtbat,
+            game: game,
+            battingTeam: battingTeam,
+            preparedState: preparedState
+        )
+        facts.append(contentsOf: [
+            "selectedResult=\(choices.legacyResult)",
+            "maxBase=\(choices.maxBase)",
+            "outAt=\(choices.outAt)",
+            "rbis=\(choices.rbis)",
+            "stolenBases=\(choices.stolenBases)",
+            "earnedRun=\(choices.earnedRun)",
+            "playRecord=\(choices.playRecord)",
+            "sacrificeFly=\(choices.legacyResult == "Sacrifice Fly")",
+            "sacrificeBunt=\(choices.legacyResult == "Sacrifice Bunt")",
+            "choiceFamily=\(additionalChoiceCategory(for: choices.legacyResult))"
+        ])
+        return LegacyScoringOperationRequestFacts(
+            operationIdentity: operationIdentity,
+            targetGameIdentity: game.ident,
+            targetAtbatIdentity: targetAtbat.ident,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.additionalChoiceSubmissionFamily,
+            acceptedResultClassification: choices.legacyResult,
+            acceptedOutcomeReference: acceptedOutcomeReference(for: targetAtbat),
+            deterministicRequestFacts: facts
+        )
+    }
+
+    private func sharedOperationFacts(
+        targetAtbat: Atbat,
+        game: Game,
+        battingTeam: Team?,
+        preparedState: PreparedLiveGameState?
+    ) -> [String] {
+        [
+            "game=\(game.ident.uuidString.lowercased())",
+            "atbat=\(targetAtbat.ident.uuidString.lowercased())",
+            "battingTeam=\(battingTeam?.ident.uuidString.lowercased() ?? "missing")",
+            "targetPlayer=\(targetAtbat.player.identifier.uuidString.lowercased())",
+            "targetBatOrder=\(targetAtbat.batOrder)",
+            "targetColumn=\(targetAtbat.col)",
+            "targetSequence=\(targetAtbat.seq)",
+            "preparedBattingSide=\(preparedState?.battingSide.rawValue ?? "missing")"
+        ]
+    }
+
+    private func acceptedOutcomeReference(for atbat: Atbat) -> String {
+        "legacyAtbat:\(atbat.ident.uuidString.lowercased())"
+    }
+
+    private func scoringSubmissionResult(
+        from evidenceResult: LegacyScoringOperationEvidenceTransactionResult,
+        atbat: Atbat,
+        actionState: EnabledScoringActionState?,
+        failureMessage: String
+    ) -> ScoringSubmissionResult {
+        switch evidenceResult.transaction.disposition {
+        case .success:
+            return ScoringSubmissionResult(
+                disposition: .accepted,
+                atbat: atbat,
+                actionState: actionState,
+                message: nil,
+                operationIdentity: evidenceResult.operationIdentity,
+                operationEvidenceResult: evidenceResult
+            )
+        case .duplicateAlreadyApplied:
+            return ScoringSubmissionResult(
+                disposition: .duplicatePrevented,
+                atbat: atbat,
+                actionState: actionState,
+                message: nil,
+                operationIdentity: evidenceResult.operationIdentity,
+                operationEvidenceResult: evidenceResult
+            )
+        case .contradictory:
+            return ScoringSubmissionResult(
+                disposition: .conflict,
+                atbat: atbat,
+                actionState: actionState,
+                message: "The scoring operation identity was reused for different facts.",
+                operationIdentity: evidenceResult.operationIdentity,
+                operationEvidenceResult: evidenceResult
+            )
+        default:
+            return ScoringSubmissionResult(
+                disposition: .persistenceFailed,
+                atbat: atbat,
+                actionState: actionState,
+                message: failureMessage,
+                operationIdentity: evidenceResult.operationIdentity,
+                operationEvidenceResult: evidenceResult
+            )
         }
     }
 

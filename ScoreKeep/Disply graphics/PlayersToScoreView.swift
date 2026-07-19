@@ -32,6 +32,8 @@ struct PlayersToScoreView: View {
     @State private var preparedLiveGameState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
     @State private var semanticScorePresentation: LiveScoringShellPresentation.SemanticScorePresentation?
     @State private var enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation?
+    @State private var ordinaryScoringOperationIdentity: UUID?
+    @State private var ordinaryScoringIntentKey: String?
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
     let com = Common()
@@ -327,6 +329,7 @@ struct PlayersToScoreView: View {
 
         if let selectedAtbat = presentation.selectedAtbat, presentation.shouldPresentScoringSheet {
             theAtbat = selectedAtbat
+            resetScoringOperationIdentity()
         }
         showingScoring = presentation.shouldPresentScoringSheet
         hasChanged = presentation.shouldMarkChanged
@@ -342,6 +345,7 @@ struct PlayersToScoreView: View {
     func submitScoringAction(_ result: String) -> LiveScoringShellPresentation.SubmissionPresentation {
         let battingTeam = theAtbat.team
         let displayedAtbats = atbats.contains(where: { $0.ident == theAtbat.ident }) ? atbats : atbats + [theAtbat]
+        let operationIdentity = operationIdentityForOrdinarySubmission(result)
         let submission = liveScoringCoordinator.submitScoringAction(
             legacyResult: result,
             targetAtbat: theAtbat,
@@ -350,7 +354,10 @@ struct PlayersToScoreView: View {
             displayedAtbats: displayedAtbats,
             pitchers: pitchers,
             supportedLegacyResults: com.onresults + com.outresults,
-            save: { try modelContext.save() }
+            save: { try modelContext.save() },
+            operationIdentity: operationIdentity,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: modelContext.container),
+            modelContext: modelContext
         )
         let requiresAdditionalChoice = com.recOuts.contains(result) || theAtbat.outAt != "Safe"
         let presentation = liveScoringShellPresentation.presentSubmissionResult(
@@ -361,6 +368,7 @@ struct PlayersToScoreView: View {
         hasChanged = presentation.shouldMarkChanged
         if presentation.shouldDismissScoringSheet {
             showingScoring = false
+            resetScoringOperationIdentity()
         }
         refreshLiveScoringWorkflow()
 
@@ -410,7 +418,9 @@ struct PlayersToScoreView: View {
             displayedAtbats: displayedAtbats,
             pitchers: pitchers,
             supportedLegacyResults: com.onresults + com.outresults,
-            save: { try modelContext.save() }
+            save: { try modelContext.save() },
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: modelContext.container),
+            modelContext: modelContext
         )
         let presentation = liveScoringShellPresentation.presentSubmissionResult(
             submission,
@@ -420,6 +430,7 @@ struct PlayersToScoreView: View {
         hasChanged = presentation.shouldMarkChanged
         if presentation.shouldDismissScoringSheet {
             showingScoring = false
+            resetScoringOperationIdentity()
         }
         refreshLiveScoringWorkflow()
 
@@ -428,6 +439,27 @@ struct PlayersToScoreView: View {
         }
 
         return presentation
+    }
+
+    private func operationIdentityForOrdinarySubmission(_ result: String) -> UUID {
+        let intentKey = [
+            game.ident.uuidString.lowercased(),
+            theAtbat.ident.uuidString.lowercased(),
+            LegacyScoringOperationEvidenceConstants.ordinarySubmissionFamily,
+            result
+        ].joined(separator: "|")
+        if ordinaryScoringIntentKey == intentKey, let ordinaryScoringOperationIdentity {
+            return ordinaryScoringOperationIdentity
+        }
+        let identity = UUID()
+        ordinaryScoringIntentKey = intentKey
+        ordinaryScoringOperationIdentity = identity
+        return identity
+    }
+
+    private func resetScoringOperationIdentity() {
+        ordinaryScoringIntentKey = nil
+        ordinaryScoringOperationIdentity = nil
     }
 
     private func semanticScoreLine(

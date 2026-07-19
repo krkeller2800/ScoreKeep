@@ -173,6 +173,7 @@ struct LiveScoringShellPresentationTests {
     func additionalChoicePreparationPresentsPendingChoicesWithoutMarkingChanged() {
         let presenter = LiveScoringShellPresentation()
         let pending = LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice(
+            operationIdentity: UUID(uuidString: "97000000-0000-0000-0000-000000000000")!,
             originalScoringAction: .legacyResult("Fielder's Choice"),
             requiredChoiceCategory: "runnerMovementAndRecordedOut",
             gameIdentity: UUID(uuidString: "97000000-0000-0000-0000-000000000001")!,

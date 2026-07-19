@@ -198,13 +198,13 @@ struct LegacyScoringOperationEvidenceTests {
         #expect(snapshot.evidenceCount == 1)
     }
 
-    @Test("ordinary live scoring coordinator remains unrouted from operation evidence")
-    func ordinaryLiveScoringCoordinatorRemainsUnroutedFromOperationEvidence() throws {
+    @Test("ordinary live scoring coordinator routes only Legacy operation evidence and no canonical adapter")
+    func ordinaryLiveScoringCoordinatorRoutesOnlyLegacyOperationEvidenceAndNoCanonicalAdapter() throws {
         let projectRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         let sourceURL = projectRoot.appendingPathComponent("ScoreKeep/Common/LiveScoringWorkflowCoordinator.swift")
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
 
-        #expect(source.contains("LegacyScoringOperationEvidenceAdapter") == false)
+        #expect(source.contains("LegacyScoringOperationEvidenceAdapter"))
         #expect(source.contains("LegacyScoringOperationEvidenceRecord") == false)
         #expect(source.contains("CanonicalScoringTransactionAdapter") == false)
     }

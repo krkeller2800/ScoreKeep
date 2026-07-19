@@ -569,6 +569,167 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
+    @Test("Task 7.7 ordinary exact retry returns persisted outcome without a second mutation")
+    func task77OrdinaryExactRetryReturnsPersistedOutcomeWithoutSecondMutation() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let operation = UUID(uuidString: "70000000-0000-0000-0000-000000000701")!
+        var saveCount = 0
+        let adapter = LegacyScoringOperationEvidenceAdapter(
+            container: store.container,
+            dependencies: LegacyScoringOperationEvidenceDependencies(save: { context in
+                saveCount += 1
+                try context.save()
+            })
+        )
+
+        let first = LiveScoringWorkflowCoordinator().submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Double"],
+            save: { throw InjectedSaveError() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let retryAfterCoordinatorReconstruction = LiveScoringWorkflowCoordinator().submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Double"],
+            save: { throw InjectedSaveError() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+
+        #expect(first.disposition == .accepted)
+        #expect(first.operationEvidenceResult?.idempotencyResult == .firstInvocation)
+        #expect(retryAfterCoordinatorReconstruction.disposition == .duplicatePrevented)
+        #expect(retryAfterCoordinatorReconstruction.operationEvidenceResult?.idempotencyResult == .exactRetryAlreadyAccepted)
+        #expect(saveCount == 1)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.7 ordinary conflicting identity reuse fails closed")
+    func task77OrdinaryConflictingIdentityReuseFailsClosed() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let operation = UUID(uuidString: "70000000-0000-0000-0000-000000000702")!
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+
+        let first = coordinatorSubmitOrdinary(
+            coordinator: LiveScoringWorkflowCoordinator(),
+            store: store,
+            fixture: fixture,
+            pitcher: pitcher,
+            result: "Single",
+            operation: operation,
+            adapter: adapter
+        )
+        let conflict = coordinatorSubmitOrdinary(
+            coordinator: LiveScoringWorkflowCoordinator(),
+            store: store,
+            fixture: fixture,
+            pitcher: pitcher,
+            result: "Double",
+            operation: operation,
+            adapter: adapter
+        )
+
+        #expect(first.disposition == .accepted)
+        #expect(conflict.disposition == .conflict)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.7 confirmed failure with no evidence can retry using the same ordinary identity")
+    func task77ConfirmedFailureWithNoEvidenceCanRetryUsingSameOrdinaryIdentity() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let operation = UUID(uuidString: "70000000-0000-0000-0000-000000000703")!
+        let failingAdapter = LegacyScoringOperationEvidenceAdapter(
+            container: store.container,
+            dependencies: LegacyScoringOperationEvidenceDependencies(injectedFailures: [.save])
+        )
+        let retryAdapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+
+        let failed = coordinatorSubmitOrdinary(
+            coordinator: LiveScoringWorkflowCoordinator(),
+            store: store,
+            fixture: fixture,
+            pitcher: pitcher,
+            result: "Single",
+            operation: operation,
+            adapter: failingAdapter
+        )
+        let retry = coordinatorSubmitOrdinary(
+            coordinator: LiveScoringWorkflowCoordinator(),
+            store: store,
+            fixture: fixture,
+            pitcher: pitcher,
+            result: "Single",
+            operation: operation,
+            adapter: retryAdapter
+        )
+
+        #expect(failed.disposition == .persistenceFailed)
+        #expect(failed.operationEvidenceResult?.transaction.retrySafety == .safe)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(retry.disposition == .accepted)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.7 committed but unacknowledged ordinary save reconciles through fresh lookup")
+    func task77CommittedButUnacknowledgedOrdinarySaveReconcilesThroughFreshLookup() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let operation = UUID(uuidString: "70000000-0000-0000-0000-000000000704")!
+        let adapter = LegacyScoringOperationEvidenceAdapter(
+            container: store.container,
+            dependencies: LegacyScoringOperationEvidenceDependencies(save: { context in
+                try context.save()
+                throw InjectedSaveError()
+            })
+        )
+
+        let result = coordinatorSubmitOrdinary(
+            coordinator: LiveScoringWorkflowCoordinator(),
+            store: store,
+            fixture: fixture,
+            pitcher: pitcher,
+            result: "Single",
+            operation: operation,
+            adapter: adapter
+        )
+
+        #expect(result.disposition == .duplicatePrevented)
+        #expect(result.operationEvidenceResult?.saveResult == .completionUncertain)
+        #expect(result.operationEvidenceResult?.lookupResult.classification == .acceptedExactRetry)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
     @Test("submission revalidates current state and fails closed after stale enabled state")
     func submissionRevalidatesCurrentStateAndFailsClosedAfterStaleEnabledState() throws {
         let store = try Store()
@@ -1009,6 +1170,185 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
+    @Test("Task 7.7 additional-choice exact retry returns persisted outcome without a second mutation")
+    func task77AdditionalChoiceExactRetryReturnsPersistedOutcomeWithoutSecondMutation() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        var saveCount = 0
+        let adapter = LegacyScoringOperationEvidenceAdapter(
+            container: store.container,
+            dependencies: LegacyScoringOperationEvidenceDependencies(save: { context in
+                saveCount += 1
+                try context.save()
+            })
+        )
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let pending = try #require(coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Fielder's Choice",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        ).pendingChoice)
+        let choices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Fielder's Choice",
+            maxBase: "First",
+            outAt: "Second",
+            rbis: 1,
+            stolenBases: 1,
+            earnedRun: false,
+            playRecord: "6-4"
+        )
+
+        let first = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let retryAfterPresentationReconstruction = LiveScoringWorkflowCoordinator().submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+
+        #expect(first.disposition == .accepted)
+        #expect(retryAfterPresentationReconstruction.disposition == .duplicatePrevented)
+        #expect(retryAfterPresentationReconstruction.operationEvidenceResult?.idempotencyResult == .exactRetryAlreadyAccepted)
+        #expect(saveCount == 1)
+        #expect(fixture.visitingFirst.result == "Fielder's Choice")
+        #expect(fixture.visitingFirst.playRec == "6-4")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.7 additional-choice changed facts under one identity fail closed")
+    func task77AdditionalChoiceChangedFactsUnderOneIdentityFailClosed() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let pending = try #require(coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        ).pendingChoice)
+        let acceptedChoices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Single",
+            maxBase: "First",
+            outAt: "Safe",
+            rbis: 0,
+            stolenBases: 0,
+            earnedRun: true,
+            playRecord: ""
+        )
+        let changedChoices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Single",
+            maxBase: "Home",
+            outAt: "Safe",
+            rbis: 1,
+            stolenBases: 0,
+            earnedRun: false,
+            playRecord: ""
+        )
+
+        let accepted = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: acceptedChoices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let conflict = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: changedChoices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+
+        #expect(accepted.disposition == .accepted)
+        #expect(conflict.disposition == .conflict)
+        #expect(fixture.visitingFirst.maxbase == "First")
+        #expect(fixture.visitingFirst.rbis == 0)
+        #expect(fixture.visitingFirst.earnedRun == true)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.7 additional-choice cancellation creates no accepted evidence")
+    func task77AdditionalChoiceCancellationCreatesNoAcceptedEvidence() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let pending = try #require(coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        ).pendingChoice)
+        let cancellation = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: nil,
+            choices: pending.choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+
+        #expect(cancellation.disposition == .cancellation)
+        #expect(fixture.visitingFirst.result == "Result")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 0)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
     @Test("rapid repeated additional-choice final input persists one accepted legacy outcome")
     func rapidRepeatedAdditionalChoiceFinalInputPersistsOneAcceptedLegacyOutcome() throws {
         let store = try Store()
@@ -1395,12 +1735,37 @@ struct LiveScoringWorkflowCoordinatorTests {
     }
 }
 
+@MainActor
+private func coordinatorSubmitOrdinary(
+    coordinator: LiveScoringWorkflowCoordinator,
+    store: Store,
+    fixture: Fixture,
+    pitcher: Pitcher,
+    result: String,
+    operation: UUID,
+    adapter: LegacyScoringOperationEvidenceAdapter
+) -> LiveScoringWorkflowCoordinator.ScoringSubmissionResult {
+    coordinator.submitScoringAction(
+        legacyResult: result,
+        targetAtbat: fixture.visitingFirst,
+        game: fixture.game,
+        battingTeam: fixture.visitingTeam,
+        displayedAtbats: fixture.displayedAtbats,
+        pitchers: [pitcher],
+        supportedLegacyResults: ["Single", "Double", "Ground Out"],
+        save: { throw InjectedSaveError() },
+        operationIdentity: operation,
+        operationEvidenceAdapter: adapter,
+        modelContext: store.context
+    )
+}
+
 private struct Store {
     let container: ModelContainer
     let context: ModelContext
 
     init() throws {
-        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         container = try ModelContainer(for: schema, configurations: [configuration])
         context = ModelContext(container)
@@ -1416,6 +1781,10 @@ private struct Store {
             context.fetchCount(FetchDescriptor<CanonicalScoringEventEnvelopeRecord>()) +
             context.fetchCount(FetchDescriptor<CanonicalScoringEventPayloadRecord>()) +
             context.fetchCount(FetchDescriptor<CanonicalScoringCorrectionRecord>())
+    }
+
+    func legacyScoringOperationEvidenceCount() throws -> Int {
+        try context.fetchCount(FetchDescriptor<LegacyScoringOperationEvidenceRecord>())
     }
 }
 
