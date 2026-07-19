@@ -1733,6 +1733,274 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(staleFixture.visitingFirst.result == "Result")
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("Task 7.8 accepted ordinary scoring agrees after fresh V4 reload")
+    func task78AcceptedOrdinaryScoringAgreesAfterFreshV4Reload() throws {
+        let store = try Store(fileBackedName: "Task78OrdinaryAgreement")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+        let operation = UUID(uuidString: "10000000-0000-0000-0000-000000078001")!
+
+        let accepted = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let expected = try LegacyPersistenceAgreementExpected.make(
+            result: accepted,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.ordinarySubmissionFamily,
+            game: fixture.game,
+            targetAtbat: fixture.visitingFirst,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+
+        let agreement = LegacyPersistenceAgreementVerifier(container: store.container).verify(expected)
+        let retry = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+
+        #expect(accepted.disposition == .accepted)
+        #expect(agreement.classification == .agreementConfirmed)
+        #expect(agreement.lookupPerformedWrites == false)
+        #expect(agreement.comparedFacts.contains(.result))
+        #expect(agreement.comparedFacts.contains(.runnerOrBaseState))
+        #expect(agreement.comparedFacts.contains(.currentBatter))
+        #expect(retry.disposition == .duplicatePrevented)
+        #expect(retry.operationEvidenceResult?.idempotencyResult == .exactRetryAlreadyAccepted)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.8 accepted out-producing ordinary scoring agrees after fresh V4 reload")
+    func task78AcceptedOutProducingOrdinaryScoringAgreesAfterFreshV4Reload() throws {
+        let store = try Store(fileBackedName: "Task78OutAgreement")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+
+        let accepted = coordinator.submitScoringAction(
+            legacyResult: "Ground Out",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationIdentity: UUID(uuidString: "10000000-0000-0000-0000-000000078002")!,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let expected = try LegacyPersistenceAgreementExpected.make(
+            result: accepted,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.ordinarySubmissionFamily,
+            game: fixture.game,
+            targetAtbat: fixture.visitingFirst,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let agreement = LegacyPersistenceAgreementVerifier(container: store.container).verify(expected)
+
+        #expect(accepted.disposition == .accepted)
+        #expect(agreement.classification == .agreementConfirmed)
+        #expect(agreement.comparedFacts.contains(.outs))
+        #expect(agreement.comparedFacts.contains(.inningAndHalfInning))
+        #expect(agreement.comparedFacts.contains(.completionOrProgressionState))
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.8 accepted additional-choice scoring agrees after fresh V4 reload")
+    func task78AcceptedAdditionalChoiceScoringAgreesAfterFreshV4Reload() throws {
+        let store = try Store(fileBackedName: "Task78AdditionalChoiceAgreement")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+        let pending = try #require(coordinator.prepareAdditionalChoiceScoringAction(
+            legacyResult: "Fielder's Choice",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults
+        ).pendingChoice)
+        let choices = LiveScoringWorkflowCoordinator.AdditionalScoringChoices(
+            legacyResult: "Fielder's Choice",
+            maxBase: "First",
+            outAt: "Second",
+            rbis: 1,
+            stolenBases: 1,
+            earnedRun: false,
+            playRecord: "6-4"
+        )
+
+        let accepted = coordinator.submitAdditionalChoiceScoringAction(
+            pendingChoice: pending,
+            choices: choices,
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let expected = try LegacyPersistenceAgreementExpected.make(
+            result: accepted,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.additionalChoiceSubmissionFamily,
+            game: fixture.game,
+            targetAtbat: fixture.visitingFirst,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let agreement = LegacyPersistenceAgreementVerifier(container: store.container).verify(expected)
+
+        #expect(accepted.disposition == .accepted)
+        #expect(agreement.classification == .agreementConfirmed)
+        #expect(agreement.comparedFacts.contains(.rbi))
+        #expect(agreement.comparedFacts.contains(.earnedRunClassification))
+        #expect(agreement.comparedFacts.contains(.stolenBaseOrSacrificeFacts))
+        #expect(agreement.comparedFacts.contains(.fielderPlayFacts))
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.8 agreement fails closed for missing evidence target and fingerprint conflicts")
+    func task78AgreementFailsClosedForMissingEvidenceTargetAndFingerprintConflicts() throws {
+        let store = try Store(fileBackedName: "Task78FailureClassifications")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        let unrelated = Fixture.insertGame(into: store.context, location: "Task 7.8 Unrelated Field")
+        _ = Fixture.insertPitcher(for: unrelated, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+        let accepted = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationIdentity: UUID(uuidString: "10000000-0000-0000-0000-000000078003")!,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let expected = try LegacyPersistenceAgreementExpected.make(
+            result: accepted,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.ordinarySubmissionFamily,
+            game: fixture.game,
+            targetAtbat: fixture.visitingFirst,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let verifier = LegacyPersistenceAgreementVerifier(container: store.container)
+        let missingEvidenceExpected = expected.replacing(operationIdentity: UUID(uuidString: "10000000-0000-0000-0000-0000000780ff")!)
+        let unrelatedTargetExpected = expected.replacing(gameIdentity: unrelated.game.ident, atbatIdentity: unrelated.visitingFirst.ident)
+        let conflictingFingerprintExpected = expected.replacing(requestFingerprint: "conflicting-fingerprint")
+        let missingAtbatIdentity = UUID(uuidString: "10000000-0000-0000-0000-0000000780aa")!
+        let missingGameIdentity = UUID(uuidString: "10000000-0000-0000-0000-0000000780bb")!
+
+        #expect(verifier.verify(missingEvidenceExpected).classification == .acceptedOperationEvidenceMissing)
+        #expect(verifier.verify(unrelatedTargetExpected).classification == .operationIdentityOrFingerprintConflict)
+        #expect(verifier.verify(conflictingFingerprintExpected).classification == .operationIdentityOrFingerprintConflict)
+
+        let freshContext = ModelContext(store.container)
+        let loadedEvidence = try fetchEvidence(expected.operationIdentity, in: freshContext)
+        let evidence = try #require(loadedEvidence)
+        evidence.targetAtbatIdentity = missingAtbatIdentity
+        try freshContext.save()
+        #expect(verifier.verify(expected.replacing(atbatIdentity: missingAtbatIdentity)).classification == .targetAtbatMissing)
+
+        evidence.targetGameIdentity = missingGameIdentity
+        try freshContext.save()
+        #expect(verifier.verify(expected.replacing(gameIdentity: missingGameIdentity, atbatIdentity: missingAtbatIdentity)).classification == .targetGameMissing)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 7.8 agreement fails closed for missing target fact disagreement and reload failure")
+    func task78AgreementFailsClosedForMissingTargetFactDisagreementAndReloadFailure() throws {
+        let store = try Store(fileBackedName: "Task78MismatchAndReloadFailure")
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let adapter = LegacyScoringOperationEvidenceAdapter(container: store.container)
+        let accepted = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: Common().onresults + Common().outresults,
+            save: { throw InjectedSaveError() },
+            operationIdentity: UUID(uuidString: "10000000-0000-0000-0000-000000078004")!,
+            operationEvidenceAdapter: adapter,
+            modelContext: store.context
+        )
+        let expected = try LegacyPersistenceAgreementExpected.make(
+            result: accepted,
+            submissionFamily: LegacyScoringOperationEvidenceConstants.ordinarySubmissionFamily,
+            game: fixture.game,
+            targetAtbat: fixture.visitingFirst,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher]
+        )
+
+        let freshMutation = ModelContext(store.container)
+        let persistedAtbat = try fetchRequiredAtbat(fixture.visitingFirst.ident, in: freshMutation)
+        persistedAtbat.rbis = 2
+        try freshMutation.save()
+        let mismatch = LegacyPersistenceAgreementVerifier(container: store.container).verify(expected)
+        let reloadFailure = LegacyPersistenceAgreementVerifier(
+            container: store.container,
+            makeFreshContext: { _ in throw LegacyPersistenceAgreementInjectedError.reloadFailed }
+        ).verify(expected)
+
+        #expect(mismatch.classification == .persistedFactsDisagree)
+        #expect(reloadFailure.classification == .reloadFailure)
+        #expect(reloadFailure.lookupPerformedWrites == false)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 @MainActor
@@ -1764,9 +2032,19 @@ private struct Store {
     let container: ModelContainer
     let context: ModelContext
 
-    init() throws {
+    init(fileBackedName: String? = nil) throws {
         let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let configuration: ModelConfiguration
+        if let fileBackedName {
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent("ScoreKeepTask78PersistenceAgreement", isDirectory: true)
+                .appendingPathComponent("\(fileBackedName)-\(UUID().uuidString)", isDirectory: true)
+                .appendingPathComponent("Store.sqlite")
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            configuration = ModelConfiguration("LiveScoringWorkflowCoordinatorTests-\(fileBackedName)", url: url)
+        } else {
+            configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        }
         container = try ModelContainer(for: schema, configurations: [configuration])
         context = ModelContext(container)
     }
@@ -1994,4 +2272,450 @@ private struct PitcherSnapshot: Equatable {
         eOuts = pitcher.eOuts
         eBats = pitcher.eBats
     }
+}
+
+private enum LegacyPersistenceAgreementClassification: String, Hashable {
+    case agreementConfirmed
+    case acceptedOperationEvidenceMissing
+    case targetGameMissing
+    case targetAtbatMissing
+    case persistedFactsDisagree
+    case operationIdentityOrFingerprintConflict
+    case unsupportedComparison
+    case reloadFailure
+}
+
+private enum LegacyPersistenceAgreementFact: Hashable {
+    case gameIdentity
+    case targetAtbatIdentity
+    case scoringResult
+    case inningAndHalfInning
+    case outs
+    case runsAndScore
+    case runnerOrBaseState
+    case battingOrderAndCurrentBatter
+    case currentBatter
+    case pitcherAttribution
+    case rbi
+    case earnedRunClassification
+    case stolenBaseOrSacrificeFacts
+    case fielderPlayFacts
+    case completionOrProgressionState
+    case operationEvidenceIdentityAndOutcome
+    case result
+}
+
+private struct LegacyPersistenceAgreementResult {
+    let classification: LegacyPersistenceAgreementClassification
+    let comparedFacts: Set<LegacyPersistenceAgreementFact>
+    let lookupPerformedWrites: Bool
+}
+
+private struct LegacyPersistenceAgreementExpected {
+    let operationIdentity: UUID
+    let requestFingerprint: String
+    let submissionFamily: String
+    let acceptedResultClassification: String
+    let acceptedOutcomeReference: String
+    let gameSnapshot: AgreementGameSnapshot
+    let atbatSnapshot: AgreementAtbatSnapshot
+    let preparedSnapshot: AgreementPreparedSnapshot
+
+    var gameIdentity: UUID { gameSnapshot.identity }
+    var atbatIdentity: UUID { atbatSnapshot.identity }
+
+    @MainActor
+    static func make(
+        result: LiveScoringWorkflowCoordinator.ScoringSubmissionResult,
+        submissionFamily: String,
+        game: Game,
+        targetAtbat: Atbat,
+        battingTeam: Team,
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher]
+    ) throws -> LegacyPersistenceAgreementExpected {
+        let evidence = try #require(result.operationEvidenceResult)
+        let prepared = LiveScoringWorkflowCoordinator().prepareLiveGameState(
+            game: game,
+            battingTeam: battingTeam,
+            displayedAtbats: displayedAtbats,
+            pitchers: pitchers
+        )
+        return LegacyPersistenceAgreementExpected(
+            operationIdentity: evidence.operationIdentity,
+            requestFingerprint: evidence.requestFingerprint,
+            submissionFamily: submissionFamily,
+            acceptedResultClassification: targetAtbat.result,
+            acceptedOutcomeReference: "legacyAtbat:\(targetAtbat.ident.uuidString.lowercased())",
+            gameSnapshot: AgreementGameSnapshot(game),
+            atbatSnapshot: AgreementAtbatSnapshot(targetAtbat),
+            preparedSnapshot: AgreementPreparedSnapshot(prepared)
+        )
+    }
+
+    func replacing(
+        operationIdentity: UUID? = nil,
+        requestFingerprint: String? = nil,
+        gameIdentity: UUID? = nil,
+        atbatIdentity: UUID? = nil
+    ) -> LegacyPersistenceAgreementExpected {
+        LegacyPersistenceAgreementExpected(
+            operationIdentity: operationIdentity ?? self.operationIdentity,
+            requestFingerprint: requestFingerprint ?? self.requestFingerprint,
+            submissionFamily: submissionFamily,
+            acceptedResultClassification: acceptedResultClassification,
+            acceptedOutcomeReference: acceptedOutcomeReference,
+            gameSnapshot: gameSnapshot.replacing(identity: gameIdentity),
+            atbatSnapshot: atbatSnapshot.replacing(identity: atbatIdentity),
+            preparedSnapshot: preparedSnapshot
+        )
+    }
+}
+
+@MainActor
+private struct LegacyPersistenceAgreementVerifier {
+    private let container: ModelContainer
+    private let makeFreshContext: (ModelContainer) throws -> ModelContext
+
+    init(
+        container: ModelContainer,
+        makeFreshContext: @escaping (ModelContainer) throws -> ModelContext = { ModelContext($0) }
+    ) {
+        self.container = container
+        self.makeFreshContext = makeFreshContext
+    }
+
+    func verify(_ expected: LegacyPersistenceAgreementExpected) -> LegacyPersistenceAgreementResult {
+        do {
+            let context = try makeFreshContext(container)
+            context.autosaveEnabled = false
+            guard let evidence = try fetchEvidence(expected.operationIdentity, in: context) else {
+                return result(.acceptedOperationEvidenceMissing)
+            }
+            guard evidence.requestFingerprint == expected.requestFingerprint,
+                  evidence.targetGameIdentity == expected.gameIdentity,
+                  evidence.targetAtbatIdentity == expected.atbatIdentity,
+                  evidence.submissionFamily == expected.submissionFamily,
+                  evidence.disposition == LegacyScoringOperationEvidenceConstants.acceptedDisposition,
+                  evidence.completionState == LegacyScoringOperationEvidenceConstants.completedState,
+                  evidence.acceptedResultClassification == expected.acceptedResultClassification,
+                  evidence.acceptedOutcomeReference == expected.acceptedOutcomeReference else {
+                return result(.operationIdentityOrFingerprintConflict)
+            }
+            guard let game = try fetchGame(expected.gameIdentity, in: context) else {
+                return result(.targetGameMissing)
+            }
+            guard let atbat = try fetchAtbat(expected.atbatIdentity, in: context) else {
+                return result(.targetAtbatMissing)
+            }
+            guard atbat.game.ident == game.ident,
+                  atbat.game.ident == evidence.targetGameIdentity,
+                  atbat.ident == evidence.targetAtbatIdentity else {
+                return result(.operationIdentityOrFingerprintConflict)
+            }
+            guard AgreementGameSnapshot(game) == expected.gameSnapshot,
+                  AgreementAtbatSnapshot(atbat) == expected.atbatSnapshot else {
+                return result(.persistedFactsDisagree)
+            }
+            guard let battingTeam = [game.vteam, game.hteam].compactMap({ $0 }).first(where: { $0.ident == atbat.team.ident }) else {
+                return result(.unsupportedComparison)
+            }
+            let prepared = LiveScoringWorkflowCoordinator().prepareLiveGameState(
+                game: game,
+                battingTeam: battingTeam,
+                displayedAtbats: game.atbats.filter { $0.team.ident == battingTeam.ident },
+                pitchers: game.pitchers
+            )
+            guard AgreementPreparedSnapshot(prepared) == expected.preparedSnapshot else {
+                return result(.persistedFactsDisagree)
+            }
+            return result(.agreementConfirmed)
+        } catch {
+            return result(.reloadFailure)
+        }
+    }
+
+    private func result(_ classification: LegacyPersistenceAgreementClassification) -> LegacyPersistenceAgreementResult {
+        LegacyPersistenceAgreementResult(
+            classification: classification,
+            comparedFacts: [
+                .gameIdentity,
+                .targetAtbatIdentity,
+                .scoringResult,
+                .inningAndHalfInning,
+                .outs,
+                .runsAndScore,
+                .runnerOrBaseState,
+                .battingOrderAndCurrentBatter,
+                .currentBatter,
+                .pitcherAttribution,
+                .rbi,
+                .earnedRunClassification,
+                .stolenBaseOrSacrificeFacts,
+                .fielderPlayFacts,
+                .completionOrProgressionState,
+                .operationEvidenceIdentityAndOutcome,
+                .result
+            ],
+            lookupPerformedWrites: false
+        )
+    }
+}
+
+private struct AgreementGameSnapshot: Equatable {
+    let identity: UUID
+    let homeScore: Int
+    let visitingScore: Int
+    let everyOneHits: Bool
+    let numInnings: Int
+    let visitingTeamIdentity: UUID?
+    let homeTeamIdentity: UUID?
+    let atbatIdentities: [UUID]
+    let lineupIdentities: [UUID]
+    let pitcherIdentities: [UUID]
+
+    init(_ game: Game) {
+        identity = game.ident
+        homeScore = game.hscore
+        visitingScore = game.vscore
+        everyOneHits = game.everyOneHits
+        numInnings = game.numInnings
+        visitingTeamIdentity = game.vteam?.ident
+        homeTeamIdentity = game.hteam?.ident
+        atbatIdentities = game.atbats.map(\.ident).sorted { $0.uuidString < $1.uuidString }
+        lineupIdentities = game.lineups.map(\.ident).sorted { $0.uuidString < $1.uuidString }
+        pitcherIdentities = game.pitchers.map(\.ident).sorted { $0.uuidString < $1.uuidString }
+    }
+
+    func replacing(identity: UUID?) -> AgreementGameSnapshot {
+        AgreementGameSnapshot(
+            identity: identity ?? self.identity,
+            homeScore: homeScore,
+            visitingScore: visitingScore,
+            everyOneHits: everyOneHits,
+            numInnings: numInnings,
+            visitingTeamIdentity: visitingTeamIdentity,
+            homeTeamIdentity: homeTeamIdentity,
+            atbatIdentities: atbatIdentities,
+            lineupIdentities: lineupIdentities,
+            pitcherIdentities: pitcherIdentities
+        )
+    }
+
+    private init(
+        identity: UUID,
+        homeScore: Int,
+        visitingScore: Int,
+        everyOneHits: Bool,
+        numInnings: Int,
+        visitingTeamIdentity: UUID?,
+        homeTeamIdentity: UUID?,
+        atbatIdentities: [UUID],
+        lineupIdentities: [UUID],
+        pitcherIdentities: [UUID]
+    ) {
+        self.identity = identity
+        self.homeScore = homeScore
+        self.visitingScore = visitingScore
+        self.everyOneHits = everyOneHits
+        self.numInnings = numInnings
+        self.visitingTeamIdentity = visitingTeamIdentity
+        self.homeTeamIdentity = homeTeamIdentity
+        self.atbatIdentities = atbatIdentities
+        self.lineupIdentities = lineupIdentities
+        self.pitcherIdentities = pitcherIdentities
+    }
+}
+
+private struct AgreementAtbatSnapshot: Equatable {
+    let identity: UUID
+    let gameIdentity: UUID
+    let teamIdentity: UUID
+    let playerIdentity: UUID
+    let result: String
+    let maxbase: String
+    let outAt: String
+    let inning: CGFloat
+    let sequence: Int
+    let column: Int
+    let battingOrder: Int
+    let outs: Int
+    let rbis: Int
+    let sacFly: Int
+    let sacBunt: Int
+    let stolenBases: Int
+    let earnedRun: Bool
+    let playRecord: String
+    let endOfInning: Bool
+
+    init(_ atbat: Atbat) {
+        identity = atbat.ident
+        gameIdentity = atbat.game.ident
+        teamIdentity = atbat.team.ident
+        playerIdentity = atbat.player.identifier
+        result = atbat.result
+        maxbase = atbat.maxbase
+        outAt = atbat.outAt
+        inning = atbat.inning
+        sequence = atbat.seq
+        column = atbat.col
+        battingOrder = atbat.batOrder
+        outs = atbat.outs
+        rbis = atbat.rbis
+        sacFly = atbat.sacFly
+        sacBunt = atbat.sacBunt
+        stolenBases = atbat.stolenBases
+        earnedRun = atbat.earnedRun
+        playRecord = atbat.playRec
+        endOfInning = atbat.endOfInning
+    }
+
+    func replacing(identity: UUID?) -> AgreementAtbatSnapshot {
+        AgreementAtbatSnapshot(
+            identity: identity ?? self.identity,
+            gameIdentity: gameIdentity,
+            teamIdentity: teamIdentity,
+            playerIdentity: playerIdentity,
+            result: result,
+            maxbase: maxbase,
+            outAt: outAt,
+            inning: inning,
+            sequence: sequence,
+            column: column,
+            battingOrder: battingOrder,
+            outs: outs,
+            rbis: rbis,
+            sacFly: sacFly,
+            sacBunt: sacBunt,
+            stolenBases: stolenBases,
+            earnedRun: earnedRun,
+            playRecord: playRecord,
+            endOfInning: endOfInning
+        )
+    }
+
+    private init(
+        identity: UUID,
+        gameIdentity: UUID,
+        teamIdentity: UUID,
+        playerIdentity: UUID,
+        result: String,
+        maxbase: String,
+        outAt: String,
+        inning: CGFloat,
+        sequence: Int,
+        column: Int,
+        battingOrder: Int,
+        outs: Int,
+        rbis: Int,
+        sacFly: Int,
+        sacBunt: Int,
+        stolenBases: Int,
+        earnedRun: Bool,
+        playRecord: String,
+        endOfInning: Bool
+    ) {
+        self.identity = identity
+        self.gameIdentity = gameIdentity
+        self.teamIdentity = teamIdentity
+        self.playerIdentity = playerIdentity
+        self.result = result
+        self.maxbase = maxbase
+        self.outAt = outAt
+        self.inning = inning
+        self.sequence = sequence
+        self.column = column
+        self.battingOrder = battingOrder
+        self.outs = outs
+        self.rbis = rbis
+        self.sacFly = sacFly
+        self.sacBunt = sacBunt
+        self.stolenBases = stolenBases
+        self.earnedRun = earnedRun
+        self.playRecord = playRecord
+        self.endOfInning = endOfInning
+    }
+}
+
+private struct AgreementPreparedSnapshot: Equatable {
+    let disposition: LiveScoringWorkflowCoordinator.PreparedStateDisposition
+    let gameIdentity: UUID?
+    let battingSide: TeamSideRole
+    let halfInning: TeamSideRole
+    let inning: Int
+    let outs: Int
+    let score: LiveScoringWorkflowCoordinator.PreparedScore
+    let firstRunner: UUID?
+    let secondRunner: UUID?
+    let thirdRunner: UUID?
+    let currentBatter: UUID?
+    let battingOrderPosition: Int?
+    let currentPitcher: UUID?
+    let latestScoringSequence: Int?
+    let currentScorecardColumn: Int?
+    let lineupSlots: [Int]
+
+    init(_ state: LiveScoringWorkflowCoordinator.PreparedLiveGameState) {
+        disposition = state.disposition
+        gameIdentity = state.gameIdentity
+        battingSide = state.battingSide
+        halfInning = state.halfInning
+        inning = state.inning
+        outs = state.outs
+        score = state.score
+        firstRunner = state.bases.first?.player.identity
+        secondRunner = state.bases.second?.player.identity
+        thirdRunner = state.bases.third?.player.identity
+        currentBatter = state.currentBatter?.identity
+        battingOrderPosition = state.battingOrderPosition
+        currentPitcher = state.currentPitcher?.player.identity
+        latestScoringSequence = state.latestScoringSequence
+        currentScorecardColumn = state.currentScorecardColumn
+        lineupSlots = state.lineup.map(\.slot)
+    }
+}
+
+private enum LegacyPersistenceAgreementInjectedError: Error {
+    case reloadFailed
+}
+
+@MainActor
+private func fetchEvidence(_ operationIdentity: UUID, in context: ModelContext) throws -> LegacyScoringOperationEvidenceRecord? {
+    var descriptor = FetchDescriptor<LegacyScoringOperationEvidenceRecord>(
+        predicate: #Predicate { $0.operationIdentity == operationIdentity }
+    )
+    descriptor.fetchLimit = 2
+    let records = try context.fetch(descriptor)
+    guard records.count <= 1 else { throw LegacyPersistenceAgreementInjectedError.reloadFailed }
+    return records.first
+}
+
+@MainActor
+private func fetchGame(_ identity: UUID, in context: ModelContext) throws -> Game? {
+    var descriptor = FetchDescriptor<Game>(
+        predicate: #Predicate { $0.ident == identity }
+    )
+    descriptor.fetchLimit = 2
+    let games = try context.fetch(descriptor)
+    guard games.count <= 1 else { throw LegacyPersistenceAgreementInjectedError.reloadFailed }
+    return games.first
+}
+
+@MainActor
+private func fetchAtbat(_ identity: UUID, in context: ModelContext) throws -> Atbat? {
+    var descriptor = FetchDescriptor<Atbat>(
+        predicate: #Predicate { $0.ident == identity }
+    )
+    descriptor.fetchLimit = 2
+    let atbats = try context.fetch(descriptor)
+    guard atbats.count <= 1 else { throw LegacyPersistenceAgreementInjectedError.reloadFailed }
+    return atbats.first
+}
+
+@MainActor
+private func fetchRequiredAtbat(_ identity: UUID, in context: ModelContext) throws -> Atbat {
+    guard let atbat = try fetchAtbat(identity, in: context) else {
+        throw LegacyPersistenceAgreementInjectedError.reloadFailed
+    }
+    return atbat
 }
