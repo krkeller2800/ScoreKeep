@@ -6,15 +6,18 @@ import Testing
 @MainActor
 @Suite("Proposed container factory startup verification")
 struct ScoreKeepProposedContainerFactoryTests {
-    @Test("explicit disposable URL constructs new empty Proposed V3 store")
-    func explicitDisposableURLConstructsNewEmptyProposedV3Store() throws {
+    @Test("explicit disposable URL constructs new empty Proposed V4 store")
+    func explicitDisposableURLConstructsNewEmptyProposedV4Store() throws {
         let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
         let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .noStoreExists))
 
-        #expect(result.disposition == .constructedNewEmptyProposedV3Store)
+        #expect(result.disposition == .constructedNewEmptyProposedV4Store)
         #expect(result.container != nil)
         #expect(result.verificationStillRequired)
         #expect(try IsolatedUnversionedProductionStoreSupport.evidenceCount(in: result.container!) == 0)
+        #expect(try ModelContext(result.container!).fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>()).count == 0)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: url).sourceClassification == .existingProposedV4Store)
+        #expect(result.diagnostics.targetSchema == .proposedV4)
     }
 
     @Test("hosted current-target unversioned stores fail closed before V2 plus V3 construction")
@@ -44,13 +47,51 @@ struct ScoreKeepProposedContainerFactoryTests {
         #expect(third.container == nil)
     }
 
+    @Test("existing Proposed V3 store migrates through factory to Proposed V4 without backfill")
+    func existingProposedV3StoreMigratesThroughFactoryToProposedV4WithoutBackfill() throws {
+        let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
+        do {
+            let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+            let configuration = ModelConfiguration("FactoryV3Source", url: url, allowsSave: true)
+            _ = try ModelContainer(for: schema, configurations: [configuration])
+        }
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: url).sourceClassification == .existingProposedV3Store)
+
+        let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV3Store))
+        let context = try #require(result.container).mainContext
+
+        #expect(result.disposition == .openedCompatibleSourceAndTransitionedToProposedV4)
+        #expect(result.diagnostics.targetSchema == .proposedV4)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: url).sourceClassification == .existingProposedV4Store)
+        #expect(try context.fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>()).count == 0)
+        #expect(try context.fetch(FetchDescriptor<CanonicalGameHistoryRecord>()).count == 0)
+        #expect(try context.fetch(FetchDescriptor<CanonicalScoringEventEnvelopeRecord>()).count == 0)
+    }
+
+    @Test("explicit V3 selection is not the current production factory target")
+    func explicitV3SelectionIsNotCurrentProductionFactoryTarget() throws {
+        let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
+        let result = ScoreKeepProposedContainerFactory.construct(ScoreKeepProposedContainerFactoryInput(
+            storeLocation: .disposableTestStore(url: url),
+            writabilityMode: .writable,
+            schemaSelection: .proposedV3,
+            migrationPlanSelection: .provenV1ToV3CanonicalScoringStoragePlan,
+            startupIntent: .isolatedVerification,
+            sourceClassification: .noStoreExists,
+            routeChoice: .proposedV3EligibleForIsolatedVerification
+        ))
+
+        #expect(result.disposition == .internalConfigurationError)
+        #expect(result.container == nil)
+    }
+
     @Test("read only configuration opens for diagnosis and prohibits write readiness")
     func readOnlyConfigurationOpensForDiagnosis() throws {
         let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
         let writable = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .noStoreExists))
         #expect(writable.container != nil)
 
-        let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV3Store, mode: .readOnlyDiagnosis, intent: .readOnlyDiagnosis))
+        let result = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV4Store, mode: .readOnlyDiagnosis, intent: .readOnlyDiagnosis))
 
         #expect(result.disposition == .openedReadOnlyForDiagnosis)
         #expect(result.diagnostics.stableDiagnosticCodes.contains("startup.factory.openedReadOnlyForDiagnosis"))
@@ -63,7 +104,7 @@ struct ScoreKeepProposedContainerFactoryTests {
             writabilityMode: .writable,
             startupIntent: .productionTransitionPreparation,
             sourceClassification: .noStoreExists,
-            routeChoice: .proposedV3EligibleForIsolatedVerification
+            routeChoice: .proposedV4EligibleForIsolatedVerification
         ))
         #expect(production.disposition == .unsafe)
 
@@ -81,7 +122,7 @@ struct ScoreKeepProposedContainerFactoryTests {
             writabilityMode: .writable,
             startupIntent: .isolatedVerification,
             sourceClassification: .noStoreExists,
-            routeChoice: .proposedV3EligibleForIsolatedVerification
+            routeChoice: .proposedV4EligibleForIsolatedVerification
         ))
         #expect(nonEmpty.disposition == .unsafe)
 
@@ -95,7 +136,7 @@ struct ScoreKeepProposedContainerFactoryTests {
         source: ScoreKeepSourceStoreClassification,
         mode: ScoreKeepStartupWritabilityMode = .writable,
         intent: ScoreKeepStartupIntent = .isolatedVerification,
-        route: ScoreKeepSchemaRouteChoice = .proposedV3EligibleForIsolatedVerification,
+        route: ScoreKeepSchemaRouteChoice = .proposedV4EligibleForIsolatedVerification,
         injection: ScoreKeepProposedContainerFactoryInjection? = nil
     ) -> ScoreKeepProposedContainerFactoryInput {
         ScoreKeepProposedContainerFactoryInput(

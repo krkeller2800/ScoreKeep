@@ -43,11 +43,13 @@ enum ScoreKeepStartupWritabilityMode: String, CaseIterable, Hashable, Sendable {
 enum ScoreKeepProposedSchemaSelection: String, CaseIterable, Hashable, Sendable, Codable {
     case proposedV2
     case proposedV3
+    case proposedV4
 }
 
 enum ScoreKeepProposedMigrationPlanSelection: String, CaseIterable, Hashable, Sendable {
     case provenV1ToV2TeamCreationEvidencePlan
     case provenV1ToV3CanonicalScoringStoragePlan
+    case provenV3ToV4LegacyScoringOperationEvidencePlan
 }
 
 enum ScoreKeepStartupIntent: String, CaseIterable, Hashable, Sendable {
@@ -68,6 +70,10 @@ enum ScoreKeepSchemaRouteChoice: String, CaseIterable, Hashable, Sendable {
     case proposedV3EligibleForBoundedProductionTransition
     case proposedV3Active
     case proposedV3DisabledAfterActivation
+    case proposedV4EligibleForIsolatedVerification
+    case proposedV4EligibleForBoundedProductionTransition
+    case proposedV4Active
+    case proposedV4DisabledAfterActivation
     case recoveryOnly
     case unsafe
 
@@ -81,9 +87,11 @@ enum ScoreKeepSourceStoreClassification: String, CaseIterable, Hashable, Sendabl
     case proposedV1RecognizableStore
     case existingProposedV2Store
     case existingProposedV3Store
+    case existingProposedV4Store
     case automaticallyEvolvedComparisonStore
     case convertedProposedV2Store
     case convertedProposedV3Store
+    case convertedProposedV4Store
     case unknownVersion
     case unsupportedFutureVersion
     case unreadableStore
@@ -97,7 +105,8 @@ enum ScoreKeepSourceStoreClassification: String, CaseIterable, Hashable, Sendabl
         switch self {
         case .noStoreExists, .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore,
              .proposedV1RecognizableStore, .existingProposedV2Store, .existingProposedV3Store,
-             .convertedProposedV2Store, .convertedProposedV3Store:
+             .existingProposedV4Store, .convertedProposedV2Store, .convertedProposedV3Store,
+             .convertedProposedV4Store:
             return true
         case .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
              .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
@@ -109,9 +118,10 @@ enum ScoreKeepSourceStoreClassification: String, CaseIterable, Hashable, Sendabl
     var requiresMigration: Bool {
         switch self {
         case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore,
-             .existingProposedV2Store, .convertedProposedV2Store:
+             .existingProposedV2Store, .existingProposedV3Store, .convertedProposedV2Store,
+             .convertedProposedV3Store:
             return true
-        case .noStoreExists, .existingProposedV3Store, .convertedProposedV3Store,
+        case .noStoreExists, .existingProposedV4Store, .convertedProposedV4Store,
              .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
              .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
              .migrationEvidenceMissing, .migrationEvidenceUncertain, .readOnlyDiagnosisRequired:
@@ -260,7 +270,7 @@ enum ScoreKeepWriteReadinessEvaluator {
         if !input.completionEvidenceReconciled { reasons.insert("completionEvidenceNotReconciled") }
         if input.hasUncertainty { reasons.insert("uncertaintyPresent") }
         if input.recoveryRequired { reasons.insert("recoveryRequired") }
-        if input.routeChoice != .proposedV2Active && input.routeChoice != .proposedV3Active { reasons.insert("routeNotActive") }
+        if input.routeChoice != .proposedV2Active && input.routeChoice != .proposedV3Active && input.routeChoice != .proposedV4Active { reasons.insert("routeNotActive") }
         if !input.proposedSchemaActive { reasons.insert("proposedSchemaNotActive") }
         if !input.storeIsWritable { reasons.insert("storeReadOnly") }
         if !input.oneWriterPolicyAvailable { reasons.insert("oneWriterPolicyMissing") }

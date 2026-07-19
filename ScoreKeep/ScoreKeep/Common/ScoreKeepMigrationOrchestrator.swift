@@ -310,7 +310,7 @@ enum ScoreKeepMigrationOrchestrator {
                 writabilityMode: .writable,
                 startupIntent: .isolatedVerification,
                 sourceClassification: input.sourceClassification,
-                routeChoice: .proposedV3EligibleForIsolatedVerification,
+                routeChoice: input.operationIdentity.targetSchema == .proposedV4 ? .proposedV4EligibleForIsolatedVerification : .proposedV3EligibleForIsolatedVerification,
                 failureInjection: input.factoryInjection
             )
         )
@@ -537,7 +537,7 @@ enum ScoreKeepMigrationOrchestrator {
                 completionEvidenceReconciled: journal.completionDisposition == "sidecarCompletionRecorded",
                 hasUncertainty: journal.phase == .completionUncertain,
                 recoveryRequired: journal.recoveryRequirement != .noRecoveryRequired,
-                routeChoice: .proposedV3PreparedButDisabled,
+                routeChoice: journal.operationIdentity.targetSchema == .proposedV4 ? .proposedV4DisabledAfterActivation : .proposedV3PreparedButDisabled,
                 proposedSchemaActive: false,
                 storeIsWritable: false,
                 oneWriterPolicyAvailable: journal.startupOwnership != .conflictingOwners,

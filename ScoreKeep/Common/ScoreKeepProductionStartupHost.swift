@@ -1118,7 +1118,9 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             .noStoreExists,
             .existingProposedV2Store,
             .existingProposedV3Store,
-            .convertedProposedV3Store
+            .existingProposedV4Store,
+            .convertedProposedV3Store,
+            .convertedProposedV4Store
         ]
         guard supportedStartupClassifications.contains(sourceClassification) else {
             status = .blocked(recoveryPresentation(
@@ -1133,7 +1135,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             ))
             return
         }
-        if sourceClassification == .existingProposedV3Store || sourceClassification == .convertedProposedV3Store {
+        if sourceClassification == .existingProposedV4Store || sourceClassification == .convertedProposedV4Store {
             openProposedContainer(
                 at: layout.activeStore,
                 sourceClassification: sourceClassification,
@@ -1186,6 +1188,12 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                     semanticRestoreVerifier: sourceClassification.requiresMigration ? { restoreURL in
                         if sourceClassification == .existingProposedV2Store {
                             return ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: restoreURL, fileManager: fileManager).sourceClassification == .existingProposedV2Store
+                        }
+                        if sourceClassification == .existingProposedV3Store || sourceClassification == .convertedProposedV3Store {
+                            let restored = try Self.proposedV3ExistingContainer(url: restoreURL)
+                            let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                            preservedBaseline = record
+                            return true
                         }
                         let restored = try Self.currentUnversionedContainer(url: restoreURL, allowsSave: false)
                         let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
@@ -1297,7 +1305,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 writabilityMode: .writable,
                 startupIntent: .productionTransitionPreparation,
                 sourceClassification: sourceClassification,
-                routeChoice: .proposedV3Active
+                routeChoice: .proposedV4Active
             )
         )
         guard let container = result.container else {
@@ -1324,7 +1332,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             container: container,
             routeSelection: routeEnabled ? .proposed : .legacy,
             readiness: readiness,
-            activeContainerAuthority: "proposedV3",
+            activeContainerAuthority: "proposedV4",
             migrationCompletionState: "completed"
         )
         status = .ready(container, service, disposableIndicator)
@@ -1584,8 +1592,8 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         ScoreKeepMigrationOperationIdentity(
             sourceStoreIdentity: sourceStoreIdentity,
             sourceSchema: sourceClassification,
-            targetSchema: .proposedV3,
-            applicationMigrationGeneration: 1,
+            targetSchema: .proposedV4,
+            applicationMigrationGeneration: 2,
             operationUUID: deterministicUUID(seed: sourceStoreIdentity)
         )
     }

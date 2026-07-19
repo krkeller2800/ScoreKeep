@@ -346,7 +346,8 @@ struct MigrationAcceptanceTask322ETests {
         #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: sourceURL).sourceClassification == .existingProposedV2Store)
         #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: backupURL).sourceClassification == .existingProposedV2Store)
         #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: targetURL).sourceClassification == .existingProposedV3Store)
-        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("production scoring remains Legacy"))
+        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("Proposed V4 is the production startup schema target"))
+        #expect(try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/Common/LiveScoringWorkflowCoordinator.swift").contains("LegacyScoringOperationEvidenceRecord") == false)
     }
 
     @Test("metadata source failures fail closed before source migration")
@@ -374,7 +375,8 @@ struct MigrationAcceptanceTask322ETests {
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v3, versionIdentifiers: ["2.0.0"]).contains("V2") == false)
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(unknown, versionIdentifiers: ["2.0.0"]).isEmpty)
         #expect(ScoreKeepCoreDataVersionHashEvidence.make(from: ["Game": "malformed"]) == nil)
-        #expect(ScoreKeepSourceStoreClassification.existingProposedV3Store.requiresMigration == false)
+        #expect(ScoreKeepSourceStoreClassification.existingProposedV3Store.requiresMigration)
+        #expect(ScoreKeepSourceStoreClassification.existingProposedV4Store.requiresMigration == false)
 
         for classification in failClosedSourceClassifications {
             let factory = ScoreKeepProposedContainerFactory.construct(ScoreKeepProposedContainerFactoryInput(
@@ -382,10 +384,10 @@ struct MigrationAcceptanceTask322ETests {
                 writabilityMode: .writable,
                 startupIntent: .isolatedVerification,
                 sourceClassification: classification,
-                routeChoice: .proposedV3EligibleForIsolatedVerification
+                routeChoice: .proposedV4EligibleForIsolatedVerification
             ))
             #expect(factory.container == nil)
-            #expect(factory.disposition != .openedCompatibleSourceAndTransitionedToProposedV3)
+            #expect(factory.disposition != .openedCompatibleSourceAndTransitionedToProposedV4)
         }
         #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: sourceURL).isComplete)
     }

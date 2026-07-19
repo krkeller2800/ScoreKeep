@@ -25,7 +25,7 @@ struct LegacyScoringOperationEvidenceTests {
         #expect(Set(v4).subtracting(v3) == Set(LegacyScoringOperationEvidenceModelBoundary.implementationModelNames))
         #expect(Set(v4).count == v4.count)
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV4AddsOnlyLegacyScoringOperationEvidence)
-        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV3)
+        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV4)
         #expect(ScoreKeepProposedLegacyScoringOperationEvidenceMigrationPlan.schemas.map { String(describing: $0).components(separatedBy: ".").last ?? "" } == ["V3", "V4"])
     }
 

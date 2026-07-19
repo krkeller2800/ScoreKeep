@@ -129,10 +129,11 @@ enum ScoreKeepDestinationVerifier {
         }
 
         let assessment = input.candidateAssessmentOverride ?? ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: input.candidateStoreURL, fileManager: fileManager)
-        guard assessment.sourceClassification == .existingProposedV3Store,
-              assessment.matchingRegisteredVersions == ["V3"],
-              assessment.hashEntryCount == ScoreKeepProposedVersionedSchema.V3.models.count,
-              assessment.hashKeyNames == ScoreKeepDestinationV3Identity.expectedModelNames else {
+        let expectedMetadata = expectedDestinationMetadata(for: input.operationIdentity.targetSchema)
+        guard assessment.sourceClassification == expectedMetadata.classification,
+              assessment.matchingRegisteredVersions == [expectedMetadata.label],
+              assessment.hashEntryCount == expectedMetadata.modelCount,
+              assessment.hashKeyNames == expectedMetadata.modelNames else {
             return result(input: input, candidateIdentity: candidateIdentity, sourceIdentity: sourceIdentity, backupIdentity: backupIdentity, observed: nil, expected: expected, metadataDigest: assessment.versionHashEvidenceDigestPrefix, failure: .metadataMismatch)
         }
 
@@ -141,7 +142,7 @@ enum ScoreKeepDestinationVerifier {
             guard counts(observed) == counts(expected) else {
                 return result(input: input, candidateIdentity: candidateIdentity, sourceIdentity: sourceIdentity, backupIdentity: backupIdentity, observed: observed, expected: expected, metadataDigest: assessment.versionHashEvidenceDigestPrefix, failure: .countMismatch)
             }
-            guard hasUniqueStableIdentifiers(container.mainContext) else {
+            guard hasUniqueStableIdentifiers(container.mainContext, targetSchema: input.operationIdentity.targetSchema) else {
                 return result(input: input, candidateIdentity: candidateIdentity, sourceIdentity: sourceIdentity, backupIdentity: backupIdentity, observed: observed, expected: expected, metadataDigest: assessment.versionHashEvidenceDigestPrefix, failure: .identifierMismatch)
             }
             guard observed.stableIdentityFingerprint == expected.stableIdentityFingerprint else {
@@ -237,9 +238,9 @@ enum ScoreKeepDestinationVerifier {
         ].mapValues { $0 == 0 ? "presentZero" : "unexpectedRecords.\($0)" }
     }
 
-    private static func hasUniqueStableIdentifiers(_ context: ModelContext) -> Bool {
+    private static func hasUniqueStableIdentifiers(_ context: ModelContext, targetSchema: ScoreKeepProposedSchemaSelection) -> Bool {
         do {
-            return try [
+            var identifierGroups = try [
                 context.fetch(FetchDescriptor<Game>()).map { $0.ident.uuidString },
                 context.fetch(FetchDescriptor<Team>()).map { $0.ident.uuidString },
                 context.fetch(FetchDescriptor<Player>()).map { $0.identifier.uuidString },
@@ -247,9 +248,39 @@ enum ScoreKeepDestinationVerifier {
                 context.fetch(FetchDescriptor<Atbat>()).map { $0.ident.uuidString },
                 context.fetch(FetchDescriptor<Pitcher>()).map { $0.ident.uuidString },
                 context.fetch(FetchDescriptor<TeamCreationOperationEvidenceRecord>()).map { $0.operationIdentity }
-            ].allSatisfy { Set($0).count == $0.count }
+            ]
+            if targetSchema == .proposedV4 {
+                identifierGroups.append(try context.fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>()).map { $0.operationIdentity.uuidString })
+            }
+            return identifierGroups.allSatisfy { Set($0).count == $0.count }
         } catch {
             return false
+        }
+    }
+
+    private static func expectedDestinationMetadata(
+        for schema: ScoreKeepProposedSchemaSelection
+    ) -> (
+        classification: ScoreKeepSourceStoreClassification,
+        label: String,
+        modelCount: Int,
+        modelNames: [String]
+    ) {
+        switch schema {
+        case .proposedV4:
+            return (
+                .existingProposedV4Store,
+                "V4",
+                ScoreKeepProposedVersionedSchema.V4.models.count,
+                (ScoreKeepDestinationV3Identity.expectedModelNames + ScoreKeepProposedVersionedSchema.v4AddedModelNames).sorted()
+            )
+        case .proposedV3, .proposedV2:
+            return (
+                .existingProposedV3Store,
+                "V3",
+                ScoreKeepProposedVersionedSchema.V3.models.count,
+                ScoreKeepDestinationV3Identity.expectedModelNames
+            )
         }
     }
 

@@ -16,7 +16,7 @@ struct TeamCreationVersionedSchemaTests {
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV1RepresentsCurrentKnownModelSet)
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV2AddsOnlyOperationEvidence)
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV3AddsOnlyCanonicalScoringStorage)
-        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV3)
+        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV4)
     }
 
     @Test("operation evidence model stores only scalar operation metadata")

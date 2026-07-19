@@ -718,18 +718,21 @@ struct CompletedJournalRecoveryRoutingTests {
 
     @Test("exact schema evidence classifies V1 V2 and V3 without subset matches")
     @MainActor
-    func exactSchemaEvidenceClassifiesV1V2AndV3WithoutSubsetMatches() throws {
+    func exactSchemaEvidenceClassifiesV1V2V3AndV4WithoutSubsetMatches() throws {
         let registered = Dictionary(uniqueKeysWithValues: ScoreKeepProductionStoreMetadataAssessment.registeredVersionEvidenceForTesting.map { ($0.0, $0.1) })
         let v1 = try #require(registered["V1"])
         let v2 = try #require(registered["V2"])
         let v3 = try #require(registered["V3"])
+        let v4 = try #require(registered["V4"])
 
         #expect(v1.entryCount == 6)
         #expect(v2.entryCount == 7)
         #expect(v3.entryCount == 12)
+        #expect(v4.entryCount == 13)
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v1) == ["V1"])
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v2) == ["V2"])
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v3) == ["V3"])
+        #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v4) == ["V4"])
 
         let v2PlusOne = ScoreKeepCoreDataVersionHashEvidence(entries: v2.entries + [.init(entityName: "ExtraEntity", versionHash: Data([1]))])
         var changedV2Entries = v2.entries
@@ -737,7 +740,9 @@ struct CompletedJournalRecoveryRoutingTests {
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v2PlusOne).isEmpty)
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(ScoreKeepCoreDataVersionHashEvidence(entries: changedV2Entries)).isEmpty)
         #expect(Set(v3.entityNames).isSuperset(of: Set(v2.entityNames)))
+        #expect(Set(v4.entityNames).isSuperset(of: Set(v3.entityNames)))
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v3).contains("V2") == false)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v4).contains("V3") == false)
         #expect(ScoreKeepProductionStoreMetadataAssessment.registeredVersionMatchesForTesting(v2).contains("V1") == false)
     }
 

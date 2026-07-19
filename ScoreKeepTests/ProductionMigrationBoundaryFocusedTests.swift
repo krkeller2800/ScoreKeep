@@ -18,16 +18,19 @@ struct ScoreKeepMigrationProductionBoundaryTests {
         #expect(startupSource.contains("runProductionMigration"))
     }
 
-    @Test("proposed V3 schema remains storage only while scoring stays Legacy")
-    func proposedV3SchemaRemainsStorageOnlyWhileScoringStaysLegacy() throws {
+    @Test("proposed V4 schema is current while scoring stays Legacy")
+    func proposedV4SchemaIsCurrentWhileScoringStaysLegacy() throws {
         let schemaSource = try source("ScoreKeep/Common/ScoreKeepProposedVersionedSchema.swift")
 
         #expect(schemaSource.contains("enum V3"))
+        #expect(schemaSource.contains("enum V4"))
         #expect(schemaSource.contains("TeamCreationOperationEvidenceRecord.self"))
         #expect(schemaSource.contains("CanonicalGameHistoryRecord.self"))
+        #expect(schemaSource.contains("LegacyScoringOperationEvidenceRecord.self"))
         #expect(ScoreKeepProposedVersionedSchema.v2AddedModelNames == ["TeamCreationOperationEvidenceRecord"])
         #expect(ScoreKeepProposedVersionedSchema.v3AddedModelNames == CanonicalScoringPersistenceModelBoundary.implementationModelNames)
-        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("production scoring remains Legacy"))
+        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("Proposed V4 is the production startup schema target"))
+        #expect(ScoreKeepProposedVersionedSchema.productionBoundaryStatement.contains("Proposed V3 remains the frozen compatibility source"))
     }
 
     @Test("TeamView and production writers remain unrouted")

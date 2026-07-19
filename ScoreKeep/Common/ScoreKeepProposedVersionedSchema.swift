@@ -78,7 +78,7 @@ enum ScoreKeepProposedVersionedSchema {
     static let v4AddedModelNames = LegacyScoringOperationEvidenceModelBoundary.implementationModelNames
 
     static var productionBoundaryStatement: String {
-        "Proposed V3 remains the production startup schema target; Proposed V4 is the non-routed Legacy scoring-operation evidence storage foundation for Task 7.7."
+        "Proposed V4 is the production startup schema target; Proposed V3 remains the frozen compatibility source for V3-to-V4 migration."
     }
 }
 
@@ -141,7 +141,7 @@ struct ScoreKeepProposedSchemaAssessment: Hashable, Sendable {
     let proposedV2AddsOnlyOperationEvidence: Bool
     let proposedV3AddsOnlyCanonicalScoringStorage: Bool
     let proposedV4AddsOnlyLegacyScoringOperationEvidence: Bool
-    let productionContainerTargetsProposedV3: Bool
+    let productionContainerTargetsProposedV4: Bool
     let unversionedInstalledStoreAssessment: String
 
     static let current = ScoreKeepProposedSchemaAssessment(
@@ -149,7 +149,7 @@ struct ScoreKeepProposedSchemaAssessment: Hashable, Sendable {
         proposedV2AddsOnlyOperationEvidence: true,
         proposedV3AddsOnlyCanonicalScoringStorage: true,
         proposedV4AddsOnlyLegacyScoringOperationEvidence: true,
-        productionContainerTargetsProposedV3: true,
+        productionContainerTargetsProposedV4: true,
         unversionedInstalledStoreAssessment: "requires device-copy testing or archive-built prior-app verification; synthetic Proposed V1/V2 stores do not prove installed unversioned production stores carry compatible explicit schema metadata"
     )
 }

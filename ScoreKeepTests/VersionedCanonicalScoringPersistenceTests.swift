@@ -11,7 +11,7 @@ struct VersionedCanonicalScoringPersistenceTests {
         #expect(ScoreKeepProposedVersionedSchema.V3.versionIdentifier == Schema.Version(3, 0, 0))
         #expect(ScoreKeepProposedVersionedSchema.v3AddedModelNames == CanonicalScoringPersistenceModelBoundary.implementationModelNames)
         #expect(ScoreKeepProposedSchemaAssessment.current.proposedV3AddsOnlyCanonicalScoringStorage)
-        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV3)
+        #expect(ScoreKeepProposedSchemaAssessment.current.productionContainerTargetsProposedV4)
         #expect(CanonicalScoringPersistenceModelBoundary.payloadStorageType == "Data")
         #expect(CanonicalScoringPersistenceModelBoundary.rejectedCorrectionsStorage == "operationEvidenceOnly")
         #expect(CanonicalScoringPersistenceModelBoundary.uniquenessSupport.contains("iOS 17.6"))

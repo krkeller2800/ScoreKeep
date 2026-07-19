@@ -129,7 +129,7 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
                 hashEntryCount: 0,
                 versionIdentifierCount: 0,
                 matchingRegisteredVersions: [],
-                selectedStartupRoute: "createCleanV3",
+                selectedStartupRoute: "createCleanV4",
                 hashKeyNames: [],
                 versionHashEvidence: nil,
                 versionHashEvidenceDigestPrefix: "none",
@@ -253,6 +253,8 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
             return .existingProposedV2Store
         case "V3":
             return .existingProposedV3Store
+        case "V4":
+            return .existingProposedV4Store
         default:
             return .unknownVersion
         }
@@ -261,7 +263,8 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
     private static let registeredVersionEvidence: [(String, ScoreKeepCoreDataVersionHashEvidence)] = {
         let schemas: [(String, any VersionedSchema.Type)] = [
             ("V1", ScoreKeepProposedVersionedSchema.V1.self),
-            ("V3", ScoreKeepProposedVersionedSchema.V3.self)
+            ("V3", ScoreKeepProposedVersionedSchema.V3.self),
+            ("V4", ScoreKeepProposedVersionedSchema.V4.self)
         ]
         var evidence: [(String, ScoreKeepCoreDataVersionHashEvidence)] = schemas.compactMap { label, schema in
             guard let evidence = expectedEvidence(for: schema, label: label) else { return nil }
@@ -323,6 +326,13 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
                     + ScoreKeepProposedVersionedSchema.v2AddedModelNames
                     + ScoreKeepProposedVersionedSchema.v3AddedModelNames
             )
+        case "V4":
+            return Set(
+                ScoreKeepProposedVersionedSchema.v1ModelNames
+                    + ScoreKeepProposedVersionedSchema.v2AddedModelNames
+                    + ScoreKeepProposedVersionedSchema.v3AddedModelNames
+                    + ScoreKeepProposedVersionedSchema.v4AddedModelNames
+            )
         default:
             return []
         }
@@ -337,7 +347,12 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
         let url = root.appendingPathComponent("Evidence.sqlite")
         do {
             try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
-            let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+            let schema: Schema
+            if label == "V4" {
+                schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
+            } else {
+                schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+            }
             let configuration = ModelConfiguration("ScoreKeepVersionEvidence\(label)", url: url, allowsSave: true)
             _ = try ModelContainer(for: schema, configurations: [configuration])
             let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(
@@ -358,11 +373,13 @@ struct ScoreKeepProductionStoreMetadataAssessment: Hashable, Sendable {
     private static func route(for classification: ScoreKeepSourceStoreClassification) -> String {
         switch classification {
         case .noStoreExists:
-            return "createCleanV3"
+            return "createCleanV4"
         case .existingProposedV2Store, .convertedProposedV2Store:
             return "migrateV2ToV3"
         case .existingProposedV3Store, .convertedProposedV3Store:
-            return "openExistingV3Direct"
+            return "migrateV3ToV4"
+        case .existingProposedV4Store, .convertedProposedV4Store:
+            return "openExistingV4Direct"
         case .proposedV1RecognizableStore, .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore:
             return "failClosedEarlierGeneration"
         case .unknownVersion:
@@ -534,10 +551,12 @@ enum ScoreKeepCompletedJournalRecoveryRouter {
         journalSourceClassification: ScoreKeepSourceStoreClassification,
         backupVerified: Bool
     ) -> ScoreKeepCompletedJournalRecoveryRoute {
-        if target.sourceClassification == .existingProposedV3Store || target.sourceClassification == .convertedProposedV3Store {
+        if target.sourceClassification == .existingProposedV4Store || target.sourceClassification == .convertedProposedV4Store
+            || target.sourceClassification == .existingProposedV3Store || target.sourceClassification == .convertedProposedV3Store {
             return .openCompletedTargetAsV3
         }
-        if active.sourceClassification == .existingProposedV3Store || active.sourceClassification == .convertedProposedV3Store {
+        if active.sourceClassification == .existingProposedV4Store || active.sourceClassification == .convertedProposedV4Store
+            || active.sourceClassification == .existingProposedV3Store || active.sourceClassification == .convertedProposedV3Store {
             return .openActiveStoreAsV3
         }
         if backupVerified,
@@ -631,7 +650,8 @@ private extension ScoreKeepSourceStoreClassification {
              .proposedV1RecognizableStore, .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore:
             return true
         case .noStoreExists, .existingProposedV2Store, .existingProposedV3Store,
-             .convertedProposedV2Store, .convertedProposedV3Store:
+             .existingProposedV4Store, .convertedProposedV2Store, .convertedProposedV3Store,
+             .convertedProposedV4Store:
             return false
         }
     }

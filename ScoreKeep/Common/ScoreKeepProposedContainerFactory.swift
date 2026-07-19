@@ -24,6 +24,9 @@ enum ScoreKeepProposedContainerConstructionDisposition: String, CaseIterable, Ha
     case constructedNewEmptyProposedV3Store
     case openedCompatibleSourceAndTransitionedToProposedV3
     case openedExistingProposedV3Store
+    case constructedNewEmptyProposedV4Store
+    case openedCompatibleSourceAndTransitionedToProposedV4
+    case openedExistingProposedV4Store
     case openedReadOnlyForDiagnosis
     case sourceUnavailable
     case sourceVersionUnknown
@@ -55,8 +58,8 @@ struct ScoreKeepProposedContainerFactoryInput: Hashable, Sendable {
     init(
         storeLocation: ScoreKeepStartupStoreLocation,
         writabilityMode: ScoreKeepStartupWritabilityMode,
-        schemaSelection: ScoreKeepProposedSchemaSelection = .proposedV3,
-        migrationPlanSelection: ScoreKeepProposedMigrationPlanSelection = .provenV1ToV3CanonicalScoringStoragePlan,
+        schemaSelection: ScoreKeepProposedSchemaSelection = .proposedV4,
+        migrationPlanSelection: ScoreKeepProposedMigrationPlanSelection = .provenV3ToV4LegacyScoringOperationEvidencePlan,
         startupIntent: ScoreKeepStartupIntent,
         sourceClassification: ScoreKeepSourceStoreClassification,
         routeChoice: ScoreKeepSchemaRouteChoice,
@@ -87,6 +90,9 @@ struct ScoreKeepProposedContainerFactoryResult {
              .constructedNewEmptyProposedV3Store,
              .openedCompatibleSourceAndTransitionedToProposedV3,
              .openedExistingProposedV3Store,
+             .constructedNewEmptyProposedV4Store,
+             .openedCompatibleSourceAndTransitionedToProposedV4,
+             .openedExistingProposedV4Store,
              .openedReadOnlyForDiagnosis,
              .containerCreatedVerificationPending:
             return true
@@ -108,13 +114,14 @@ enum ScoreKeepProposedContainerFactory {
             return injectedResult(for: injected, input: input)
         }
 
-        guard input.schemaSelection == .proposedV3,
-              input.migrationPlanSelection == .provenV1ToV3CanonicalScoringStoragePlan else {
+        guard input.schemaSelection == .proposedV4,
+              input.migrationPlanSelection == .provenV3ToV4LegacyScoringOperationEvidencePlan else {
             return classified(.internalConfigurationError, input: input)
         }
 
         guard input.routeChoice != .proposedV2PreparedButDisabled,
               input.routeChoice != .proposedV3PreparedButDisabled,
+              input.routeChoice != .proposedV4DisabledAfterActivation,
               input.routeChoice != .legacyUnversionedProductionStartup else {
             return classified(.disabledByRoutePolicy, input: input)
         }
@@ -134,7 +141,9 @@ enum ScoreKeepProposedContainerFactory {
         let supportedSourceClassifications: Set<ScoreKeepSourceStoreClassification> = [
             .noStoreExists,
             .existingProposedV3Store,
-            .convertedProposedV3Store
+            .existingProposedV4Store,
+            .convertedProposedV3Store,
+            .convertedProposedV4Store
         ]
         guard supportedSourceClassifications.contains(input.sourceClassification) else {
             if input.sourceClassification == .existingProposedV2Store,
@@ -160,15 +169,17 @@ enum ScoreKeepProposedContainerFactory {
         }
 
         do {
-            let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V3.self)
+            let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
             let configuration = ModelConfiguration(
-                "ScoreKeepProposedV3StartupReadiness",
+                "ScoreKeepProposedV4StartupReadiness",
                 url: url,
                 allowsSave: input.writabilityMode == .writable
             )
             let container = try ModelContainer(
                 for: schema,
-                migrationPlan: nil,
+                migrationPlan: requiresV3ToV4Migration(input.sourceClassification)
+                    ? ScoreKeepProposedLegacyScoringOperationEvidenceMigrationPlan.self
+                    : nil,
                 configurations: [configuration]
             )
             return ScoreKeepProposedContainerFactoryResult(
@@ -213,16 +224,32 @@ enum ScoreKeepProposedContainerFactory {
         }
         switch input.sourceClassification {
         case .noStoreExists:
-            return .constructedNewEmptyProposedV3Store
+            return .constructedNewEmptyProposedV4Store
         case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore,
-             .existingProposedV2Store, .convertedProposedV2Store:
-            return .openedCompatibleSourceAndTransitionedToProposedV3
-        case .existingProposedV3Store, .convertedProposedV3Store:
-            return .openedExistingProposedV3Store
+             .existingProposedV2Store, .convertedProposedV2Store,
+             .existingProposedV3Store, .convertedProposedV3Store:
+            return .openedCompatibleSourceAndTransitionedToProposedV4
+        case .existingProposedV4Store, .convertedProposedV4Store:
+            return .openedExistingProposedV4Store
         case .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
              .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
              .migrationEvidenceMissing, .migrationEvidenceUncertain, .readOnlyDiagnosisRequired:
             return .containerCreatedVerificationPending
+        }
+    }
+
+    private static func requiresV3ToV4Migration(_ sourceClassification: ScoreKeepSourceStoreClassification) -> Bool {
+        switch sourceClassification {
+        case .existingProposedV3Store, .convertedProposedV3Store:
+            return true
+        case .noStoreExists, .existingProposedV4Store, .convertedProposedV4Store:
+            return false
+        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore,
+             .existingProposedV2Store, .convertedProposedV2Store,
+             .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
+             .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
+             .migrationEvidenceMissing, .migrationEvidenceUncertain, .readOnlyDiagnosisRequired:
+            return false
         }
     }
 

@@ -11,11 +11,15 @@ struct ScoreKeepStartupReadinessTests {
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.populatedCurrentUnversionedStore))
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.proposedV1RecognizableStore))
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.existingProposedV2Store))
+        #expect(ScoreKeepSourceStoreClassification.allCases.contains(.existingProposedV3Store))
+        #expect(ScoreKeepSourceStoreClassification.allCases.contains(.existingProposedV4Store))
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.unknownVersion))
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.unsupportedFutureVersion))
         #expect(ScoreKeepSourceStoreClassification.allCases.contains(.migrationEvidenceUncertain))
         #expect(ScoreKeepSourceStoreClassification.populatedCurrentUnversionedStore.requiresMigration)
         #expect(ScoreKeepSourceStoreClassification.existingProposedV2Store.requiresMigration)
+        #expect(ScoreKeepSourceStoreClassification.existingProposedV3Store.requiresMigration)
+        #expect(ScoreKeepSourceStoreClassification.existingProposedV4Store.requiresMigration == false)
     }
 
     @Test("migration snapshot is shallow immutable startup authority")
@@ -37,14 +41,14 @@ struct ScoreKeepStartupReadinessTests {
     @Test("all mandatory gates permit write readiness only when satisfied")
     func allMandatoryGatesPermitWriteReadinessOnlyWhenSatisfied() {
         let ready = ScoreKeepWriteReadinessInput(
-            sourceClassification: .existingProposedV2Store,
+            sourceClassification: .existingProposedV4Store,
             constructionSucceeded: true,
             requiredMigrationCompleted: true,
             postOpenVerificationPassed: true,
             completionEvidenceReconciled: true,
             hasUncertainty: false,
             recoveryRequired: false,
-            routeChoice: .proposedV2Active,
+            routeChoice: .proposedV4Active,
             proposedSchemaActive: true,
             storeIsWritable: true,
             oneWriterPolicyAvailable: true,
@@ -67,7 +71,7 @@ struct ScoreKeepStartupReadinessTests {
         #expect(ScoreKeepWriteReadinessEvaluator.evaluate(recovery).blockingReasons.contains("recoveryRequired"))
 
         var disabled = ready
-        disabled.routeChoice = .proposedV2PreparedButDisabled
+        disabled.routeChoice = .proposedV3PreparedButDisabled
         #expect(ScoreKeepWriteReadinessEvaluator.evaluate(disabled).blockingReasons.contains("routeNotActive"))
 
         var readOnly = ready
@@ -101,11 +105,11 @@ struct ScoreKeepStartupReadinessTests {
             storeLocationKind: .disposableTestStore,
             sourceClassification: .populatedCurrentUnversionedStore,
             migrationDiagnosticToken: "migration-1-token",
-            targetSchema: .proposedV2,
+            targetSchema: .proposedV4,
             constructionDisposition: .containerCreatedVerificationPending,
             verificationDisposition: "notRun",
             writeReadinessDisposition: "writesProhibited",
-            disableState: .proposedV2PreparedButDisabled,
+            disableState: .proposedV4DisabledAfterActivation,
             recoveryRequired: false,
             stableDiagnosticCodes: ["startup.factory.containerCreatedVerificationPending"]
         )
