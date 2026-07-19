@@ -223,6 +223,33 @@ struct LiveScoringWorkflowCoordinator {
         let message: String?
     }
 
+    enum SubstitutionFamily: Equatable {
+        case batterReplacement
+        case pitcherChange
+    }
+
+    enum SubstitutionDisposition: Equatable {
+        case accepted
+        case canceled
+        case validationRejected
+        case gameMissing
+        case participantMissing
+        case wrongTeamOrGame
+        case staleState
+        case sameParticipant
+        case duplicateOrConflicting
+        case unsupportedFamily
+        case persistenceFailed
+        case projectionFailed
+        case refreshedStateUnavailable
+    }
+
+    struct SubstitutionSubmissionResult {
+        let disposition: SubstitutionDisposition
+        let refreshedState: PreparedLiveGameState?
+        let message: String?
+    }
+
     enum AdditionalChoiceDisposition: Equatable {
         case pending
         case noAdditionalChoiceRequired
@@ -531,6 +558,83 @@ struct LiveScoringWorkflowCoordinator {
         func restore() {
             game.hscore = homeScore
             game.vscore = visitingScore
+            atbats.forEach { $0.restore(in: game) }
+            pitchers.forEach { $0.restore(in: game) }
+        }
+    }
+
+    private struct LegacySubstitutionRollbackSnapshot {
+        let game: Game
+        let replaced: [Player]
+        let incomings: [Player]
+        let atbats: [LegacyCorrectionAtbatState]
+        let pitchers: [LegacyCorrectionPitcherState]
+        let playerBatOrders: [(UUID, Int)]
+        let atbatBatOrders: [(UUID, Int)]
+        let atbatSequences: [(UUID, Int)]
+        let playerCounts: Int
+        let atbatCounts: Int
+        let pitcherCounts: Int
+
+        init(game: Game) {
+            self.game = game
+            self.replaced = game.replaced
+            self.incomings = game.incomings
+            self.atbats = game.atbats.map(LegacyCorrectionAtbatState.init)
+            self.pitchers = game.pitchers.map(LegacyCorrectionPitcherState.init)
+            self.playerBatOrders = game.players.map { ($0.identifier, $0.batOrder) }
+            self.atbatBatOrders = game.atbats.map { ($0.ident, $0.batOrder) }
+            self.atbatSequences = game.atbats.map { ($0.ident, $0.seq) }
+            self.playerCounts = game.players.count
+            self.atbatCounts = game.atbats.count
+            self.pitcherCounts = game.pitchers.count
+        }
+
+        func restore(modelContext: ModelContext) {
+            game.replaced = replaced
+            game.incomings = incomings
+
+            if game.players.count > playerCounts {
+                let addedPlayers = Array(game.players.dropFirst(playerCounts))
+                for p in addedPlayers {
+                    game.players.removeAll { $0.identifier == p.identifier }
+                }
+            }
+
+            if game.atbats.count > atbatCounts {
+                let addedAtbats = Array(game.atbats.dropFirst(atbatCounts))
+                for a in addedAtbats {
+                    game.atbats.removeAll { $0.ident == a.ident }
+                    modelContext.delete(a)
+                }
+            }
+
+            if game.pitchers.count > pitcherCounts {
+                let addedPitchers = Array(game.pitchers.dropFirst(pitcherCounts))
+                for p in addedPitchers {
+                    game.pitchers.removeAll { $0.ident == p.ident }
+                    modelContext.delete(p)
+                }
+            }
+
+            for (id, order) in playerBatOrders {
+                if let p = game.players.first(where: { $0.identifier == id }) {
+                    p.batOrder = order
+                }
+            }
+
+            for (id, order) in atbatBatOrders {
+                if let a = game.atbats.first(where: { $0.ident == id }) {
+                    a.batOrder = order
+                }
+            }
+
+            for (id, seq) in atbatSequences {
+                if let a = game.atbats.first(where: { $0.ident == id }) {
+                    a.seq = seq
+                }
+            }
+
             atbats.forEach { $0.restore(in: game) }
             pitchers.forEach { $0.restore(in: game) }
         }
@@ -1409,12 +1513,243 @@ struct LiveScoringWorkflowCoordinator {
         )
     }
 
+    func submitSubstitution(
+        gameIdentity: UUID,
+        outgoingParticipant: UUID,
+        incomingParticipant: UUID,
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher],
+        modelContext: ModelContext,
+        save: SaveAction
+    ) -> SubstitutionSubmissionResult {
+        guard let authoritativeGame = fetchGame(identity: gameIdentity, in: modelContext) else {
+            return SubstitutionSubmissionResult(
+                disposition: .gameMissing,
+                refreshedState: nil,
+                message: "The game is no longer available."
+            )
+        }
+
+        guard let outgoingPlayer = fetchPlayer(identity: outgoingParticipant, in: modelContext),
+              let incomingPlayer = fetchPlayer(identity: incomingParticipant, in: modelContext) else {
+            return SubstitutionSubmissionResult(
+                disposition: .participantMissing,
+                refreshedState: nil,
+                message: "Participant could not be found."
+            )
+        }
+
+        guard outgoingPlayer.team?.ident == incomingPlayer.team?.ident,
+              outgoingPlayer.team?.ident == authoritativeGame.hteam?.ident || outgoingPlayer.team?.ident == authoritativeGame.vteam?.ident else {
+            return SubstitutionSubmissionResult(
+                disposition: .wrongTeamOrGame,
+                refreshedState: nil,
+                message: "Participants do not belong to a valid team in this game."
+            )
+        }
+
+        guard outgoingPlayer.identifier != incomingPlayer.identifier else {
+            return SubstitutionSubmissionResult(
+                disposition: .sameParticipant,
+                refreshedState: nil,
+                message: "Cannot substitute a player for themselves."
+            )
+        }
+
+        let team = outgoingPlayer.team!
+        let gameAtbats = authoritativeGame.atbats.filter { $0.team.ident == team.ident }
+
+        if authoritativeGame.replaced.contains(where: { $0.identifier == outgoingPlayer.identifier }) &&
+           authoritativeGame.incomings.contains(where: { $0.identifier == incomingPlayer.identifier }) {
+             return SubstitutionSubmissionResult(
+                 disposition: .duplicateOrConflicting,
+                 refreshedState: nil,
+                 message: "This substitution has already been processed."
+             )
+        }
+
+        let rollback = LegacySubstitutionRollbackSnapshot(game: authoritativeGame)
+
+        incomingPlayer.batOrder = outgoingPlayer.batOrder + 1
+        authoritativeGame.replaced.append(outgoingPlayer)
+        authoritativeGame.incomings.append(incomingPlayer)
+
+        let allTeamPlayers = (try? modelContext.fetch(FetchDescriptor<Player>()))?.filter { $0.team?.ident == team.ident } ?? []
+        for player in allTeamPlayers {
+            if player.batOrder >= incomingPlayer.batOrder && player.identifier != incomingPlayer.identifier && player.identifier != outgoingPlayer.identifier && player.batOrder < 99 {
+                player.batOrder += 1
+            }
+        }
+
+        var newseq = Array(repeating: 999, count: 20)
+        for atbat in gameAtbats {
+            atbat.batOrder = atbat.player.batOrder
+            if atbat.player.identifier == outgoingPlayer.identifier {
+                newseq[atbat.col] = atbat.seq + 1
+            }
+        }
+
+        for atbat in gameAtbats {
+            if atbat.seq >= newseq[atbat.col] {
+                atbat.seq += 1
+            }
+            if atbat.player.identifier == outgoingPlayer.identifier {
+                let newatbat = Atbat(
+                    game: authoritativeGame,
+                    team: team,
+                    player: incomingPlayer,
+                    result: "Pitch Hitter",
+                    maxbase: "No Bases",
+                    batOrder: incomingPlayer.batOrder,
+                    outAt: "Safe",
+                    inning: atbat.inning,
+                    seq: newseq[atbat.col],
+                    col: atbat.col,
+                    rbis: 0,
+                    outs: 0,
+                    sacFly: 0,
+                    sacBunt: 0,
+                    stolenBases: 0
+                )
+                modelContext.insert(newatbat)
+                authoritativeGame.atbats.append(newatbat)
+                if atbat.col == 1 {
+                    authoritativeGame.players.append(incomingPlayer)
+                }
+            }
+        }
+
+        do {
+            try save()
+        } catch {
+            rollback.restore(modelContext: modelContext)
+            return SubstitutionSubmissionResult(
+                disposition: .persistenceFailed,
+                refreshedState: nil,
+                message: "Error saving substitution: \(error)"
+            )
+        }
+
+        let refreshed = prepareLiveGameState(
+            game: authoritativeGame,
+            battingTeam: team,
+            displayedAtbats: authoritativeGame.atbats.filter { $0.team.ident == team.ident },
+            pitchers: pitchers.filter { $0.game.ident == authoritativeGame.ident }
+        )
+        guard refreshed.disposition == .ready else {
+            return SubstitutionSubmissionResult(
+                disposition: .refreshedStateUnavailable,
+                refreshedState: refreshed,
+                message: refreshed.warnings.first
+            )
+        }
+
+        return SubstitutionSubmissionResult(
+            disposition: .accepted,
+            refreshedState: refreshed,
+            message: nil
+        )
+    }
+
+    func submitPitcherChange(
+        gameIdentity: UUID,
+        teamIdentity: UUID,
+        incomingPitcherIdentity: UUID,
+        startInning: Int,
+        startOuts: Int,
+        startBatters: Int,
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher],
+        modelContext: ModelContext,
+        save: SaveAction
+    ) -> SubstitutionSubmissionResult {
+        guard let authoritativeGame = fetchGame(identity: gameIdentity, in: modelContext) else {
+            return SubstitutionSubmissionResult(
+                disposition: .gameMissing,
+                refreshedState: nil,
+                message: "The game is no longer available."
+            )
+        }
+        guard let incomingPlayer = fetchPlayer(identity: incomingPitcherIdentity, in: modelContext) else {
+            return SubstitutionSubmissionResult(
+                disposition: .participantMissing,
+                refreshedState: nil,
+                message: "Participant could not be found."
+            )
+        }
+        let team: Team
+        if let h = authoritativeGame.hteam, h.ident == teamIdentity { team = h }
+        else if let v = authoritativeGame.vteam, v.ident == teamIdentity { team = v }
+        else {
+            return SubstitutionSubmissionResult(
+                disposition: .wrongTeamOrGame,
+                refreshedState: nil,
+                message: "Team is not part of this game."
+            )
+        }
+
+        let rollback = LegacySubstitutionRollbackSnapshot(game: authoritativeGame)
+
+        if let existing = authoritativeGame.pitchers.first(where: { $0.player.identifier == incomingPlayer.identifier }) {
+             existing.startInn = startInning
+             existing.sOuts = startOuts
+             existing.sBats = startBatters
+        } else {
+             let pitcher = Pitcher(
+                 player: incomingPlayer,
+                 team: team,
+                 game: authoritativeGame,
+                 startInn: startInning,
+                 sOuts: startOuts,
+                 sBats: startBatters,
+                 endInn: 0,
+                 eOuts: 0,
+                 eBats: 0,
+                 strikeOuts: 0,
+                 walks: 0,
+                 hits: 0,
+                 runs: 0,
+                 won: false
+             )
+             modelContext.insert(pitcher)
+             authoritativeGame.pitchers.append(pitcher)
+        }
+
+        do {
+            try save()
+        } catch {
+            rollback.restore(modelContext: modelContext)
+            return SubstitutionSubmissionResult(
+                disposition: .persistenceFailed,
+                refreshedState: nil,
+                message: "Error saving pitcher change: \(error)"
+            )
+        }
+
+        let refreshed = prepareLiveGameState(
+            game: authoritativeGame,
+            battingTeam: authoritativeGame.hteam?.ident == teamIdentity ? authoritativeGame.vteam : authoritativeGame.hteam,
+            displayedAtbats: authoritativeGame.atbats.filter { $0.team.ident != teamIdentity },
+            pitchers: pitchers.filter { $0.game.ident == authoritativeGame.ident }
+        )
+
+        return SubstitutionSubmissionResult(
+            disposition: .accepted,
+            refreshedState: refreshed.disposition == .ready ? refreshed : nil,
+            message: nil
+        )
+    }
+
     private func fetchGame(identity: UUID, in modelContext: ModelContext) -> Game? {
         (try? modelContext.fetch(FetchDescriptor<Game>()))?.first { $0.ident == identity }
     }
 
     private func fetchAtbat(identity: UUID, in modelContext: ModelContext) -> Atbat? {
         (try? modelContext.fetch(FetchDescriptor<Atbat>()))?.first { $0.ident == identity }
+    }
+
+    private func fetchPlayer(identity: UUID, in modelContext: ModelContext) -> Player? {
+        (try? modelContext.fetch(FetchDescriptor<Player>()))?.first { $0.identifier == identity }
     }
 
     private func isSupportedCorrectionReplacement(_ replacement: LegacyCorrectionReplacement) -> Bool {
