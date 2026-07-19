@@ -116,6 +116,113 @@ struct LiveScoringWorkflowCoordinator {
         }
     }
 
+    enum CorrectionDisposition: Equatable {
+        case accepted
+        case canceled
+        case validationRejected
+        case targetMissing
+        case targetStale
+        case wrongGameTarget
+        case unsupportedCorrection
+        case persistenceFailed
+        case recalculationFailed
+        case refreshedStateUnavailable
+    }
+
+    struct LegacyCorrectionTarget: Equatable {
+        let gameIdentity: UUID
+        let atbatIdentity: UUID
+        let expectedOriginal: LegacyCorrectionSnapshot?
+
+        init(gameIdentity: UUID, atbatIdentity: UUID, expectedOriginal: LegacyCorrectionSnapshot? = nil) {
+            self.gameIdentity = gameIdentity
+            self.atbatIdentity = atbatIdentity
+            self.expectedOriginal = expectedOriginal
+        }
+    }
+
+    struct LegacyCorrectionSnapshot: Equatable {
+        let gameIdentity: UUID
+        let atbatIdentity: UUID
+        let teamIdentity: UUID
+        let playerIdentity: UUID
+        let result: String
+        let maxBase: String
+        let outAt: String
+        let inning: CGFloat
+        let sequence: Int
+        let column: Int
+        let battingOrder: Int
+        let rbis: Int
+        let outs: Int
+        let sacrificeFly: Int
+        let sacrificeBunt: Int
+        let stolenBases: Int
+        let earnedRun: Bool
+        let playRecord: String
+        let endOfInning: Bool
+
+        init(_ atbat: Atbat) {
+            gameIdentity = atbat.game.ident
+            atbatIdentity = atbat.ident
+            teamIdentity = atbat.team.ident
+            playerIdentity = atbat.player.identifier
+            result = atbat.result
+            maxBase = atbat.maxbase
+            outAt = atbat.outAt
+            inning = atbat.inning
+            sequence = atbat.seq
+            column = atbat.col
+            battingOrder = atbat.batOrder
+            rbis = atbat.rbis
+            outs = atbat.outs
+            sacrificeFly = atbat.sacFly
+            sacrificeBunt = atbat.sacBunt
+            stolenBases = atbat.stolenBases
+            earnedRun = atbat.earnedRun
+            playRecord = atbat.playRec
+            endOfInning = atbat.endOfInning
+        }
+    }
+
+    struct LegacyCorrectionReplacement: Equatable {
+        let result: String
+        let maxBase: String
+        let outAt: String
+        let rbis: Int
+        let stolenBases: Int
+        let earnedRun: Bool
+        let playRecord: String
+
+        init(
+            result: String,
+            maxBase: String,
+            outAt: String,
+            rbis: Int,
+            stolenBases: Int,
+            earnedRun: Bool,
+            playRecord: String = ""
+        ) {
+            self.result = result
+            self.maxBase = maxBase
+            self.outAt = outAt
+            self.rbis = rbis
+            self.stolenBases = stolenBases
+            self.earnedRun = earnedRun
+            self.playRecord = playRecord
+        }
+    }
+
+    struct CorrectionSubmissionResult {
+        let disposition: CorrectionDisposition
+        let targetAtbatIdentity: UUID?
+        let refreshedState: PreparedLiveGameState?
+        let projectionResult: ProjectionResult?
+        let correctionPlan: CanonicalCorrectionPlan?
+        let applicationResult: CanonicalCorrectionApplicationResult?
+        let message: String?
+    }
+
     enum AdditionalChoiceDisposition: Equatable {
         case pending
         case noAdditionalChoiceRequired
@@ -319,6 +426,113 @@ struct LiveScoringWorkflowCoordinator {
             for (identity, endOfInning) in gameEndOfInningFlags {
                 atbat.game.atbats.first { $0.ident == identity }?.endOfInning = endOfInning
             }
+        }
+    }
+
+    private struct LegacyCorrectionAtbatState {
+        let identity: UUID
+        let result: String
+        let maxbase: String
+        let outAt: String
+        let inning: CGFloat
+        let sequence: Int
+        let column: Int
+        let rbis: Int
+        let outs: Int
+        let sacFly: Int
+        let sacBunt: Int
+        let stolenBases: Int
+        let earnedRun: Bool
+        let playRec: String
+        let endOfInning: Bool
+
+        init(_ atbat: Atbat) {
+            identity = atbat.ident
+            result = atbat.result
+            maxbase = atbat.maxbase
+            outAt = atbat.outAt
+            inning = atbat.inning
+            sequence = atbat.seq
+            column = atbat.col
+            rbis = atbat.rbis
+            outs = atbat.outs
+            sacFly = atbat.sacFly
+            sacBunt = atbat.sacBunt
+            stolenBases = atbat.stolenBases
+            earnedRun = atbat.earnedRun
+            playRec = atbat.playRec
+            endOfInning = atbat.endOfInning
+        }
+
+        func restore(in game: Game) {
+            guard let atbat = game.atbats.first(where: { $0.ident == identity }) else { return }
+            atbat.result = result
+            atbat.maxbase = maxbase
+            atbat.outAt = outAt
+            atbat.inning = inning
+            atbat.seq = sequence
+            atbat.col = column
+            atbat.rbis = rbis
+            atbat.outs = outs
+            atbat.sacFly = sacFly
+            atbat.sacBunt = sacBunt
+            atbat.stolenBases = stolenBases
+            atbat.earnedRun = earnedRun
+            atbat.playRec = playRec
+            atbat.endOfInning = endOfInning
+        }
+    }
+
+    private struct LegacyCorrectionPitcherState {
+        let identity: UUID
+        let startInn: Int
+        let startOuts: Int
+        let startBats: Int
+        let endInn: Int
+        let endOuts: Int
+        let endBats: Int
+
+        init(_ pitcher: Pitcher) {
+            identity = pitcher.ident
+            startInn = pitcher.startInn
+            startOuts = pitcher.sOuts
+            startBats = pitcher.sBats
+            endInn = pitcher.endInn
+            endOuts = pitcher.eOuts
+            endBats = pitcher.eBats
+        }
+
+        func restore(in game: Game) {
+            guard let pitcher = game.pitchers.first(where: { $0.ident == identity }) else { return }
+            pitcher.startInn = startInn
+            pitcher.sOuts = startOuts
+            pitcher.sBats = startBats
+            pitcher.endInn = endInn
+            pitcher.eOuts = endOuts
+            pitcher.eBats = endBats
+        }
+    }
+
+    private struct LegacyCorrectionRollbackSnapshot {
+        let game: Game
+        let homeScore: Int
+        let visitingScore: Int
+        let atbats: [LegacyCorrectionAtbatState]
+        let pitchers: [LegacyCorrectionPitcherState]
+
+        init(game: Game) {
+            self.game = game
+            homeScore = game.hscore
+            visitingScore = game.vscore
+            atbats = game.atbats.map(LegacyCorrectionAtbatState.init)
+            pitchers = game.pitchers.map(LegacyCorrectionPitcherState.init)
+        }
+
+        func restore() {
+            game.hscore = homeScore
+            game.vscore = visitingScore
+            atbats.forEach { $0.restore(in: game) }
+            pitchers.forEach { $0.restore(in: game) }
         }
     }
 
@@ -999,6 +1213,572 @@ struct LiveScoringWorkflowCoordinator {
             previous.restore(to: targetAtbat)
             return ScoringSubmissionResult(disposition: .persistenceFailed, atbat: targetAtbat, actionState: actionState, message: "Error saving scoring action: \(error)")
         }
+    }
+
+    func submitCorrection(
+        target: LegacyCorrectionTarget,
+        replacement: LegacyCorrectionReplacement?,
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher],
+        modelContext: ModelContext,
+        save: SaveAction
+    ) -> CorrectionSubmissionResult {
+        guard let replacement else {
+            return CorrectionSubmissionResult(
+                disposition: .canceled,
+                targetAtbatIdentity: target.atbatIdentity,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: nil
+            )
+        }
+        guard isSupportedCorrectionReplacement(replacement) else {
+            return CorrectionSubmissionResult(
+                disposition: .unsupportedCorrection,
+                targetAtbatIdentity: target.atbatIdentity,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: "This correction is not supported by the current Legacy workflow."
+            )
+        }
+        guard let authoritativeGame = fetchGame(identity: target.gameIdentity, in: modelContext),
+              let authoritativeAtbat = fetchAtbat(identity: target.atbatIdentity, in: modelContext) else {
+            return CorrectionSubmissionResult(
+                disposition: .targetMissing,
+                targetAtbatIdentity: target.atbatIdentity,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: "The correction target is no longer available."
+            )
+        }
+        guard authoritativeAtbat.game.ident == authoritativeGame.ident,
+              authoritativeAtbat.game.ident == target.gameIdentity else {
+            return CorrectionSubmissionResult(
+                disposition: .wrongGameTarget,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: "The correction target belongs to a different game."
+            )
+        }
+        guard authoritativeGame.atbats.contains(where: { $0.ident == authoritativeAtbat.ident }) else {
+            return CorrectionSubmissionResult(
+                disposition: .targetMissing,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: "The correction target is no longer active in this game."
+            )
+        }
+        if let expectedOriginal = target.expectedOriginal,
+           expectedOriginal != LegacyCorrectionSnapshot(authoritativeAtbat) {
+            return CorrectionSubmissionResult(
+                disposition: .targetStale,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: "The correction target changed before acceptance."
+            )
+        }
+        guard authoritativeAtbat.result != "Result" else {
+            return CorrectionSubmissionResult(
+                disposition: .unsupportedCorrection,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: "Placeholder at-bats are not supported correction targets."
+            )
+        }
+
+        let battingTeam = authoritativeAtbat.team
+        let factAtbats = authoritativeGame.atbats
+            .filter { $0.result != "Result" }
+            .sorted(by: atbatPrecedes)
+        let factSet = CanonicalCorrectionFactSet(
+            gameIdentity: .valid(authoritativeGame.ident),
+            activeEvents: factAtbats.map(canonicalEvent)
+        )
+        let replacementEvent = canonicalReplacementEvent(from: authoritativeAtbat, replacement: replacement)
+        let intent = CanonicalCorrectionIntent(
+            targetGameIdentity: .valid(target.gameIdentity),
+            targetEventIdentity: .valid(target.atbatIdentity),
+            operation: .replaceEvent(replacementEvent),
+            expectedOriginalEvent: target.expectedOriginal.map { canonicalEvent(from: $0, teamSide: side(for: authoritativeAtbat.team, in: authoritativeGame)) },
+            source: .scoringView
+        )
+        let plan = CanonicalCorrectionPlanner.plan(intent, in: factSet)
+        guard plan.disposition.mayApply else {
+            return CorrectionSubmissionResult(
+                disposition: correctionDisposition(for: plan),
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: plan,
+                applicationResult: nil,
+                message: plan.findings.first?.summary
+            )
+        }
+        let application = CanonicalCorrectionApplicator.apply(plan, to: factSet)
+        guard application.applied else {
+            return CorrectionSubmissionResult(
+                disposition: .validationRejected,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: plan,
+                applicationResult: application,
+                message: application.findings.first?.summary
+            )
+        }
+
+        let rollback = LegacyCorrectionRollbackSnapshot(game: authoritativeGame)
+        applyCorrection(replacement, to: authoritativeAtbat)
+        let projection = recalculateLegacyAfterCorrection(
+            displayedAtbats: authoritativeGame.atbats.filter { $0.team.ident == battingTeam.ident },
+            pitchers: pitchers.filter { $0.game.ident == authoritativeGame.ident },
+            game: authoritativeGame
+        )
+        guard projection.disposition != .persistenceFailed else {
+            rollback.restore()
+            return CorrectionSubmissionResult(
+                disposition: .recalculationFailed,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: projection,
+                correctionPlan: plan,
+                applicationResult: application,
+                message: projection.message
+            )
+        }
+
+        do {
+            try save()
+        } catch {
+            rollback.restore()
+            return CorrectionSubmissionResult(
+                disposition: .persistenceFailed,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: nil,
+                projectionResult: projection,
+                correctionPlan: plan,
+                applicationResult: application,
+                message: "Error saving correction: \(error)"
+            )
+        }
+
+        let refreshed = prepareLiveGameState(
+            game: authoritativeGame,
+            battingTeam: battingTeam,
+            displayedAtbats: authoritativeGame.atbats.filter { $0.team.ident == battingTeam.ident },
+            pitchers: pitchers.filter { $0.game.ident == authoritativeGame.ident }
+        )
+        guard refreshed.disposition == .ready else {
+            return CorrectionSubmissionResult(
+                disposition: .refreshedStateUnavailable,
+                targetAtbatIdentity: authoritativeAtbat.ident,
+                refreshedState: refreshed,
+                projectionResult: projection,
+                correctionPlan: plan,
+                applicationResult: application,
+                message: refreshed.warnings.first
+            )
+        }
+
+        return CorrectionSubmissionResult(
+            disposition: .accepted,
+            targetAtbatIdentity: authoritativeAtbat.ident,
+            refreshedState: refreshed,
+            projectionResult: projection,
+            correctionPlan: plan,
+            applicationResult: application,
+            message: nil
+        )
+    }
+
+    private func fetchGame(identity: UUID, in modelContext: ModelContext) -> Game? {
+        (try? modelContext.fetch(FetchDescriptor<Game>()))?.first { $0.ident == identity }
+    }
+
+    private func fetchAtbat(identity: UUID, in modelContext: ModelContext) -> Atbat? {
+        (try? modelContext.fetch(FetchDescriptor<Atbat>()))?.first { $0.ident == identity }
+    }
+
+    private func isSupportedCorrectionReplacement(_ replacement: LegacyCorrectionReplacement) -> Bool {
+        replacement.result != "Result" &&
+        (common.onresults.contains(replacement.result) || common.outresults.contains(replacement.result)) &&
+        availableBaseChoices.contains(replacement.maxBase) &&
+        availableOutAtChoices.contains(replacement.outAt) &&
+        availableRBIChoices.contains(replacement.rbis) &&
+        availableStolenBaseChoices.contains(replacement.stolenBases)
+    }
+
+    private func correctionDisposition(for plan: CanonicalCorrectionPlan) -> CorrectionDisposition {
+        switch plan.resolution {
+        case .missingTarget, .unsupportedTarget, .alreadySupersededTarget:
+            return .targetMissing
+        case .wrongGameTarget:
+            return .wrongGameTarget
+        case .staleExpectedOriginal:
+            return .targetStale
+        case .duplicateTargetIdentity, .conflictingTargetEvidence, .ambiguousOrdering:
+            return .validationRejected
+        case .uniquelyResolved:
+            break
+        }
+        switch plan.disposition {
+        case .unsupported:
+            return .unsupportedCorrection
+        case .rejected, .contradictory, .unresolved, .repairRequired:
+            return .validationRejected
+        case .accepted, .planned, .warningOnly:
+            return .validationRejected
+        }
+    }
+
+    private func applyCorrection(_ replacement: LegacyCorrectionReplacement, to atbat: Atbat) {
+        atbat.result = replacement.result
+        atbat.maxbase = replacement.maxBase
+        atbat.outAt = replacement.outAt
+        atbat.rbis = replacement.rbis
+        atbat.stolenBases = replacement.stolenBases
+        atbat.earnedRun = replacement.earnedRun
+        atbat.playRec = replacement.playRecord
+        atbat.sacFly = replacement.result == "Sacrifice Fly" ? 1 : 0
+        atbat.sacBunt = replacement.result == "Sacrifice Bunt" ? 1 : 0
+        if !common.recOuts.contains(atbat.result) && atbat.outAt == "Safe" {
+            atbat.playRec = ""
+        }
+        markEndOfInning(for: atbat)
+    }
+
+    private func recalculateLegacyAfterCorrection(
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher],
+        game: Game
+    ) -> ProjectionResult {
+        var columnBoxes = Array(repeating: BoxScore(), count: 20)
+        var batterBoxes = Array(repeating: BoxScore(), count: 20)
+        var totalBoxes = Array(repeating: BoxScore(), count: 5)
+        sequenceGameInMemory(
+            displayedAtbats: displayedAtbats,
+            columnBoxes: &columnBoxes,
+            batterBoxes: &batterBoxes,
+            totalBoxes: &totalBoxes
+        )
+        let inningStatus = updateMaxBases(displayedAtbats: displayedAtbats)
+        updatePitcherMarkersInMemory(displayedAtbats: displayedAtbats, pitchers: pitchers, game: game)
+        return ProjectionResult(
+            disposition: .success,
+            columnBoxes: columnBoxes,
+            batterBoxes: batterBoxes,
+            totalBoxes: totalBoxes,
+            inningStatus: inningStatus,
+            message: nil
+        )
+    }
+
+    private func sequenceGameInMemory(
+        displayedAtbats: [Atbat],
+        columnBoxes: inout [BoxScore],
+        batterBoxes: inout [BoxScore],
+        totalBoxes: inout [BoxScore]
+    ) {
+        var allOuts = 0
+        var outs = 0
+        var sequence = 1
+        var inning = 1
+        var column = 1
+        var endOfInning = false
+
+        for atbat in displayedAtbats.sorted(by: atbatPrecedes) where atbat.result != "Result" {
+            if outs == 3 && endOfInning {
+                outs = 0
+                inning += 1
+                column += 1
+                sequence = 1
+            }
+
+            let numOfHitters = displayedAtbats.filter { $0.col == 1 }.count
+            if sequence == numOfHitters + 1 || sequence == 2 * numOfHitters + 1 {
+                column += 1
+            }
+
+            atbat.col = atbat.col == 1 && atbat.result == "Pitch Hitter" ? 1 : column
+            if common.outresults.contains(atbat.result) || atbat.outAt != "Safe" {
+                outs += 1
+                allOuts += 1
+            }
+            atbat.inning = CGFloat(allOuts) / 3.0
+            if (CGFloat(inning) > atbat.inning && (atbat.col != 1 && atbat.result != "Pitch Hitter")) ||
+                (atbat.col == 1 && atbat.inning == 0 && common.onresults.contains(atbat.result)) {
+                atbat.inning += 0.1
+            }
+            atbat.outs = outs
+            atbat.seq = atbat.col == 1 && atbat.result == "Pitch Hitter" ? atbat.batOrder : sequence
+            sequence += 1
+            endOfInning = atbat.endOfInning
+
+            if atbat.maxbase == "Home" {
+                columnBoxes[column].runs += 1
+                batterBoxes[atbat.batOrder].runs += 1
+                totalBoxes[0].runs += 1
+            }
+            if atbat.result == "Home Run" {
+                columnBoxes[column].HR += 1
+                batterBoxes[atbat.batOrder].HR += 1
+                totalBoxes[0].HR += 1
+            }
+            if common.hitresults.contains(atbat.result) {
+                columnBoxes[column].hits += 1
+                batterBoxes[atbat.batOrder].hits += 1
+                totalBoxes[0].hits += 1
+            }
+            if atbat.result == "Walk" {
+                columnBoxes[column].walks += 1
+                batterBoxes[atbat.batOrder].walks += 1
+                totalBoxes[0].walks += 1
+            }
+            if atbat.result == "Strikeout" || atbat.result == "Strikeout Looking" || atbat.result == "Dropped 3rd Strike" {
+                columnBoxes[column].strikeouts += 1
+                batterBoxes[atbat.batOrder].strikeouts += 1
+                totalBoxes[0].strikeouts += 1
+            }
+            if common.onresults.contains(atbat.result) && atbat.stolenBases > 0 {
+                columnBoxes[column].stoleBase += atbat.stolenBases
+                batterBoxes[atbat.batOrder].stoleBase += atbat.stolenBases
+                totalBoxes[0].stoleBase += atbat.stolenBases
+            }
+            columnBoxes[column].inning = inning
+        }
+    }
+
+    private func updatePitcherMarkersInMemory(
+        displayedAtbats: [Atbat],
+        pitchers: [Pitcher],
+        game: Game
+    ) {
+        let firstTeam = displayedAtbats.first?.team
+        let currentBatter = displayedAtbats.sorted(by: atbatPrecedes).last(where: { $0.result != "Result" })
+        let opposingPitchers = pitchers.filter { $0.team != firstTeam && $0.game.ident == game.ident }
+        guard let currentPitcher = opposingPitchers.last else { return }
+
+        if opposingPitchers.count == 1,
+           currentPitcher.startInn == 0 && currentPitcher.sOuts == 0 && currentPitcher.sBats == 0 {
+            currentPitcher.startInn = 1
+            currentPitcher.sOuts = 0
+            currentPitcher.sBats = 0
+            currentPitcher.endInn = 1
+            currentPitcher.eOuts = 0
+            currentPitcher.eBats = 0
+        } else if opposingPitchers.count > 1 {
+            let previousPitcher = opposingPitchers[opposingPitchers.count - 2]
+            if currentPitcher.startInn == 0 && currentPitcher.sOuts == 0 && currentPitcher.sBats == 0 {
+                var startInn = previousPitcher.endInn
+                var startOuts = previousPitcher.eOuts
+                var startBats = previousPitcher.eBats
+
+                if startInn == 0 {
+                    if let currentBatter {
+                        if currentBatter.outs == 3 {
+                            startInn = Int(currentBatter.inning.rounded(.up)) + 1
+                            startOuts = 0
+                            startBats = 0
+                        } else {
+                            startInn = Int(currentBatter.inning.rounded(.up))
+                            startOuts = currentBatter.outs
+                            startBats = currentBatter.seq
+                        }
+                    } else {
+                        startInn = 1
+                        startOuts = 0
+                        startBats = 0
+                    }
+                }
+
+                if previousPitcher.endInn == 0 {
+                    previousPitcher.endInn = startInn
+                    previousPitcher.eOuts = startOuts
+                    previousPitcher.eBats = startBats
+                }
+
+                currentPitcher.startInn = previousPitcher.endInn
+                currentPitcher.sOuts = previousPitcher.eOuts
+                currentPitcher.sBats = previousPitcher.eBats
+                currentPitcher.endInn = currentPitcher.startInn
+                currentPitcher.eOuts = currentPitcher.sOuts
+                currentPitcher.eBats = currentPitcher.sBats
+            }
+        }
+
+        if let currentBatter {
+            if currentBatter.outs == 3 {
+                currentPitcher.endInn = Int(currentBatter.inning.rounded(.up)) + 1
+                currentPitcher.eOuts = 0
+                currentPitcher.eBats = 0
+            } else {
+                currentPitcher.endInn = Int(currentBatter.inning.rounded(.up))
+                currentPitcher.eOuts = currentBatter.outs
+                currentPitcher.eBats = currentBatter.seq
+            }
+        }
+
+        if opposingPitchers.count >= 2 {
+            let previousPitcher = opposingPitchers[opposingPitchers.count - 2]
+            if previousPitcher.endInn == 0 {
+                previousPitcher.endInn = currentPitcher.startInn
+                previousPitcher.eOuts = currentPitcher.sOuts
+                previousPitcher.eBats = currentPitcher.sBats
+            }
+        }
+    }
+
+    private func canonicalReplacementEvent(
+        from atbat: Atbat,
+        replacement: LegacyCorrectionReplacement
+    ) -> CanonicalScoringEventEvidence {
+        let snapshot = LegacyCorrectionSnapshot(atbat)
+        return canonicalEvent(
+            from: snapshot,
+            teamSide: side(for: atbat.team, in: atbat.game),
+            overrideResult: replacement.result,
+            overrideMaxBase: replacement.maxBase,
+            overrideOutAt: replacement.outAt,
+            overrideRBIs: replacement.rbis,
+            overrideStolenBases: replacement.stolenBases,
+            overrideEarnedRun: replacement.earnedRun,
+            overridePlayRecord: replacement.playRecord
+        )
+    }
+
+    private func canonicalEvent(_ atbat: Atbat) -> CanonicalScoringEventEvidence {
+        canonicalEvent(
+            from: LegacyCorrectionSnapshot(atbat),
+            teamSide: side(for: atbat.team, in: atbat.game)
+        )
+    }
+
+    private func canonicalEvent(
+        from snapshot: LegacyCorrectionSnapshot,
+        teamSide: TeamSideRole?,
+        overrideResult: String? = nil,
+        overrideMaxBase: String? = nil,
+        overrideOutAt: String? = nil,
+        overrideRBIs: Int? = nil,
+        overrideStolenBases: Int? = nil,
+        overrideEarnedRun: Bool? = nil,
+        overridePlayRecord: String? = nil
+    ) -> CanonicalScoringEventEvidence {
+        let result = overrideResult ?? snapshot.result
+        let maxBase = overrideMaxBase ?? snapshot.maxBase
+        let outAt = overrideOutAt ?? snapshot.outAt
+        let rbis = overrideRBIs ?? snapshot.rbis
+        let stolenBases = overrideStolenBases ?? snapshot.stolenBases
+        let earnedRun = overrideEarnedRun ?? snapshot.earnedRun
+        let playRecord = overridePlayRecord ?? snapshot.playRecord
+        let batter = LineupParticipantEvidence.gameParticipant(GamePlayerParticipation(
+            participantIdentity: .valid(snapshot.playerIdentity),
+            gameIdentity: .valid(snapshot.gameIdentity),
+            playerResolution: .unknown(PlayerDisplayEvidence()),
+            teamEvidence: .gameSide(GameSideTeamParticipation(
+                gameIdentity: .valid(snapshot.gameIdentity),
+                role: teamSide ?? .unresolved,
+                resolution: .unknown(TeamDisplayEvidence())
+            )),
+            historicalDisplay: PlayerDisplayEvidence(),
+            roles: [.batter],
+            source: .historicalGameParticipation
+        ))
+
+        return CanonicalScoringEventEvidence(
+            eventIdentity: .valid(snapshot.atbatIdentity),
+            gameIdentity: .valid(snapshot.gameIdentity),
+            orderingEvidence: [
+                .knownSequence(OrderEvidence(kind: .eventSequence, value: snapshot.sequence, sourceIndex: snapshot.column)),
+                .stableTieEvidence(OrderEvidence(kind: .displaySort, value: snapshot.column, sourceIndex: snapshot.battingOrder))
+            ],
+            inningContext: CanonicalHalfInning(
+                number: .known(max(1, Int(snapshot.inning.rounded(.up)))),
+                half: teamSide == .home ? .known(.bottom) : .known(.top),
+                expectedInnings: .missing,
+                source: .currentGameRecord
+            ),
+            teamSide: teamSide,
+            participants: ScoringEventParticipantEvidence(batter: batter),
+            resultEvidence: ScoringEventResultEvidence(rawValue: result),
+            outsEvidence: CanonicalOutsState(outs: .known(snapshot.outs), source: .currentGameRecord),
+            batterAdvancement: runnerState(for: maxBase, playerIdentity: snapshot.playerIdentity),
+            runnerAdvancement: outAt == "Safe" ? [] : [.out(runner: .knownHistoricalParticipant(.valid(snapshot.playerIdentity), PlayerDisplayEvidence()), sourceBase: base(for: outAt))],
+            runsScored: maxBase == "Home" ? .count(1) : .notRepresented,
+            rbiEvidence: .count(rbis),
+            earnedRunEvidence: .flag(earnedRun),
+            sacrificeEvidence: sacrificeEvidence(for: result),
+            stolenBaseEvidence: .count(stolenBases),
+            endOfHalfEvidence: snapshot.endOfInning,
+            historicalDisplayEvidence: [
+                "legacyResult=\(result)",
+                "maxBase=\(maxBase)",
+                "outAt=\(outAt)",
+                "playRecord=\(playRecord)"
+            ],
+            unsupportedRawLegacyEvidence: [],
+            source: .currentAtbatRecord
+        )
+    }
+
+    private func side(for team: Team, in game: Game) -> TeamSideRole? {
+        if game.hteam?.ident == team.ident { return .home }
+        if game.vteam?.ident == team.ident { return .visiting }
+        return nil
+    }
+
+    private func runnerState(for maxBase: String, playerIdentity: UUID) -> RunnerStateEvidence? {
+        let runner = RunnerIdentityEvidence.knownHistoricalParticipant(.valid(playerIdentity), PlayerDisplayEvidence())
+        switch maxBase {
+        case "First":
+            return .activeOccupant(base: .first, runner: runner)
+        case "Second":
+            return .activeOccupant(base: .second, runner: runner)
+        case "Third":
+            return .activeOccupant(base: .third, runner: runner)
+        case "Home":
+            return .scored(runner: runner, sourceBase: nil)
+        default:
+            return nil
+        }
+    }
+
+    private func base(for legacyBase: String) -> Base {
+        switch legacyBase {
+        case "First":
+            return .first
+        case "Second":
+            return .second
+        case "Third":
+            return .third
+        default:
+            return .home
+        }
+    }
+
+    private func sacrificeEvidence(for result: String) -> ScoringEventMarkerEvidence {
+        if result == "Sacrifice Fly" || result == "Sacrifice Bunt" {
+            return .flag(true)
+        }
+        return .notRepresented
     }
 
     private func sequenceGame(

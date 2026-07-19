@@ -2001,6 +2001,162 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.legacyScoringOperationEvidenceCount() == 1)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("Task 5.11 accepted correction is coordinated below presentation and refreshes Legacy state")
+    func task511AcceptedCorrectionIsCoordinatedBelowPresentationAndRefreshesLegacyState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.seq = 1
+        fixture.visitingSecond.result = "Single"
+        fixture.visitingSecond.maxbase = "First"
+        fixture.visitingSecond.seq = 2
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let target = LiveScoringWorkflowCoordinator.LegacyCorrectionTarget(
+            gameIdentity: fixture.game.ident,
+            atbatIdentity: fixture.visitingFirst.ident,
+            expectedOriginal: .init(fixture.visitingFirst)
+        )
+        var saveCount = 0
+
+        let result = coordinator.submitCorrection(
+            target: target,
+            replacement: .init(result: "Ground Out", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            modelContext: store.context,
+            save: {
+                saveCount += 1
+                try store.context.save()
+            }
+        )
+
+        #expect(result.disposition == .accepted)
+        #expect(result.correctionPlan?.disposition.mayApply == true)
+        #expect(result.applicationResult?.applied == true)
+        #expect(result.projectionResult?.disposition == .success)
+        #expect(result.refreshedState?.gameIdentity == fixture.game.ident)
+        #expect(result.targetAtbatIdentity == fixture.visitingFirst.ident)
+        #expect(fixture.visitingFirst.result == "Ground Out")
+        #expect(fixture.visitingFirst.outs == 1)
+        #expect(fixture.visitingSecond.seq == 2)
+        #expect(saveCount == 1)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 0)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 5.11 cancellation performs no mutation or save")
+    func task511CancellationPerformsNoMutationOrSave() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let before = Snapshot.capture(fixture.game)
+        var saveCount = 0
+
+        let result = coordinator.submitCorrection(
+            target: .init(gameIdentity: fixture.game.ident, atbatIdentity: fixture.visitingFirst.ident, expectedOriginal: .init(fixture.visitingFirst)),
+            replacement: nil,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: store.context,
+            save: {
+                saveCount += 1
+                try store.context.save()
+            }
+        )
+
+        #expect(result.disposition == .canceled)
+        #expect(Snapshot.capture(fixture.game) == before)
+        #expect(saveCount == 0)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 5.11 target mismatch and unsupported correction fail closed")
+    func task511TargetMismatchAndUnsupportedCorrectionFailClosed() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let otherFixture = Fixture.insertGame(into: store.context, location: "Other Task 5.11 Field")
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let before = Snapshot.capture(fixture.game)
+
+        let missing = coordinator.submitCorrection(
+            target: .init(gameIdentity: fixture.game.ident, atbatIdentity: UUID()),
+            replacement: .init(result: "Ground Out", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let wrongGame = coordinator.submitCorrection(
+            target: .init(gameIdentity: otherFixture.game.ident, atbatIdentity: fixture.visitingFirst.ident),
+            replacement: .init(result: "Ground Out", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let unsupported = coordinator.submitCorrection(
+            target: .init(gameIdentity: fixture.game.ident, atbatIdentity: fixture.visitingFirst.ident),
+            replacement: .init(result: "Unsupported Legacy Result", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+
+        #expect(missing.disposition == .targetMissing)
+        #expect(wrongGame.disposition == .wrongGameTarget)
+        #expect(unsupported.disposition == .unsupportedCorrection)
+        #expect(Snapshot.capture(fixture.game) == before)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("Task 5.11 stale target and persistence failure preserve prior accepted state")
+    func task511StaleTargetAndPersistenceFailurePreservePriorAcceptedState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let expected = LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(fixture.visitingFirst)
+        fixture.visitingFirst.rbis = 1
+
+        let stale = coordinator.submitCorrection(
+            target: .init(gameIdentity: fixture.game.ident, atbatIdentity: fixture.visitingFirst.ident, expectedOriginal: expected),
+            replacement: .init(result: "Ground Out", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let beforeFailure = Snapshot.capture(fixture.game)
+        let failed = coordinator.submitCorrection(
+            target: .init(gameIdentity: fixture.game.ident, atbatIdentity: fixture.visitingFirst.ident, expectedOriginal: .init(fixture.visitingFirst)),
+            replacement: .init(result: "Ground Out", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: store.context,
+            save: { throw InjectedSaveError() }
+        )
+
+        #expect(stale.disposition == .targetStale)
+        #expect(failed.disposition == .persistenceFailed)
+        #expect(Snapshot.capture(fixture.game) == beforeFailure)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(fixture.visitingFirst.rbis == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 @MainActor

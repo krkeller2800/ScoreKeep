@@ -153,6 +153,12 @@ The service validates the proposed correction, replays downstream state, identif
 
 After persistence, the service refreshes scorecards, reports, PDFs, exports, current batter, runners, score, inning, outs, lineup state, substitutions, pitcher responsibility, and navigation context. The user should return to the corrected event or the next current-game state, not to a stale coordinate.
 
+Task 5.11 establishes `LiveScoringWorkflowCoordinator` as the initial accepted Legacy correction workflow owner for supported replacement of an existing scored `Atbat`. The stable target boundary is `Game.ident` plus `Atbat.ident`, with an optional value snapshot of the original Legacy at-bat facts to detect stale review state before mutation. The workflow reloads the current Legacy game and at-bat from the supplied V4 `ModelContext`, verifies game ownership and active game membership, rejects missing, stale, wrong-game, placeholder, and unsupported targets, and keeps presentation from becoming the accepted-correction writer for this coordinated boundary.
+
+Correction planning and validation are delegated to the existing Task 2.12 through Task 2.15 canonical correction foundations as non-routed planning evidence. Accepted mutation remains Legacy: the coordinator updates the target `Atbat`, runs the repository-approved Legacy downstream recalculation for sequence, inning, outs, base projection, end-of-inning, and pitcher markers in memory, persists with one explicit save, and returns refreshed value state. The workflow does not create Legacy correction operation evidence; durable correction idempotency remains unauthorized and therefore unsupported beyond stale-target validation. Cancellation and planning rejection perform no mutation or save. Persistence failure restores the prior accepted Legacy at-bat, score, and pitcher-marker state before returning failure.
+
+Production correction authority remains Legacy. The Task 5.11 workflow does not invoke canonical transaction writing, write canonical scoring records, route production correction reads through canonical replay, synthesize historical records, alter schemas, activate canonical scoring, implement correction-review presentation, or route live-scoring correction entry. Task 6.10 remains presentation-only follow-on work, and Task 7.9 remains blocked until correction review presentation is complete.
+
 <!-- MARK: - 18. Replay and Projection Refresh -->
 ## 18. Replay and Projection Refresh
 
