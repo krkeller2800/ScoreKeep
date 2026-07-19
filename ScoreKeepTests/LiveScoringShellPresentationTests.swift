@@ -464,6 +464,161 @@ struct LiveScoringShellPresentationTests {
         #expect(atbat.result == "Single")
     }
 
+
+    @Test("batter substitution review preparation creates value-only state")
+    func batterSubstitutionReviewPreparationCreatesValueOnlyState() {
+        let presenter = LiveScoringShellPresentation()
+        let gameId = UUID()
+        let outgoingId = UUID()
+        let incomingId = UUID()
+
+        let review = presenter.prepareSubstitutionReview(
+            gameIdentity: gameId,
+            outgoingPlayerIdentity: outgoingId,
+            incomingPlayerIdentity: incomingId,
+            summaryOutgoingName: "Out Name",
+            summaryIncomingName: "In Name"
+        )
+
+        #expect(review.gameIdentity == gameId)
+        #expect(review.outgoingPlayerIdentity == outgoingId)
+        #expect(review.incomingPlayerIdentity == incomingId)
+        #expect(review.summaryOutgoingName == "Out Name")
+        #expect(review.summaryIncomingName == "In Name")
+        #expect(review.canConfirm == true)
+        #expect(review.canCancel == true)
+    }
+
+    @Test("pitcher change review preparation creates value-only state")
+    func pitcherChangeReviewPreparationCreatesValueOnlyState() {
+        let presenter = LiveScoringShellPresentation()
+        let gameId = UUID()
+        let teamId = UUID()
+        let incomingId = UUID()
+
+        let review = presenter.preparePitcherChangeReview(
+            gameIdentity: gameId,
+            teamIdentity: teamId,
+            incomingPitcherIdentity: incomingId,
+            startInning: 1,
+            startOuts: 0,
+            startBatters: 0,
+            summaryIncomingName: "In Name"
+        )
+
+        #expect(review.gameIdentity == gameId)
+        #expect(review.teamIdentity == teamId)
+        #expect(review.incomingPitcherIdentity == incomingId)
+        #expect(review.startInning == 1)
+        #expect(review.startOuts == 0)
+        #expect(review.startBatters == 0)
+        #expect(review.summaryIncomingName == "In Name")
+        #expect(review.canConfirm == true)
+        #expect(review.canCancel == true)
+    }
+
+    @Test("batter substitution review confirmation submits state exactly once")
+    func batterSubstitutionReviewConfirmationSubmitsStateExactlyOnce() {
+        let presenter = LiveScoringShellPresentation()
+        var review: LiveScoringShellPresentation.SubstitutionReviewState? = presenter.prepareSubstitutionReview(
+            gameIdentity: UUID(),
+            outgoingPlayerIdentity: UUID(),
+            incomingPlayerIdentity: UUID(),
+            summaryOutgoingName: "Out Name",
+            summaryIncomingName: "In Name"
+        )
+
+        var submitCount = 0
+        let refreshed = Fixture.preparedState(canScore: true)
+        let presentation = presenter.confirmSubstitutionReview(&review) { _, _, _ in
+            submitCount += 1
+            return LiveScoringWorkflowCoordinator.SubstitutionSubmissionResult(
+                disposition: .accepted,
+                refreshedState: refreshed,
+                message: nil
+            )
+        }
+
+        #expect(submitCount == 1)
+        #expect(presentation.outcome == .accepted)
+        #expect(presentation.shouldClearPendingReview == true)
+        #expect(presentation.shouldMarkChanged == true)
+        #expect(presentation.refreshedState == refreshed)
+        #expect(review == nil)
+    }
+
+    @Test("pitcher change review confirmation submits state exactly once")
+    func pitcherChangeReviewConfirmationSubmitsStateExactlyOnce() {
+        let presenter = LiveScoringShellPresentation()
+        var review: LiveScoringShellPresentation.PitcherChangeReviewState? = presenter.preparePitcherChangeReview(
+            gameIdentity: UUID(),
+            teamIdentity: UUID(),
+            incomingPitcherIdentity: UUID(),
+            startInning: 1,
+            startOuts: 0,
+            startBatters: 0,
+            summaryIncomingName: "In Name"
+        )
+
+        var submitCount = 0
+        let refreshed = Fixture.preparedState(canScore: true)
+        let presentation = presenter.confirmPitcherChangeReview(&review) { _, _, _, _, _, _ in
+            submitCount += 1
+            return LiveScoringWorkflowCoordinator.SubstitutionSubmissionResult(
+                disposition: .accepted,
+                refreshedState: refreshed,
+                message: nil
+            )
+        }
+
+        #expect(submitCount == 1)
+        #expect(presentation.outcome == .accepted)
+        #expect(presentation.shouldClearPendingReview == true)
+        #expect(presentation.shouldMarkChanged == true)
+        #expect(presentation.refreshedState == refreshed)
+        #expect(review == nil)
+    }
+
+    @Test("substitution review cancellation clears state without submission")
+    func substitutionReviewCancellationClearsStateWithoutSubmission() {
+        let presenter = LiveScoringShellPresentation()
+        var review: LiveScoringShellPresentation.SubstitutionReviewState? = presenter.prepareSubstitutionReview(
+            gameIdentity: UUID(),
+            outgoingPlayerIdentity: UUID(),
+            incomingPlayerIdentity: UUID(),
+            summaryOutgoingName: "Out",
+            summaryIncomingName: "In"
+        )
+
+        let presentation = presenter.cancelSubstitutionReview(&review)
+
+        #expect(presentation.outcome == .canceled)
+        #expect(presentation.shouldClearPendingReview == true)
+        #expect(presentation.shouldMarkChanged == false)
+        #expect(review == nil)
+    }
+
+    @Test("pitcher change review cancellation clears state without submission")
+    func pitcherChangeReviewCancellationClearsStateWithoutSubmission() {
+        let presenter = LiveScoringShellPresentation()
+        var review: LiveScoringShellPresentation.PitcherChangeReviewState? = presenter.preparePitcherChangeReview(
+            gameIdentity: UUID(),
+            teamIdentity: UUID(),
+            incomingPitcherIdentity: UUID(),
+            startInning: 1,
+            startOuts: 0,
+            startBatters: 0,
+            summaryIncomingName: "In"
+        )
+
+        let presentation = presenter.cancelPitcherChangeReview(&review)
+
+        #expect(presentation.outcome == .canceled)
+        #expect(presentation.shouldClearPendingReview == true)
+        #expect(presentation.shouldMarkChanged == false)
+        #expect(review == nil)
+    }
+
     @Test("correction review maps stale rejected wrong-game unsupported and failed outcomes as not accepted")
     func correctionReviewMapsRepresentativeFailuresAsNotAccepted() {
         let presenter = LiveScoringShellPresentation()

@@ -23,6 +23,8 @@ struct PitchersStaffView: View {
     @State var sOuts = 0
     @State var eOuts = 0
     @State var sBats = 0
+    @State private var reviewState: LiveScoringShellPresentation.PitcherChangeReviewState?
+    let presenter = LiveScoringShellPresentation()
     @State var eBats = 0
     @State var thisPlayer = Player(name: "", number: "", position: "", batDir: "", batOrder: 99)
     @State private var editMode: EditMode = .active
@@ -138,17 +140,15 @@ struct PitchersStaffView: View {
                         }
                     }
                     if !thisPlayer.name.isEmpty {
-                        let pitcher = Pitcher(player: thisPlayer, team: team, game: game, startInn: startInn, sOuts: sOuts, sBats: sBats, endInn: endInn,
-                                              eOuts: eOuts, eBats: eBats, strikeOuts: 0, walks: 0, hits: 0, runs: 0, won: false)
-                        modelContext.insert(pitcher)
-                        game.pitchers.append(pitcher)
-                        
-                        do {
-                            try self.modelContext.save()
-                        }
-                        catch {
-                            print("Error saving new pitcher: \(error)")
-                        }
+                        reviewState = presenter.preparePitcherChangeReview(
+                            gameIdentity: game.ident,
+                            teamIdentity: team.ident,
+                            incomingPitcherIdentity: thisPlayer.identifier,
+                            startInning: startInn,
+                            startOuts: sOuts,
+                            startBatters: sBats,
+                            summaryIncomingName: thisPlayer.name
+                        )
                     }
                 }
             }
@@ -241,6 +241,39 @@ struct PitchersStaffView: View {
                 }
             })
         }
+        .alert("Confirm Pitcher Change", isPresented: Binding(
+            get: { reviewState != nil && reviewState!.outcome == .pending },
+            set: { if !$0 { _ = presenter.cancelPitcherChangeReview(&reviewState) } }
+        )) {
+            Button("Cancel", role: .cancel) {
+                _ = presenter.cancelPitcherChangeReview(&reviewState)
+            }
+            Button("Confirm") {
+                let coordinator = LiveScoringWorkflowCoordinator()
+                let presentation = presenter.confirmPitcherChangeReview(&reviewState) { gameId, teamId, incomingId, sInn, sOuts, sBats in
+                    coordinator.submitPitcherChange(
+                        gameIdentity: gameId,
+                        teamIdentity: teamId,
+                        incomingPitcherIdentity: incomingId,
+                        startInning: sInn,
+                        startOuts: sOuts,
+                        startBatters: sBats,
+                        displayedAtbats: game.atbats,
+                        pitchers: game.pitchers,
+                        modelContext: modelContext,
+                        save: { try modelContext.save() }
+                    )
+                }
+                if presentation.outcome != .accepted {
+                    alertMessage = presentation.message ?? "Pitcher change failed."
+                    showingAlert = true
+                }
+            }
+        } message: {
+            if let review = reviewState {
+                Text("Confirm pitcher change to \(review.summaryIncomingName)?")
+            }
+        }
         .onDisappear {
             if game.pitchers.first(where: { $0.player.name == pName }) == nil {
                 for player in players {
@@ -249,16 +282,22 @@ struct PitchersStaffView: View {
                     }
                 }
                 if pName != "" && pName != "Not Selected Yet" {
-                    let pitcher = Pitcher(player: thisPlayer, team: team, game: game, startInn: startInn, sOuts: sOuts, sBats: sBats, endInn: endInn, eOuts: eOuts,
-                                          eBats: eBats, strikeOuts: 0, walks: 0, hits: 0, runs: 0, won: false)
-                    modelContext.insert(pitcher)
-                    game.pitchers.append(pitcher)
-                    
-                    do {
-                        try self.modelContext.save()
-                    }
-                    catch {
-                        print("Error saving new pitcher: \(error)")
+                    let coordinator = LiveScoringWorkflowCoordinator()
+                    let result = coordinator.submitPitcherChange(
+                        gameIdentity: game.ident,
+                        teamIdentity: team.ident,
+                        incomingPitcherIdentity: thisPlayer.identifier,
+                        startInning: startInn,
+                        startOuts: sOuts,
+                        startBatters: sBats,
+                        displayedAtbats: game.atbats,
+                        pitchers: game.pitchers,
+                        modelContext: modelContext,
+                        save: { try modelContext.save() }
+                    )
+                    if result.disposition != .accepted {
+                        alertMessage = result.message ?? "Error saving new pitcher"
+                        showingAlert = true
                     }
                 }
             }

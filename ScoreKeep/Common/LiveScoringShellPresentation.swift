@@ -158,6 +158,206 @@ struct LiveScoringShellPresentation {
         LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement
     ) -> LiveScoringWorkflowCoordinator.CorrectionSubmissionResult
 
+    enum SubstitutionReviewOutcome: Equatable {
+        case pending
+        case confirming
+        case accepted
+        case canceled
+        case validationRejected
+        case gameMissing
+        case participantMissing
+        case wrongTeamOrGame
+        case staleState
+        case sameParticipant
+        case duplicateOrConflicting
+        case unsupportedFamily
+        case persistenceFailed
+        case projectionFailed
+        case refreshedStateUnavailable
+    }
+
+    struct SubstitutionReviewState: Equatable {
+        let gameIdentity: UUID
+        let outgoingPlayerIdentity: UUID
+        let incomingPlayerIdentity: UUID
+        let summaryOutgoingName: String
+        let summaryIncomingName: String
+        var outcome: SubstitutionReviewOutcome
+        var message: String?
+        var refreshedState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
+
+        var canConfirm: Bool { outcome == .pending }
+        var canCancel: Bool { outcome != .confirming }
+    }
+
+    struct SubstitutionReviewPresentation: Equatable {
+        let outcome: SubstitutionReviewOutcome
+        let shouldClearPendingReview: Bool
+        let shouldMarkChanged: Bool
+        let refreshedState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
+        let message: String?
+    }
+
+    struct PitcherChangeReviewState: Equatable {
+        let gameIdentity: UUID
+        let teamIdentity: UUID
+        let incomingPitcherIdentity: UUID
+        let startInning: Int
+        let startOuts: Int
+        let startBatters: Int
+        let summaryIncomingName: String
+        var outcome: SubstitutionReviewOutcome
+        var message: String?
+        var refreshedState: LiveScoringWorkflowCoordinator.PreparedLiveGameState?
+
+        var canConfirm: Bool { outcome == .pending }
+        var canCancel: Bool { outcome != .confirming }
+    }
+
+    typealias SubstitutionSubmitAction = (
+        UUID, UUID, UUID
+    ) -> LiveScoringWorkflowCoordinator.SubstitutionSubmissionResult
+
+    typealias PitcherChangeSubmitAction = (
+        UUID, UUID, UUID, Int, Int, Int
+    ) -> LiveScoringWorkflowCoordinator.SubstitutionSubmissionResult
+
+
+
+    func prepareSubstitutionReview(
+        gameIdentity: UUID,
+        outgoingPlayerIdentity: UUID,
+        incomingPlayerIdentity: UUID,
+        summaryOutgoingName: String,
+        summaryIncomingName: String
+    ) -> SubstitutionReviewState {
+        return SubstitutionReviewState(
+            gameIdentity: gameIdentity,
+            outgoingPlayerIdentity: outgoingPlayerIdentity,
+            incomingPlayerIdentity: incomingPlayerIdentity,
+            summaryOutgoingName: summaryOutgoingName,
+            summaryIncomingName: summaryIncomingName,
+            outcome: .pending,
+            message: nil,
+            refreshedState: nil
+        )
+    }
+
+    func cancelSubstitutionReview(_ state: inout SubstitutionReviewState?) -> SubstitutionReviewPresentation {
+        state = nil
+        return SubstitutionReviewPresentation(
+            outcome: .canceled,
+            shouldClearPendingReview: true,
+            shouldMarkChanged: false,
+            refreshedState: nil,
+            message: nil
+        )
+    }
+
+    func confirmSubstitutionReview(
+        _ state: inout SubstitutionReviewState?,
+        submit: SubstitutionSubmitAction
+    ) -> SubstitutionReviewPresentation {
+        guard var review = state, review.outcome == .pending else {
+            return SubstitutionReviewPresentation(
+                outcome: state?.outcome ?? .canceled,
+                shouldClearPendingReview: false,
+                shouldMarkChanged: false,
+                refreshedState: state?.refreshedState,
+                message: state?.message
+            )
+        }
+
+        review.outcome = .confirming
+        state = review
+
+        let result = submit(review.gameIdentity, review.outgoingPlayerIdentity, review.incomingPlayerIdentity)
+        let outcome = substitutionReviewOutcome(for: result.disposition)
+        let shouldClear = outcome == .accepted
+
+        review.outcome = outcome
+        review.message = result.message
+        review.refreshedState = result.refreshedState
+        state = shouldClear ? nil : review
+
+        return SubstitutionReviewPresentation(
+            outcome: outcome,
+            shouldClearPendingReview: shouldClear,
+            shouldMarkChanged: outcome == .accepted,
+            refreshedState: result.refreshedState,
+            message: substitutionReviewMessage(for: result)
+        )
+    }
+
+    func preparePitcherChangeReview(
+        gameIdentity: UUID,
+        teamIdentity: UUID,
+        incomingPitcherIdentity: UUID,
+        startInning: Int,
+        startOuts: Int,
+        startBatters: Int,
+        summaryIncomingName: String
+    ) -> PitcherChangeReviewState {
+        return PitcherChangeReviewState(
+            gameIdentity: gameIdentity,
+            teamIdentity: teamIdentity,
+            incomingPitcherIdentity: incomingPitcherIdentity,
+            startInning: startInning,
+            startOuts: startOuts,
+            startBatters: startBatters,
+            summaryIncomingName: summaryIncomingName,
+            outcome: .pending,
+            message: nil,
+            refreshedState: nil
+        )
+    }
+
+    func cancelPitcherChangeReview(_ state: inout PitcherChangeReviewState?) -> SubstitutionReviewPresentation {
+        state = nil
+        return SubstitutionReviewPresentation(
+            outcome: .canceled,
+            shouldClearPendingReview: true,
+            shouldMarkChanged: false,
+            refreshedState: nil,
+            message: nil
+        )
+    }
+
+    func confirmPitcherChangeReview(
+        _ state: inout PitcherChangeReviewState?,
+        submit: PitcherChangeSubmitAction
+    ) -> SubstitutionReviewPresentation {
+        guard var review = state, review.outcome == .pending else {
+            return SubstitutionReviewPresentation(
+                outcome: state?.outcome ?? .canceled,
+                shouldClearPendingReview: false,
+                shouldMarkChanged: false,
+                refreshedState: state?.refreshedState,
+                message: state?.message
+            )
+        }
+
+        review.outcome = .confirming
+        state = review
+
+        let result = submit(review.gameIdentity, review.teamIdentity, review.incomingPitcherIdentity, review.startInning, review.startOuts, review.startBatters)
+        let outcome = substitutionReviewOutcome(for: result.disposition)
+        let shouldClear = outcome == .accepted
+
+        review.outcome = outcome
+        review.message = result.message
+        review.refreshedState = result.refreshedState
+        state = shouldClear ? nil : review
+
+        return SubstitutionReviewPresentation(
+            outcome: outcome,
+            shouldClearPendingReview: shouldClear,
+            shouldMarkChanged: outcome == .accepted,
+            refreshedState: result.refreshedState,
+            message: substitutionReviewMessage(for: result)
+        )
+    }
+
     func scorecardCellIsEnabled(column: Int, sourceAtbat: Atbat?) -> Bool {
         column > 0 && sourceAtbat != nil
     }
@@ -504,4 +704,45 @@ struct LiveScoringShellPresentation {
         return maxBase
     }
 
+
+    private func substitutionReviewOutcome(
+        for disposition: LiveScoringWorkflowCoordinator.SubstitutionDisposition
+    ) -> SubstitutionReviewOutcome {
+        switch disposition {
+        case .accepted: return .accepted
+        case .canceled: return .canceled
+        case .validationRejected: return .validationRejected
+        case .gameMissing: return .gameMissing
+        case .participantMissing: return .participantMissing
+        case .wrongTeamOrGame: return .wrongTeamOrGame
+        case .staleState: return .staleState
+        case .sameParticipant: return .sameParticipant
+        case .duplicateOrConflicting: return .duplicateOrConflicting
+        case .unsupportedFamily: return .unsupportedFamily
+        case .persistenceFailed: return .persistenceFailed
+        case .projectionFailed: return .projectionFailed
+        case .refreshedStateUnavailable: return .refreshedStateUnavailable
+        }
+    }
+
+    private func substitutionReviewMessage(
+        for result: LiveScoringWorkflowCoordinator.SubstitutionSubmissionResult
+    ) -> String? {
+        if let message = result.message { return message }
+        switch result.disposition {
+        case .accepted: return "Substitution accepted."
+        case .canceled: return nil
+        case .validationRejected: return "The substitution could not be accepted."
+        case .gameMissing: return "The game is no longer available."
+        case .participantMissing: return "A participant could not be found."
+        case .wrongTeamOrGame: return "Participants do not belong to a valid team in this game."
+        case .staleState: return "The game state changed before acceptance."
+        case .sameParticipant: return "Cannot substitute a player for themselves."
+        case .duplicateOrConflicting: return "This substitution has already been processed."
+        case .unsupportedFamily: return "This substitution type is not supported."
+        case .persistenceFailed: return "The substitution could not be saved."
+        case .projectionFailed: return "The game projection failed."
+        case .refreshedStateUnavailable: return "The refreshed game state is unavailable."
+        }
+    }
 }

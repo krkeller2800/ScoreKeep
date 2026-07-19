@@ -18,6 +18,8 @@ struct ReplacementView: View {
     @State private var selectPlayers: [Player] = []
     @State private var atbats: [Atbat] = []
     @State private var showingAlert: Bool = false
+    @State private var reviewState: LiveScoringShellPresentation.SubstitutionReviewState?
+    let presenter = LiveScoringShellPresentation()
     @State private var doSubstitution: Bool = false
     @State private var team: Team
     @State private var game: Game
@@ -56,20 +58,55 @@ struct ReplacementView: View {
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                     Spacer()
                     Button("Do it!") {
-                        doSubstitution.toggle()
+                        if replacedIdx > 0 && incomingIdx > 0 {
+                            reviewState = presenter.prepareSubstitutionReview(
+                                gameIdentity: game.ident,
+                                outgoingPlayerIdentity: rplPlayers[replacedIdx-1].identifier,
+                                incomingPlayerIdentity: incPlayers[incomingIdx-1].identifier,
+                                summaryOutgoingName: rplPlayers[replacedIdx-1].name,
+                                summaryIncomingName: incPlayers[incomingIdx-1].name
+                            )
+                        } else {
+                            alertMessage = "Please select a player to replace and an incoming player."
+                            showingAlert = true
+                        }
                     }
                     .frame(maxWidth: 100,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
                     .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 0)
-                    .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                    .onChange(of: doSubstitution ) {
-                        if replacedIdx > 0 && incomingIdx > 0 {
-                            doSubs()
-                            dismiss()
-                        } else {
-                            alertMessage = "Please select a player to replace and an incoming player."
-                            showingAlert.toggle()
+                    .alert("Confirm Substitution", isPresented: Binding(
+                        get: { reviewState != nil && reviewState!.outcome == .pending },
+                        set: { if !$0 { _ = presenter.cancelSubstitutionReview(&reviewState) } }
+                    )) {
+                        Button("Cancel", role: .cancel) {
+                            _ = presenter.cancelSubstitutionReview(&reviewState)
+                        }
+                        Button("Confirm") {
+                            getAtbats()
+                            let coordinator = LiveScoringWorkflowCoordinator()
+                            let presentation = presenter.confirmSubstitutionReview(&reviewState) { gameId, outgoingId, incomingId in
+                                coordinator.submitSubstitution(
+                                    gameIdentity: gameId,
+                                    outgoingParticipant: outgoingId,
+                                    incomingParticipant: incomingId,
+                                    displayedAtbats: atbats,
+                                    pitchers: game.pitchers,
+                                    modelContext: modelContext,
+                                    save: { try modelContext.save() }
+                                )
+                            }
+                            if presentation.outcome == .accepted {
+                                dismiss()
+                            } else {
+                                alertMessage = presentation.message ?? "Substitution failed."
+                                showingAlert = true
+                            }
+                        }
+                    } message: {
+                        if let review = reviewState {
+                            Text("Substitute \(review.summaryIncomingName) for \(review.summaryOutgoingName)?")
                         }
                     }
+                    .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     Spacer()
                 }
                 HStack {
@@ -191,60 +228,6 @@ struct ReplacementView: View {
         navigationPath.append(player)
         try? modelContext.save()
         }
-    func doSubs() {
-        
-        var newseq = Array(repeating: 999, count: 20)
-        var fixBatorder = false
-        var newPlayer:Player = Player(name: "", number: "", position: "", batDir: "", batOrder: 0)
-        
-        for player in players {
-            if player.name == rplPlayers[replacedIdx-1].name {
-                incPlayers[incomingIdx-1].batOrder = player.batOrder+1
-                fixBatorder = true
-                game.replaced.append(player)
-            }
-            if player.name == incPlayers[incomingIdx-1].name {
-                newPlayer = incPlayers[incomingIdx-1]
-                game.incomings.append(newPlayer)
-                print("new Player:\(newPlayer.name) Colume: 1 batorder: \(newPlayer.batOrder) Seq: \(newseq)")
-            }
-            if player.batOrder >= incPlayers[incomingIdx-1].batOrder && fixBatorder && player.name != incPlayers[incomingIdx-1].name {
-                if player.batOrder < 99 {
-                    player.batOrder += 1
-                }
-            }
-        }
-        getAtbats()
-        for atbat in atbats {
-            atbat.batOrder = atbat.player.batOrder
-            if atbat.player.name == rplPlayers[replacedIdx-1].name {
-                newseq[atbat.col] = atbat.seq + 1
-            }
-        }
-        for atbat in atbats {
-            if atbat.seq >= newseq[atbat.col] {
-                atbat.seq += 1
-            }
-            print("Atbats = Name:\(atbat.player.name) Column:\(atbat.col) batOrder:\(atbat.batOrder) Seq:\(atbat.seq)")
-            if atbat.player.name == rplPlayers[replacedIdx-1].name {
-                let newatbat = Atbat(game: game, team: team, player: newPlayer, result: "Pitch Hitter", maxbase: "No Bases", batOrder: newPlayer.batOrder, outAt: "Safe",
-                                      inning: atbat.inning, seq: newseq[atbat.col], col: atbat.col, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
-                modelContext.insert(newatbat)
-                game.atbats.append(newatbat)
-                if atbat.col == 1 {
-                    game.players.append(newPlayer)
-                }
-                try? modelContext.save()
-                print("newatbat = Name:\(newatbat.player.name) Column:\(newatbat.col) batOrder:\(newatbat.batOrder) Seq:\(newatbat.seq)")
-             }
-        }
-        do {
-            try self.modelContext.save()
-        }
-        catch {
-            print("Error saving new atbat: \(error)")
-        }
-    }
     func getAtbats () {
         
         let gloc = game.location
