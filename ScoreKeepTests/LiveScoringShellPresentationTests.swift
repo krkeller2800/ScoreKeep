@@ -199,6 +199,197 @@ struct LiveScoringShellPresentationTests {
         #expect(!failed.shouldMarkChanged)
         #expect(failed.message == "Unsupported")
     }
+
+    @Test("correction review preparation creates value-only state with stable target facts")
+    func correctionReviewPreparationCreatesValueOnlyStateWithStableTargetFacts() {
+        let presenter = LiveScoringShellPresentation()
+        let atbat = Fixture.scoredAtbat()
+        let original = LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(atbat)
+        let replacement = LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
+            result: "Double",
+            maxBase: "Second",
+            outAt: "Safe",
+            rbis: 1,
+            stolenBases: 0,
+            earnedRun: true
+        )
+
+        let review = presenter.prepareCorrectionReview(
+            original: original,
+            batterName: "Visitor One",
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"]
+        )
+        let unsupported = presenter.prepareCorrectionReview(
+            original: original,
+            batterName: "Visitor One",
+            replacement: .init(result: "Unsupported Legacy Result", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            supportedLegacyResults: ["Single", "Double", "Ground Out"]
+        )
+
+        #expect(review?.gameIdentity == atbat.game.ident)
+        #expect(review?.atbatIdentity == atbat.ident)
+        #expect(review?.target.expectedOriginal == original)
+        #expect(review?.replacement == replacement)
+        #expect(review?.summary.batter == "Visitor One")
+        #expect(review?.summary.originalResult == "Single")
+        #expect(review?.summary.proposedResult == "Double")
+        #expect(review?.summary.originalRBI == 0)
+        #expect(review?.summary.proposedRBI == 1)
+        #expect(review?.summary.originalOuts == 0)
+        #expect(review?.summary.proposedOuts == nil)
+        #expect(review?.summary.originalBasePath == "First")
+        #expect(review?.summary.proposedBasePath == "Second")
+        #expect(review?.canConfirm == true)
+        #expect(review?.canCancel == true)
+        #expect(unsupported == nil)
+    }
+
+    @Test("correction review confirmation submits stable identities once and clears accepted review")
+    func correctionReviewConfirmationSubmitsStableIdentitiesOnceAndClearsAcceptedReview() {
+        let presenter = LiveScoringShellPresentation()
+        let atbat = Fixture.scoredAtbat()
+        let original = LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(atbat)
+        let replacement = LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
+            result: "Ground Out",
+            maxBase: "No Bases",
+            outAt: "Safe",
+            rbis: 0,
+            stolenBases: 0,
+            earnedRun: true
+        )
+        var review = presenter.prepareCorrectionReview(
+            original: original,
+            batterName: "Visitor One",
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Ground Out"]
+        )
+        var submitCount = 0
+        var submittedTarget: LiveScoringWorkflowCoordinator.LegacyCorrectionTarget?
+        var submittedReplacement: LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement?
+        let refreshedState = Fixture.preparedState(canScore: true)
+
+        let presentation = presenter.confirmCorrectionReview(&review) { target, replacement in
+            submitCount += 1
+            submittedTarget = target
+            submittedReplacement = replacement
+            return LiveScoringWorkflowCoordinator.CorrectionSubmissionResult(
+                disposition: .accepted,
+                targetAtbatIdentity: target.atbatIdentity,
+                refreshedState: refreshedState,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: nil
+            )
+        }
+
+        #expect(submitCount == 1)
+        #expect(submittedTarget?.gameIdentity == atbat.game.ident)
+        #expect(submittedTarget?.atbatIdentity == atbat.ident)
+        #expect(submittedTarget?.expectedOriginal == original)
+        #expect(submittedReplacement == replacement)
+        #expect(presentation.outcome == .accepted)
+        #expect(presentation.shouldClearPendingReview)
+        #expect(presentation.shouldMarkChanged)
+        #expect(presentation.refreshedState == refreshedState)
+        #expect(review == nil)
+        #expect(atbat.result == "Single")
+    }
+
+    @Test("correction review confirmation guard prevents repeated in-progress submission")
+    func correctionReviewConfirmationGuardPreventsRepeatedInProgressSubmission() {
+        let presenter = LiveScoringShellPresentation()
+        let atbat = Fixture.scoredAtbat()
+        let original = LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(atbat)
+        var review = presenter.prepareCorrectionReview(
+            original: original,
+            batterName: "Visitor One",
+            replacement: .init(result: "Double", maxBase: "Second", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            supportedLegacyResults: ["Single", "Double"]
+        )
+        review?.outcome = .confirming
+        var submitCount = 0
+
+        let presentation = presenter.confirmCorrectionReview(&review) { target, replacement in
+            submitCount += 1
+            return LiveScoringWorkflowCoordinator.CorrectionSubmissionResult(
+                disposition: .accepted,
+                targetAtbatIdentity: target.atbatIdentity,
+                refreshedState: nil,
+                projectionResult: nil,
+                correctionPlan: nil,
+                applicationResult: nil,
+                message: replacement.result
+            )
+        }
+
+        #expect(submitCount == 0)
+        #expect(presentation.outcome == .confirming)
+        #expect(!presentation.shouldMarkChanged)
+        #expect(review?.outcome == .confirming)
+    }
+
+    @Test("correction review cancellation clears state without workflow submission")
+    func correctionReviewCancellationClearsStateWithoutWorkflowSubmission() {
+        let presenter = LiveScoringShellPresentation()
+        let atbat = Fixture.scoredAtbat()
+        var review = presenter.prepareCorrectionReview(
+            original: LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(atbat),
+            batterName: "Visitor One",
+            replacement: .init(result: "Double", maxBase: "Second", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            supportedLegacyResults: ["Single", "Double"]
+        )
+
+        let presentation = presenter.cancelCorrectionReview(&review)
+
+        #expect(presentation.outcome == .canceled)
+        #expect(presentation.shouldClearPendingReview)
+        #expect(!presentation.shouldMarkChanged)
+        #expect(review == nil)
+        #expect(atbat.result == "Single")
+    }
+
+    @Test("correction review maps stale rejected wrong-game unsupported and failed outcomes as not accepted")
+    func correctionReviewMapsRepresentativeFailuresAsNotAccepted() {
+        let presenter = LiveScoringShellPresentation()
+        let dispositions: [(LiveScoringWorkflowCoordinator.CorrectionDisposition, LiveScoringShellPresentation.CorrectionReviewOutcome)] = [
+            (.targetStale, .targetStale),
+            (.validationRejected, .validationRejected),
+            (.wrongGameTarget, .wrongGameTarget),
+            (.unsupportedCorrection, .unsupportedCorrection),
+            (.persistenceFailed, .persistenceFailed)
+        ]
+
+        for (disposition, expectedOutcome) in dispositions {
+            let atbat = Fixture.scoredAtbat()
+            var review = presenter.prepareCorrectionReview(
+                original: LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(atbat),
+                batterName: "Visitor One",
+                replacement: .init(result: "Double", maxBase: "Second", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+                supportedLegacyResults: ["Single", "Double"]
+            )
+
+            let presentation = presenter.confirmCorrectionReview(&review) { target, _ in
+                LiveScoringWorkflowCoordinator.CorrectionSubmissionResult(
+                    disposition: disposition,
+                    targetAtbatIdentity: target.atbatIdentity,
+                    refreshedState: nil,
+                    projectionResult: nil,
+                    correctionPlan: nil,
+                    applicationResult: nil,
+                    message: nil
+                )
+            }
+
+            #expect(presentation.outcome == expectedOutcome)
+            #expect(!presentation.shouldClearPendingReview)
+            #expect(!presentation.shouldMarkChanged)
+            #expect(review?.outcome == expectedOutcome)
+            #expect(review?.canCancel == true)
+            #expect(atbat.result == "Single")
+        }
+    }
 }
 
 private enum Fixture {
@@ -207,6 +398,17 @@ private enum Fixture {
         let player = Player(name: "Visitor One", number: "1", position: "SS", batDir: "R", batOrder: 1, team: team)
         let game = Game(date: "2026-07-18T12:00:00Z", location: "Task 6.9 Field", highLights: "", hscore: 0, vscore: 0, vteam: team, hteam: Team(name: "Home", coach: "", details: ""))
         return Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+    }
+
+    static func scoredAtbat() -> Atbat {
+        let atbat = atbat()
+        atbat.result = "Single"
+        atbat.maxbase = "First"
+        atbat.outAt = "Safe"
+        atbat.rbis = 0
+        atbat.outs = 0
+        atbat.earnedRun = true
+        return atbat
     }
 
     static func preparedState(canScore: Bool) -> LiveScoringWorkflowCoordinator.PreparedLiveGameState {

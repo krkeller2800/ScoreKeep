@@ -270,6 +270,16 @@ Deleting or superseding an event should be explicit. The workflow should disting
 
 The scorecard must not directly patch its own cells. It requests a correction to underlying facts through application services, receives validation or warning outcomes, and then displays a regenerated projection.
 
+Task 6.10 establishes `LiveScoringShellPresentation` as the correction review presentation owner prepared for later routing. The review state is value-only: it retains the stable `Game.ident`, target `Atbat.ident`, the original `LegacyCorrectionSnapshot`, the proposed `LegacyCorrectionReplacement`, supported original/proposed summary fields, confirmation and cancellation availability, in-progress state, typed outcome state, optional user-facing status text, and refreshed authoritative state returned by the workflow. It does not retain mutable SwiftData models as presentation authority.
+
+The Task 6.10 review summary is intentionally bounded to facts already available from the accepted Task 5.11 request and snapshot boundary: batter display text supplied by the caller, inning/half-inning display, original and proposed result, RBI, outs, base-path text, earned-run decision, stolen-base count, and fielder-play notation. It does not calculate downstream score, runners, inning progression, batting order, pitcher markers, reports, or replay effects in presentation.
+
+Confirming a review uses the retained stable game and at-bat identities plus the retained original snapshot to call `LiveScoringWorkflowCoordinator.submitCorrection` through a supplied submission boundary. The presentation layer guards against repeated in-progress confirmation, waits for the typed workflow result, maps accepted, canceled, validation rejected, missing, stale, wrong-game, unsupported, persistence-failed, recalculation-failed, and refreshed-state-unavailable outcomes, clears pending review only after acceptance, and exposes the refreshed authoritative state for the later presenting owner. It never mutates `Game` or `Atbat`, saves a `ModelContext`, writes operation evidence, writes canonical records, synthesizes history, or performs correction planning.
+
+Canceling a review clears presentation state without workflow submission, mutation, save, operation evidence, canonical write, or historical backfill. Stale, rejected, wrong-game, unsupported, and failed outcomes are not reported as accepted; they preserve the current accepted Legacy game state, expose bounded user-facing status text, and allow dismissal. Confirmation and cancellation labels and status text are distinct so VoiceOver can distinguish original/proposed facts, discover confirm and cancel controls, and read stale or failure state without relying on color alone.
+
+Task 6.10 does not route correction entry from live scoring. `ScoreGameView` retains existing unrelated delete and reset behavior, production correction remains Legacy, canonical correction services remain non-routed for production, and Task 7.9 owns the later live-scoring correction entry route.
+
 <!-- MARK: - 31. Correction Replay and Refresh -->
 ## 31. Correction Replay and Refresh
 
