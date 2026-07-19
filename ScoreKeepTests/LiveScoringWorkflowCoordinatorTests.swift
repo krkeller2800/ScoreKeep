@@ -2157,6 +2157,74 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(fixture.visitingFirst.rbis == 1)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
+
+    @Test("Task 7.9 entry review confirmation routes through correction workflow and refreshes accepted state")
+    func task79EntryReviewConfirmationRoutesThroughCorrectionWorkflowAndRefreshesAcceptedState() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.seq = 1
+        fixture.visitingSecond.result = "Single"
+        fixture.visitingSecond.maxbase = "First"
+        fixture.visitingSecond.seq = 2
+        try store.context.save()
+        let presenter = LiveScoringShellPresentation()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let replacement = LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
+            result: "Ground Out",
+            maxBase: "No Bases",
+            outAt: "Safe",
+            rbis: 0,
+            stolenBases: 0,
+            earnedRun: true
+        )
+        let beforeUnrelated = AtbatSnapshot(fixture.visitingSecond)
+        var review = presenter.prepareCorrectionEntry(
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Ground Out"],
+            currentReview: nil
+        ).reviewState
+        var submitCount = 0
+        var saveCount = 0
+
+        let presentation = presenter.confirmCorrectionReview(&review) { target, replacement in
+            submitCount += 1
+            return coordinator.submitCorrection(
+                target: target,
+                replacement: replacement,
+                displayedAtbats: fixture.displayedAtbats,
+                pitchers: [pitcher],
+                modelContext: store.context,
+                save: {
+                    saveCount += 1
+                    try store.context.save()
+                }
+            )
+        }
+
+        #expect(submitCount == 1)
+        #expect(saveCount == 1)
+        #expect(presentation.outcome == .accepted)
+        #expect(presentation.refreshedState?.gameIdentity == fixture.game.ident)
+        #expect(presentation.refreshedState?.currentBatter?.identity == fixture.visitingFirst.player.identifier)
+        #expect(presentation.refreshedState?.battingOrderPosition == 1)
+        #expect(presentation.refreshedState?.latestScoringSequence == 2)
+        #expect(presentation.refreshedState?.currentScorecardColumn == 2)
+        #expect(presentation.refreshedState?.outs == 1)
+        #expect(presentation.refreshedState?.currentOrPendingLegacyAtbat == nil)
+        #expect(review == nil)
+        #expect(fixture.visitingFirst.result == "Ground Out")
+        #expect(fixture.visitingFirst.outs == 1)
+        #expect(AtbatSnapshot(fixture.visitingSecond).identity == beforeUnrelated.identity)
+        #expect(AtbatSnapshot(fixture.visitingSecond).result == beforeUnrelated.result)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 0)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
 }
 
 @MainActor

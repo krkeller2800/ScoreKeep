@@ -133,6 +133,26 @@ struct LiveScoringShellPresentation {
         let statusAccessibilityLabel: String?
     }
 
+    enum CorrectionEntryDisposition: Equatable {
+        case available
+        case noTarget
+        case alreadyReviewing
+        case targetMissing
+        case wrongGameTarget
+        case unsupportedTarget
+        case unsupportedReplacement
+    }
+
+    struct CorrectionEntryPresentation: Equatable {
+        let disposition: CorrectionEntryDisposition
+        let reviewState: CorrectionReviewState?
+        let message: String?
+
+        var shouldPresentReview: Bool {
+            disposition == .available && reviewState != nil
+        }
+    }
+
     typealias CorrectionSubmitAction = (
         LiveScoringWorkflowCoordinator.LegacyCorrectionTarget,
         LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement
@@ -262,6 +282,70 @@ struct LiveScoringShellPresentation {
             outcome: .pending,
             message: nil,
             refreshedState: nil
+        )
+    }
+
+    func prepareCorrectionEntry(
+        targetAtbat: Atbat?,
+        game: Game,
+        replacement: LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement?,
+        supportedLegacyResults: [String],
+        currentReview: CorrectionReviewState?
+    ) -> CorrectionEntryPresentation {
+        guard currentReview == nil else {
+            return CorrectionEntryPresentation(
+                disposition: .alreadyReviewing,
+                reviewState: nil,
+                message: "A correction is already being reviewed."
+            )
+        }
+        guard let targetAtbat else {
+            return CorrectionEntryPresentation(
+                disposition: .noTarget,
+                reviewState: nil,
+                message: "Select a scored at-bat before correcting."
+            )
+        }
+        guard targetAtbat.game.ident == game.ident else {
+            return CorrectionEntryPresentation(
+                disposition: .wrongGameTarget,
+                reviewState: nil,
+                message: "The correction target belongs to a different game."
+            )
+        }
+        guard game.atbats.contains(where: { $0.ident == targetAtbat.ident }) else {
+            return CorrectionEntryPresentation(
+                disposition: .targetMissing,
+                reviewState: nil,
+                message: "The correction target is no longer available."
+            )
+        }
+        guard targetAtbat.result != "Result",
+              supportedLegacyResults.contains(targetAtbat.result) else {
+            return CorrectionEntryPresentation(
+                disposition: .unsupportedTarget,
+                reviewState: nil,
+                message: "This at-bat is not a supported correction target."
+            )
+        }
+
+        guard let review = prepareCorrectionReview(
+            original: LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(targetAtbat),
+            batterName: targetAtbat.player.name,
+            replacement: replacement,
+            supportedLegacyResults: supportedLegacyResults
+        ) else {
+            return CorrectionEntryPresentation(
+                disposition: .unsupportedReplacement,
+                reviewState: nil,
+                message: "This correction is not supported."
+            )
+        }
+
+        return CorrectionEntryPresentation(
+            disposition: .available,
+            reviewState: review,
+            message: nil
         )
     }
 

@@ -245,6 +245,120 @@ struct LiveScoringShellPresentationTests {
         #expect(unsupported == nil)
     }
 
+    @Test("Task 7.9 correction entry is available only for a stable supported target")
+    func task79CorrectionEntryIsAvailableOnlyForStableSupportedTarget() {
+        let presenter = LiveScoringShellPresentation()
+        let target = Fixture.scoredAtbat()
+        let game = target.game
+        let replacement = LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
+            result: "Double",
+            maxBase: "Second",
+            outAt: "Safe",
+            rbis: 1,
+            stolenBases: 0,
+            earnedRun: true
+        )
+
+        let available = presenter.prepareCorrectionEntry(
+            targetAtbat: target,
+            game: game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+        let noTarget = presenter.prepareCorrectionEntry(
+            targetAtbat: nil,
+            game: game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+        let alreadyReviewing = presenter.prepareCorrectionEntry(
+            targetAtbat: target,
+            game: game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: available.reviewState
+        )
+
+        #expect(available.disposition == .available)
+        #expect(available.shouldPresentReview)
+        #expect(available.reviewState?.gameIdentity == game.ident)
+        #expect(available.reviewState?.atbatIdentity == target.ident)
+        #expect(available.reviewState?.target.expectedOriginal == LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(target))
+        #expect(available.reviewState?.replacement == replacement)
+        #expect(noTarget.disposition == .noTarget)
+        #expect(!noTarget.shouldPresentReview)
+        #expect(alreadyReviewing.disposition == .alreadyReviewing)
+        #expect(!alreadyReviewing.shouldPresentReview)
+        #expect(target.result == "Single")
+    }
+
+    @Test("Task 7.9 correction entry fails closed for deleted wrong-game and unsupported targets")
+    func task79CorrectionEntryFailsClosedForInvalidTargets() {
+        let presenter = LiveScoringShellPresentation()
+        let target = Fixture.scoredAtbat()
+        let game = target.game
+        let wrongGame = Game(date: "2026-07-18T12:00:00Z", location: "Wrong Game", highLights: "", hscore: 0, vscore: 0)
+        let replacement = LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
+            result: "Double",
+            maxBase: "Second",
+            outAt: "Safe",
+            rbis: 0,
+            stolenBases: 0,
+            earnedRun: true
+        )
+        let deletedTarget = Fixture.scoredAtbat()
+        deletedTarget.game.atbats = []
+        let placeholder = Fixture.atbat()
+        let unsupportedResult = Fixture.scoredAtbat()
+        unsupportedResult.result = "Unsupported Legacy Result"
+
+        let deleted = presenter.prepareCorrectionEntry(
+            targetAtbat: deletedTarget,
+            game: deletedTarget.game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+        let wrong = presenter.prepareCorrectionEntry(
+            targetAtbat: target,
+            game: wrongGame,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+        let unsupportedTarget = presenter.prepareCorrectionEntry(
+            targetAtbat: unsupportedResult,
+            game: unsupportedResult.game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+        let unsupportedReplacement = presenter.prepareCorrectionEntry(
+            targetAtbat: target,
+            game: game,
+            replacement: .init(result: "Unsupported Legacy Result", maxBase: "No Bases", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+        let unsupportedPlaceholder = presenter.prepareCorrectionEntry(
+            targetAtbat: placeholder,
+            game: placeholder.game,
+            replacement: replacement,
+            supportedLegacyResults: ["Single", "Double", "Ground Out"],
+            currentReview: nil
+        )
+
+        #expect(deleted.disposition == .targetMissing)
+        #expect(wrong.disposition == .wrongGameTarget)
+        #expect(unsupportedTarget.disposition == .unsupportedTarget)
+        #expect(unsupportedReplacement.disposition == .unsupportedReplacement)
+        #expect(unsupportedPlaceholder.disposition == .unsupportedTarget)
+        #expect([deleted, wrong, unsupportedTarget, unsupportedReplacement, unsupportedPlaceholder].allSatisfy { !$0.shouldPresentReview })
+        #expect(target.result == "Single")
+    }
+
     @Test("correction review confirmation submits stable identities once and clears accepted review")
     func correctionReviewConfirmationSubmitsStableIdentitiesOnceAndClearsAcceptedReview() {
         let presenter = LiveScoringShellPresentation()
@@ -397,7 +511,9 @@ private enum Fixture {
         let team = Team(name: "Visitors", coach: "", details: "")
         let player = Player(name: "Visitor One", number: "1", position: "SS", batDir: "R", batOrder: 1, team: team)
         let game = Game(date: "2026-07-18T12:00:00Z", location: "Task 6.9 Field", highLights: "", hscore: 0, vscore: 0, vteam: team, hteam: Team(name: "Home", coach: "", details: ""))
-        return Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        let atbat = Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        game.atbats = [atbat]
+        return atbat
     }
 
     static func scoredAtbat() -> Atbat {

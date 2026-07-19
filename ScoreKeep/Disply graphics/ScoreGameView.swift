@@ -27,11 +27,20 @@ struct ScoreGameView: View {
     @State private var pendingStolenBases: Int = 0
     @State private var pendingEarnedRun: Bool = true
     @State private var pendingPlayRecord: String = ""
+    @State private var correctionResult: String = "Result"
+    @State private var correctionMaxBase: String = "No Bases"
+    @State private var correctionOutAt: String = "Safe"
+    @State private var correctionRBIs: Int = 0
+    @State private var correctionStolenBases: Int = 0
+    @State private var correctionEarnedRun: Bool = true
+    @State private var correctionPlayRecord: String = ""
 
     let enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation?
     let submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)?
     let prepareAdditionalChoiceScoringAction: ((String) -> LiveScoringShellPresentation.AdditionalChoicePresentation)?
     let submitAdditionalChoiceScoringAction: ((LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice, LiveScoringWorkflowCoordinator.AdditionalScoringChoices) -> LiveScoringShellPresentation.SubmissionPresentation)?
+    let isCorrectionEntry: Bool
+    let submitCorrectionEntry: ((LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement) -> Void)?
     let com:Common = Common()
 
     init(
@@ -40,7 +49,9 @@ struct ScoreGameView: View {
         enabledActionPresentation: LiveScoringShellPresentation.EnabledActionSetPresentation? = nil,
         submitScoringAction: ((String) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil,
         prepareAdditionalChoiceScoringAction: ((String) -> LiveScoringShellPresentation.AdditionalChoicePresentation)? = nil,
-        submitAdditionalChoiceScoringAction: ((LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice, LiveScoringWorkflowCoordinator.AdditionalScoringChoices) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil
+        submitAdditionalChoiceScoringAction: ((LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice, LiveScoringWorkflowCoordinator.AdditionalScoringChoices) -> LiveScoringShellPresentation.SubmissionPresentation)? = nil,
+        isCorrectionEntry: Bool = false,
+        submitCorrectionEntry: ((LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement) -> Void)? = nil
     ) {
         _atbat = atbat
         _showingScoring = showingScoring
@@ -48,6 +59,8 @@ struct ScoreGameView: View {
         self.submitScoringAction = submitScoringAction
         self.prepareAdditionalChoiceScoringAction = prepareAdditionalChoiceScoringAction
         self.submitAdditionalChoiceScoringAction = submitAdditionalChoiceScoringAction
+        self.isCorrectionEntry = isCorrectionEntry
+        self.submitCorrectionEntry = submitCorrectionEntry
     }
     
     var body: some View {
@@ -56,7 +69,10 @@ struct ScoreGameView: View {
                 VStack(spacing:0) {
                     HStack(spacing:0) {
                         Button("Done", action: {
-                            if let pendingAdditionalChoice {
+                            if isCorrectionEntry {
+                                submitCorrectionDraft()
+                                showingScoring.toggle()
+                            } else if let pendingAdditionalChoice {
                                 let presentation = finalizeAdditionalChoice(pendingAdditionalChoice)
                                 if presentation?.shouldDismissScoringSheet == true {
                                     showingScoring.toggle()
@@ -64,7 +80,7 @@ struct ScoreGameView: View {
                             } else {
                                 showingScoring.toggle()
                             }
-                            if atbat.result == "Result" && pendingAdditionalChoice == nil {
+                            if atbat.result == "Result" && pendingAdditionalChoice == nil && !isCorrectionEntry {
                                 if atbat.col != 1 {
                                     atbat.game.atbats.removeAll() {$0 == atbat}
                                     delAtbat = true
@@ -203,45 +219,51 @@ struct ScoreGameView: View {
                     }
                     .padding(.leading, 0)
                     .onChange(of: atbat.result) {
-                        if atbat.result == "Dropped 3rd Strike" || atbat.result == "Error" {
+                        let result = displayedResult
+                        if result == "Dropped 3rd Strike" || result == "Error" {
                             earnedRun = false
                         }
-                        if !com.recOuts.contains(atbat.result) || atbat.outAt != "Safe"  {
+                        if !com.recOuts.contains(result) || displayedOutAt != "Safe"  {
                             recPlay = false
                         } else {
                             recPlay = true
                         }
                     }
-                    .onChange(of: atbat.outAt) {
-                        if atbat.outAt != "Safe" {
+                    .onChange(of: displayedOutAt) {
+                        if displayedOutAt != "Safe" {
                             recPlay = true
                         } else {
                             if pendingAdditionalChoice == nil {
-                                atbat.playRec = ""
+                                clearPlayRecord()
                             }
                             recPlay = false
-                            showingScoring.toggle()
+                            if !isCorrectionEntry {
+                                showingScoring.toggle()
+                            }
                         }
-                        setEndOfInning()
+                        if !isCorrectionEntry {
+                            setEndOfInning()
+                        }
                     }
                     .onAppear {
-                        if atbat.playRec != "" || com.recOuts.contains(atbat.result) || atbat.outAt != "Safe" {
+                        prepareCorrectionDraftIfNeeded()
+                        if currentPlayRecord != "" || com.recOuts.contains(displayedResult) || displayedOutAt != "Safe" {
                             recPlay = true
                         }
-                        if com.onresults.contains(atbat.result) {
-                            onBase = atbat.result
+                        if com.onresults.contains(displayedResult) {
+                            onBase = displayedResult
                             batOut = "Result"
-                        } else if com.outresults.contains(atbat.result) {
-                            batOut = atbat.result
+                        } else if com.outresults.contains(displayedResult) {
+                            batOut = displayedResult
                             onBase = "Result"
                         } else {
                             onBase = "Result"
                             batOut = "Result"
                         }
-                        earnedRun = atbat.earnedRun
+                        earnedRun = currentEarnedRun
                     }
                     .onDisappear {
-                        if pendingAdditionalChoice == nil {
+                        if pendingAdditionalChoice == nil && !isCorrectionEntry {
                             setEndOfInning()
                         }
                         if delAtbat {
@@ -372,11 +394,15 @@ struct ScoreGameView: View {
     }
 
     private var displayedResult: String {
-        pendingAdditionalChoice?.legacyResult ?? atbat.result
+        pendingAdditionalChoice?.legacyResult ?? (isCorrectionEntry ? correctionResult : atbat.result)
+    }
+
+    private var displayedOutAt: String {
+        pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionOutAt : atbat.outAt) : pendingOutAt
     }
 
     private var currentEarnedRun: Bool {
-        pendingAdditionalChoice == nil ? earnedRun : pendingEarnedRun
+        pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionEarnedRun : earnedRun) : pendingEarnedRun
     }
 
     private var earnedRunText: String {
@@ -384,14 +410,16 @@ struct ScoreGameView: View {
     }
 
     private var currentPlayRecord: String {
-        pendingAdditionalChoice == nil ? atbat.playRec : pendingPlayRecord
+        pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionPlayRecord : atbat.playRec) : pendingPlayRecord
     }
 
     private var rbiBinding: Binding<Int> {
         Binding(
-            get: { pendingAdditionalChoice == nil ? atbat.rbis : pendingRBIs },
+            get: { pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionRBIs : atbat.rbis) : pendingRBIs },
             set: { value in
-                if pendingAdditionalChoice == nil {
+                if isCorrectionEntry && pendingAdditionalChoice == nil {
+                    correctionRBIs = value
+                } else if pendingAdditionalChoice == nil {
                     atbat.rbis = value
                 } else {
                     pendingRBIs = value
@@ -402,9 +430,11 @@ struct ScoreGameView: View {
 
     private var stolenBaseBinding: Binding<Int> {
         Binding(
-            get: { pendingAdditionalChoice == nil ? atbat.stolenBases : pendingStolenBases },
+            get: { pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionStolenBases : atbat.stolenBases) : pendingStolenBases },
             set: { value in
-                if pendingAdditionalChoice == nil {
+                if isCorrectionEntry && pendingAdditionalChoice == nil {
+                    correctionStolenBases = value
+                } else if pendingAdditionalChoice == nil {
                     atbat.stolenBases = value
                 } else {
                     pendingStolenBases = value
@@ -415,9 +445,11 @@ struct ScoreGameView: View {
 
     private var maxBaseBinding: Binding<String> {
         Binding(
-            get: { pendingAdditionalChoice == nil ? atbat.maxbase : pendingMaxBase },
+            get: { pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionMaxBase : atbat.maxbase) : pendingMaxBase },
             set: { value in
-                if pendingAdditionalChoice == nil {
+                if isCorrectionEntry && pendingAdditionalChoice == nil {
+                    correctionMaxBase = value
+                } else if pendingAdditionalChoice == nil {
                     atbat.maxbase = value
                 } else {
                     pendingMaxBase = value
@@ -428,9 +460,14 @@ struct ScoreGameView: View {
 
     private var outAtBinding: Binding<String> {
         Binding(
-            get: { pendingAdditionalChoice == nil ? atbat.outAt : pendingOutAt },
+            get: { pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionOutAt : atbat.outAt) : pendingOutAt },
             set: { value in
-                if pendingAdditionalChoice == nil {
+                if isCorrectionEntry && pendingAdditionalChoice == nil {
+                    correctionOutAt = value
+                    if value == "Safe" {
+                        correctionPlayRecord = ""
+                    }
+                } else if pendingAdditionalChoice == nil {
                     atbat.outAt = value
                 } else {
                     pendingOutAt = value
@@ -447,9 +484,11 @@ struct ScoreGameView: View {
 
     private var playRecordBinding: Binding<String> {
         Binding(
-            get: { pendingAdditionalChoice == nil ? atbat.playRec : pendingPlayRecord },
+            get: { pendingAdditionalChoice == nil ? (isCorrectionEntry ? correctionPlayRecord : atbat.playRec) : pendingPlayRecord },
             set: { value in
-                if pendingAdditionalChoice == nil {
+                if isCorrectionEntry && pendingAdditionalChoice == nil {
+                    correctionPlayRecord = value
+                } else if pendingAdditionalChoice == nil {
                     atbat.playRec = value
                 } else {
                     pendingPlayRecord = value
@@ -459,6 +498,10 @@ struct ScoreGameView: View {
     }
 
     private func selectResult(_ result: String) {
+        if isCorrectionEntry {
+            correctionResult = result
+            return
+        }
         if requiresAdditionalChoice(result), let prepareAdditionalChoiceScoringAction {
             let presentation = prepareAdditionalChoiceScoringAction(result)
             if let pending = presentation.pendingChoice, presentation.shouldPresentAdditionalChoices {
@@ -515,7 +558,10 @@ struct ScoreGameView: View {
     }
 
     private func toggleEarnedRun() {
-        if pendingAdditionalChoice == nil {
+        if isCorrectionEntry && pendingAdditionalChoice == nil {
+            correctionEarnedRun.toggle()
+            earnedRun = correctionEarnedRun
+        } else if pendingAdditionalChoice == nil {
             earnedRun.toggle()
             atbat.earnedRun = earnedRun
         } else {
@@ -525,7 +571,9 @@ struct ScoreGameView: View {
     }
 
     private func clearPlayRecord() {
-        if pendingAdditionalChoice == nil {
+        if isCorrectionEntry && pendingAdditionalChoice == nil {
+            correctionPlayRecord = ""
+        } else if pendingAdditionalChoice == nil {
             atbat.playRec = ""
         } else {
             pendingPlayRecord = ""
@@ -547,6 +595,31 @@ struct ScoreGameView: View {
 
         atbat.result = result
         return nil
+    }
+
+    private func prepareCorrectionDraftIfNeeded() {
+        guard isCorrectionEntry else { return }
+        correctionResult = atbat.result
+        correctionMaxBase = atbat.maxbase
+        correctionOutAt = atbat.outAt
+        correctionRBIs = atbat.rbis
+        correctionStolenBases = atbat.stolenBases
+        correctionEarnedRun = atbat.earnedRun
+        correctionPlayRecord = atbat.playRec
+    }
+
+    private func submitCorrectionDraft() {
+        submitCorrectionEntry?(
+            LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
+                result: correctionResult,
+                maxBase: correctionMaxBase,
+                outAt: correctionOutAt,
+                rbis: correctionRBIs,
+                stolenBases: correctionStolenBases,
+                earnedRun: correctionEarnedRun,
+                playRecord: correctionPlayRecord
+            )
+        )
     }
 
     private func resultPresentation(for result: String) -> LiveScoringShellPresentation.EnabledActionPresentation {
