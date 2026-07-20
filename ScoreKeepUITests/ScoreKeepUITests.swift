@@ -51,14 +51,21 @@ final class ScoreKeepUITests: XCTestCase {
 
         let doneButton = app.buttons["submit_scoring_action"]
         XCTAssertTrue(doneButton.waitForExistence(timeout: 2.0), "Done button should exist")
+        XCTAssertTrue(doneButton.isHittable, "Done button should be hittable at Accessibility XXXL")
 
         let doneFrame = doneButton.frame
-        XCTAssertFalse(doneFrame.isEmpty, "Done button frame should be nonempty (hittability defect repair belongs to Task 7.14)")
+        XCTAssertFalse(doneFrame.isEmpty, "Done button frame should be nonempty")
+
+        let windowFrame = app.windows.firstMatch.frame
+        XCTAssertTrue(windowFrame.contains(doneFrame), "Done button should be completely inside the app window")
 
         let cancelButton = app.buttons["cancel_scoring_action"]
         XCTAssertTrue(cancelButton.exists, "Cancel button should exist")
+        XCTAssertTrue(cancelButton.isHittable, "Cancel button should be hittable at Accessibility XXXL")
 
-        // Optional scroll assertions can be done here.
+        let cancelFrame = cancelButton.frame
+        XCTAssertFalse(doneFrame.intersects(cancelFrame), "Done and Cancel buttons should not intersect")
+        XCTAssertTrue(windowFrame.contains(cancelFrame), "Cancel button should be completely inside the app window")
     }
 
     @MainActor

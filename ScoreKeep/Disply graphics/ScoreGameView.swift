@@ -88,7 +88,7 @@ struct ScoreGameView: View {
                             }
                         })
                         .accessibilityIdentifier("submit_scoring_action")
-                        .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.green.opacity(0.5))
+                        .frame(maxWidth: 120,minHeight: 30, alignment:.center).background(.green.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
                         Spacer()
                         Text("\(atbat.player.team?.name ?? "") Batting").font(.title2)
@@ -106,7 +106,7 @@ struct ScoreGameView: View {
                             }
                         })
                         .accessibilityIdentifier("cancel_scoring_action")
-                        .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.red.opacity(0.5))
+                        .frame(maxWidth: 120,minHeight: 30, alignment:.center).background(.red.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
 
                     }
