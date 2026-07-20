@@ -24,6 +24,13 @@
         "identifier" : "CB643B582D85E59E00F30B87",
         "name" : "ScoreKeepTests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:ScoreKeep.xcodeproj",
+        "identifier" : "CB643B662D85E59E00F30B87",
+        "name" : "ScoreKeepUITests"
+      }
     }
   ],
   "version" : 1

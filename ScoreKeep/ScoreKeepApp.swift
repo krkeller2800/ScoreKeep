@@ -29,6 +29,8 @@ struct ScoreKeepApp: App {
                 ScoreKeepUnitTestHostIsolationView()
             case .schemaDiagnostic:
                 ScoreKeepSchemaDiagnosticView()
+            case .uiTestDynamicTypeSeam:
+                ScoreKeepUITestDynamicTypeSeamView()
             case .production:
                 ScoreKeepProductionStartupHost {
                     Group {

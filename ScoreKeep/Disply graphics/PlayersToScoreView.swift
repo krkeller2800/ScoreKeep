@@ -107,6 +107,7 @@ struct PlayersToScoreView: View {
                                                         .disabled(!scorecardCellPresentation(column: ind, atbat: atbat).isEnabled)
                                                         .accessibilityLabel(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityLabel)
                                                         .accessibilityHint(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityHint ?? "")
+                                                        .accessibilityIdentifier("scorecard_cell_\(atbat.batOrder)_\(ind)")
                                                     }
                                                 }
                                                 let mCol = Double(gWidth) - 150 - (Double(maxCol+1) * gridSz)
@@ -137,6 +138,7 @@ struct PlayersToScoreView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
+                .accessibilityIdentifier("live_scoring_root")
                 .onAppear() {
                     lAtbats = atbats
                 }
