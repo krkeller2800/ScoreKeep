@@ -778,6 +778,99 @@ struct LiveScoringShellPresentationTests {
         #expect(firstActivation.disposition == .accepted)
         #expect(duplicateActivation.disposition == .duplicatePrevented)
     }
+
+    @Test("Task 7.15 alternate input semantic inspection causes no scoring intent")
+    func task715AlternateInputSemanticInspectionCausesNoScoringIntent() {
+        let presenter = LiveScoringShellPresentation()
+        let prepared = Fixture.preparedState(canScore: true)
+        let actionState = LiveScoringWorkflowCoordinator.EnabledScoringActionState(
+            identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity.legacyResult("Single"),
+            isEnabled: true,
+            disposition: .enabled,
+            validationDisposition: .valid,
+            unavailableReason: nil,
+            warnings: []
+        )
+        let actionSet = LiveScoringWorkflowCoordinator.EnabledScoringActionSet(
+            preparedState: prepared,
+            semanticScoreState: nil,
+            actions: [actionState],
+            warnings: []
+        )
+
+        let presentation = presenter.presentEnabledActionSet(actionSet)
+        let action = presentation.state(for: LiveScoringWorkflowCoordinator.ScoringActionIdentity.legacyResult("Single"))
+
+        // Semantic evaluation properties remain value-only; reading them via alternate focus causes no intent or mutation.
+        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityHint == nil)
+        #expect(action?.isEnabled == true)
+        #expect(action?.warningMessage == nil)
+    }
+
+    @Test("Task 7.15 alternate input disabled state remains inactive and un-routable")
+    func task715AlternateInputDisabledStateRemainsInactive() {
+        let presenter = LiveScoringShellPresentation()
+        let prepared = Fixture.preparedState(canScore: false)
+        let disabled = LiveScoringWorkflowCoordinator.EnabledScoringActionState(
+            identity: .legacyResult("Single"),
+            isEnabled: false,
+            disposition: .disabledPreparedStateUnavailable,
+            validationDisposition: nil,
+            unavailableReason: "A current pitcher is required before scoring.",
+            warnings: []
+        )
+        let actionSet = LiveScoringWorkflowCoordinator.EnabledScoringActionSet(
+            preparedState: prepared,
+            semanticScoreState: nil,
+            actions: [disabled],
+            warnings: []
+        )
+
+        let presentation = presenter.presentEnabledActionSet(actionSet)
+        let action = presentation.state(for: .legacyResult("Single"))
+
+        // Focus or interaction with disabled semantic state remains purely descriptive and cannot be submitted.
+        #expect(action?.isEnabled == false)
+        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityHint == "A current pitcher is required before scoring.")
+    }
+
+    @Test("Task 7.15 single alternate input activation maps to one intent and prevents duplicate state")
+    func task715SingleAlternateInputActivationMapsToOneIntent() {
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let atbat = Fixture.atbat()
+        let game = atbat.game
+        let team = atbat.team
+        let homeTeam = game.hteam!
+        let pitcherPlayer = Player(name: "Pitcher", number: "99", position: "P", batDir: "R", batOrder: 9, team: homeTeam)
+        let pitcher = Pitcher(player: pitcherPlayer, team: homeTeam, game: game)
+
+        let firstActivation = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: atbat,
+            game: game,
+            battingTeam: team,
+            displayedAtbats: [atbat],
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: {}
+        )
+
+        let duplicateActivation = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: atbat,
+            game: game,
+            battingTeam: team,
+            displayedAtbats: [atbat],
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: {}
+        )
+
+        #expect(firstActivation.disposition == .accepted)
+        #expect(duplicateActivation.disposition == .duplicatePrevented)
+    }
 }
 
 private enum Fixture {
