@@ -188,6 +188,76 @@ struct CanonicalLongGameReplayStageDTests {
     }
 }
 
+struct CanonicalLongGameReplayStageETests {
+    @Test func seededLegacyFixtureContradictionVerification() throws {
+        let url = try StableIdentityAndOrderingTestSupport.repositoryURL("ScoreKeep/Seed/seededGame.ScoreKeep_Games")
+        let data = try Data(contentsOf: url)
+        let game = try JSONDecoder().decode(ShareGame.self, from: data)
+        let result = LegacyCanonicalScoringComparisonSupport.compare(game: game, scenarioIdentity: "seededGame")
+        let repeated = LegacyCanonicalScoringComparisonSupport.compare(game: game, scenarioIdentity: "seededGame")
+
+        #expect(result.overallOutcome == .contradictoryComparison || result.overallOutcome == .requiresReview || result.overallOutcome == .unsafeComparison)
+
+        let duplicateSequenceDifference = result.differences.first { $0.code == "comparison.duplicateSequence" }
+        #expect(duplicateSequenceDifference != nil)
+
+        let mapping = LegacyCanonicalVerificationMapper.mapGame(game, sourceLocation: "seededGame")
+        let events = game.atbats.enumerated().map { index, atbat in
+            let snapshot = LegacyAtbatEvidenceSnapshot(atbat: atbat, fallbackGameIdentity: .valid(game.id), sourceIndex: index, sourceLocation: "seededGame.atbat")
+            let mapped = LegacyCanonicalVerificationMapper.mapScoringEvent(snapshot, source: .compatibilityTransport)
+            let base = mapped.canonicalValue
+            return CanonicalScoringEventEvidence(
+                eventIdentity: base?.eventIdentity ?? .valid(atbat.id),
+                gameIdentity: .valid(game.id),
+                orderingEvidence: base?.orderingEvidence ?? [.knownSequence(OrderEvidence(kind: .eventSequence, value: atbat.seq, sourceIndex: index))],
+                inningContext: base?.inningContext,
+                teamSide: atbat.team.id == game.vteam.id ? .visiting : .home,
+                participants: base?.participants ?? ScoringEventParticipantEvidence(batter: nil, unresolvedRelationships: ["batter"]),
+                resultEvidence: base?.resultEvidence ?? ScoringEventResultEvidence(rawValue: atbat.result),
+                outsEvidence: base?.outsEvidence,
+                batterAdvancement: base?.batterAdvancement,
+                runnerAdvancement: base?.runnerAdvancement ?? [],
+                rbiEvidence: base?.rbiEvidence ?? .count(atbat.rbis),
+                earnedRunEvidence: base?.earnedRunEvidence ?? .flag(atbat.earnedRun),
+                sacrificeEvidence: base?.sacrificeEvidence ?? .count(atbat.sacFly + atbat.sacBunt),
+                stolenBaseEvidence: base?.stolenBaseEvidence ?? .count(atbat.stolenBases),
+                endOfHalfEvidence: base?.endOfHalfEvidence ?? atbat.endOfInning,
+                historicalDisplayEvidence: base?.historicalDisplayEvidence ?? [atbat.result],
+                unsupportedRawLegacyEvidence: mapped.unsupportedRawEvidence,
+                source: .compatibilityTransport
+            )
+        }
+
+        let replayInput = CanonicalReplayInput(
+            game: mapping.game.canonicalValue ?? CanonicalGameStatePrimitivesTestSupport.importedGame(game),
+            homeTeamIdentity: .valid(game.hteam.id),
+            visitingTeamIdentity: .valid(game.vteam.id),
+            initialBattingSide: .visiting,
+            initialInning: CanonicalHalfInning(number: .known(1), half: .known(.top), expectedInnings: .known(game.numInnings)),
+            initialOuts: CanonicalOutsState(outs: .known(0)),
+            pitchers: [],
+            recordedEvents: events,
+            validationFindings: mapping.validation.findings.filter { $0.futureWriteMustStop == false },
+            storedScore: CanonicalProjectedScore(home: game.hscore, visiting: game.vscore)
+        )
+
+        let replay = CanonicalGameReplay.replay(replayInput)
+        let repeatedReplay = CanonicalGameReplay.replay(replayInput)
+
+        let sequenceCounts = Dictionary(grouping: events.compactMap { ev -> Int? in
+            if case let .knownSequence(order) = ev.orderingEvidence.first { return order.value }
+            return nil
+        }, by: { $0 }).mapValues { $0.count }
+
+        #expect(sequenceCounts.values.contains { $0 > 1 })
+        #expect(replay.disposition == .contradictory)
+        #expect(replay.finalState.score.home != 4 || replay.finalState.score.visiting != 3 || replay.disposition != .complete)
+        #expect(replay.disposition == repeatedReplay.disposition)
+        #expect(replay.finalState == repeatedReplay.finalState)
+        #expect(result == repeated)
+    }
+}
+
 struct LongGameReplayScenario: Hashable, Sendable {
     let input: CanonicalReplayInput
     let events: [CanonicalScoringEventEvidence]
