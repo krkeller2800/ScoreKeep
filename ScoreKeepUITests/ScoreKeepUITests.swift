@@ -69,6 +69,49 @@ final class ScoreKeepUITests: XCTestCase {
     }
 
     @MainActor
+    func testIPhoneLayoutSeam() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ScoreKeepUITestDynamicTypeSeam")
+        app.launch()
+
+        // Ensure portrait orientation
+        XCUIDevice.shared.orientation = .portrait
+
+        let root = app.descendants(matching: .any).matching(identifier: "live_scoring_root").firstMatch
+        XCTAssertTrue(root.waitForExistence(timeout: 5.0), "Live scoring root should exist")
+
+        let cell = app.buttons["scorecard_cell_1_1"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 2.0), "Scorecard cell should exist")
+        XCTAssertTrue(cell.isHittable, "Scorecard cell should be hittable in portrait")
+
+        // Check for multiple cells with the same ID, should be exactly 1
+        XCTAssertEqual(app.buttons.matching(identifier: "scorecard_cell_1_1").count, 1, "Should not have duplicate scoring activations")
+
+        // Tap cell to bring up scoring sheet
+        cell.tap()
+
+        let doneButton = app.buttons["submit_scoring_action"]
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 2.0), "Done button should exist")
+        XCTAssertTrue(doneButton.isHittable, "Done button should be hittable on iPhone layout")
+        XCTAssertEqual(app.buttons.matching(identifier: "submit_scoring_action").count, 1, "Should not have duplicate submit controls")
+
+        let doneFrame = doneButton.frame
+        XCTAssertFalse(doneFrame.isEmpty, "Done button frame should be nonempty")
+
+        let windowFrame = app.windows.firstMatch.frame
+        XCTAssertTrue(windowFrame.contains(doneFrame), "Done button should be completely inside the app window")
+
+        let cancelButton = app.buttons["cancel_scoring_action"]
+        XCTAssertTrue(cancelButton.exists, "Cancel button should exist")
+        XCTAssertTrue(cancelButton.isHittable, "Cancel button should be hittable on iPhone layout")
+        XCTAssertEqual(app.buttons.matching(identifier: "cancel_scoring_action").count, 1, "Should not have duplicate cancel controls")
+
+        let cancelFrame = cancelButton.frame
+        XCTAssertFalse(doneFrame.intersects(cancelFrame), "Done and Cancel buttons should not overlap")
+        XCTAssertTrue(windowFrame.contains(cancelFrame), "Cancel button should be completely inside the app window")
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
             // This measures how long it takes to launch your application.
