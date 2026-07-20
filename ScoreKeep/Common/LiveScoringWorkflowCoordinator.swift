@@ -3,6 +3,8 @@ import SwiftData
 
 @MainActor
 struct LiveScoringWorkflowCoordinator {
+    var launchMode: ScoreKeepLaunchMode = ScoreKeepLaunchIsolation.mode()
+
     enum Disposition: Equatable {
         case success
         case noChange
@@ -1052,6 +1054,17 @@ struct LiveScoringWorkflowCoordinator {
             return validation.result
         }
         let actionState = validation.result.actionState
+
+        guard launchMode != .internalRouting else {
+            return ScoringSubmissionResult(
+                disposition: .unsupportedAction,
+                atbat: targetAtbat,
+                actionState: actionState,
+                message: "Internal routing is observation-only and does not mutate Legacy state.",
+                operationIdentity: operationIdentity,
+                operationEvidenceResult: nil
+            )
+        }
 
         if let operationIdentity, let operationEvidenceAdapter, let modelContext {
             let previous = LegacyAtbatSubmissionSnapshot(targetAtbat)

@@ -31,7 +31,7 @@ struct ScoreKeepApp: App {
                 ScoreKeepSchemaDiagnosticView()
             case .uiTestDynamicTypeSeam:
                 ScoreKeepUITestDynamicTypeSeamView()
-            case .production:
+            case .production, .internalRouting:
                 ScoreKeepProductionStartupHost {
                     Group {
                         if UIDevice.type == "iPad" {

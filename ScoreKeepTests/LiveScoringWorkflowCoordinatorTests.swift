@@ -3443,3 +3443,128 @@ private func fetchRequiredAtbat(_ identity: UUID, in context: ModelContext) thro
     }
     return atbat
 }
+
+struct Task719Suite {
+    @Test("Task 7.19 Internal Routing is disableable and cannot dual write")
+    @MainActor
+    func task719InternalRoutingIsDisableableAndCannotDualWrite() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let presenter = LiveScoringShellPresentation()
+
+        let operation = UUID()
+
+        // 1. Internal route disabled: ordinary operation uses Legacy production path
+        var disabledCoordinator = LiveScoringWorkflowCoordinator()
+        disabledCoordinator.launchMode = .production
+
+        let prepared = disabledCoordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let semantic = disabledCoordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let actions = disabledCoordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
+
+        let submitResultLegacy = disabledCoordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+
+        #expect(submitResultLegacy.disposition == .accepted)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+
+        // 2. Internal route enabled through the authorized debug/internal gate only
+        // 3. No dual writer produces two accepted outcomes (one operation identity cannot be accepted by both routes)
+        var enabledCoordinator = LiveScoringWorkflowCoordinator()
+        enabledCoordinator.launchMode = .internalRouting
+
+        let internalOperation = UUID()
+        let submitResultInternal = enabledCoordinator.submitScoringAction(
+            legacyResult: "Double",
+            targetAtbat: fixture.visitingSecond,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Double"],
+            save: { try store.context.save() },
+            operationIdentity: internalOperation,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+
+        // Internal routing mode does not return .accepted
+        #expect(submitResultInternal.disposition == .unsupportedAction)
+
+        // Internal routing preserves pending review or returns the caller signal that prevents success dismissal
+        let presentationInternal = presenter.presentSubmissionResult(submitResultInternal, requiresAdditionalChoice: false)
+        #expect(presentationInternal.shouldDismissScoringSheet == false)
+
+        // Internal routing mode does not mutate Legacy scoring state
+        #expect(fixture.visitingSecond.result != "Double")
+
+        // Internal routing mode does not write Legacy operation evidence (still 1 from the first operation)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+
+        // Internal routing mode writes zero canonical records
+        #expect(try store.canonicalScoringRecordCount() == 0)
+
+        // Disabling internal routing restores normal Legacy acceptance
+        var restoredCoordinator = LiveScoringWorkflowCoordinator()
+        restoredCoordinator.launchMode = .production
+
+        // The same operation identity can be accepted once through Legacy after the non-accepted internal observation
+        let submitResultRestored = restoredCoordinator.submitScoringAction(
+            legacyResult: "Double",
+            targetAtbat: fixture.visitingSecond,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Double"],
+            save: { try store.context.save() },
+            operationIdentity: internalOperation,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+
+        #expect(submitResultRestored.disposition == .accepted)
+        #expect(fixture.visitingSecond.result == "Double")
+        #expect(try store.legacyScoringOperationEvidenceCount() == 2)
+
+        // A subsequent repeat through Legacy is duplicate-prevented
+        let duplicateSubmitRestored = restoredCoordinator.submitScoringAction(
+            legacyResult: "Double",
+            targetAtbat: fixture.visitingSecond,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Double"],
+            save: { try store.context.save() },
+            operationIdentity: internalOperation,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+
+        #expect(duplicateSubmitRestored.disposition == .duplicatePrevented)
+        #expect(try store.legacyScoringOperationEvidenceCount() == 2) // exactly one new record per operation
+
+        // 4. Normal startup does not activate the internal route
+        #expect(ScoreKeepLaunchIsolation.mode(arguments: [], commandLineArguments: [], environment: [:]) == .production)
+
+        if let url = store.container.configurations.first?.url {
+            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        }
+    }
+}

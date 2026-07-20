@@ -4,12 +4,14 @@ enum ScoreKeepLaunchMode: Hashable {
     case unitTestHostIsolation
     case schemaDiagnostic
     case uiTestDynamicTypeSeam
+    case internalRouting
     case production
 }
 
 enum ScoreKeepLaunchIsolation {
     static let schemaDiagnosticArgument = "-ScoreKeepSchemaDiagnostic"
     static let uiTestDynamicTypeSeamArgument = "-ScoreKeepUITestDynamicTypeSeam"
+    static let internalRoutingArgument = "-ScoreKeepInternalRouting"
 
     static func mode(
         arguments: [String] = ProcessInfo.processInfo.arguments,
@@ -24,6 +26,9 @@ enum ScoreKeepLaunchIsolation {
         }
         if arguments.contains(schemaDiagnosticArgument) || commandLineArguments.contains(schemaDiagnosticArgument) {
             return .schemaDiagnostic
+        }
+        if arguments.contains(internalRoutingArgument) || commandLineArguments.contains(internalRoutingArgument) {
+            return .internalRouting
         }
         return .production
     }
