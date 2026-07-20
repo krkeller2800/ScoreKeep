@@ -2499,6 +2499,168 @@ private func coordinatorSubmitOrdinary(
     )
 }
 
+    @Test("Task 7.12 sustained routed live-scoring session remains coherent and durable")
+    @MainActor
+    func task712SustainedRoutedLiveScoringSessionRemainsCoherentAndDurable() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Task712LongSession-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Store.sqlite")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
+        let configuration = ModelConfiguration("LiveScoringWorkflowCoordinatorTests-Task712", url: url)
+        var container: ModelContainer? = try ModelContainer(for: schema, configurations: [configuration])
+        var context: ModelContext? = ModelContext(container!)
+
+        let fixture = Fixture.insertGame(into: context!)
+        let homePitcher = Fixture.insertPitcher(for: fixture, into: context!)
+        let homeBatter = Player(name: "Home Batter", number: "10", position: "1B", batDir: "R", batOrder: 2, team: fixture.homeTeam)
+        context!.insert(homeBatter)
+        fixture.homeTeam.players.append(homeBatter)
+        fixture.game.players.append(homeBatter)
+
+        let incoming = Player(name: "Incoming Visitor", number: "12", position: "RF", batDir: "R", batOrder: 3, team: fixture.visitingTeam)
+        context!.insert(incoming)
+        fixture.visitingTeam.players.append(incoming)
+        fixture.game.players.append(incoming)
+        fixture.game.replaced.append(fixture.visitingSecond.player)
+        fixture.game.incomings.append(incoming)
+
+        let incomingAtbat = Atbat(game: fixture.game, team: fixture.visitingTeam, player: incoming, result: "Result", maxbase: "No Bases", batOrder: 3, outAt: "Safe", inning: 1, seq: 3, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        context!.insert(incomingAtbat)
+        fixture.game.atbats.append(incomingAtbat)
+
+        try context!.save()
+
+        var coordinator: LiveScoringWorkflowCoordinator? = LiveScoringWorkflowCoordinator()
+        var adapter: LegacyScoringOperationEvidenceAdapter? = LegacyScoringOperationEvidenceAdapter(container: container!)
+
+        var operationCount = 0
+        func nextIdentity() -> UUID {
+            operationCount += 1
+            return UUID(uuidString: String(format: "71200000-0000-0000-0000-%012d", operationCount))!
+        }
+
+        // 1. Scoring operations
+        let op1 = nextIdentity()
+        let act1 = coordinator!.submitScoringAction(
+            legacyResult: "Single", targetAtbat: fixture.visitingFirst, game: fixture.game, battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats, pitchers: [homePitcher], supportedLegacyResults: ["Single"],
+            save: { try context!.save() }, operationIdentity: op1, operationEvidenceAdapter: adapter!, modelContext: context!
+        )
+        #expect(act1.disposition == .accepted)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "No Bases"
+
+        let op2 = nextIdentity()
+        let act2 = coordinator!.submitScoringAction(
+            legacyResult: "Ground Out", targetAtbat: fixture.visitingSecond, game: fixture.game, battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats, pitchers: [homePitcher], supportedLegacyResults: ["Ground Out"],
+            save: { try context!.save() }, operationIdentity: op2, operationEvidenceAdapter: adapter!, modelContext: context!
+        )
+        #expect(act2.disposition == .accepted)
+        fixture.visitingSecond.result = "Ground Out"
+        fixture.visitingSecond.outs = 1
+
+        // Coordinator recreation
+        coordinator = nil
+        coordinator = LiveScoringWorkflowCoordinator()
+
+        // Substitution usage
+        let op3 = nextIdentity()
+        let act3 = coordinator!.submitScoringAction(
+            legacyResult: "Strikeout", targetAtbat: incomingAtbat, game: fixture.game, battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats, pitchers: [homePitcher], supportedLegacyResults: ["Strikeout"],
+            save: { try context!.save() }, operationIdentity: op3, operationEvidenceAdapter: adapter!, modelContext: context!
+        )
+        #expect(act3.disposition == .accepted)
+        incomingAtbat.result = "Strikeout"
+        incomingAtbat.outs = 1
+
+        // Background / Resume boundary (Container recreation)
+        context = nil
+        adapter = nil
+        container = nil
+        coordinator = nil
+
+        let resumedContainer = try ModelContainer(for: schema, configurations: [configuration])
+        let resumedContext = ModelContext(resumedContainer)
+        let resumedCoordinator = LiveScoringWorkflowCoordinator()
+        let resumedAdapter = LegacyScoringOperationEvidenceAdapter(container: resumedContainer)
+
+        let games = try resumedContext.fetch(FetchDescriptor<Game>())
+        let resumedGame = try #require(games.first)
+        let resumedHomePitcher = try #require(resumedGame.pitchers.first)
+
+        // Pitcher change
+        let visitingPitcher = Player(name: "Visiting Pitcher", number: "99", position: "P", batDir: "R", batOrder: 9, team: resumedGame.vteam!)
+        let newPitcher = Pitcher(player: visitingPitcher, team: resumedGame.vteam!, game: resumedGame, startInn: 1, endInn: 1)
+        resumedContext.insert(visitingPitcher)
+        resumedContext.insert(newPitcher)
+        resumedGame.vteam!.players.append(visitingPitcher)
+        resumedGame.players.append(visitingPitcher)
+        resumedGame.pitchers.append(newPitcher)
+
+        let homeAtbat = Atbat(game: resumedGame, team: resumedGame.hteam!, player: resumedGame.hteam!.players.first { $0.name == "Home Batter" }!, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 4, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        resumedContext.insert(homeAtbat)
+        resumedGame.atbats.append(homeAtbat)
+        try resumedContext.save()
+
+        let op4 = nextIdentity()
+        let act4 = resumedCoordinator.submitScoringAction(
+            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
+            displayedAtbats: resumedGame.atbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
+            save: { try resumedContext.save() }, operationIdentity: op4, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
+        )
+        #expect(act4.disposition == .accepted)
+
+        // Correction
+        let snapshot = LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(homeAtbat)
+        let correctionPlan = LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(result: "Double", maxBase: "Second", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true)
+        let correctionTarget = LiveScoringWorkflowCoordinator.LegacyCorrectionTarget(gameIdentity: resumedGame.ident, atbatIdentity: homeAtbat.ident, expectedOriginal: snapshot)
+        _ = nextIdentity()
+        let act5 = resumedCoordinator.submitCorrection(
+            target: correctionTarget,
+            replacement: correctionPlan,
+            displayedAtbats: resumedGame.atbats,
+            pitchers: [resumedHomePitcher, newPitcher],
+            modelContext: resumedContext,
+            save: { try resumedContext.save() }
+        )
+        #expect(act5.disposition == .accepted)
+
+        // Duplicate
+        let act6 = resumedCoordinator.submitScoringAction(
+            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
+            displayedAtbats: resumedGame.atbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
+            save: { try resumedContext.save() }, operationIdentity: op4, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
+        )
+        #expect(act6.disposition == .duplicatePrevented)
+
+        // Failure
+        let op7 = nextIdentity()
+        let act7 = resumedCoordinator.submitScoringAction(
+            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
+            displayedAtbats: resumedGame.atbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
+            save: { throw InjectedSaveError() }, operationIdentity: op7, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
+        )
+        #expect(act7.disposition == .persistenceFailed)
+
+        // Final durable-state verification
+        let evidence = try resumedContext.fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>())
+        #expect(evidence.count == 5)
+        #expect(evidence.filter { $0.disposition == "accepted" }.count == 5)
+        #expect(resumedGame.atbats.filter { $0.result != "Result" }.count == 4)
+
+        #expect(try resumedContext.fetchCount(FetchDescriptor<CanonicalGameHistoryRecord>()) == 0)
+        #expect(try resumedContext.fetchCount(FetchDescriptor<CanonicalScoringOperationEvidenceRecord>()) == 0)
+        #expect(try resumedContext.fetchCount(FetchDescriptor<CanonicalScoringEventEnvelopeRecord>()) == 0)
+        #expect(try resumedContext.fetchCount(FetchDescriptor<CanonicalScoringEventPayloadRecord>()) == 0)
+        #expect(try resumedContext.fetchCount(FetchDescriptor<CanonicalScoringCorrectionRecord>()) == 0)
+    }
+
+
+
 private struct Store {
     let container: ModelContainer
     let context: ModelContext
