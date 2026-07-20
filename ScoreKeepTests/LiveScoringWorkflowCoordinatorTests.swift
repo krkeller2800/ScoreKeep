@@ -2472,6 +2472,97 @@ struct LiveScoringWorkflowCoordinatorTests {
 
         try FileManager.default.removeItem(at: url.deletingLastPathComponent())
     }
+
+    // The task718 test has been moved out to a top level struct
+}
+
+struct Task718Suite {
+    @Test("Task 7.18 Legacy comparison matrix verifies routed behavior matches legacy evidence")
+    @MainActor
+    func task718LegacyComparisonMatrixVerifiesRoutedBehaviorMatchesLegacyEvidence() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let presenter = LiveScoringShellPresentation()
+
+        // 1. Prepared State & Presentation Enablement (Action Availability & Disabled conditions)
+        let prepared = coordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
+        let semantic = coordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
+        let actions = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single", "Ground Out"])
+        let presentation = presenter.presentEnabledActionSet(actions)
+
+        let singleAction = try #require(presentation.state(for: .legacyResult("Single")))
+        #expect(singleAction.isEnabled == true)
+        #expect(singleAction.accessibilityLabel == "Single")
+
+        let unsupportedActions = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Unsupported"])
+        let unsupportedAction = try #require(unsupportedActions.state(for: .legacyResult("Unsupported")))
+        #expect(unsupportedAction.isEnabled == false)
+        #expect(unsupportedAction.disposition == .disabledUnsupported)
+
+        // 2. Cancelation behavior
+        var review = presenter.prepareCorrectionReview(
+            original: LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(fixture.visitingFirst),
+            batterName: "Batter",
+            replacement: .init(result: "Double", maxBase: "Second", outAt: "Safe", rbis: 0, stolenBases: 0, earnedRun: true),
+            supportedLegacyResults: ["Single", "Double"]
+        )
+        let cancelResult = presenter.cancelCorrectionReview(&review)
+        #expect(cancelResult.outcome == .canceled)
+        #expect(cancelResult.shouldClearPendingReview == true)
+        #expect(review == nil)
+
+        // 3. Accepted scoring outcome, effects, navigation dismissal
+        let operation = UUID()
+        let submitResult = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+
+        #expect(submitResult.disposition == .accepted)
+        #expect(fixture.visitingFirst.result == "Single")
+        #expect(fixture.visitingFirst.maxbase == "No Bases")
+
+        let presentationSubmit = presenter.presentSubmissionResult(submitResult, requiresAdditionalChoice: false)
+        #expect(presentationSubmit.shouldDismissScoringSheet == true)
+
+        // 4. Duplicate prevention & idempotency
+        let duplicateSubmit = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single"],
+            save: { try store.context.save() },
+            operationIdentity: operation,
+            operationEvidenceAdapter: LegacyScoringOperationEvidenceAdapter(container: store.container),
+            modelContext: store.context
+        )
+        #expect(duplicateSubmit.disposition == .duplicatePrevented)
+        #expect(fixture.visitingFirst.result == "Single")
+
+        // 5. Persistence boundary, routing, absence of canonical writes
+        #expect(try store.legacyScoringOperationEvidenceCount() == 1)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+
+        if let url = store.container.configurations.first?.url {
+            try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        }
+    }
 }
 
 @MainActor
