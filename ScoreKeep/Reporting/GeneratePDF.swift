@@ -148,19 +148,20 @@ class PDFGenerator {
             otherTeamLWidth = 25 * uiImage.size.width / uiImage.size.height
             otherTeamTNail = uiImage.preparingThumbnail(of: CGSize(width: otherTeamLWidth, height: 25))!
         }
-        let totSize: CGFloat = theTeamLWidth + theTeamWidth.width + otherTeamLWidth + otherTeamWidth.width + atWidth.width
-        let theTeamString = NSAttributedString(string: "\(vTeam)", attributes: game.vteam == theTeam ? theTeamATTR : otherTeamATTR)
-        let otherTeamString = NSAttributedString(string: "\(hTeam)", attributes: game.hteam == theTeam ? theTeamATTR : otherTeamATTR)
+        let maxTeamWidth: CGFloat = 200.0
+        let actualVTeamWidth = min(theTeamWidth.width, maxTeamWidth)
+        let actualHTeamWidth = min(otherTeamWidth.width, maxTeamWidth)
+        let totSize: CGFloat = theTeamLWidth + actualVTeamWidth + otherTeamLWidth + actualHTeamWidth + atWidth.width
+        let startX = (840 - totSize) / 2
         let atString = NSAttributedString(string: " at ", attributes: atATTR)
 
-        theTeamTNail.draw(at: CGPoint(x: ((840 - totSize) / 2), y: 75))
-        theTeamString.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3, y: 75))
-        atString.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3 + theTeamWidth.width + 3, y: 75))
-        otherTeamTNail.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3 + theTeamWidth.width + 3 + atWidth.width + 3, y: 75))
-        otherTeamString.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3 + theTeamWidth.width + 3 + atWidth.width + 3 + otherTeamLWidth + 3, y: 75))
+        theTeamTNail.draw(at: CGPoint(x: startX, y: 75))
+        drawFittedText("\(vTeam)", in: CGRect(x: startX + theTeamLWidth + 3, y: 75, width: actualVTeamWidth, height: 25), attributes: game.vteam == theTeam ? theTeamATTR : otherTeamATTR, maxLines: 1)
+        atString.draw(at: CGPoint(x: startX + theTeamLWidth + 3 + actualVTeamWidth + 3, y: 75))
+        otherTeamTNail.draw(at: CGPoint(x: startX + theTeamLWidth + 3 + actualVTeamWidth + 3 + atWidth.width + 3, y: 75))
+        drawFittedText("\(hTeam)", in: CGRect(x: startX + theTeamLWidth + 3 + actualVTeamWidth + 3 + atWidth.width + 3 + otherTeamLWidth + 3, y: 75, width: actualHTeamWidth, height: 25), attributes: game.hteam == theTeam ? theTeamATTR : otherTeamATTR, maxLines: 1)
 
-        let locString = NSAttributedString(string: game.location, attributes: hdrATTR)
-        locString.draw(at: CGPoint(x: 10, y: 75))
+        drawFittedText(game.location, in: CGRect(x: 10, y: 75, width: 150, height: 20), attributes: hdrATTR, maxLines: 1)
 
         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
         let theDate = date.formatted(date:.abbreviated, time: .omitted)
@@ -198,10 +199,15 @@ class PDFGenerator {
             number.draw(in: CGRect(x: 50, y: 125 + (x * 30), width: 20, height: 30))
 
             let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
-            let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
+            let prefix = game.incomings.contains(atbat.player) ? "    " : ""
 
-            let name = NSAttributedString(string: iName, attributes: strikeIt ? strikeATTR : bodyLeftATTR)
-            name.draw(in: CGRect(x: 70, y: 125 + (x * 30), width: 90, height: 30))
+            drawFittedName(
+                prefix: prefix,
+                originalName: atbat.player.name,
+                in: CGRect(x: 70, y: 125 + (x * 30), width: 90, height: 30),
+                attributes: strikeIt ? strikeATTR : bodyLeftATTR,
+                maxLines: 2
+            )
             x += 1
         }
         numOfPlayers = x
@@ -486,11 +492,14 @@ class PDFGenerator {
         ]
         let boxHome = doBoxScore(game: game, doTeam: "Home")
         let boxVisit = doBoxScore(game: game, doTeam: "Visit")
-        var boxString = NSAttributedString(string: "\(game.vteam?.name ?? "")", attributes: boxATTR)
-        boxString.draw(at: CGPoint(x: 165 - boxString.size().width, y: 30))
-        boxString = NSAttributedString(string: "\(game.hteam?.name ?? "")", attributes: boxATTR)
-        boxString.draw(at: CGPoint(x: 165 - boxString.size().width, y: 45))
-        boxString = NSAttributedString(string: "\(boxVisit.runs)", attributes: boxATTR)
+        let boxTeamRightAligned = NSMutableParagraphStyle()
+        boxTeamRightAligned.alignment = .right
+        var boxTeamATTR = boxATTR
+        boxTeamATTR[.paragraphStyle] = boxTeamRightAligned
+
+        drawFittedText("\(game.vteam?.name ?? "")", in: CGRect(x: 45, y: 30, width: 120, height: 15), attributes: boxTeamATTR, maxLines: 1)
+        drawFittedText("\(game.hteam?.name ?? "")", in: CGRect(x: 45, y: 45, width: 120, height: 15), attributes: boxTeamATTR, maxLines: 1)
+        var boxString = NSAttributedString(string: "\(boxVisit.runs)", attributes: boxATTR)
         boxString.draw(in: CGRect(x: 195, y:30, width: 20, height: 15))
         boxString = NSAttributedString(string: "\(boxHome.runs)", attributes: boxATTR)
         boxString.draw(in: CGRect(x: 195, y:45, width: 20, height: 15))
@@ -594,11 +603,8 @@ class PDFGenerator {
         } else {
             tName = game.vteam?.name ?? ""
         }
-        var pitchString = NSAttributedString(string: "\(tName) Pitching Stats For This Game", attributes: headATTR)
-        pitchString.draw(in: CGRect(x: 35, y: (numOfPlayers * 30) + 150, width: 800, height: 18))
-
-        makeNewRect(rec: CGRect(x:35, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
-        pitchString = NSAttributedString(string: "Num", attributes: pitchATTR)
+        drawFittedText("\(tName) Pitching Stats For This Game", in: CGRect(x: 35, y: (numOfPlayers * 30) + 150, width: 800, height: 18), attributes: headATTR, maxLines: 1)
+        var pitchString = NSAttributedString(string: "Num", attributes: pitchATTR)
         pitchString.draw(in: CGRect(x: 35, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
         makeNewRect(rec: CGRect(x:90, y: (numOfPlayers * 30) + 190, width: 150, height: 15), fillColor: .yellow, lineColor: .gray)
         pitchString = NSAttributedString(string: "Pitcher", attributes: pitchATTR)
@@ -773,8 +779,13 @@ class PDFGenerator {
             let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
             var pitchString = NSAttributedString(string: "\(pitcher.player.number)", attributes: pitchATTR)
             pitchString.draw(in: CGRect(x: 35, y: (numOfPlayers * 30) + 190 + (index * 15), width: 50, height: 15))
-            pitchString = NSAttributedString(string: "\(pitcher.player.name)", attributes: hitATTR)
-            pitchString.draw(in: CGRect(x: 90, y: (numOfPlayers * 30) + 190 + (index * 15), width: 150, height: 15))
+            drawFittedName(
+                prefix: "",
+                originalName: pitcher.player.name,
+                in: CGRect(x: 90, y: (numOfPlayers * 30) + 190 + (index * 15), width: 150, height: 15),
+                attributes: hitATTR,
+                maxLines: 1
+            )
             pitchString = NSAttributedString(string: "\(pitcher.startInn)", attributes: pitchATTR)
             pitchString.draw(in: CGRect(x: 255, y: (numOfPlayers * 30) + 190 + (index * 15), width: 30, height: 15))
             pitchString = NSAttributedString(string: "\(pitcher.sOuts)", attributes: pitchATTR)
@@ -809,6 +820,119 @@ class PDFGenerator {
             pitchString.draw(in: CGRect(x: 780, y: (numOfPlayers * 30) + 190 + (index * 15), width: 50, height: 15))
 
         }
+    }
+
+    // MARK: - Text Fitting Helpers
+
+    private func drawFittedName(
+        prefix: String,
+        originalName: String,
+        in rect: CGRect,
+        attributes: [NSAttributedString.Key: Any],
+        maxLines: Int = 1
+    ) {
+        let baseFont = attributes[.font] as? UIFont ?? UIFont.systemFont(ofSize: 11)
+
+        func textFits(_ text: String, size: CGFloat) -> Bool {
+            let font = baseFont.withSize(size)
+            var attrs = attributes
+            let paragraph = (attributes[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+            paragraph.lineBreakMode = maxLines == 1 ? .byClipping : .byWordWrapping
+            attrs[.font] = font
+            attrs[.paragraphStyle] = paragraph
+
+            let attrString = NSAttributedString(string: text, attributes: attrs)
+            if maxLines == 1 {
+                return attrString.size().width <= rect.width
+            } else {
+                let boundingRect = attrString.boundingRect(
+                    with: CGSize(width: rect.width, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin],
+                    context: nil
+                )
+                let maxHeight = font.lineHeight * CGFloat(maxLines)
+                return boundingRect.height <= rect.height && boundingRect.height <= maxHeight
+            }
+        }
+
+        let fullName = prefix + originalName
+        if textFits(fullName, size: baseFont.pointSize) {
+            drawFittedText(fullName, in: rect, attributes: attributes, maxLines: maxLines, minFontSize: baseFont.pointSize)
+            return
+        }
+
+        let abbreviatedName = prefix + abbreviateName(originalName)
+        if textFits(abbreviatedName, size: baseFont.pointSize) {
+            drawFittedText(abbreviatedName, in: rect, attributes: attributes, maxLines: maxLines, minFontSize: baseFont.pointSize)
+            return
+        }
+
+        drawFittedText(abbreviatedName, in: rect, attributes: attributes, maxLines: maxLines, minFontSize: 8.0)
+    }
+
+    private func abbreviateName(_ name: String) -> String {
+        let components = name.split(separator: " ", omittingEmptySubsequences: true)
+        if components.count >= 2 {
+            if let firstChar = components.first?.first {
+                let rest = components.dropFirst().joined(separator: " ")
+                return "\(firstChar). \(rest)"
+            }
+        }
+        return name
+    }
+
+    private func drawFittedText(
+        _ text: String,
+        in rect: CGRect,
+        attributes: [NSAttributedString.Key: Any],
+        maxLines: Int = 1,
+        minFontSize: CGFloat = 8.0
+    ) {
+        var currentAttributes = attributes
+        let paragraph = (attributes[.paragraphStyle] as? NSParagraphStyle)?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+        paragraph.lineBreakMode = maxLines == 1 ? .byTruncatingTail : .byWordWrapping
+        currentAttributes[.paragraphStyle] = paragraph
+
+        guard let baseFont = attributes[.font] as? UIFont else {
+            NSAttributedString(string: text, attributes: currentAttributes).draw(in: rect)
+            return
+        }
+
+        var currentSize = baseFont.pointSize
+        while currentSize >= minFontSize {
+            let testFont = baseFont.withSize(currentSize)
+            currentAttributes[.font] = testFont
+
+            let attrString = NSAttributedString(string: text, attributes: currentAttributes)
+
+            if maxLines == 1 {
+                if attrString.size().width <= rect.width {
+                    break
+                }
+            } else {
+                let options: NSStringDrawingOptions = [.usesLineFragmentOrigin]
+                let boundingRect = attrString.boundingRect(
+                    with: CGSize(width: rect.width, height: .greatestFiniteMagnitude),
+                    options: options,
+                    context: nil
+                )
+                let maxHeight = testFont.lineHeight * CGFloat(maxLines) + (paragraph.lineSpacing * CGFloat(maxLines - 1))
+                if boundingRect.height <= rect.height && boundingRect.height <= maxHeight {
+                    break
+                }
+            }
+
+            currentSize -= 0.5
+            if currentSize < minFontSize {
+                currentSize = minFontSize
+                currentAttributes[.font] = baseFont.withSize(currentSize)
+                paragraph.lineBreakMode = .byTruncatingTail
+                currentAttributes[.paragraphStyle] = paragraph
+                break
+            }
+        }
+
+        NSAttributedString(string: text, attributes: currentAttributes).draw(in: rect)
     }
 }
 

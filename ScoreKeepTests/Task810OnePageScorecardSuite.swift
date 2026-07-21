@@ -132,6 +132,64 @@ struct Task810OnePageScorecardSuite {
         }
     }
     
+    // MARK: - Long-text fitting verification
+
+    @Test("Test long text fitting policy")
+    func testLongTextFitting() throws {
+        let generator = PDFGenerator()
+
+        let team = Team(name: "VTZ7_ExtremelyLongVisitingTeamNameThatForcesShrinkageAndTruncation", coach: "Coach", details: "Details")
+        let otherTeam = Team(name: "HTQ8_ExtremelyLongHomeTeamNameThatForcesShrinkageAndTruncation", coach: "", details: "")
+        let game = Game(date: "2026-07-21T12:00:00Z", location: "LOC9_ExtremelyLongLocationNameThatForcesShrinkageAndTruncation", highLights: "", hscore: 0, vscore: 0)
+        game.vteam = team
+        game.hteam = otherTeam
+
+        let p1 = Player(name: "Michael Robertson-WithALongLastName", number: "1", position: "P", batDir: "R", batOrder: 1, team: team)
+        let p2 = Player(name: "Juan Carlos Pérez-WithALongLastName", number: "2", position: "P", batDir: "R", batOrder: 2, team: team)
+        let p3 = Player(name: "SGL1_SuperLongSingleWordNameThatForcesShrinkageAndTruncation", number: "3", position: "P", batDir: "R", batOrder: 3, team: team)
+
+        team.players = [p1, p2, p3]
+        game.players = [p1, p2, p3]
+
+        var atbats = [Atbat]()
+        for (i, p) in [p1, p2, p3].enumerated() {
+            atbats.append(Atbat(game: game, team: team, player: p, result: "Single", maxbase: "First", batOrder: i + 1, outAt: "Safe", inning: 1, seq: i + 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0))
+        }
+        game.atbats = atbats
+
+        let pt1 = Player(name: "LongPitcherFirstName ExtremelyLongPitcherLastName", number: "P1", position: "P", batDir: "R", batOrder: 1, team: otherTeam)
+        game.pitchers = [Pitcher(player: pt1, team: otherTeam, game: game, startInn: 1, sOuts: 0, sBats: 0, endInn: 2, eOuts: 0, eBats: 0)]
+
+        let url = try #require(generator.generatePDFData(game: game, team: team, title: "Test", body: "Test"))
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let document = try #require(PDFDocument(url: url))
+        #expect(document.pageCount == 1)
+
+        let rawText = try #require(document.page(at: 0)?.string)
+        let components = rawText.components(separatedBy: .whitespacesAndNewlines)
+        let text = components.filter { !$0.isEmpty }.joined(separator: " ")
+        let textNoSpaces = components.filter { !$0.isEmpty }.joined()
+
+        #expect(extractOccurrences(of: "VTZ7", in: text).count > 0)
+        #expect(extractOccurrences(of: "HTQ8", in: text).count > 0)
+        #expect(extractOccurrences(of: "LOC9", in: text).count > 0)
+
+        #expect(extractOccurrences(of: "M.Robertson-WithALong", in: textNoSpaces).count > 0)
+        #expect(extractOccurrences(of: "MichaelRobertson-", in: textNoSpaces).count == 0)
+
+        #expect(extractOccurrences(of: "J.CarlosPérez-WithALong", in: textNoSpaces).count > 0)
+        #expect(extractOccurrences(of: "JuanCarlosPérez-", in: textNoSpaces).count == 0)
+
+        #expect(extractOccurrences(of: "SGL1", in: textNoSpaces).count > 0)
+        #expect(extractOccurrences(of: "S.SGL1", in: textNoSpaces).count == 0)
+
+        #expect(extractOccurrences(of: "L. ExtremelyLongPitcher", in: text).count > 0)
+        #expect(extractOccurrences(of: "LongPitcherFirstName", in: text).count == 0)
+
+        #expect(extractOccurrences(of: "HTQ8_ExtremelyLongHomeTeamNameThatForcesShrinkageAndTruncation Pitching Stats For This Game", in: text).count > 0)
+    }
+
     // MARK: - Independent-render determinism
     
     @Test("Test independent render determinism")
