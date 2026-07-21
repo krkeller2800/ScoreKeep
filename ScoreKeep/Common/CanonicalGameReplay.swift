@@ -269,7 +269,7 @@ enum CanonicalGameReplay {
                     state: current,
                     batterIdentity: ordered.event.participants.batter?.playerIdentity,
                     pitcherIdentity: pitcherIdentity(from: ordered.event),
-                    unsupportedRaw: ordered.event.unsupportedRawLegacyEvidence + application.baseApplication.preservedUnsupportedEvidence
+                    unsupportedRaw: application.baseApplication.preservedUnsupportedEvidence
                 ))
                 stoppedDisposition = appliedCount > input.startPosition.appliedEventCount ? .partial : eventDisposition
                 firstProblemIdentity = ordered.event.eventIdentity
@@ -502,7 +502,6 @@ enum CanonicalGameReplay {
             rawLegacy.append(rawValue)
         case let .unsupportedRawResult(rawValue):
             intent = .unsupportedLegacy(.unsupported(rawValue: rawValue))
-            rawLegacy.append(rawValue)
         case let .conflicting(values):
             let rawValues = Set(values.map { String(describing: $0) })
             intent = .unsupportedLegacy(.contradictory(rawValues: rawValues))

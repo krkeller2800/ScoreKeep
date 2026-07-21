@@ -178,7 +178,7 @@ struct CanonicalGameReplayStageFTests {
 
         #expect(result.disposition == .unsupported)
         #expect(result.appliedEventCount == 0)
-        #expect(result.eventSummaries.first?.unsupportedRawClassification.contains("Moon Shot") == true)
+        #expect(result.eventSummaries.first?.unsupportedRawClassification == ["Moon Shot"])
     }
 
     @Test func missingBatterAndInvalidRunnerAreClassified() {

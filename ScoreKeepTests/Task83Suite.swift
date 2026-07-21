@@ -109,7 +109,7 @@ struct Task83Suite {
         
         // 5. A warning or unsupported classification remains visible.
         #expect(result.events[1].diagnosticCodes.contains("test.diagnostic.1"))
-        #expect(result.events[1].unsupportedRawClassification.contains("Unsupported Hit"))
+        #expect(result.events[1].unsupportedRawClassification == ["Unsupported Hit"])
         
         // 6. Partial or unsupported replay does not become a resolved projection.
         // 7. Duplicate event identities produce an unsupported result and diagnostic.
