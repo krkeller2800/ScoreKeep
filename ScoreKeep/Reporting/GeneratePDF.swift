@@ -8,13 +8,52 @@ import PDFKit
 import Foundation
 import UIKit
 
+struct OnePageScorecardGeometry {
+    let physicalPageSize: CGSize
+    let renderedBattingRowCount: Int
+    let renderedPitcherRowCount: Int
+
+    var logicalContentHeight: CGFloat {
+        return CGFloat(renderedBattingRowCount * 30) + 190.0 + CGFloat(renderedPitcherRowCount * 15) + 35.0
+    }
+
+    var logicalContentWidth: CGFloat {
+        return 841.8
+    }
+
+    var scale: CGFloat {
+        let sY = logicalContentHeight > 0 ? physicalPageSize.height / logicalContentHeight : 1.0
+        let sX = logicalContentWidth > 0 ? physicalPageSize.width / logicalContentWidth : 1.0
+        let s = min(1.0, sX, sY)
+        return max(0.0001, s)
+    }
+
+    var fitsOnPhysicalPage: Bool {
+        return logicalContentHeight <= physicalPageSize.height && logicalContentWidth <= physicalPageSize.width
+    }
+
+    var scaledContentHeight: CGFloat {
+        return logicalContentHeight * scale
+    }
+}
+
 class PDFGenerator {
 
     var numOfPlayers = 0
     func generatePDFData(game: Game, team: Team, title: String, body: String) -> URL? {
-        
+
         // Define the page size (e.g., A4)
         let pageRect = CGRect(x: 0, y: 0, width: 841.8, height: 595.2) // A4 size in points
+
+        let batCount = game.atbats.filter { $0.team == team && $0.col == 1}.count
+        let pitchs = game.pitchers.filter({$0.team != team})
+        let pitchCount = fixInnings(pitchers: pitchs).count
+
+        let geometry = OnePageScorecardGeometry(
+            physicalPageSize: pageRect.size,
+            renderedBattingRowCount: batCount,
+            renderedPitcherRowCount: pitchCount
+        )
 
         // Create a PDF renderer
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
@@ -23,9 +62,12 @@ class PDFGenerator {
             // Begin a new page
             context.beginPage()
 
+            context.cgContext.saveGState()
+            context.cgContext.scaleBy(x: geometry.scale, y: geometry.scale)
+
             let paragraph = NSMutableParagraphStyle()
             paragraph.alignment = .center
-            
+
             // Define text attributes
             let bodyCenterATTR: [NSAttributedString.Key: Any] = [
                 .font: UIFont.systemFont(ofSize: 11),
@@ -52,12 +94,14 @@ class PDFGenerator {
             drawNames(game: game, theTeam: team, bodyLeftATTR: bodyLeftATTR, bodyCenterATTR: bodyCenterATTR)
             drawAtbats(game: game, theTeam: team, bodyATTR: bodyCenterATTR, smallCenterATTR: smallCenterATTR)
             drawPitchers (game: game, team: team)
+
+            context.cgContext.restoreGState()
         }
         let vTeam = game.vteam?.name ?? "Unkown"
         let hTeam = game.hteam?.name ?? "Unkown"
         let theDate = ISO8601DateFormatter().date(from: game.date) ?? Date()
         let name = String("\(vTeam) at \(hTeam) on \(theDate.formatted(date:.abbreviated, time: .omitted))")
-        
+
         return savePDF(data: pdfData, fileName: name)
     }
     func savePDF(data: Data, fileName: String) -> URL? {
@@ -66,7 +110,7 @@ class PDFGenerator {
             return nil
         }
         let fileURL = documentDirectory.appendingPathComponent("\(fileName).pdf")
-        
+
         do {
             try data.write(to: fileURL)
             return fileURL
@@ -76,7 +120,7 @@ class PDFGenerator {
         }
     }
     func drawTeamHDR (game:Game, theTeam: Team, theTeamATTR: [NSAttributedString.Key : Any], otherTeamATTR: [NSAttributedString.Key : Any]) {
-        
+
         let atATTR: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 18),
             .foregroundColor: UIColor.black
@@ -90,12 +134,12 @@ class PDFGenerator {
         let theTeamWidth: CGSize = "\(vTeam)".size(withAttributes: [.font: UIFont.systemFont(ofSize: 18)])
         let otherTeamWidth: CGSize = "\(hTeam)".size(withAttributes: [.font: UIFont.systemFont(ofSize: 18)])
         let atWidth: CGSize = " at ".size(withAttributes: [.font: UIFont.systemFont(ofSize: 18)])
-        
+
         var theTeamLWidth: CGFloat = 0
         var otherTeamLWidth: CGFloat = 0
         var theTeamTNail: UIImage = UIImage()
         var otherTeamTNail: UIImage = UIImage()
-        
+
         if let theImageData = game.vteam?.logo, let uiImage = UIImage(data: theImageData) {
             theTeamLWidth = 25 * uiImage.size.width / uiImage.size.height
             theTeamTNail = uiImage.preparingThumbnail(of: CGSize(width: theTeamLWidth, height: 25))!
@@ -108,30 +152,30 @@ class PDFGenerator {
         let theTeamString = NSAttributedString(string: "\(vTeam)", attributes: game.vteam == theTeam ? theTeamATTR : otherTeamATTR)
         let otherTeamString = NSAttributedString(string: "\(hTeam)", attributes: game.hteam == theTeam ? theTeamATTR : otherTeamATTR)
         let atString = NSAttributedString(string: " at ", attributes: atATTR)
-        
+
         theTeamTNail.draw(at: CGPoint(x: ((840 - totSize) / 2), y: 75))
         theTeamString.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3, y: 75))
         atString.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3 + theTeamWidth.width + 3, y: 75))
         otherTeamTNail.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3 + theTeamWidth.width + 3 + atWidth.width + 3, y: 75))
         otherTeamString.draw(at: CGPoint(x: ((840 - totSize) / 2) + theTeamLWidth + 3 + theTeamWidth.width + 3 + atWidth.width + 3 + otherTeamLWidth + 3, y: 75))
-        
+
         let locString = NSAttributedString(string: game.location, attributes: hdrATTR)
         locString.draw(at: CGPoint(x: 10, y: 75))
-        
+
         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
         let theDate = date.formatted(date:.abbreviated, time: .omitted)
         let dateString = NSAttributedString(string: theDate, attributes: hdrATTR)
         let size = dateString.size()
         dateString.draw(at: CGPoint(x: 835 - size.width, y: 65))
-        
+
         let theDate2 = date.formatted(date:.omitted, time: .shortened)
         let dateString2 = NSAttributedString(string: theDate2, attributes: hdrATTR)
         let size2 = dateString2.size()
         dateString2.draw(at: CGPoint(x: 835 - size2.width, y: 80))
-    
+
     }
     func drawNames (game:Game, theTeam: Team, bodyLeftATTR: [NSAttributedString.Key : Any], bodyCenterATTR: [NSAttributedString.Key : Any]) {
-        
+
         let strikeATTR: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 11),
             .foregroundColor: UIColor.black,
@@ -139,7 +183,7 @@ class PDFGenerator {
         let atbats = game.atbats.filter { $0.team == theTeam && $0.col == 1}.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
         var x = 0
         for atbat in atbats {
-        
+
             let aPath = UIBezierPath()
             aPath.move(to: CGPoint(x:160, y: 120 + (x * 30)))
             aPath.addLine(to: CGPoint(x: 610, y: 120 + (x * 30)))
@@ -149,13 +193,13 @@ class PDFGenerator {
             aPath.move(to: CGPoint(x:620, y: 120 + (x * 30)))
             aPath.addLine(to: CGPoint(x: 740, y: 120 + (x * 30)))
             aPath.stroke()
-            
+
             let number = NSAttributedString(string: atbat.player.number, attributes: bodyCenterATTR)
             number.draw(in: CGRect(x: 50, y: 125 + (x * 30), width: 20, height: 30))
-            
+
             let strikeIt: Bool = game.replaced.contains(atbat.player) ? true : false
             let iName: String = game.incomings.contains(atbat.player) ? String("    \(atbat.player.name)") : atbat.player.name
-            
+
             let name = NSAttributedString(string: iName, attributes: strikeIt ? strikeATTR : bodyLeftATTR)
             name.draw(in: CGRect(x: 70, y: 125 + (x * 30), width: 90, height: 30))
             x += 1
@@ -190,7 +234,7 @@ class PDFGenerator {
         var batbox = Array(repeating: BoxScore(), count: max(1, maxBatOrder))
         var totbox = Array(repeating: BoxScore(), count: 5)
         for atbat in atbats {
-            
+
             if let xx = com.battings.firstIndex(where: { $0 == atbat.result }) {
                 abb = com.batAbbrevs[xx]
             } else {
@@ -203,7 +247,7 @@ class PDFGenerator {
             drawOuts(atbat: atbat)
             drawRec(atbat: atbat)
             getTots(atbat: atbat, colbox: &colbox, batbox: &batbox, totbox: &totbox)
-            
+
         }
         drawTots(batbox: batbox, totbox:totbox, bodyATTR: bodyATTR)
         drawColTots(colbox: colbox, atbats: atbats, bodyATTR: bodyATTR)
@@ -339,10 +383,10 @@ class PDFGenerator {
         }
     }
     func getTots (atbat:Atbat, colbox: inout [BoxScore], batbox: inout [BoxScore], totbox: inout [BoxScore]) {
-        
+
         let com = Common()
         let batIdx = max(0, atbat.batOrder - 1)
-        
+
         if atbat.maxbase == "Home" {
             if atbat.col >= 0 && atbat.col < colbox.count { colbox[atbat.col].runs += 1 }
             if batIdx < batbox.count { batbox[batIdx].runs += 1 }
@@ -483,7 +527,7 @@ class PDFGenerator {
 
             return BoxScore(type:"",runs: runs, hits: hits, error: errors , strikeouts:0, walks:0, HR:0)
         }
-   
+
      }
     func calcInning (game:Game)->String {
         let com = Common()
@@ -509,7 +553,7 @@ class PDFGenerator {
 
         let inning = atbats.last?.inning.rounded(.up) ?? 0
         let atbatsToUpd = atbats.filter {($0.inning.rounded(.up) == inning || ($0.inning.rounded(.up) == 0 && inning == 1)) && com.onresults.contains($0.result) }
-        
+
         for (_, theBase) in atbatsToUpd.reversed().enumerated() {
             if theBase.outAt == "Safe" && iStat.outs < 3 {
                 if theBase.maxbase == "Third" {
@@ -598,9 +642,9 @@ class PDFGenerator {
         makeNewRect(rec: CGRect(x:780, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
         pitchString = NSAttributedString(string: "HR", attributes: pitchATTR)
         pitchString.draw(in: CGRect(x: 780, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        
+
         drawPitchStats (game: game, team: team)
-        
+
 
     }
     func doPitchers(oAtbats:[Atbat],pitcher: Pitcher)->PitchStats {
@@ -638,13 +682,13 @@ class PDFGenerator {
             let triples = oAtbats.filter({$0.result == "Triple" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            
+
             let ERA = innings == 0 ? 999 : CGFloat(runs) / innings * 9
             return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
-     
+
     }
     func fixInnings(pitchers:[Pitcher])->[Pitcher] {
         let pitchs = pitchers.sorted {( ($0.startInn, $0.sBats) < ($1.startInn, $1.eBats) )}
@@ -665,9 +709,9 @@ class PDFGenerator {
 
     }
     func makeNewRect (rec: CGRect, fillColor: UIColor, lineColor: UIColor, ang:CGFloat = 0 , isDeg:Bool = false) {
-        
+
         var angle:CGFloat = 0
-        
+
         if(isDeg) {
             angle = ang * (CGFloat.pi / 180)
         } else {
@@ -676,16 +720,16 @@ class PDFGenerator {
         let point1:CGPoint = CGPoint(x: rec.minX, y: rec.minY)
         let sinAng = sin(angle)
         let cosAng = cos(angle)
-        
+
         var upDiff = sinAng * rec.width
         var sideDiff = cosAng * rec.width
         let point2:CGPoint = CGPoint(x: rec.minX + sideDiff, y: rec.minY + upDiff)
-        
+
         upDiff = cosAng * rec.height
         sideDiff = sinAng * rec.height
         let point3 = CGPoint(x: rec.minX + sideDiff, y: rec.minY - upDiff)
         let point4 = CGPoint(x: point2.x + sideDiff, y: point2.y - upDiff)
-        
+
         let aPath = UIBezierPath()
         lineColor.set()
         aPath.lineWidth = 1
@@ -699,7 +743,7 @@ class PDFGenerator {
         aPath.fill( )
     }
     func drawPitchStats (game:Game, team:Team) {
-        
+
         let decmatter = NumberFormatter()
         decmatter.numberStyle = .decimal
         decmatter.minimumFractionDigits = 2
