@@ -115,6 +115,7 @@ struct ShowReportView: View {
         let font: UIFont
         let alignment: NSTextAlignment
         let didTruncate: Bool
+        let foregroundColor: UIColor?
 
         var fontSize: CGFloat {
             font.pointSize
@@ -125,10 +126,15 @@ struct ShowReportView: View {
             paragraphStyle.alignment = alignment
             paragraphStyle.lineBreakMode = .byClipping
 
-            return [
+            var attributes: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .paragraphStyle: paragraphStyle
             ]
+            if let foregroundColor {
+                attributes[.foregroundColor] = foregroundColor
+            }
+
+            return attributes
         }
     }
 
@@ -136,6 +142,36 @@ struct ShowReportView: View {
         let logoRect: CGRect?
         let titleRect: CGRect
     }
+
+    struct AggregateHittingPDFColumnLabel {
+        let text: String
+        let xOffset: CGFloat
+        let width: CGFloat
+    }
+
+    static let aggregateHittingPDFColumnLabels: [AggregateHittingPDFColumnLabel] = [
+        AggregateHittingPDFColumnLabel(text: "Num", xOffset: 0, width: 30),
+        AggregateHittingPDFColumnLabel(text: "Name", xOffset: 30, width: 125),
+        AggregateHittingPDFColumnLabel(text: "Bat", xOffset: 160, width: 20),
+        AggregateHittingPDFColumnLabel(text: "AVG", xOffset: 190, width: 30),
+        AggregateHittingPDFColumnLabel(text: "OBP", xOffset: 220, width: 30),
+        AggregateHittingPDFColumnLabel(text: "SLG", xOffset: 255, width: 30),
+        AggregateHittingPDFColumnLabel(text: "OPS", xOffset: 290, width: 40),
+        AggregateHittingPDFColumnLabel(text: "Run", xOffset: 320, width: 30),
+        AggregateHittingPDFColumnLabel(text: "Hit", xOffset: 345, width: 20),
+        AggregateHittingPDFColumnLabel(text: "K", xOffset: 370, width: 20),
+        AggregateHittingPDFColumnLabel(text: "ꓘ", xOffset: 390, width: 20),
+        AggregateHittingPDFColumnLabel(text: "BB", xOffset: 405, width: 20),
+        AggregateHittingPDFColumnLabel(text: "HR", xOffset: 425, width: 20),
+        AggregateHittingPDFColumnLabel(text: "1B", xOffset: 445, width: 20),
+        AggregateHittingPDFColumnLabel(text: "2B", xOffset: 465, width: 20),
+        AggregateHittingPDFColumnLabel(text: "3B", xOffset: 485, width: 20),
+        AggregateHittingPDFColumnLabel(text: "SB", xOffset: 505, width: 20),
+        AggregateHittingPDFColumnLabel(text: "SF", xOffset: 525, width: 20),
+        AggregateHittingPDFColumnLabel(text: "HBP", xOffset: 545, width: 30),
+        AggregateHittingPDFColumnLabel(text: "DTS", xOffset: 575, width: 30),
+        AggregateHittingPDFColumnLabel(text: "FC", xOffset: 610, width: 20)
+    ]
 
     static func meaningfulNameComponents(from name: String) -> [String] {
         name.split(whereSeparator: { $0.isWhitespace }).map(String.init)
@@ -156,15 +192,16 @@ struct ShowReportView: View {
         initialFont: UIFont,
         minimumFontSize: CGFloat,
         constrainedTo rect: CGRect,
-        alignment: NSTextAlignment
+        alignment: NSTextAlignment,
+        foregroundColor: UIColor? = nil
     ) -> AggregateHittingPDFTextFitResult {
         if aggregateHittingPDFText(fullText, fitsIn: rect, font: initialFont) {
-            return AggregateHittingPDFTextFitResult(text: fullText, font: initialFont, alignment: alignment, didTruncate: false)
+            return AggregateHittingPDFTextFitResult(text: fullText, font: initialFont, alignment: alignment, didTruncate: false, foregroundColor: foregroundColor)
         }
 
         let textForScaling: String
         if let fallbackText, aggregateHittingPDFText(fallbackText, fitsIn: rect, font: initialFont) {
-            return AggregateHittingPDFTextFitResult(text: fallbackText, font: initialFont, alignment: alignment, didTruncate: false)
+            return AggregateHittingPDFTextFitResult(text: fallbackText, font: initialFont, alignment: alignment, didTruncate: false, foregroundColor: foregroundColor)
         } else {
             textForScaling = fallbackText ?? fullText
         }
@@ -174,13 +211,13 @@ struct ShowReportView: View {
             fontSize = max(minimumFontSize, fontSize - 0.25)
             let font = initialFont.withSize(fontSize)
             if aggregateHittingPDFText(textForScaling, fitsIn: rect, font: font) {
-                return AggregateHittingPDFTextFitResult(text: textForScaling, font: font, alignment: alignment, didTruncate: false)
+                return AggregateHittingPDFTextFitResult(text: textForScaling, font: font, alignment: alignment, didTruncate: false, foregroundColor: foregroundColor)
             }
         }
 
         let minimumFont = initialFont.withSize(minimumFontSize)
         let truncatedText = truncatedAggregateHittingPDFText(textForScaling, toFitIn: rect, font: minimumFont)
-        return AggregateHittingPDFTextFitResult(text: truncatedText, font: minimumFont, alignment: alignment, didTruncate: truncatedText != textForScaling)
+        return AggregateHittingPDFTextFitResult(text: truncatedText, font: minimumFont, alignment: alignment, didTruncate: truncatedText != textForScaling, foregroundColor: foregroundColor)
     }
 
     static func aggregateHittingPDFText(_ text: String, fitsIn rect: CGRect, font: UIFont) -> Bool {
@@ -254,6 +291,28 @@ struct ShowReportView: View {
         in rect: CGRect
     ) {
         NSAttributedString(string: fitResult.text, attributes: fitResult.attributes).draw(in: rect)
+    }
+
+    static func aggregateHittingPDFLineRect(x: CGFloat, y: CGFloat, width: CGFloat, font: UIFont) -> CGRect {
+        CGRect(x: x, y: y, width: width, height: ceil(font.lineHeight))
+    }
+
+    static func fittedAggregateHittingPDFSingleLine(
+        _ text: String,
+        initialFont: UIFont,
+        minimumFontSize: CGFloat = 8,
+        rect: CGRect,
+        alignment: NSTextAlignment,
+        foregroundColor: UIColor? = nil
+    ) -> AggregateHittingPDFTextFitResult {
+        fittedAggregateHittingPDFText(
+            fullText: text,
+            initialFont: initialFont,
+            minimumFontSize: minimumFontSize,
+            constrainedTo: rect,
+            alignment: alignment,
+            foregroundColor: foregroundColor
+        )
     }
 
     static func renderAggregateHittingPDF(teamName: String, orderedStats: [PlayerStats], atbats: [Atbat]) -> Data {
@@ -456,16 +515,12 @@ struct ShowReportView: View {
         contentWidth: CGFloat
     ) {
 
-        let detailAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 10),
-            .paragraphStyle: NSMutableParagraphStyle()
-        ]
-        let headHeight = NSAttributedString(string: "", attributes: headAttributes).boundingRect(with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, context: nil).height + 5
-        let titleHeight = NSAttributedString(string: "", attributes: titleAttributes).boundingRect(with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, context: nil).height + 5
-        let topAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 8),
-            .paragraphStyle: NSMutableParagraphStyle()
-        ]
+        let dateFont = UIFont.systemFont(ofSize: 8)
+        let headingFont = UIFont.systemFont(ofSize: 12)
+        let columnLabelFont = UIFont.systemFont(ofSize: 12)
+        let footerFont = UIFont.systemFont(ofSize: 10)
+        let pageNumberFont = UIFont.systemFont(ofSize: 10)
+        let titleHeight = UIFont.italicSystemFont(ofSize: 16).lineHeight
 
         let logoSize: CGSize?
         if let imageData = atbats.first?.team.logo, let uiImage = UIImage(data: imageData) {
@@ -495,80 +550,80 @@ struct ShowReportView: View {
             thumbnail?.draw(at: logoRect.origin)
          }
 
-        let headingSize: CGSize = "Player Statistics".size(withAttributes: [.font: UIFont.systemFont(ofSize: 12)])
         drawAggregateHittingPDFText(fittedTitle, in: headerGeometry.titleRect)
-        let pNumSize: CGSize = "Page \(pageNumber)".size(withAttributes: [.font: UIFont.systemFont(ofSize: 10)])
-        var attributedString = NSAttributedString(string: String("Page \(pageNumber)"), attributes: detailAttributes)
-        attributedString.draw(in: CGRect(x: (geometry.pageWidth - pNumSize.width) / 2, y: 575, width: 40, height: headHeight))
-        attributedString = NSAttributedString(string: String("Report Created by IOS App ScoreKeep"), attributes: detailAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin, y: 575, width: 250, height: headHeight))
 
-        attributedString = NSAttributedString(string: Date.now.formatted(date: .long, time: .omitted), attributes: topAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin, y: currentY, width: 100, height: headHeight))
-        attributedString = NSAttributedString(string:"Player Statistics", attributes: textAttributes)
-        attributedString.draw(in: CGRect(x: (geometry.pageWidth - headingSize.width) / 2, y: currentY, width: 100, height: headHeight))
+        let pageNumberText = "Page \(pageNumber)"
+        let pageNumberRect = aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: 575,
+            width: contentWidth,
+            font: pageNumberFont
+        )
+        let fittedPageNumber = fittedAggregateHittingPDFSingleLine(
+            pageNumberText,
+            initialFont: pageNumberFont,
+            rect: pageNumberRect,
+            alignment: .center
+        )
+        drawAggregateHittingPDFText(fittedPageNumber, in: pageNumberRect)
 
-        attributedString = NSAttributedString(string: String("Num"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin, y: currentY + 60, width: 30, height: headHeight))
+        let footerRect = aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: 575,
+            width: 250,
+            font: footerFont
+        )
+        let fittedFooter = fittedAggregateHittingPDFSingleLine(
+            "Report Created by IOS App ScoreKeep",
+            initialFont: footerFont,
+            rect: footerRect,
+            alignment: .left
+        )
+        drawAggregateHittingPDFText(fittedFooter, in: footerRect)
 
-        attributedString = NSAttributedString(string: String("Name"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 30, y: currentY + 60, width: 125, height: headHeight))
+        let dateRect = aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: currentY,
+            width: 100,
+            font: dateFont
+        )
+        let fittedDate = fittedAggregateHittingPDFSingleLine(
+            Date.now.formatted(date: .long, time: .omitted),
+            initialFont: dateFont,
+            rect: dateRect,
+            alignment: .left
+        )
+        drawAggregateHittingPDFText(fittedDate, in: dateRect)
 
-        attributedString = NSAttributedString(string: String(String("Bat")), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 160, y: currentY + 60, width: 20, height: headHeight))
+        let headingRect = aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: currentY,
+            width: contentWidth,
+            font: headingFont
+        )
+        let fittedHeading = fittedAggregateHittingPDFSingleLine(
+            "Player Statistics",
+            initialFont: headingFont,
+            rect: headingRect,
+            alignment: .center
+        )
+        drawAggregateHittingPDFText(fittedHeading, in: headingRect)
 
-        attributedString = NSAttributedString(string: String("AVG"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 190, y: currentY + 60, width: 30, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("OBP"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 220, y: currentY + 60, width: 30, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("SLG"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 255, y: currentY + 60, width: 30, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("OPS"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 290, y: currentY + 60, width: 40, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("Run"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 320, y: currentY + 60, width: 30, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("Hit"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 345, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("K"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 370, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("ꓘ"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 390, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("BB"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 405, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("HR"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 425, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("1B"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 445, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("2B"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 465, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("3B"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 485, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("SB"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 505, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("SF"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 525, y: currentY + 60, width: 20, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("HBP"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 545, y: currentY + 60, width: 30, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("DTS"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 575, y: currentY + 60, width: 30, height: headHeight))
-
-        attributedString = NSAttributedString(string: String("FC"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: geometry.margin + 610, y: currentY + 60, width: 20, height: headHeight))
+        for label in aggregateHittingPDFColumnLabels {
+            let labelRect = aggregateHittingPDFLineRect(
+                x: geometry.margin + label.xOffset,
+                y: currentY + 60,
+                width: label.width,
+                font: columnLabelFont
+            )
+            let fittedLabel = fittedAggregateHittingPDFSingleLine(
+                label.text,
+                initialFont: columnLabelFont,
+                rect: labelRect,
+                alignment: .left,
+                foregroundColor: .red
+            )
+            drawAggregateHittingPDFText(fittedLabel, in: labelRect)
+        }
     }
 }

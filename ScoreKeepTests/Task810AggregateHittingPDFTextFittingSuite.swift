@@ -228,6 +228,126 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         #expect(truncatingFit.didTruncate)
     }
 
+    @Test("Header, footer, and label fitting uses actual one-line font heights")
+    func supplementalHeaderFooterAndLabelFittingUsesLineHeights() {
+        let geometry = AggregateHittingPDFPaginationGeometry()
+        let dateFont = UIFont.systemFont(ofSize: 8)
+        let headingFont = UIFont.systemFont(ofSize: 12)
+        let footerFont = UIFont.systemFont(ofSize: 10)
+        let labelFont = UIFont.systemFont(ofSize: 12)
+
+        let dateRect = ShowReportView.aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: geometry.margin,
+            width: 100,
+            font: dateFont
+        )
+        let headingRect = ShowReportView.aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: geometry.margin,
+            width: geometry.contentWidth,
+            font: headingFont
+        )
+        let footerRect = ShowReportView.aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: 575,
+            width: 250,
+            font: footerFont
+        )
+        let pageNumberRect = ShowReportView.aggregateHittingPDFLineRect(
+            x: geometry.margin,
+            y: 575,
+            width: geometry.contentWidth,
+            font: footerFont
+        )
+
+        #expect(dateRect.height == ceil(dateFont.lineHeight))
+        #expect(headingRect.height == ceil(headingFont.lineHeight))
+        #expect(footerRect.height == ceil(footerFont.lineHeight))
+        #expect(pageNumberRect.height == ceil(footerFont.lineHeight))
+
+        let fittedLongDate = ShowReportView.fittedAggregateHittingPDFSingleLine(
+            "Wednesday, September 30, 2026",
+            initialFont: dateFont,
+            rect: dateRect,
+            alignment: .left
+        )
+        #expect(fittedLongDate.fontSize >= 8)
+        #expect(ShowReportView.aggregateHittingPDFText(fittedLongDate.text, fitsIn: dateRect, font: fittedLongDate.font))
+
+        let fittedHeading = ShowReportView.fittedAggregateHittingPDFSingleLine(
+            "Player Statistics",
+            initialFont: headingFont,
+            rect: headingRect,
+            alignment: .center
+        )
+        #expect(fittedHeading.text == "Player Statistics")
+        #expect(fittedHeading.fontSize == 12)
+        #expect(!fittedHeading.didTruncate)
+
+        let fittedFooter = ShowReportView.fittedAggregateHittingPDFSingleLine(
+            "Report Created by IOS App ScoreKeep",
+            initialFont: footerFont,
+            rect: footerRect,
+            alignment: .left
+        )
+        #expect(fittedFooter.text == "Report Created by IOS App ScoreKeep")
+        #expect(fittedFooter.fontSize == 10)
+        #expect(!fittedFooter.didTruncate)
+
+        for pageNumberText in ["Page 1", "Page 12", "Page 100"] {
+            let fittedPageNumber = ShowReportView.fittedAggregateHittingPDFSingleLine(
+                pageNumberText,
+                initialFont: footerFont,
+                rect: pageNumberRect,
+                alignment: .center
+            )
+            #expect(fittedPageNumber.text == pageNumberText)
+            #expect(fittedPageNumber.fontSize == 10)
+            #expect(!fittedPageNumber.didTruncate)
+        }
+
+        for label in ShowReportView.aggregateHittingPDFColumnLabels {
+            let rect = ShowReportView.aggregateHittingPDFLineRect(
+                x: geometry.margin + label.xOffset,
+                y: geometry.margin + 60,
+                width: label.width,
+                font: labelFont
+            )
+            let fittedLabel = ShowReportView.fittedAggregateHittingPDFSingleLine(
+                label.text,
+                initialFont: labelFont,
+                rect: rect,
+                alignment: .left,
+                foregroundColor: .red
+            )
+
+            #expect(fittedLabel.text == label.text)
+            #expect(fittedLabel.fontSize >= 8)
+            #expect(!fittedLabel.didTruncate)
+            #expect(ShowReportView.aggregateHittingPDFText(fittedLabel.text, fitsIn: rect, font: fittedLabel.font))
+            #expect(fittedLabel.attributes[.foregroundColor] as? UIColor == .red)
+        }
+    }
+
+    @Test("Rendered PDF preserves supplemental header footer labels and page number text")
+    func renderedPDFPreservesSupplementalHeaderFooterLabelsAndPageNumberText() throws {
+        let document = try renderDocument(
+            teamName: "SupplementalFit",
+            stats: [makeStat(name: "SUPPLEMENTALROW", number: "1", batOrder: 1)]
+        )
+        let text = normalizedExtractedText(from: document)
+
+        #expect(text.contains(Date.now.formatted(date: .long, time: .omitted)))
+        #expect(text.contains("Player Statistics"))
+        #expect(text.contains("Report Created by IOS App ScoreKeep"))
+        #expect(text.contains("Page 1"))
+
+        for label in ShowReportView.aggregateHittingPDFColumnLabels {
+            #expect(text.contains(label.text))
+        }
+    }
+
     private func renderDocument(teamName: String, stats: [PlayerStats], atbats: [Atbat] = []) throws -> PDFDocument {
         let data = ShowReportView.renderAggregateHittingPDF(
             teamName: teamName,
