@@ -149,6 +149,42 @@ struct ShowReportView: View {
         let width: CGFloat
     }
 
+    struct AggregateHittingPDFNumericFitResult {
+        let originalText: String
+        let selectedText: String
+        let font: UIFont
+        let alignment: NSTextAlignment
+        let foregroundColor: UIColor?
+        let fitsCompletely: Bool
+        let reachedMinimumFontSize: Bool
+
+        var fontSize: CGFloat {
+            font.pointSize
+        }
+
+        var attributes: [NSAttributedString.Key: Any] {
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.alignment = alignment
+            paragraphStyle.lineBreakMode = .byClipping
+
+            var attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .paragraphStyle: paragraphStyle
+            ]
+            if let foregroundColor {
+                attributes[.foregroundColor] = foregroundColor
+            }
+
+            return attributes
+        }
+    }
+
+    struct AggregateHittingPDFNumericCell {
+        let identifier: String
+        let xOffset: CGFloat
+        let width: CGFloat
+    }
+
     static let aggregateHittingPDFColumnLabels: [AggregateHittingPDFColumnLabel] = [
         AggregateHittingPDFColumnLabel(text: "Num", xOffset: 0, width: 30),
         AggregateHittingPDFColumnLabel(text: "Name", xOffset: 30, width: 125),
@@ -171,6 +207,29 @@ struct ShowReportView: View {
         AggregateHittingPDFColumnLabel(text: "HBP", xOffset: 545, width: 30),
         AggregateHittingPDFColumnLabel(text: "DTS", xOffset: 575, width: 30),
         AggregateHittingPDFColumnLabel(text: "FC", xOffset: 610, width: 20)
+    ]
+
+    static let aggregateHittingPDFNumericCells: [AggregateHittingPDFNumericCell] = [
+        AggregateHittingPDFNumericCell(identifier: "number", xOffset: 5, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "atbats", xOffset: 165, width: 30),
+        AggregateHittingPDFNumericCell(identifier: "avg", xOffset: 190, width: 30),
+        AggregateHittingPDFNumericCell(identifier: "obp", xOffset: 220, width: 30),
+        AggregateHittingPDFNumericCell(identifier: "slg", xOffset: 255, width: 30),
+        AggregateHittingPDFNumericCell(identifier: "ops", xOffset: 290, width: 40),
+        AggregateHittingPDFNumericCell(identifier: "runs", xOffset: 330, width: 30),
+        AggregateHittingPDFNumericCell(identifier: "hits", xOffset: 350, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "strikeouts", xOffset: 370, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "lookingStrikeouts", xOffset: 390, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "walks", xOffset: 410, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "homeRuns", xOffset: 430, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "singles", xOffset: 450, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "doubles", xOffset: 470, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "triples", xOffset: 490, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "sbColumnValue", xOffset: 510, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "sacrificeFlies", xOffset: 530, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "hbp", xOffset: 555, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "dts", xOffset: 585, width: 20),
+        AggregateHittingPDFNumericCell(identifier: "fc", xOffset: 615, width: 20)
     ]
 
     static func meaningfulNameComponents(from name: String) -> [String] {
@@ -293,6 +352,13 @@ struct ShowReportView: View {
         NSAttributedString(string: fitResult.text, attributes: fitResult.attributes).draw(in: rect)
     }
 
+    private static func drawAggregateHittingPDFNumericText(
+        _ fitResult: AggregateHittingPDFNumericFitResult,
+        in rect: CGRect
+    ) {
+        NSAttributedString(string: fitResult.selectedText, attributes: fitResult.attributes).draw(in: rect)
+    }
+
     static func aggregateHittingPDFLineRect(x: CGFloat, y: CGFloat, width: CGFloat, font: UIFont) -> CGRect {
         CGRect(x: x, y: y, width: width, height: ceil(font.lineHeight))
     }
@@ -313,6 +379,85 @@ struct ShowReportView: View {
             alignment: alignment,
             foregroundColor: foregroundColor
         )
+    }
+
+    static func aggregateHittingPDFNumericCellRect(
+        identifier: String,
+        geometry: AggregateHittingPDFPaginationGeometry,
+        currentY: CGFloat
+    ) -> CGRect? {
+        guard let cell = aggregateHittingPDFNumericCells.first(where: { $0.identifier == identifier }) else {
+            return nil
+        }
+
+        return CGRect(
+            x: geometry.margin + cell.xOffset,
+            y: currentY,
+            width: cell.width,
+            height: geometry.playerRowHeight
+        )
+    }
+
+    static func fittedAggregateHittingPDFNumericText(
+        _ text: String,
+        initialFont: UIFont = UIFont.systemFont(ofSize: 12),
+        minimumFontSize: CGFloat = 8,
+        constrainedTo rect: CGRect,
+        alignment: NSTextAlignment = .natural,
+        foregroundColor: UIColor? = nil
+    ) -> AggregateHittingPDFNumericFitResult {
+        if aggregateHittingPDFText(text, fitsIn: rect, font: initialFont) {
+            return AggregateHittingPDFNumericFitResult(
+                originalText: text,
+                selectedText: text,
+                font: initialFont,
+                alignment: alignment,
+                foregroundColor: foregroundColor,
+                fitsCompletely: true,
+                reachedMinimumFontSize: initialFont.pointSize == minimumFontSize
+            )
+        }
+
+        var fontSize = initialFont.pointSize
+        while fontSize > minimumFontSize {
+            fontSize = max(minimumFontSize, fontSize - 0.25)
+            let font = initialFont.withSize(fontSize)
+            if aggregateHittingPDFText(text, fitsIn: rect, font: font) {
+                return AggregateHittingPDFNumericFitResult(
+                    originalText: text,
+                    selectedText: text,
+                    font: font,
+                    alignment: alignment,
+                    foregroundColor: foregroundColor,
+                    fitsCompletely: true,
+                    reachedMinimumFontSize: fontSize == minimumFontSize
+                )
+            }
+        }
+
+        return AggregateHittingPDFNumericFitResult(
+            originalText: text,
+            selectedText: text,
+            font: initialFont.withSize(minimumFontSize),
+            alignment: alignment,
+            foregroundColor: foregroundColor,
+            fitsCompletely: false,
+            reachedMinimumFontSize: true
+        )
+    }
+
+    private static func drawAggregateHittingPDFNumericValue(
+        _ text: String,
+        identifier: String,
+        geometry: AggregateHittingPDFPaginationGeometry,
+        currentY: CGFloat
+    ) {
+        guard let rect = aggregateHittingPDFNumericCellRect(identifier: identifier, geometry: geometry, currentY: currentY) else {
+            return
+        }
+
+        let fitResult = fittedAggregateHittingPDFNumericText(text, constrainedTo: rect)
+        drawAggregateHittingPDFNumericText(fitResult, in: rect)
     }
 
     static func renderAggregateHittingPDF(teamName: String, orderedStats: [PlayerStats], atbats: [Atbat]) -> Data {
@@ -336,7 +481,6 @@ struct ShowReportView: View {
             .paragraphStyle: NSMutableParagraphStyle()
         ]
 
-        var attributedString = NSAttributedString(string: "", attributes: titleAttributes)
         let data = pdfRenderer.pdfData { context in
             let rowRanges = geometry.rowRanges(for: orderedStats.count)
             let rangesToRender = rowRanges.isEmpty ? [0..<0] : rowRanges
@@ -365,8 +509,12 @@ struct ShowReportView: View {
                     let slg:Int = stats.atbats == 0 ? 0 :Int(Double(1000 * (stats.single + (2 * stats.double) + (3 * stats.triple) + (4 * stats.HR)) /
                                                                     stats.atbats))
 
-                    attributedString = NSAttributedString(string: String(stats.player?.number ?? ""), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 5, y: currentY, width: 20, height: geometry.playerRowHeight))
+                    drawAggregateHittingPDFNumericValue(
+                        String(stats.player?.number ?? ""),
+                        identifier: "number",
+                        geometry: geometry,
+                        currentY: currentY
+                    )
 
                     let playerName = String(stats.player?.name ?? "")
                     let playerNameRect = CGRect(x: geometry.margin + 30, y: currentY, width: 125, height: geometry.playerRowHeight)
@@ -380,62 +528,25 @@ struct ShowReportView: View {
                     )
                     drawAggregateHittingPDFText(fittedPlayerName, in: playerNameRect)
 
-                    attributedString = NSAttributedString(string: String(String("\(stats.atbats)")), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 165, y: currentY, width: 30, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String(String(format: "%03d", avg)), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 190, y: currentY, width: 30, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String(String(format: "%03d", obp)), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 220, y: currentY, width: 30, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String(String(format: "%03d", slg)), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 255, y: currentY, width: 30, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String(String(format: "%03d", obp + slg)), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 290, y: currentY, width: 40, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.runs)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 330, y: currentY, width: 30, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.hits)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 350, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.strikeouts)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 370, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.strikeoutl)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 390, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.BB)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 410, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.HR)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 430, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.single)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 450, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.double)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 470, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.triple)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 490, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.sacBunt)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 510, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.sacFly)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 530, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.hbp)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 555, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.dts)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 585, y: currentY, width: 20, height: geometry.playerRowHeight))
-
-                    attributedString = NSAttributedString(string: String("\(stats.fc)"), attributes: textAttributes)
-                    attributedString.draw(in: CGRect(x: geometry.margin + 615, y: currentY, width: 20, height: geometry.playerRowHeight))
+                    drawAggregateHittingPDFNumericValue("\(stats.atbats)", identifier: "atbats", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue(String(format: "%03d", avg), identifier: "avg", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue(String(format: "%03d", obp), identifier: "obp", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue(String(format: "%03d", slg), identifier: "slg", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue(String(format: "%03d", obp + slg), identifier: "ops", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.runs)", identifier: "runs", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.hits)", identifier: "hits", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.strikeouts)", identifier: "strikeouts", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.strikeoutl)", identifier: "lookingStrikeouts", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.BB)", identifier: "walks", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.HR)", identifier: "homeRuns", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.single)", identifier: "singles", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.double)", identifier: "doubles", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.triple)", identifier: "triples", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.sacBunt)", identifier: "sbColumnValue", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.sacFly)", identifier: "sacrificeFlies", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.hbp)", identifier: "hbp", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.dts)", identifier: "dts", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(stats.fc)", identifier: "fc", geometry: geometry, currentY: currentY)
 
                     currentY += geometry.playerRowHeight
                 }

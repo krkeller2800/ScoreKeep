@@ -348,6 +348,157 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         }
     }
 
+    @Test("Numeric fitting preserves complete values across existing cell widths")
+    func numericFittingPreservesCompleteValuesAcrossCellWidths() throws {
+        let geometry = AggregateHittingPDFPaginationGeometry()
+        let rowY = geometry.firstRowY
+        let rect20 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "hits", geometry: geometry, currentY: rowY))
+        let rect30 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "atbats", geometry: geometry, currentY: rowY))
+        let rect40 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "ops", geometry: geometry, currentY: rowY))
+
+        let short20 = ShowReportView.fittedAggregateHittingPDFNumericText("7", constrainedTo: rect20)
+        #expect(short20.originalText == "7")
+        #expect(short20.selectedText == "7")
+        #expect(short20.fontSize == 12)
+        #expect(short20.fitsCompletely)
+        #expect(!short20.reachedMinimumFontSize)
+
+        let shrinking20 = ShowReportView.fittedAggregateHittingPDFNumericText("888", constrainedTo: rect20)
+        #expect(shrinking20.selectedText == "888")
+        #expect(shrinking20.fontSize < 12)
+        #expect(shrinking20.fontSize >= 8)
+        #expect(shrinking20.fitsCompletely)
+        #expect(!shrinking20.selectedText.contains("..."))
+
+        let shrinking30 = ShowReportView.fittedAggregateHittingPDFNumericText("88888", constrainedTo: rect30)
+        #expect(shrinking30.selectedText == "88888")
+        #expect(shrinking30.fontSize < 12)
+        #expect(shrinking30.fontSize >= 8)
+        #expect(shrinking30.fitsCompletely)
+        #expect(!shrinking30.selectedText.contains("..."))
+
+        let shrinking40 = ShowReportView.fittedAggregateHittingPDFNumericText("8888888", constrainedTo: rect40)
+        let repeatedShrinking40 = ShowReportView.fittedAggregateHittingPDFNumericText("8888888", constrainedTo: rect40)
+        #expect(shrinking40.selectedText == "8888888")
+        #expect(shrinking40.fontSize < 12)
+        #expect(shrinking40.fontSize >= 8)
+        #expect(shrinking40.fitsCompletely)
+        #expect(!shrinking40.selectedText.contains("..."))
+        #expect(repeatedShrinking40.selectedText == shrinking40.selectedText)
+        #expect(repeatedShrinking40.fontSize == shrinking40.fontSize)
+        #expect(repeatedShrinking40.fitsCompletely == shrinking40.fitsCompletely)
+
+        for (text, rect) in [("888", rect20), ("8888", rect30), ("8888", rect40)] {
+            let fit = ShowReportView.fittedAggregateHittingPDFNumericText(text, constrainedTo: rect)
+            #expect(fit.selectedText == text)
+            #expect(fit.fontSize >= 8)
+            #expect(fit.fitsCompletely)
+            #expect(!fit.selectedText.contains("..."))
+        }
+
+        let negative20 = ShowReportView.fittedAggregateHittingPDFNumericText("-88", constrainedTo: rect20)
+        #expect(negative20.selectedText == "-88")
+        #expect(negative20.selectedText.hasPrefix("-"))
+        #expect(negative20.fitsCompletely)
+
+        let opsAbove999 = ShowReportView.fittedAggregateHittingPDFNumericText("5000", constrainedTo: rect40)
+        #expect(opsAbove999.selectedText == "5000")
+        #expect(opsAbove999.fitsCompletely)
+        #expect(!opsAbove999.selectedText.contains("..."))
+    }
+
+    @Test("Unfittable numeric value reports non-fit without truncation")
+    func unfittableNumericValueReportsNonFitWithoutTruncation() throws {
+        let geometry = AggregateHittingPDFPaginationGeometry()
+        let rect = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "hits", geometry: geometry, currentY: geometry.firstRowY))
+        let extremeText = "12345678901234567890"
+        let fit = ShowReportView.fittedAggregateHittingPDFNumericText(extremeText, constrainedTo: rect)
+
+        #expect(fit.originalText == extremeText)
+        #expect(fit.selectedText == extremeText)
+        #expect(fit.fontSize == 8)
+        #expect(fit.reachedMinimumFontSize)
+        #expect(!fit.fitsCompletely)
+        #expect(!fit.selectedText.contains("..."))
+    }
+
+    @Test("Numeric fitting preserves existing cell geometry")
+    func numericFittingPreservesExistingCellGeometry() throws {
+        let geometry = AggregateHittingPDFPaginationGeometry()
+        let rowY = geometry.firstRowY
+        let expectedCells: [(String, CGFloat, CGFloat)] = [
+            ("number", 55, 20),
+            ("atbats", 215, 30),
+            ("avg", 240, 30),
+            ("obp", 270, 30),
+            ("slg", 305, 30),
+            ("ops", 340, 40),
+            ("runs", 380, 30),
+            ("hits", 400, 20),
+            ("strikeouts", 420, 20),
+            ("lookingStrikeouts", 440, 20),
+            ("walks", 460, 20),
+            ("homeRuns", 480, 20),
+            ("singles", 500, 20),
+            ("doubles", 520, 20),
+            ("triples", 540, 20),
+            ("sbColumnValue", 560, 20),
+            ("sacrificeFlies", 580, 20),
+            ("hbp", 605, 20),
+            ("dts", 635, 20),
+            ("fc", 665, 20)
+        ]
+
+        #expect(ShowReportView.aggregateHittingPDFNumericCells.count == expectedCells.count)
+
+        for (identifier, expectedX, expectedWidth) in expectedCells {
+            let rect = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: identifier, geometry: geometry, currentY: rowY))
+            let fit = ShowReportView.fittedAggregateHittingPDFNumericText("8888", constrainedTo: rect)
+
+            #expect(rect.minX == expectedX)
+            #expect(rect.minY == rowY)
+            #expect(rect.width == expectedWidth)
+            #expect(rect.height == geometry.playerRowHeight)
+            #expect(fit.attributes[.foregroundColor] == nil)
+        }
+
+        #expect(ShowReportView.aggregateHittingPDFColumnLabels.map(\.text) == [
+            "Num", "Name", "Bat", "AVG", "OBP", "SLG", "OPS", "Run", "Hit", "K", "ꓘ", "BB", "HR", "1B", "2B", "3B", "SB", "SF", "HBP", "DTS", "FC"
+        ])
+    }
+
+    @Test("Rendered PDF preserves complete distinctive numeric values")
+    func renderedPDFPreservesCompleteDistinctiveNumericValues() throws {
+        let stats = [
+            makeStat(
+                name: "NUMERICROWONE",
+                number: "7",
+                batOrder: 1,
+                atbats: 1234,
+                runs: 8,
+                hits: 123
+            ),
+            makeStat(
+                name: "NUMERICROWTWO",
+                number: "22",
+                batOrder: 2,
+                atbats: 1,
+                runs: -12,
+                hits: 1,
+                HR: 1
+            )
+        ]
+        let document = try renderDocument(teamName: "NumericFit", stats: stats)
+        let text = normalizedExtractedText(from: document)
+
+        #expect(text.contains("123"))
+        #expect(text.contains("1234"))
+        #expect(text.contains("6000"))
+        #expect(text.contains("-12"))
+        #expect(text.contains("7"))
+        #expect(!text.contains("..."))
+    }
+
     private func renderDocument(teamName: String, stats: [PlayerStats], atbats: [Atbat] = []) throws -> PDFDocument {
         let data = ShowReportView.renderAggregateHittingPDF(
             teamName: teamName,
@@ -386,7 +537,26 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         }
     }
 
-    private func makeStat(name: String, number: String, batOrder: Int) -> PlayerStats {
+    private func makeStat(
+        name: String,
+        number: String,
+        batOrder: Int,
+        atbats: Int = 3,
+        runs: Int = 0,
+        hits: Int = 1,
+        strikeouts: Int? = nil,
+        strikeoutl: Int = 0,
+        HR: Int = 0,
+        single: Int = 1,
+        double: Int = 0,
+        triple: Int = 0,
+        BB: Int = 0,
+        sacBunt: Int = 0,
+        sacFly: Int = 0,
+        hbp: Int = 0,
+        dts: Int = 0,
+        fc: Int = 0
+    ) -> PlayerStats {
         let player = Player(
             name: name,
             number: number,
@@ -397,21 +567,21 @@ struct Task810AggregateHittingPDFTextFittingSuite {
 
         return PlayerStats(
             player: player,
-            atbats: 3,
-            runs: batOrder % 5,
-            hits: 1,
-            strikeouts: batOrder % 2,
-            strikeoutl: 0,
-            HR: 0,
-            single: 1,
-            double: 0,
-            triple: 0,
-            BB: 0,
-            sacBunt: 0,
-            sacFly: 0,
-            hbp: 0,
-            dts: 0,
-            fc: 0
+            atbats: atbats,
+            runs: runs == 0 ? batOrder % 5 : runs,
+            hits: hits,
+            strikeouts: strikeouts ?? batOrder % 2,
+            strikeoutl: strikeoutl,
+            HR: HR,
+            single: single,
+            double: double,
+            triple: triple,
+            BB: BB,
+            sacBunt: sacBunt,
+            sacFly: sacFly,
+            hbp: hbp,
+            dts: dts,
+            fc: fc
         )
     }
 
