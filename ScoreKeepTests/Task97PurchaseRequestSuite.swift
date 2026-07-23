@@ -19,16 +19,13 @@ final class Task97PurchaseRequestSuite: XCTestCase {
         // Setup state to .discovered
         await manager.loadProducts()
         
-        // In our mock, liveProduct.purchase() is not available because it's a MockProduct which does not inherit from StoreKit.Product natively to support purchase().
-        // Actually, MockProduct doesn't have purchase() implemented, so it will fail to cast to Product or fail to run.
-        // But we only care that isPurchasing changes. We can't easily check isPurchasing synchronously because the method is async.
-        // Wait, if it fails to cast to Product, it returns early and does NOT set isPurchasing.
-        
-        // Let's just test that the method exists and if state is .discovered but casting fails, it returns early.
+        // In our mock, liveProduct.purchase() now works!
+        // We can't check isPurchasing synchronously because the defer block resets it.
+        // But we can check that it didn't crash, and that the state properly evaluates.
         await manager.purchaseSeasonPass()
         
-        XCTAssertFalse(manager.isPurchasing)
-        // If we had a real StoreKit Product, it would initiate the purchase.
+        XCTAssertFalse(manager.isPurchasing) // Reset by defer
+        XCTAssertTrue(manager.isPurchasePending) // Because the mock returns pending by default
     }
     
     func testNoPurchaseRequestOccursWithoutDiscoveredProduct() async {

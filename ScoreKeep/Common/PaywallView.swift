@@ -206,6 +206,8 @@ struct PaywallView: View {
                     let buttonTitle: String = {
                         if purchaseManager.isPurchasing {
                             return "Processing..."
+                        } else if purchaseManager.isPurchasePending {
+                            return "Pending Approval"
                         } else if case .discovered = purchaseManager.priceState {
                             return "Buy Season Pass"
                         } else {
@@ -223,7 +225,7 @@ struct PaywallView: View {
                 .background(.blue, in: Capsule())
                 .foregroundColor(.white)
             }
-            .disabled(purchaseManager.isPurchasing || purchaseManager.priceState == .loading)
+            .disabled(purchaseManager.isPurchasing || purchaseManager.priceState == .loading || purchaseManager.isPurchasePending)
 
             Button {
                 Task { await purchaseManager.restorePurchases() }

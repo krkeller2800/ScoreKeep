@@ -1,15 +1,17 @@
 import Testing
 @testable import ScoreKeep
 import Foundation
+import StoreKit
 
 @Suite("Task 9.1 Product Discovery Suite")
 struct Task91ProductDiscoverySuite {
 
     struct FakeProduct: DiscoveredProduct {
-        let id: String
-        let displayName: String
-        let displayPrice: String
-        let description: String
+        var id: String
+        var displayName: String
+        var displayPrice: String
+        var description: String
+        func purchase() async throws -> Product.PurchaseResult { return .pending }
     }
 
     final class FakeProductFetcher: ProductCatalogFetching, @unchecked Sendable {

@@ -18,6 +18,7 @@ final class PurchaseManager: ObservableObject {
 
     // State for Paywall UI
     @Published var isPurchasing: Bool = false
+    @Published var isPurchasePending: Bool = false
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
@@ -95,14 +96,17 @@ final class PurchaseManager: ObservableObject {
     /// Initiates a purchase request for the currently discovered Season Pass.
     func purchaseSeasonPass() async {
         guard case .discovered(let discoveredProduct) = priceState else { return }
-        guard let liveProduct = discoveredProduct as? Product else { return }
 
         isPurchasing = true
+        isPurchasePending = false
         defer { isPurchasing = false }
 
-        // Only initiate the purchase request.
-        // Task 9.8+ will implement handling the result.
-        _ = try? await liveProduct.purchase()
+        // Only handle pending requests per Task 9.8.
+        if let result = try? await discoveredProduct.purchase() {
+            if case .pending = result {
+                self.isPurchasePending = true
+            }
+        }
     }
 
     /// Checks current StoreKit purchase status for the non-renewing Season Pass.
