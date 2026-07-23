@@ -15,7 +15,7 @@ final class Task99PurchaseCancellationSuite: XCTestCase {
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
-            purchaseAction: { _ in return .userCancelled } // Inject user cancellation
+            purchaseAction: { _ in return PurchaseManager.PurchaseOutcome.userCancelled } // Inject user cancellation
         )
         
         await manager.loadProducts()

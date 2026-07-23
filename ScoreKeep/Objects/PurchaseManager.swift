@@ -10,6 +10,12 @@ import StoreKit
 
 @MainActor
 final class PurchaseManager: ObservableObject {
+    enum PurchaseOutcome {
+        case success(verified: Bool)
+        case userCancelled
+        case pending
+    }
+
     // MARK: - Public published properties for UI
     @Published var isSeasonPassActive: Bool = false
     @Published var seasonPassProduct: Product?
@@ -20,6 +26,8 @@ final class PurchaseManager: ObservableObject {
     @Published var isPurchasing: Bool = false
     @Published var isPurchasePending: Bool = false
     @Published var isPurchaseCancelled: Bool = false
+    @Published var isPurchaseSuccessful: Bool = false
+    @Published var isPurchaseUnverified: Bool = false
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
@@ -39,16 +47,31 @@ final class PurchaseManager: ObservableObject {
     private let calendar: Calendar
     private let currentDate: @Sendable () -> Date
     private let discoveryService: ProductDiscoveryService
-    private let purchaseAction: @Sendable (any DiscoveredProduct) async throws -> Product.PurchaseResult
+    private let purchaseAction: @Sendable (any DiscoveredProduct) async throws -> PurchaseOutcome
 
     init(
         entitlementFetcher: any CurrentEntitlementFetching = StoreKitCurrentEntitlementFetcher(),
         catalogFetcher: any ProductCatalogFetching = StoreKitProductCatalogFetcher(),
         calendar: Calendar = .current,
         currentDate: @escaping @Sendable () -> Date = { Date() },
-        purchaseAction: @escaping @Sendable (any DiscoveredProduct) async throws -> Product.PurchaseResult = { product in
+        purchaseAction: @escaping @Sendable (any DiscoveredProduct) async throws -> PurchaseOutcome = { product in
             guard let liveProduct = product as? Product else { throw CancellationError() }
-            return try await liveProduct.purchase()
+            let result = try await liveProduct.purchase()
+            switch result {
+            case .success(let verification):
+                switch verification {
+                case .verified:
+                    return .success(verified: true)
+                case .unverified:
+                    return .success(verified: false)
+                }
+            case .userCancelled:
+                return .userCancelled
+            case .pending:
+                return .pending
+            @unknown default:
+                throw CancellationError()
+            }
         }
     ) {
         self.entitlementFetcher = entitlementFetcher
@@ -107,17 +130,23 @@ final class PurchaseManager: ObservableObject {
         isPurchasing = true
         isPurchasePending = false
         isPurchaseCancelled = false
+        isPurchaseSuccessful = false
+        isPurchaseUnverified = false
         defer { isPurchasing = false }
 
-        // Only handle pending and cancelled requests per Task 9.8 and 9.9.
+        // Only handle pending, cancelled, and successful requests per Task 9.8, 9.9, and 9.10.
         if let result = try? await purchaseAction(discoveredProduct) {
             switch result {
+            case .success(let verified):
+                if verified {
+                    self.isPurchaseSuccessful = true
+                } else {
+                    self.isPurchaseUnverified = true
+                }
             case .pending:
                 self.isPurchasePending = true
             case .userCancelled:
                 self.isPurchaseCancelled = true
-            default:
-                break
             }
         }
     }

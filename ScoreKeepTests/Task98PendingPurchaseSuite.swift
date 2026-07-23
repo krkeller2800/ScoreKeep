@@ -15,7 +15,7 @@ final class Task98PendingPurchaseSuite: XCTestCase {
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
-            purchaseAction: { _ in return .pending }
+            purchaseAction: { _ in return PurchaseManager.PurchaseOutcome.pending }
         )
         
         await manager.loadProducts()

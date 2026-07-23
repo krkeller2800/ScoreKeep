@@ -14,7 +14,7 @@ final class Task97PurchaseRequestSuite: XCTestCase {
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
-            purchaseAction: { _ in return .userCancelled } // Simulate cancellation to verify boundary
+            purchaseAction: { _ in return PurchaseManager.PurchaseOutcome.userCancelled } // Simulate cancellation to verify boundary
         )
         
         // Setup state to .discovered
