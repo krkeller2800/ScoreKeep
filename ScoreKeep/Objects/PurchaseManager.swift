@@ -140,6 +140,9 @@ final class PurchaseManager: ObservableObject {
             case .success(let verified):
                 if verified {
                     self.isPurchaseSuccessful = true
+                    if !self.isSeasonPassActive {
+                        await refreshEntitlements()
+                    }
                 } else {
                     self.isPurchaseUnverified = true
                 }
