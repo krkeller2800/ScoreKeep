@@ -7,12 +7,6 @@ struct MockProduct: DiscoveredProduct {
     var displayName: String
     var displayPrice: String
     var description: String
-
-    var purchaseResultToReturn: Product.PurchaseResult = .pending
-
-    func purchase() async throws -> Product.PurchaseResult {
-        return purchaseResultToReturn
-    }
 }
 
 final class MockProductCatalogFetcher: ProductCatalogFetching {

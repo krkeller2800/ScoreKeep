@@ -38,16 +38,22 @@ final class PurchaseManager: ObservableObject {
     private let calendar: Calendar
     private let currentDate: @Sendable () -> Date
     private let discoveryService: ProductDiscoveryService
+    private let purchaseAction: @Sendable (any DiscoveredProduct) async throws -> Product.PurchaseResult
 
     init(
         entitlementFetcher: any CurrentEntitlementFetching = StoreKitCurrentEntitlementFetcher(),
         catalogFetcher: any ProductCatalogFetching = StoreKitProductCatalogFetcher(),
         calendar: Calendar = .current,
-        currentDate: @escaping @Sendable () -> Date = { Date() }
+        currentDate: @escaping @Sendable () -> Date = { Date() },
+        purchaseAction: @escaping @Sendable (any DiscoveredProduct) async throws -> Product.PurchaseResult = { product in
+            guard let liveProduct = product as? Product else { throw CancellationError() }
+            return try await liveProduct.purchase()
+        }
     ) {
         self.entitlementFetcher = entitlementFetcher
         self.calendar = calendar
         self.currentDate = currentDate
+        self.purchaseAction = purchaseAction
 
         self.discoveryService = ProductDiscoveryService(
             fetcher: catalogFetcher,
@@ -102,7 +108,7 @@ final class PurchaseManager: ObservableObject {
         defer { isPurchasing = false }
 
         // Only handle pending requests per Task 9.8.
-        if let result = try? await discoveredProduct.purchase() {
+        if let result = try? await purchaseAction(discoveredProduct) {
             if case .pending = result {
                 self.isPurchasePending = true
             }

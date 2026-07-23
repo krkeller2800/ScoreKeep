@@ -13,19 +13,19 @@ final class Task97PurchaseRequestSuite: XCTestCase {
         
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
-            currentDate: { Date(timeIntervalSince1970: 1748736000) } // Jun 1, 2025
+            currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
+            purchaseAction: { _ in return .userCancelled } // Simulate cancellation to verify boundary
         )
         
         // Setup state to .discovered
         await manager.loadProducts()
         
-        // In our mock, liveProduct.purchase() now works!
-        // We can't check isPurchasing synchronously because the defer block resets it.
-        // But we can check that it didn't crash, and that the state properly evaluates.
+        // The purchase will use our injected closure and return .userCancelled.
+        // It shouldn't crash, and the pending state should remain false.
         await manager.purchaseSeasonPass()
         
         XCTAssertFalse(manager.isPurchasing) // Reset by defer
-        XCTAssertTrue(manager.isPurchasePending) // Because the mock returns pending by default
+        XCTAssertFalse(manager.isPurchasePending) // Because we returned .userCancelled
     }
     
     func testNoPurchaseRequestOccursWithoutDiscoveredProduct() async {

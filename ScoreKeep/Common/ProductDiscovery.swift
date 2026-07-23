@@ -7,16 +7,9 @@ protocol DiscoveredProduct: Sendable {
     var displayName: String { get }
     var displayPrice: String { get }
     var description: String { get }
-
-    @MainActor
-    func purchase() async throws -> Product.PurchaseResult
 }
 
-extension Product: DiscoveredProduct {
-    func purchase() async throws -> Product.PurchaseResult {
-        return try await self.purchase(options: [])
-    }
-}
+extension Product: DiscoveredProduct {}
 
 /// Abstracts the fetching of products to allow deterministic testing.
 protocol ProductCatalogFetching: Sendable {

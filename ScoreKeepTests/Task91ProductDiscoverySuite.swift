@@ -11,7 +11,6 @@ struct Task91ProductDiscoverySuite {
         var displayName: String
         var displayPrice: String
         var description: String
-        func purchase() async throws -> Product.PurchaseResult { return .pending }
     }
 
     final class FakeProductFetcher: ProductCatalogFetching, @unchecked Sendable {
