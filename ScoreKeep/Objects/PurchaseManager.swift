@@ -133,12 +133,8 @@ final class PurchaseManager: ObservableObject {
     func purchaseSeasonPass() async {
         guard case .discovered(let discoveredProduct) = priceState else { return }
 
+        resetTransientPurchaseState()
         isPurchasing = true
-        isPurchasePending = false
-        isPurchaseCancelled = false
-        isPurchaseSuccessful = false
-        isPurchaseUnverified = false
-        isPurchaseFailed = false
         defer { isPurchasing = false }
 
         do {
@@ -205,12 +201,21 @@ final class PurchaseManager: ObservableObject {
     /// Purchases a specific StoreKit Product and updates entitlement state.
     // Legacy inline purchase(product:) method removed by Task 9.7.
 
-    /// Checks purchase status and refreshes local entitlements.
-    /// The Season Pass is non-renewing, so it does not appear as an auto-renewing subscription.
-    func restorePurchases() async {
+    private func resetTransientPurchaseState() {
+        isPurchasePending = false
+        isPurchaseCancelled = false
+        isPurchaseSuccessful = false
+        isPurchaseUnverified = false
+        isPurchaseFailed = false
         isRestoreSuccessful = false
         isNothingToRestore = false
         lastErrorMessage = nil
+    }
+
+    /// Checks purchase status and refreshes local entitlements.
+    /// The Season Pass is non-renewing, so it does not appear as an auto-renewing subscription.
+    func restorePurchases() async {
+        resetTransientPurchaseState()
         isPurchasing = true
         defer { isPurchasing = false }
 
