@@ -489,7 +489,8 @@ struct ShareContentView: View {
         guard let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let fileURL = documentDirectory.appendingPathComponent("\(fileName).ScoreKeep_Players")
+        let route = CompatibleSourceDataExportRoute(kind: .players, fileBaseName: fileName)
+        let fileURL = documentDirectory.appendingPathComponent(route.fileName)
         
         do {
             try playerData.write(to: fileURL)
@@ -541,7 +542,8 @@ struct ShareContentView: View {
         guard let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let fileURL = documentDirectory.appendingPathComponent("\(fileName).ScoreKeep_Games")
+        let route = CompatibleSourceDataExportRoute(kind: .game, fileBaseName: fileName)
+        let fileURL = documentDirectory.appendingPathComponent(route.fileName)
         
         do {
             try gameData.write(to: fileURL)
