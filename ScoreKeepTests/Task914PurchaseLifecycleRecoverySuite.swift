@@ -4,43 +4,43 @@ import StoreKit
 
 @MainActor
 final class Task914PurchaseLifecycleRecoverySuite: XCTestCase {
-    
+
     private let keychain = KeychainService()
     private let entitlementKey = "seasonPassMaxExpirationISO8601"
-    
+
     override func setUp() {
         super.setUp()
         try? keychain.delete(entitlementKey)
     }
-    
+
     override func tearDown() {
         try? keychain.delete(entitlementKey)
         super.tearDown()
     }
-    
+
     func testTransientStateCleanupOnNewPurchaseWorkflow() async {
         let catalogFetcher = MockProductCatalogFetcher()
         catalogFetcher.productsToReturn = [
             MockProduct(id: "com.komakode.ScoreKeep.SeasonPass2025", displayName: "Pass", displayPrice: "$1", description: "Pass")
         ]
-        
+
         let manager = PurchaseManager(
             entitlementFetcher: SpyEntitlementFetcher(),
             catalogFetcher: catalogFetcher,
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
             purchaseAction: { _ in return .pending }
         )
-        
+
         await manager.loadProducts()
-        
+
         // Artificially dirty the transient states
         manager.isRestoreSuccessful = true
         manager.isPurchaseFailed = true
         manager.isPurchaseSuccessful = true
         manager.lastErrorMessage = "Old error"
-        
+
         await manager.purchaseSeasonPass()
-        
+
         // Assert old states are cleared and only the new pending state is set
         XCTAssertFalse(manager.isRestoreSuccessful)
         XCTAssertFalse(manager.isPurchaseFailed)
@@ -48,7 +48,7 @@ final class Task914PurchaseLifecycleRecoverySuite: XCTestCase {
         XCTAssertNil(manager.lastErrorMessage)
         XCTAssertTrue(manager.isPurchasePending)
     }
-    
+
     func testTransientStateCleanupOnNewRestoreWorkflow() async {
         let catalogFetcher = MockProductCatalogFetcher()
         let manager = PurchaseManager(
@@ -57,7 +57,7 @@ final class Task914PurchaseLifecycleRecoverySuite: XCTestCase {
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
             restoreAction: { throw CancellationError() } // Fail the restore
         )
-        
+
         // Artificially dirty the transient states
         manager.isPurchasePending = true
         manager.isPurchaseCancelled = true
@@ -65,9 +65,9 @@ final class Task914PurchaseLifecycleRecoverySuite: XCTestCase {
         manager.isPurchaseFailed = true
         manager.isRestoreSuccessful = true
         manager.isNothingToRestore = true
-        
+
         await manager.restore()
-        
+
         // Assert old states are cleared
         XCTAssertFalse(manager.isPurchasePending)
         XCTAssertFalse(manager.isPurchaseCancelled)
@@ -75,55 +75,122 @@ final class Task914PurchaseLifecycleRecoverySuite: XCTestCase {
         XCTAssertFalse(manager.isPurchaseFailed)
         XCTAssertFalse(manager.isRestoreSuccessful)
         XCTAssertFalse(manager.isNothingToRestore)
-        
+
         // Assert only the restore error message is set
         XCTAssertEqual(manager.lastErrorMessage, "We couldn’t restore purchases. Please try again.")
     }
-    
+
     func testOfflineRecoveryUsesKeychainWhenStoreKitIsEmpty() async {
         let fetcher = SpyEntitlementFetcher()
         fetcher.inputs = [] // StoreKit returns empty (e.g. offline with empty cache)
-        
+
         // Seed keychain with a future expiration
         let formatter = ISO8601DateFormatter()
         let maxDate = Date(timeIntervalSince1970: 1767225599) // Dec 31, 2025
         if let data = formatter.string(from: maxDate).data(using: .utf8) {
             try? keychain.set(data, for: entitlementKey)
         }
-        
+
         let manager = PurchaseManager(
             entitlementFetcher: fetcher,
             calendar: .current,
             currentDate: { Date(timeIntervalSince1970: 1748736000) } // Jun 1, 2025
         )
-        
+
         // Startup behavior
         await manager.refreshEntitlements()
-        
+
         // Assert entitlement is recovered from offline known state
         XCTAssertEqual(manager.entitlementState, .entitled)
         XCTAssertTrue(manager.isSeasonPassActive)
     }
-    
+
+    func testPendingPurchaseRecoveryClearsPendingFlag() async {
+        let fetcher = SpyEntitlementFetcher()
+        fetcher.inputs = [
+            TransactionEvidenceInput(productID: "com.komakode.ScoreKeep.SeasonPass2025", isVerified: true, isRevoked: false)
+        ]
+
+        let manager = PurchaseManager(
+            entitlementFetcher: fetcher,
+            calendar: .current,
+            currentDate: { Date(timeIntervalSince1970: 1748736000) } // Jun 1, 2025
+        )
+
+        manager.isPurchasePending = true
+        manager.isPurchaseFailed = true
+        manager.isPurchaseCancelled = true
+
+        await manager.completeVerifiedRecovery(productID: "com.komakode.ScoreKeep.SeasonPass2025")
+
+        XCTAssertFalse(manager.isPurchasePending)
+        XCTAssertFalse(manager.isPurchaseFailed)
+        XCTAssertFalse(manager.isPurchaseCancelled)
+        XCTAssertTrue(manager.isSeasonPassActive)
+        XCTAssertEqual(manager.entitlementState, .entitled)
+    }
+
+    func testOfflineUncertainState() {
+        let classifier = EntitlementClassifier()
+        let state = classifier.classify(evidence: [])
+        XCTAssertEqual(state, .statusUnavailable)
+    }
+
+    func testConfirmedNonEntitlement() {
+        let classifier = EntitlementClassifier()
+        // Evidence exists but it's revoked or wrong season
+        let evidence = [
+            EntitlementEvidence(season: .wrong, isVerified: true, isRevoked: false),
+            EntitlementEvidence(season: .current, isVerified: true, isRevoked: true) // Revoked current season
+        ]
+        let state = classifier.classify(evidence: evidence)
+        XCTAssertEqual(state, .notEntitled)
+    }
+
     func testRecoveryFromInterruptedPurchase() async {
         // Interrupted purchases yield verified inputs in currentEntitlements
         let fetcher = SpyEntitlementFetcher()
         fetcher.inputs = [
             TransactionEvidenceInput(productID: "com.komakode.ScoreKeep.SeasonPass2025", isVerified: true, isRevoked: false)
         ]
-        
+
         let manager = PurchaseManager(
             entitlementFetcher: fetcher,
             calendar: .current,
             currentDate: { Date(timeIntervalSince1970: 1748736000) } // Jun 1, 2025
         )
-        
+
         XCTAssertFalse(manager.isSeasonPassActive)
-        
+
         // Startup behavior
         await manager.refreshEntitlements()
-        
+
         XCTAssertTrue(manager.isSeasonPassActive)
         XCTAssertEqual(manager.entitlementState, .entitled)
+    }
+
+    func testValidKeychainProducesOfflineKnown() async {
+        let fetcher = SpyEntitlementFetcher()
+        fetcher.inputs = [] // StoreKit returns empty (e.g. offline with empty cache)
+
+        // Seed keychain with a future expiration
+        let formatter = ISO8601DateFormatter()
+        let maxDate = Date(timeIntervalSince1970: 1767225599) // Dec 31, 2025
+        if let data = formatter.string(from: maxDate).data(using: .utf8) {
+            try? keychain.set(data, for: entitlementKey)
+        }
+
+        let manager = PurchaseManager(
+            entitlementFetcher: fetcher,
+            calendar: .current,
+            currentDate: { Date(timeIntervalSince1970: 1748736000) } // Jun 1, 2025
+        )
+
+        // Startup behavior
+        await manager.refreshEntitlements()
+
+        // Assert entitlement is recovered from offline known state, not statusUnavailable
+        XCTAssertEqual(manager.entitlementState, .entitled)
+        XCTAssertTrue(manager.isSeasonPassActive)
     }
 }

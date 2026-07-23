@@ -5,13 +5,14 @@ public enum EntitlementState: Equatable, Sendable {
     case notEntitled
     case priorSeason
     case futureSeason
+    case statusUnavailable
 }
 
 public struct EntitlementEvidence: Equatable, Sendable {
     public let season: SeasonClassification
     public let isVerified: Bool
     public let isRevoked: Bool
-    
+
     public init(
         season: SeasonClassification,
         isVerified: Bool,
@@ -25,13 +26,13 @@ public struct EntitlementEvidence: Equatable, Sendable {
 
 public struct EntitlementClassifier: Sendable {
     public init() {}
-    
+
     public func classify(
         evidence: [EntitlementEvidence]
     ) -> EntitlementState {
         var hasPrior = false
         var hasFuture = false
-        
+
         for record in evidence {
             if record.isVerified && !record.isRevoked {
                 switch record.season {
@@ -46,7 +47,11 @@ public struct EntitlementClassifier: Sendable {
                 }
             }
         }
-        
+
+        if evidence.isEmpty {
+            return .statusUnavailable
+        }
+
         if hasPrior {
             return .priorSeason
         } else if hasFuture {

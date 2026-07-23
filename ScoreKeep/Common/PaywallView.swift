@@ -178,6 +178,13 @@ struct PaywallView: View {
     @ViewBuilder
     private func priceAndCTA(compact: Bool, extraCompact: Bool) -> some View {
         VStack(spacing: compact ? (extraCompact ? 8 : 10) : 12) {
+            if purchaseManager.entitlementState == .statusUnavailable {
+                Text("Purchase status unavailable. If you previously purchased, please restore.")
+                    .font(compact ? (extraCompact ? .caption2 : .caption) : .footnote)
+                    .foregroundColor(.orange)
+                    .multilineTextAlignment(.center)
+            }
+
             switch purchaseManager.priceState {
             case .discovered(let product):
                 Text(product.displayPrice)

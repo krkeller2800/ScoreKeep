@@ -78,6 +78,6 @@ final class Task913RestorePurchasesSuite: XCTestCase {
         XCTAssertFalse(manager.isRestoreSuccessful)
         XCTAssertTrue(manager.isNothingToRestore, "Nothing to restore state should be published")
         XCTAssertFalse(manager.isSeasonPassActive, "Entitlement should remain inactive")
-        XCTAssertEqual(manager.entitlementState, .notEntitled)
+        XCTAssertEqual(manager.entitlementState, .statusUnavailable)
     }
 }

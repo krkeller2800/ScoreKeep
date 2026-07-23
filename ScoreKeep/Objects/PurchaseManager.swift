@@ -263,15 +263,27 @@ final class PurchaseManager: ObservableObject {
     }
 
     @MainActor
-    private func handle(transactionUpdate update: VerificationResult<Transaction>) async {
+    internal func completeVerifiedRecovery(productID: String) async {
+        if let year = extractYear(fromProductID: productID) {
+            let expiration = endOfYear(for: year)
+            saveLocalMaxExpiration(expiration)
+
+            await refreshEntitlements()
+
+            // Correction 1: Clear pending and contradictory states after verified recovery
+            isPurchasePending = false
+            isPurchaseCancelled = false
+            isPurchaseFailed = false
+        }
+    }
+
+    @MainActor
+    internal func handle(transactionUpdate update: VerificationResult<Transaction>) async {
         if let transaction = try? checkVerified(update) {
             // Non‑renewing product: compute/store expiration when we see a verified transaction
-            if let year = extractYear(fromProductID: transaction.productID) {
-                let expiration = endOfYear(for: year)
-                saveLocalMaxExpiration(expiration)
-
+            if extractYear(fromProductID: transaction.productID) != nil {
+                await completeVerifiedRecovery(productID: transaction.productID)
                 await transaction.finish()
-                await refreshEntitlements()
             } else {
                 // Finish any other transactions too, just in case
                 await transaction.finish()
