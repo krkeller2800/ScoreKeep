@@ -28,6 +28,7 @@ final class PurchaseManager: ObservableObject {
     @Published var isPurchaseCancelled: Bool = false
     @Published var isPurchaseSuccessful: Bool = false
     @Published var isPurchaseUnverified: Bool = false
+    @Published var isPurchaseFailed: Bool = false
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
@@ -132,10 +133,11 @@ final class PurchaseManager: ObservableObject {
         isPurchaseCancelled = false
         isPurchaseSuccessful = false
         isPurchaseUnverified = false
+        isPurchaseFailed = false
         defer { isPurchasing = false }
 
-        // Only handle pending, cancelled, and successful requests per Task 9.8, 9.9, and 9.10.
-        if let result = try? await purchaseAction(discoveredProduct) {
+        do {
+            let result = try await purchaseAction(discoveredProduct)
             switch result {
             case .success(let verified):
                 if verified {
@@ -151,6 +153,8 @@ final class PurchaseManager: ObservableObject {
             case .userCancelled:
                 self.isPurchaseCancelled = true
             }
+        } catch {
+            self.isPurchaseFailed = true
         }
     }
 
