@@ -29,6 +29,8 @@ final class PurchaseManager: ObservableObject {
     @Published var isPurchaseSuccessful: Bool = false
     @Published var isPurchaseUnverified: Bool = false
     @Published var isPurchaseFailed: Bool = false
+    @Published var isRestoreSuccessful: Bool = false
+    @Published var isNothingToRestore: Bool = false
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
@@ -49,6 +51,7 @@ final class PurchaseManager: ObservableObject {
     private let currentDate: @Sendable () -> Date
     private let discoveryService: ProductDiscoveryService
     private let purchaseAction: @Sendable (any DiscoveredProduct) async throws -> PurchaseOutcome
+    private let restoreAction: @Sendable () async throws -> Void
 
     init(
         entitlementFetcher: any CurrentEntitlementFetching = StoreKitCurrentEntitlementFetcher(),
@@ -73,12 +76,14 @@ final class PurchaseManager: ObservableObject {
             @unknown default:
                 throw CancellationError()
             }
-        }
+        },
+        restoreAction: @escaping @Sendable () async throws -> Void = { try await AppStore.sync() }
     ) {
         self.entitlementFetcher = entitlementFetcher
         self.calendar = calendar
         self.currentDate = currentDate
         self.purchaseAction = purchaseAction
+        self.restoreAction = restoreAction
 
         self.discoveryService = ProductDiscoveryService(
             fetcher: catalogFetcher,
@@ -203,17 +208,21 @@ final class PurchaseManager: ObservableObject {
     /// Checks purchase status and refreshes local entitlements.
     /// The Season Pass is non-renewing, so it does not appear as an auto-renewing subscription.
     func restorePurchases() async {
+        isRestoreSuccessful = false
+        isNothingToRestore = false
         lastErrorMessage = nil
         isPurchasing = true
         defer { isPurchasing = false }
 
         do {
-            try await AppStore.sync()
+            try await restoreAction()
             // AppStore.sync does not make non-renewing purchases active on a new device.
             await refreshEntitlements()
             if isSeasonPassActive {
+                self.isRestoreSuccessful = true
                 self.lastErrorMessage = "Your Season Pass is active on this device. It is non-renewing and does not renew automatically."
             } else {
+                self.isNothingToRestore = true
                 self.lastErrorMessage = "The Season Pass is a non-renewing purchase. It unlocks ScoreKeep through the season year and does not renew automatically. If you changed devices and need help restoring access, please contact support."
             }
         } catch {
