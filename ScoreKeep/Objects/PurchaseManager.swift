@@ -19,6 +19,7 @@ final class PurchaseManager: ObservableObject {
     // State for Paywall UI
     @Published var isPurchasing: Bool = false
     @Published var isPurchasePending: Bool = false
+    @Published var isPurchaseCancelled: Bool = false
     @Published var lastErrorMessage: String?
 
     // MARK: - Configuration
@@ -105,12 +106,18 @@ final class PurchaseManager: ObservableObject {
 
         isPurchasing = true
         isPurchasePending = false
+        isPurchaseCancelled = false
         defer { isPurchasing = false }
 
-        // Only handle pending requests per Task 9.8.
+        // Only handle pending and cancelled requests per Task 9.8 and 9.9.
         if let result = try? await purchaseAction(discoveredProduct) {
-            if case .pending = result {
+            switch result {
+            case .pending:
                 self.isPurchasePending = true
+            case .userCancelled:
+                self.isPurchaseCancelled = true
+            default:
+                break
             }
         }
     }
