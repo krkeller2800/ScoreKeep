@@ -92,10 +92,17 @@ final class PurchaseManager: ObservableObject {
         }
     }
 
-    /// Convenience purchase for the single season pass product.
+    /// Initiates a purchase request for the currently discovered Season Pass.
     func purchaseSeasonPass() async {
-        guard let product = seasonPassProduct else { return }
-        await purchase(product: product)
+        guard case .discovered(let discoveredProduct) = priceState else { return }
+        guard let liveProduct = discoveredProduct as? Product else { return }
+
+        isPurchasing = true
+        defer { isPurchasing = false }
+
+        // Only initiate the purchase request.
+        // Task 9.8+ will implement handling the result.
+        _ = try? await liveProduct.purchase()
     }
 
     /// Checks current StoreKit purchase status for the non-renewing Season Pass.
@@ -138,46 +145,7 @@ final class PurchaseManager: ObservableObject {
     // MARK: - Purchase
 
     /// Purchases a specific StoreKit Product and updates entitlement state.
-    func purchase(product: Product) async {
-        lastErrorMessage = nil
-        isPurchasing = true
-        defer { isPurchasing = false }
-
-        guard product.id == currentSeasonPassProductID() else {
-            seasonPassProduct = nil
-            lastErrorMessage = "This Season Pass is not for the current season. Please try again after this year’s pass is available."
-            return
-        }
-
-        do {
-            let result = try await product.purchase()
-            switch result {
-            case .success(let verificationResult):
-                // Verify the transaction
-                if let transaction = try? checkVerified(verificationResult) {
-                    // Non-renewing: compute end-of-year expiration from productID suffix and store max
-                    if let year = extractYear(fromProductID: transaction.productID) {
-                        let expiration = endOfYear(for: year)
-                        saveLocalMaxExpiration(expiration)
-                    }
-
-                    // Finish the transaction and refresh entitlements
-                    await transaction.finish()
-                    await refreshEntitlements()
-                } else {
-                    self.lastErrorMessage = "We couldn’t verify the purchase with the App Store."
-                }
-            case .userCancelled:
-                self.lastErrorMessage = "Purchase was cancelled."
-            case .pending:
-                self.lastErrorMessage = "Your purchase is pending approval. You’ll get access automatically once it’s approved."
-            @unknown default:
-                self.lastErrorMessage = "An unknown purchase result occurred."
-            }
-        } catch {
-            self.lastErrorMessage = "We couldn’t complete the purchase. Please try again."
-        }
-    }
+    // Legacy inline purchase(product:) method removed by Task 9.7.
 
     /// Checks purchase status and refreshes local entitlements.
     /// The Season Pass is non-renewing, so it does not appear as an auto-renewing subscription.
