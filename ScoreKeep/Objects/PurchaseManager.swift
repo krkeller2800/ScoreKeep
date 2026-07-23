@@ -13,6 +13,7 @@ final class PurchaseManager: ObservableObject {
     // MARK: - Public published properties for UI
     @Published var isSeasonPassActive: Bool = false
     @Published var seasonPassProduct: Product?
+    @Published var entitlementState: EntitlementState = .notEntitled
 
     // State for Paywall UI
     @Published var isPurchasing: Bool = false
@@ -31,7 +32,18 @@ final class PurchaseManager: ObservableObject {
     // Keep a reference to the updates listening task so it can live with the manager
     private var updatesTask: Task<Void, Never>?
 
-    init() {
+    private let entitlementFetcher: any CurrentEntitlementFetching
+    private let calendar: Calendar
+    private let currentDate: @Sendable () -> Date
+
+    init(
+        entitlementFetcher: any CurrentEntitlementFetching = StoreKitCurrentEntitlementFetcher(),
+        calendar: Calendar = .current,
+        currentDate: @escaping @Sendable () -> Date = { Date() }
+    ) {
+        self.entitlementFetcher = entitlementFetcher
+        self.calendar = calendar
+        self.currentDate = currentDate
         // Begin listening to transaction updates immediately
         startListeningForTransactions()
     }
@@ -90,10 +102,36 @@ final class PurchaseManager: ObservableObject {
         await restorePurchases()
     }
 
-    /// Recalculate entitlement state from locally stored expiration.
+    /// Recalculate entitlement state from StoreKit and locally stored expiration.
     /// Call at app launch and when app returns to foreground.
     func refreshEntitlements() async {
-        self.isSeasonPassActive = (loadLocalMaxExpiration() ?? .distantPast) > Date()
+        let currentYear = calendar.component(.year, from: currentDate())
+        let normalizer = TransactionEvidenceNormalizer(seasonClassifier: SeasonClassifier())
+        let classifier = EntitlementClassifier()
+
+        var evidenceRecords: [EntitlementEvidence] = []
+
+        // 1. Evaluate StoreKit transactions
+        let inputs = await entitlementFetcher.currentEntitlements()
+        for input in inputs {
+            let evidence = normalizer.normalize(input: input, currentYear: currentYear)
+            evidenceRecords.append(evidence)
+        }
+
+        // 2. Evaluate Keychain evidence
+        if let maxExpiration = loadLocalMaxExpiration() {
+            // "Preserve previously confirmed access offline."
+            if maxExpiration > currentDate() {
+                evidenceRecords.append(EntitlementEvidence(season: .current, isVerified: true, isRevoked: false))
+            } else if maxExpiration != .distantPast {
+                evidenceRecords.append(EntitlementEvidence(season: .prior, isVerified: true, isRevoked: false))
+            }
+        }
+
+        // 3. Classify and update state
+        let newState = classifier.classify(evidence: evidenceRecords)
+        self.entitlementState = newState
+        self.isSeasonPassActive = (newState == .entitled)
     }
 
     // MARK: - Purchase
