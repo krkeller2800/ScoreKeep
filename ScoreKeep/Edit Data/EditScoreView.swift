@@ -47,6 +47,7 @@ struct EditScoreView: View {
     @State var doShot = false
     @State var hasChanged = false
     @State var url:URL?
+    @State private var generatedOutputGateLifecycle = PurchaseGatedWorkflowLifecycle()
 
     @FocusState private var focusedField: FocusField?
     
@@ -171,12 +172,7 @@ struct EditScoreView: View {
                             PitcherContentView(team: opTeam, game: game)
                         }
                         Button {
-                            guard isPremium else {
-                                showPaywall = true
-                                return
-                            }
-                            let generatePDF = PDFGenerator()
-                            url = generatePDF.generatePDFData(game: game, team: team, title: "Test PDF", body: "This is a test")
+                            requestGeneratedOutput(.scorecardPDF)
                         } label: {
                             Text("PDF")
                         }
@@ -206,12 +202,7 @@ struct EditScoreView: View {
                     }
                     ToolbarItemGroup(placement: .bottomBar) {
                         Button(action: {
-                            guard isPremium else {
-                                showPaywall = true
-                                return
-                            }
-                            showPitchRpt.toggle()
-                            isLoading = true
+                            requestGeneratedOutput(.pitchingStatistics)
                         }) {
                             Text("Pitch Stats")
                         }
@@ -226,12 +217,7 @@ struct EditScoreView: View {
                         }
                         Spacer()
                         Button(action: {
-                            guard isPremium else {
-                                showPaywall = true
-                                return
-                            }
-                            showReport.toggle()
-                            isLoading = true
+                            requestGeneratedOutput(.hittingStatistics)
                         }) {
                             Text("Hit Stats")
                         }
@@ -273,10 +259,17 @@ struct EditScoreView: View {
                      self.screenshotMaker = screenshotMaker
                  }
         }
-        .sheet(isPresented: $showPaywall) {
+        .sheet(isPresented: $showPaywall, onDismiss: cancelPendingGeneratedOutputFlow) {
             PaywallView(context: .reports)
                 .environmentObject(purchaseManager)
                 .presentationDetents([.large])
+        }
+        .onReceive(purchaseManager.$isSeasonPassActive) { active in
+            guard active else { return }
+            applyGeneratedOutputTransition(generatedOutputGateLifecycle.entitlementBecameActive())
+        }
+        .onDisappear {
+            cancelPendingGeneratedOutputFlow()
         }
      
     }
@@ -286,6 +279,59 @@ struct EditScoreView: View {
         _navigationPath = pnavigationPath
         _columnVisibility = columnVisability
     }
+
+    private var entitlementState: PurchaseEntitlementState {
+        isPremium ? .activeCurrentSeason : .inactive
+    }
+
+    private func requestGeneratedOutput(_ action: PurchaseGatedAction) {
+        let workflow = PurchaseGatedWorkflowState(
+            action: action,
+            gameIdentity: game.ident,
+            teamIdentity: team.ident,
+            scopeDescription: "\(team.name) generated output",
+            idempotencyKey: "\(game.ident.uuidString)-\(team.ident.uuidString)-\(action.rawValue)"
+        )
+        let transition = generatedOutputGateLifecycle.request(
+            action: action,
+            entitlement: entitlementState,
+            workflow: workflow
+        )
+        applyGeneratedOutputTransition(transition)
+    }
+
+    private func cancelPendingGeneratedOutputFlow() {
+        applyGeneratedOutputTransition(generatedOutputGateLifecycle.purchaseFlowDismissedOrAbandoned())
+    }
+
+    private func applyGeneratedOutputTransition(_ transition: PurchaseGatedWorkflowTransition) {
+        switch transition {
+        case .none:
+            break
+        case .presentPaywall:
+            showPaywall = true
+        case .perform(let action):
+            showPaywall = false
+            performGeneratedOutput(action)
+        }
+    }
+
+    private func performGeneratedOutput(_ action: PurchaseGatedAction) {
+        switch action {
+        case .scorecardPDF:
+            let generatePDF = PDFGenerator()
+            url = generatePDF.generatePDFData(game: game, team: team, title: "Test PDF", body: "This is a test")
+        case .pitchingStatistics:
+            showPitchRpt.toggle()
+            isLoading = true
+        case .hittingStatistics:
+            showReport.toggle()
+            isLoading = true
+        case .existingRecordReview, .compatibleSourceDataExport:
+            break
+        }
+    }
+
     func saveImage(uiimage: UIImage?)-> URL? {
         
         guard let data = uiimage?.jpegData(compressionQuality: 0.8) else {
