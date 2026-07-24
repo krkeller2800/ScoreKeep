@@ -33,7 +33,9 @@ struct ScoreContentView: View {
     @State private var showPaywall: Bool = false
     @State private var paywallContext: PaywallContext = .general
     @State private var pendingCreation: PendingCreation?
+    @State private var interruptedWorkflow: PaywallInterruptedWorkflow?
     @State private var gameCreationAllowanceTransaction = GameCreationAllowanceTransaction()
+    private let paywallResumePolicy = PaywallResumePolicy()
 
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
@@ -230,8 +232,16 @@ struct ScoreContentView: View {
                 }
             }
         }
-        .sheet(isPresented: $showPaywall) {
+        .sheet(isPresented: $showPaywall, onDismiss: cancelPendingCreationIfPaywallStillUnresolved) {
             paywallSheetContent()
+        }
+        .onReceive(purchaseManager.$isSeasonPassActive) { active in
+            if active {
+                resumePendingCreationIfAllowed()
+            }
+        }
+        .onChange(of: freeCreates.value) {
+            resumePendingCreationIfAllowed()
         }
     }
 
@@ -304,6 +314,14 @@ struct ScoreContentView: View {
         }
 
         guard freeGameAllowance.canCreateWithAllowance else {
+            pendingCreation = PendingCreation(
+                dateISO: dateISO,
+                field: field,
+                everyOneHits: everyOneHits,
+                vTeam: vTeam,
+                hTeam: hTeam
+            )
+            interruptedWorkflow = .gameCreation
             paywallContext = .gameLimit
             showPaywall = true
             return
@@ -332,6 +350,50 @@ struct ScoreContentView: View {
 
         if case .consume = result {
             freeCreates.set(freeCreates.value - 1)
+        }
+    }
+
+    private func resumePendingCreationIfAllowed() {
+        guard let pendingCreation else { return }
+
+        let decision = paywallResumePolicy.decision(
+            for: interruptedWorkflow,
+            isEntitled: isPremium,
+            hasAllowance: freeGameAllowance.canCreateWithAllowance
+        )
+
+        guard case .resume = decision else { return }
+
+        self.pendingCreation = nil
+        interruptedWorkflow = nil
+        showPaywall = false
+
+        handleCreateGame(
+            dateISO: pendingCreation.dateISO,
+            field: pendingCreation.field,
+            everyOneHits: pendingCreation.everyOneHits,
+            vTeam: pendingCreation.vTeam,
+            hTeam: pendingCreation.hTeam,
+            isSeeded: false
+        )
+    }
+
+    private func cancelPendingCreationIfPaywallStillUnresolved() {
+        guard pendingCreation != nil else { return }
+
+        let decision = paywallResumePolicy.decision(
+            for: interruptedWorkflow,
+            isEntitled: isPremium,
+            hasAllowance: freeGameAllowance.canCreateWithAllowance
+        )
+
+        switch decision {
+        case .resume:
+            resumePendingCreationIfAllowed()
+        case .blocked, .canceled:
+            _ = gameCreationAllowanceTransaction.nonQualifying(.canceled)
+            pendingCreation = nil
+            interruptedWorkflow = nil
         }
     }
 

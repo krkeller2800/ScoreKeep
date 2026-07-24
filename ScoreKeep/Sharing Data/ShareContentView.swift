@@ -70,6 +70,9 @@ struct ShareContentView: View {
     @State private var showPaywall: Bool = false
     @State private var paywallContext: PaywallContext = .general
     @State private var rosterDownloadAllowanceTransaction = RosterDownloadAllowanceTransaction()
+    @State private var pendingRosterDownloadSelection: String?
+    @State private var interruptedWorkflow: PaywallInterruptedWorkflow?
+    private let paywallResumePolicy = PaywallResumePolicy()
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case nameAsc, nameDec, orderAsc, numAsc
@@ -295,41 +298,7 @@ struct ShareContentView: View {
                 }
             }
             .onChange(of: down) {
-                guard down != "Select Team" else { return }
-                let downTeam = DownloadFiles()
-                Task {
-                    // Gate: block if free limit reached
-                    if !isPremium && !mlbDownloadAllowance.canDownloadWithAllowance {
-                        showingAlert = true
-                        alertMessage = "You’ve reached your 4 free downloads. Upgrade to continue."
-                        paywallContext = .downloadLimit
-                        showPaywall = true
-                        return
-                    }
-                    
-                    do {
-                        // Resolve direct URL for the selected team from the locally stored map
-                        guard let directURLString = teamURLMap[down] else {
-                            throw URLError(.fileDoesNotExist)
-                        }
-
-                        // .ScoreKeep_Players is part of the import contract used by released versions.
-                        // Keep manifest roster URLs and downloaded filenames compatible.
-                        let destinationFileName = "\(down).ScoreKeep_Players"
-                        try await downTeam.downloadFile(from: directURLString, to: destinationFileName)
-
-                        let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                        url = documentsDirectory.appendingPathComponent(destinationFileName)
-                        if url != nil {
-                            doImport = true
-                            if !isPremium {
-                                applySuccessfulRosterDownloadAllowanceTransaction(for: destinationFileName)
-                            }
-                        }
-                    } catch {
-                        print("Error downloading file: \(error.localizedDescription)")
-                    }
-                }
+                startRosterDownload(for: down)
             }
             if team != nil && doTeam {
                 PlayersOnTeamView(team: team!, searchString: searchText, sortOrder: sortOrder)
@@ -373,7 +342,13 @@ struct ShareContentView: View {
         // Paywall presentation:
         // - iPhone: full screen
         // - iPad: largest sheet possible
-        .modifier(PaywallPresentation(isPresented: $showPaywall, context: paywallContext))
+        .modifier(
+            PaywallPresentation(
+                isPresented: $showPaywall,
+                context: paywallContext,
+                onDismiss: cancelPendingRosterDownloadIfPaywallStillUnresolved
+            )
+        )
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Share")
@@ -451,8 +426,12 @@ struct ShareContentView: View {
         // Optional: auto-dismiss paywall if premium flips true
         .onReceive(purchaseManager.$isSeasonPassActive) { active in
             if active {
+                resumePendingRosterDownloadIfAllowed()
                 showPaywall = false
             }
+        }
+        .onChange(of: mlbCounter.value) {
+            resumePendingRosterDownloadIfAllowed()
         }
         .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
         .onAppear {
@@ -656,6 +635,86 @@ struct ShareContentView: View {
         }
     }
 
+    private func startRosterDownload(for selectedTeam: String) {
+        guard selectedTeam != "Select Team" else { return }
+
+        let destinationFileName = "\(selectedTeam).ScoreKeep_Players"
+
+        if !isPremium && !mlbDownloadAllowance.canDownloadWithAllowance {
+            _ = rosterDownloadAllowanceTransaction.nonQualifying(.blockedByAllowance)
+            pendingRosterDownloadSelection = selectedTeam
+            interruptedWorkflow = .rosterDownloadImport(rosterID: destinationFileName)
+            showingAlert = true
+            alertMessage = "You’ve reached your 4 free downloads. Upgrade to continue."
+            paywallContext = .downloadLimit
+            showPaywall = true
+            return
+        }
+
+        let downTeam = DownloadFiles()
+        Task {
+            do {
+                // Resolve direct URL for the selected team from the locally stored map
+                guard let directURLString = teamURLMap[selectedTeam] else {
+                    throw URLError(.fileDoesNotExist)
+                }
+
+                // .ScoreKeep_Players is part of the import contract used by released versions.
+                // Keep manifest roster URLs and downloaded filenames compatible.
+                try await downTeam.downloadFile(from: directURLString, to: destinationFileName)
+
+                let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                url = documentsDirectory.appendingPathComponent(destinationFileName)
+                if url != nil {
+                    doImport = true
+                    if !isPremium {
+                        applySuccessfulRosterDownloadAllowanceTransaction(for: destinationFileName)
+                    }
+                }
+            } catch {
+                _ = rosterDownloadAllowanceTransaction.nonQualifying(.failed)
+                print("Error downloading file: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func resumePendingRosterDownloadIfAllowed() {
+        guard let pendingRosterDownloadSelection else { return }
+
+        let decision = paywallResumePolicy.decision(
+            for: interruptedWorkflow,
+            isEntitled: isPremium,
+            hasAllowance: mlbDownloadAllowance.canDownloadWithAllowance
+        )
+
+        guard case .resume = decision else { return }
+
+        self.pendingRosterDownloadSelection = nil
+        interruptedWorkflow = nil
+        showPaywall = false
+
+        startRosterDownload(for: pendingRosterDownloadSelection)
+    }
+
+    private func cancelPendingRosterDownloadIfPaywallStillUnresolved() {
+        guard pendingRosterDownloadSelection != nil else { return }
+
+        let decision = paywallResumePolicy.decision(
+            for: interruptedWorkflow,
+            isEntitled: isPremium,
+            hasAllowance: mlbDownloadAllowance.canDownloadWithAllowance
+        )
+
+        switch decision {
+        case .resume:
+            resumePendingRosterDownloadIfAllowed()
+        case .blocked, .canceled:
+            _ = rosterDownloadAllowanceTransaction.nonQualifying(.canceled)
+            pendingRosterDownloadSelection = nil
+            interruptedWorkflow = nil
+        }
+    }
+
     private func fetchIndexUpdated(from url: URL) {
         struct TeamsIndex: Decodable {
             let updated: String?
@@ -744,18 +803,19 @@ struct ShareContentView: View {
 private struct PaywallPresentation: ViewModifier {
     @Binding var isPresented: Bool
     let context: PaywallContext
+    let onDismiss: () -> Void
 
     func body(content: Content) -> some View {
         if UIDevice.type == "iPad" {
             content
-                .sheet(isPresented: $isPresented) {
+                .sheet(isPresented: $isPresented, onDismiss: onDismiss) {
                     PaywallView(context: context)
                         .presentationDetents([.large])
                         .presentationDragIndicator(.visible)
                 }
         } else {
             content
-                .fullScreenCover(isPresented: $isPresented) {
+                .fullScreenCover(isPresented: $isPresented, onDismiss: onDismiss) {
                     PaywallView(context: context)
                 }
         }

@@ -38,3 +38,54 @@ enum NonQualifyingAllowanceAction: CaseIterable, Equatable, Sendable {
     case downloadOnlyWithoutImportBoundary
     case importPreviewOnly
 }
+
+enum PaywallInterruptedWorkflow: Equatable, Sendable {
+    case gameCreation
+    case rosterDownloadImport(rosterID: String)
+
+    var qualifyingAction: QualifyingAllowanceAction {
+        switch self {
+        case .gameCreation:
+            return .successfulGameCreation
+        case .rosterDownloadImport:
+            return .successfulMLBRosterDownloadImport
+        }
+    }
+}
+
+enum PaywallResumeResolution: Equatable, Sendable {
+    case entitlement
+    case allowance
+}
+
+enum PaywallResumeDecision: Equatable, Sendable {
+    case resume(PaywallInterruptedWorkflow, PaywallResumeResolution)
+    case blocked(PaywallInterruptedWorkflow)
+    case canceled(PaywallInterruptedWorkflow?)
+}
+
+struct PaywallResumePolicy: Equatable, Sendable {
+    func decision(
+        for workflow: PaywallInterruptedWorkflow?,
+        isEntitled: Bool,
+        hasAllowance: Bool
+    ) -> PaywallResumeDecision {
+        guard let workflow else {
+            return .canceled(nil)
+        }
+
+        if isEntitled {
+            return .resume(workflow, .entitlement)
+        }
+
+        if hasAllowance {
+            return .resume(workflow, .allowance)
+        }
+
+        return .blocked(workflow)
+    }
+
+    func cancellation(for workflow: PaywallInterruptedWorkflow?) -> PaywallResumeDecision {
+        .canceled(workflow)
+    }
+}
