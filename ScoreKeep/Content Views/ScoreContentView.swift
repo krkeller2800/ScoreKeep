@@ -33,6 +33,7 @@ struct ScoreContentView: View {
     @State private var showPaywall: Bool = false
     @State private var paywallContext: PaywallContext = .general
     @State private var pendingCreation: PendingCreation?
+    @State private var gameCreationAllowanceTransaction = GameCreationAllowanceTransaction()
 
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
@@ -292,13 +293,13 @@ struct ScoreContentView: View {
 
     private func handleCreateGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team, isSeeded: Bool) {
         if isPremium {
-            createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+            _ = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
             return
         }
 
         // If this is a seeded creation, do not decrement free counter
         if isSeeded {
-            createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+            _ = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
             return
         }
 
@@ -308,9 +309,11 @@ struct ScoreContentView: View {
             return
         }
 
-        createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
-        // Decrement remaining free creates for non-premium (user-initiated only)
-        freeCreates.set(freeCreates.value - 1)
+        guard let game = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam) else {
+            return
+        }
+
+        applySuccessfulGameCreationAllowanceTransaction(for: game.ident)
     }
 
     private func applyDebugFreeGameAllowanceResetIfNeeded() {
@@ -321,10 +324,26 @@ struct ScoreContentView: View {
         #endif
     }
 
-    private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {
+    private func applySuccessfulGameCreationAllowanceTransaction(for gameID: UUID) {
+        let result = gameCreationAllowanceTransaction.successfulPersistedCreation(
+            gameID: gameID,
+            allowance: freeGameAllowance
+        )
+
+        if case .consume = result {
+            freeCreates.set(freeCreates.value - 1)
+        }
+    }
+
+    private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) -> Game? {
         let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
         modelContext.insert(theGame)
-        try? self.modelContext.save()
+        do {
+            try self.modelContext.save()
+            return theGame
+        } catch {
+            return nil
+        }
     }
 
     func addGame() {
