@@ -769,6 +769,12 @@ Phase 10 consolidates cross-workflow accessibility after individual workflows al
 | 10.19 iPhone and iPad accessibility acceptance | Run device-class accessibility acceptance. | Routed workflows. | 10.1-10.18. | Accessibility acceptance authority. | Compact and regular layouts pass. | test |
 | 10.20 Cross-workflow accessibility regression run | Run full accessibility regression across routed workflows. | All rewritten workflows. | 10.19. | Accessibility release evidence. | Remaining gaps classified before release. | test |
 
+### Task 10.1 Completion Record - VoiceOver Semantic Review
+
+Task 10.1 is complete as a bounded semantic-only review of the routed rewritten live-scoring and correction surfaces that are active after the Phase 7 and Phase 9 gates. The selected screens and controls were `PlayersToScoreView` scorecard cells and score summary, `ScoreGameView` scoring-sheet result controls, runner/out detail controls, earned-run and fielder-play controls, submit/cancel controls, and shared `LiveScoringShellPresentation` prepared semantic values and mutation announcements. These satisfy the catalog scope because Document 26 names live scoring, scorecard cells, additional scoring choices, and correction review as current routed accessibility risks, and because the changes are limited to VoiceOver labels, values, traits, hints used as disabled explanations, and concise announcements.
+
+The task did not change scoring rules, scoring persistence, migrations, imports, exports, reports, purchases, allowances, product identifiers, routing, focus order, focus restoration, Dynamic Type, contrast, reduced motion, touch targets, keyboard navigation, Switch Control, Voice Control, or broad layout. Verification passed: focused Task 10.1 and adjacent accessibility tests in `LiveScoringShellPresentationTests` plus the Task 7.18 routed behavior comparison passed 32/32; the live-scoring workflow regression suite passed 54/54; the full active test plan passed 1038/1038; the project build succeeded; Xcode diagnostics for touched production files reported no issues; Xcode diagnostics for the modified presentation test file could not be retrieved by SourceEditor error 5 but the file compiled and passed in the focused and full test runs; `LiveScoringWorkflowCoordinatorTests` retained only pre-existing warnings; and `git diff --check` passed.
+
 <!-- MARK: - 17. Phase 11 Task Catalog - Legacy Retirement and Cleanup -->
 ## 17. Phase 11 Task Catalog - Legacy Retirement and Cleanup
 

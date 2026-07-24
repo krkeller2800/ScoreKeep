@@ -113,6 +113,8 @@ struct LiveScoringShellPresentationTests {
         #expect(presentation.inning == 6)
         #expect(presentation.outs == 2)
         #expect(presentation.message == "semanticScoreState.storedScoreMismatch")
+        #expect(presentation.accessibilityLabel == "Score summary")
+        #expect(presentation.accessibilityValue == "Visiting 3, home 4. Bottom 6, 2 outs. Bases empty.")
     }
 
     @Test("enabled action presentation exposes disabled reason for accessibility")
@@ -138,8 +140,47 @@ struct LiveScoringShellPresentationTests {
         let action = presentation.state(for: .legacyResult("Single"))
 
         #expect(action?.isEnabled == false)
-        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityLabel == "Score Single")
+        #expect(action?.accessibilityValue == "Unavailable")
         #expect(action?.accessibilityHint == "A current pitcher is required before scoring.")
+    }
+
+    @Test("Task 10.1 enabled scoring actions expose product labels and values")
+    func task101EnabledScoringActionsExposeProductLabelsAndValues() {
+        let presenter = LiveScoringShellPresentation()
+        let prepared = Fixture.preparedState(canScore: true)
+        let scorecardState = LiveScoringWorkflowCoordinator.EnabledScoringActionState(
+            identity: .scorecardCell(column: 2, battingOrder: 4),
+            isEnabled: true,
+            disposition: .enabled,
+            validationDisposition: .valid,
+            unavailableReason: nil,
+            warnings: []
+        )
+        let unsupportedState = LiveScoringWorkflowCoordinator.EnabledScoringActionState(
+            identity: .unsupported("Legacy Surprise"),
+            isEnabled: false,
+            disposition: .disabledUnsupported,
+            validationDisposition: nil,
+            unavailableReason: "This scoring result is not supported.",
+            warnings: []
+        )
+        let actionSet = LiveScoringWorkflowCoordinator.EnabledScoringActionSet(
+            preparedState: prepared,
+            semanticScoreState: nil,
+            actions: [scorecardState, unsupportedState],
+            warnings: []
+        )
+
+        let presentation = presenter.presentEnabledActionSet(actionSet)
+        let scorecard = presentation.state(for: .scorecardCell(column: 2, battingOrder: 4))
+        let unsupported = presentation.state(for: .unsupported("Legacy Surprise"))
+
+        #expect(scorecard?.accessibilityLabel == "Scorecard cell")
+        #expect(scorecard?.accessibilityValue == "Batter 4, scorecard column 2, available")
+        #expect(unsupported?.accessibilityLabel == "Unsupported scoring result Legacy Surprise")
+        #expect(unsupported?.accessibilityValue == "Unsupported")
+        #expect(unsupported?.accessibilityHint == "This scoring result is not supported.")
     }
 
     @Test("submission presentation dismisses only accepted ordinary outcomes without additional choices")
@@ -167,6 +208,9 @@ struct LiveScoringShellPresentationTests {
         #expect(!failed.shouldDismissScoringSheet)
         #expect(!failed.shouldMarkChanged)
         #expect(failed.message == "Error saving scoring action.")
+        #expect(accepted.accessibilityAnnouncement == "Scoring action accepted.")
+        #expect(needsChoice.accessibilityAnnouncement == "Scoring action accepted. Additional runner or out details required.")
+        #expect(failed.accessibilityAnnouncement == "Error saving scoring action.")
     }
 
     @Test("additional choice preparation presents pending choices without marking changed")
@@ -198,6 +242,8 @@ struct LiveScoringShellPresentationTests {
         #expect(!failed.shouldPresentAdditionalChoices)
         #expect(!failed.shouldMarkChanged)
         #expect(failed.message == "Unsupported")
+        #expect(presentation.accessibilityAnnouncement == "Additional runner or recorded out details required.")
+        #expect(failed.accessibilityAnnouncement == "Unsupported")
     }
 
     @Test("correction review preparation creates value-only state with stable target facts")
@@ -737,7 +783,8 @@ struct LiveScoringShellPresentationTests {
         let action = presentation.state(for: LiveScoringWorkflowCoordinator.ScoringActionIdentity.legacyResult("Single"))
 
         // Semantic evaluation properties remain value-only; reading them causes no intent or mutation.
-        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityLabel == "Score Single")
+        #expect(action?.accessibilityValue == "Available")
         #expect(action?.accessibilityHint == nil)
         #expect(action?.isEnabled == true)
         #expect(action?.warningMessage == nil)
@@ -802,7 +849,8 @@ struct LiveScoringShellPresentationTests {
         let action = presentation.state(for: LiveScoringWorkflowCoordinator.ScoringActionIdentity.legacyResult("Single"))
 
         // Semantic evaluation properties remain value-only; reading them via alternate focus causes no intent or mutation.
-        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityLabel == "Score Single")
+        #expect(action?.accessibilityValue == "Available")
         #expect(action?.accessibilityHint == nil)
         #expect(action?.isEnabled == true)
         #expect(action?.warningMessage == nil)
@@ -832,7 +880,8 @@ struct LiveScoringShellPresentationTests {
 
         // Focus or interaction with disabled semantic state remains purely descriptive and cannot be submitted.
         #expect(action?.isEnabled == false)
-        #expect(action?.accessibilityLabel == "Single")
+        #expect(action?.accessibilityLabel == "Score Single")
+        #expect(action?.accessibilityValue == "Unavailable")
         #expect(action?.accessibilityHint == "A current pitcher is required before scoring.")
     }
 

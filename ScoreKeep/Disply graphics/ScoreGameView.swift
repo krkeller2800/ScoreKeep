@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ScoreGameView: View {
     @Environment(\.modelContext) var modelContext
@@ -88,6 +89,9 @@ struct ScoreGameView: View {
                             }
                         })
                         .accessibilityIdentifier("submit_scoring_action")
+                        .accessibilityLabel(isCorrectionEntry ? "Review correction" : pendingAdditionalChoice == nil ? "Done scoring at-bat" : "Save additional scoring details")
+                        .accessibilityHint(pendingAdditionalChoice == nil ? "Closes the scoring sheet." : "Records the selected runner and out details.")
+                        .accessibilityAddTraits(.isButton)
                         .frame(maxWidth: 120,minHeight: 30, alignment:.center).background(.green.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
                         Spacer()
@@ -106,6 +110,9 @@ struct ScoreGameView: View {
                             }
                         })
                         .accessibilityIdentifier("cancel_scoring_action")
+                        .accessibilityLabel(isCorrectionEntry ? "Cancel correction edit" : "Delete at-bat")
+                        .accessibilityHint(isCorrectionEntry ? "Closes this correction edit without saving the draft." : "Removes this at-bat entry or clears the first scorecard cell.")
+                        .accessibilityAddTraits(.isButton)
                         .frame(maxWidth: 120,minHeight: 30, alignment:.center).background(.red.opacity(0.5))
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
 
@@ -118,6 +125,8 @@ struct ScoreGameView: View {
                             }
                         }
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .accessibilityLabel("Runs batted in")
+                        .accessibilityValue("\(rbiBinding.wrappedValue)")
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
                         Spacer()
                         Text("\(atbat.player.number) \(atbat.player.name)").font(.title3)
@@ -129,6 +138,8 @@ struct ScoreGameView: View {
                             }
                         }
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .accessibilityLabel("Stolen bases")
+                        .accessibilityValue("\(stolenBaseBinding.wrappedValue)")
                         .border(.gray).cornerRadius(10).accentColor(.black).padding(.trailing, 15)
                     }
                     HStack(spacing: 0) {
@@ -155,6 +166,7 @@ struct ScoreGameView: View {
                                         .tag(batting)
                                         .disabled(!action.isEnabled)
                                         .accessibilityLabel(action.accessibilityLabel)
+                                        .accessibilityValue(action.accessibilityValue ?? "")
                                         .accessibilityHint(action.accessibilityHint ?? "")
                                 }
                                 if batting == "Dropped 3rd Stike" || batting == "Fielder's Choice" || batting == "Home Run" {
@@ -182,6 +194,7 @@ struct ScoreGameView: View {
                                         .tag(batting)
                                         .disabled(!action.isEnabled)
                                         .accessibilityLabel(action.accessibilityLabel)
+                                        .accessibilityValue(action.accessibilityValue ?? "")
                                         .accessibilityHint(action.accessibilityHint ?? "")
                                 }
                                 if batting == "Strikeout Looking" {
@@ -190,6 +203,8 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .accessibilityLabel("Maximum base reached")
+                         .accessibilityValue(maxBaseBinding.wrappedValue)
                          .border(.gray).cornerRadius(10).accentColor(.black)
                          .onChange(of: batOut) {
                              if batOut != "Result" {
@@ -206,6 +221,8 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .accessibilityLabel("Runner out location")
+                         .accessibilityValue(displayedOutAt)
                          .border(.gray).cornerRadius(10).accentColor(.black)
                         Spacer()
                         Picker("Out", selection: outAtBinding) {
@@ -288,6 +305,9 @@ struct ScoreGameView: View {
                                 toggleEarnedRun()
                             })
                             .frame(maxWidth: 130,maxHeight: 30, alignment:.center).background(currentEarnedRun ? .green.opacity(0.5) : .red.opacity(0.5))
+                            .accessibilityLabel("Earned run status")
+                            .accessibilityValue(currentEarnedRun ? "Earned" : "Unearned")
+                            .accessibilityAddTraits(.isButton)
                             .border(.gray).cornerRadius(10).accentColor(.black).padding([.leading, .trailing, .bottom], 15)
                         }
                         Spacer()
@@ -298,6 +318,9 @@ struct ScoreGameView: View {
                                  clearPlayRecord()
                              })
                              .frame(maxWidth: 50,maxHeight: 30, alignment:.center).background(.red.opacity(0.5))
+                             .accessibilityLabel("Clear recorded fielder play")
+                             .accessibilityValue(currentPlayRecord.isEmpty ? "No fielder play selected" : currentPlayRecord)
+                             .accessibilityAddTraits(.isButton)
                              .border(.gray).cornerRadius(10).accentColor(.black).padding([.bottom,.trailing], 15)
                         }
                     }
@@ -509,6 +532,7 @@ struct ScoreGameView: View {
             if let pending = presentation.pendingChoice, presentation.shouldPresentAdditionalChoices {
                 beginAdditionalChoice(pending)
             }
+            announce(presentation.accessibilityAnnouncement)
             if let message = presentation.message {
                 print(message)
             }
@@ -553,6 +577,7 @@ struct ScoreGameView: View {
             earnedRun = atbat.earnedRun
             recPlay = com.recOuts.contains(atbat.result) || atbat.outAt != "Safe"
         }
+        announce(presentation.accessibilityAnnouncement)
         if let message = presentation.message {
             print(message)
         }
@@ -592,6 +617,7 @@ struct ScoreGameView: View {
                     earnedRun = false
                 }
             }
+            announce(presentation.accessibilityAnnouncement)
             return presentation
         }
 
@@ -632,9 +658,15 @@ struct ScoreGameView: View {
         return LiveScoringShellPresentation.EnabledActionPresentation(
             identity: identity,
             isEnabled: false,
-            accessibilityLabel: result,
+            accessibilityLabel: "Score \(result)",
+            accessibilityValue: "Unavailable",
             accessibilityHint: "Scoring state is not ready for this action.",
             warningMessage: nil
         )
     }
- }
+
+    private func announce(_ message: String?) {
+        guard let message, !message.isEmpty, UIAccessibility.isVoiceOverRunning else { return }
+        UIAccessibility.post(notification: .announcement, argument: message)
+    }
+}

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 struct PlayersToScoreView: View {
     @Environment(\.modelContext) var modelContext
     @Query var atbats: [Atbat]
@@ -106,7 +107,9 @@ struct PlayersToScoreView: View {
                                                         .buttonStyle(GlowButtonStyle())
                                                         .disabled(!scorecardCellPresentation(column: ind, atbat: atbat).isEnabled)
                                                         .accessibilityLabel(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityLabel)
+                                                        .accessibilityValue(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityValue ?? "")
                                                         .accessibilityHint(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityHint ?? "")
+                                                        .accessibilityAddTraits(.isButton)
                                                         .accessibilityIdentifier("scorecard_cell_\(atbat.batOrder)_\(ind)")
                                                     }
                                                 }
@@ -318,7 +321,8 @@ struct PlayersToScoreView: View {
         return LiveScoringShellPresentation.EnabledActionPresentation(
             identity: identity,
             isEnabled: enabled,
-            accessibilityLabel: "Score batter \(atbat.batOrder), column \(column)",
+            accessibilityLabel: "Scorecard cell",
+            accessibilityValue: "Batter \(atbat.batOrder), scorecard column \(column), \(enabled ? "available" : "unavailable")",
             accessibilityHint: enabled ? nil : "Scorecard selection is unavailable.",
             warningMessage: nil
         )
@@ -414,6 +418,7 @@ struct PlayersToScoreView: View {
             showingCorrectionReview = false
             isCorrectionEntry = false
         }
+        announce(presentation.statusAccessibilityLabel)
 
         if let message = presentation.message {
             print(message)
@@ -570,6 +575,14 @@ struct PlayersToScoreView: View {
             .background(Color.white.opacity(0.85))
             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black.opacity(0.25), lineWidth: 1))
             .position(x: min(size.width - 120, max(120, size.width * 0.5)), y: 18)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityValue(presentation.accessibilityValue)
+            .accessibilityAddTraits(.isStaticText)
+    }
+
+    private func announce(_ message: String?) {
+        guard let message, !message.isEmpty, UIAccessibility.isVoiceOverRunning else { return }
+        UIAccessibility.post(notification: .announcement, argument: message)
     }
 }
 

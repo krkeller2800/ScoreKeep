@@ -2495,7 +2495,8 @@ struct Task718Suite {
 
         let singleAction = try #require(presentation.state(for: .legacyResult("Single")))
         #expect(singleAction.isEnabled == true)
-        #expect(singleAction.accessibilityLabel == "Single")
+        #expect(singleAction.accessibilityLabel == "Score Single")
+        #expect(singleAction.accessibilityValue == "Available")
 
         let unsupportedActions = coordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Unsupported"])
         let unsupportedAction = try #require(unsupportedActions.state(for: .legacyResult("Unsupported")))

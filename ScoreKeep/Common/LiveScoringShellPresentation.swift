@@ -32,12 +32,15 @@ struct LiveScoringShellPresentation {
         let inning: Int
         let outs: Int
         let message: String?
+        let accessibilityLabel: String
+        let accessibilityValue: String
     }
 
     struct EnabledActionPresentation {
         let identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity
         let isEnabled: Bool
         let accessibilityLabel: String
+        let accessibilityValue: String?
         let accessibilityHint: String?
         let warningMessage: String?
     }
@@ -57,6 +60,7 @@ struct LiveScoringShellPresentation {
         let shouldDismissScoringSheet: Bool
         let shouldMarkChanged: Bool
         let message: String?
+        let accessibilityAnnouncement: String?
     }
 
     struct AdditionalChoicePresentation {
@@ -65,6 +69,7 @@ struct LiveScoringShellPresentation {
         let shouldPresentAdditionalChoices: Bool
         let shouldMarkChanged: Bool
         let message: String?
+        let accessibilityAnnouncement: String?
     }
 
     enum CorrectionReviewOutcome: Equatable {
@@ -393,13 +398,24 @@ struct LiveScoringShellPresentation {
     }
 
     func presentSemanticScoreState(_ state: LiveScoringWorkflowCoordinator.SemanticScoreState) -> SemanticScorePresentation {
-        SemanticScorePresentation(
+        let homeScore = state.canPresentScoringLine ? state.score.home : state.storedScore.home
+        let visitingScore = state.canPresentScoringLine ? state.score.visiting : state.storedScore.visiting
+        return SemanticScorePresentation(
             semanticScoreState: state,
-            homeScore: state.canPresentScoringLine ? state.score.home : state.storedScore.home,
-            visitingScore: state.canPresentScoringLine ? state.score.visiting : state.storedScore.visiting,
+            homeScore: homeScore,
+            visitingScore: visitingScore,
             inning: state.inning,
             outs: state.outs,
-            message: state.warnings.first
+            message: state.warnings.first,
+            accessibilityLabel: "Score summary",
+            accessibilityValue: scoreSummaryValue(
+                homeScore: homeScore,
+                visitingScore: visitingScore,
+                inning: state.inning,
+                halfInning: state.halfInning,
+                outs: state.outs,
+                bases: state.bases
+            )
         )
     }
 
@@ -422,7 +438,8 @@ struct LiveScoringShellPresentation {
             submittedAtbat: result.atbat,
             shouldDismissScoringSheet: accepted && !requiresAdditionalChoice,
             shouldMarkChanged: result.disposition == .accepted,
-            message: result.message
+            message: result.message,
+            accessibilityAnnouncement: submissionAnnouncement(for: result, requiresAdditionalChoice: requiresAdditionalChoice)
         )
     }
 
@@ -435,7 +452,8 @@ struct LiveScoringShellPresentation {
             pendingChoice: result.pendingChoice,
             shouldPresentAdditionalChoices: pending,
             shouldMarkChanged: false,
-            message: result.message
+            message: result.message,
+            accessibilityAnnouncement: additionalChoiceAnnouncement(for: result)
         )
     }
 
@@ -604,6 +622,7 @@ struct LiveScoringShellPresentation {
             identity: state.identity,
             isEnabled: state.isEnabled,
             accessibilityLabel: accessibilityLabel(for: state.identity),
+            accessibilityValue: accessibilityValue(for: state.identity, isEnabled: state.isEnabled),
             accessibilityHint: state.unavailableReason,
             warningMessage: state.warnings.first
         )
@@ -611,12 +630,109 @@ struct LiveScoringShellPresentation {
 
     private func accessibilityLabel(for identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity) -> String {
         switch identity {
-        case let .scorecardCell(column, battingOrder):
-            return "Score batter \(battingOrder), column \(column)"
+        case .scorecardCell:
+            return "Scorecard cell"
         case let .legacyResult(result):
-            return result
+            return "Score \(result)"
         case let .unsupported(result):
-            return result
+            return "Unsupported scoring result \(result)"
+        }
+    }
+
+    private func accessibilityValue(
+        for identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity,
+        isEnabled: Bool
+    ) -> String? {
+        switch identity {
+        case let .scorecardCell(column, battingOrder):
+            let availability = isEnabled ? "available" : "unavailable"
+            return "Batter \(battingOrder), scorecard column \(column), \(availability)"
+        case .legacyResult:
+            return isEnabled ? "Available" : "Unavailable"
+        case .unsupported:
+            return "Unsupported"
+        }
+    }
+
+    private func scoreSummaryValue(
+        homeScore: Int,
+        visitingScore: Int,
+        inning: Int,
+        halfInning: TeamSideRole,
+        outs: Int,
+        bases: LiveScoringWorkflowCoordinator.PreparedBaseOccupancy
+    ) -> String {
+        let half = halfInning == .visiting ? "Top" : "Bottom"
+        return "Visiting \(visitingScore), home \(homeScore). \(half) \(inning), \(outs) \(outs == 1 ? "out" : "outs"). \(baseOccupancyDescription(bases))."
+    }
+
+    private func baseOccupancyDescription(_ bases: LiveScoringWorkflowCoordinator.PreparedBaseOccupancy) -> String {
+        var occupied: [String] = []
+        if bases.first != nil { occupied.append("first") }
+        if bases.second != nil { occupied.append("second") }
+        if bases.third != nil { occupied.append("third") }
+        if occupied.isEmpty {
+            return "Bases empty"
+        }
+        return "Runner on " + occupied.joined(separator: ", ")
+    }
+
+    private func submissionAnnouncement(
+        for result: LiveScoringWorkflowCoordinator.ScoringSubmissionResult,
+        requiresAdditionalChoice: Bool
+    ) -> String? {
+        if let message = result.message {
+            return message
+        }
+        switch result.disposition {
+        case .accepted:
+            if requiresAdditionalChoice {
+                return "Scoring action accepted. Additional runner or out details required."
+            }
+            if let atbat = result.atbat, atbat.result != "Result" {
+                return "\(atbat.result) recorded for \(atbat.player.name)."
+            }
+            return "Scoring action accepted."
+        case .duplicatePrevented:
+            return "Duplicate scoring action ignored."
+        case .validationRejected:
+            return "Scoring action rejected."
+        case .unavailablePreparedState:
+            return "Scoring is unavailable until the game state is ready."
+        case .disabledAction:
+            return "This scoring action is unavailable."
+        case .cancellation:
+            return nil
+        case .unsupportedAction:
+            return "This scoring action is not supported."
+        case .persistenceFailed:
+            return "Scoring action could not be saved."
+        case .conflict:
+            return "Scoring action conflicts with the current game state."
+        }
+    }
+
+    private func additionalChoiceAnnouncement(
+        for result: LiveScoringWorkflowCoordinator.AdditionalChoicePreparationResult
+    ) -> String? {
+        if let message = result.message {
+            return message
+        }
+        switch result.disposition {
+        case .pending:
+            return "Additional runner or recorded out details required."
+        case .noAdditionalChoiceRequired:
+            return nil
+        case .unsupportedAction:
+            return "This scoring action is not supported."
+        case .validationRejected:
+            return "Additional scoring details could not be prepared."
+        case .unavailablePreparedState:
+            return "Additional scoring details are unavailable until the game state is ready."
+        case .disabledAction:
+            return "This scoring action is unavailable."
+        case .conflict:
+            return "Additional scoring details conflict with the current game state."
         }
     }
 
