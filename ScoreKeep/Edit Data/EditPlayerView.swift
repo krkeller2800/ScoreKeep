@@ -54,6 +54,7 @@ struct EditPlayerView: View {
                         .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                     }
                 .background {Color.yellow.opacity(0.3)}
+                .accessibilityHidden(true)
                 HStack {
                     TextField("Player", text: $playerName, onEditingChanged: { (editingChanged) in
                         if !editingChanged {

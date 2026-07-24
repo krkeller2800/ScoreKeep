@@ -57,6 +57,7 @@ struct EditTeamView: View {
                 Text("Coach Name").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
                 Text("Notes").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
             }
+            .accessibilityHidden(true)
             HStack {
                 if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
                     HStack {

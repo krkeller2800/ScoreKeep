@@ -148,6 +148,7 @@ struct PaywallView: View {
             Image(systemName: "ticket.fill")
                 .font(.system(size: compact ? (extraCompact ? 32 : 36) : 48))
                 .foregroundStyle(.blue)
+                .accessibilityHidden(true)
 
             Text(dynamicTitle)
                 .font(compact ? (extraCompact ? .headline.bold() : .title3.bold()) : .title2.bold())
@@ -272,6 +273,7 @@ struct PaywallView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                         .font(.system(size: compact ? (extraCompact ? 16 : 18) : 20))
+                        .accessibilityHidden(true)
                     Text(item)
                         .font(compact ? (extraCompact ? .footnote : .subheadline) : .body)
                         .foregroundColor(.primary)
@@ -289,6 +291,7 @@ struct PaywallView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
+                        .accessibilityHidden(true)
                     Text(item)
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
