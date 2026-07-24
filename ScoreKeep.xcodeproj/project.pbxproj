@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		B61F01D72ED6367D00BF0531 /* ScoreKeep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = B61F01D62ED6367D00BF0531 /* ScoreKeep.storekit */; };
 		B61F55312ED4E37D00D7BBEB /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B61F55302ED4E37D00D7BBEB /* StoreKit.framework */; };
-		D046B24F63D740A798255B33 /* seededGame.ScoreKeep_Games in Resources */ = {isa = PBXBuildFile; fileRef = E92233E1DCB24452AFFE4F03 /* seededGame.ScoreKeep_Games */; };
 		DF5716473009312500F3CCB6 /* MigrationTestLegacy.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF5716463009312500F3CCB6 /* MigrationTestLegacy.xcconfig */; };
 		DF5716493009312A00F3CCB6 /* MigrationTestProposed.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF5716483009312A00F3CCB6 /* MigrationTestProposed.xcconfig */; };
 /* End PBXBuildFile section */
@@ -40,7 +39,6 @@
 		DF5716463009312500F3CCB6 /* MigrationTestLegacy.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MigrationTestLegacy.xcconfig; sourceTree = "<group>"; };
 		DF5716483009312A00F3CCB6 /* MigrationTestProposed.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = MigrationTestProposed.xcconfig; sourceTree = "<group>"; };
 		DF6566FB3006D67E00455320 /* ScoreKeep.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = ScoreKeep.xctestplan; sourceTree = "<group>"; };
-		E92233E1DCB24452AFFE4F03 /* seededGame.ScoreKeep_Games */ = {isa = PBXFileReference; lastKnownFileType = text; name = seededGame.ScoreKeep_Games; path = ScoreKeep/Seed/seededGame.ScoreKeep_Games; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -113,7 +111,6 @@
 				CB643B4A2D85E59C00F30B87 /* Products */,
 				DF5716463009312500F3CCB6 /* MigrationTestLegacy.xcconfig */,
 				DF5716483009312A00F3CCB6 /* MigrationTestProposed.xcconfig */,
-				E92233E1DCB24452AFFE4F03 /* seededGame.ScoreKeep_Games */,
 			);
 			sourceTree = "<group>";
 		};
@@ -260,7 +257,6 @@
 				DF5716473009312500F3CCB6 /* MigrationTestLegacy.xcconfig in Resources */,
 				DF5716493009312A00F3CCB6 /* MigrationTestProposed.xcconfig in Resources */,
 				B61F01D72ED6367D00BF0531 /* ScoreKeep.storekit in Resources */,
-				D046B24F63D740A798255B33 /* seededGame.ScoreKeep_Games in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
