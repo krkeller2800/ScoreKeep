@@ -2697,13 +2697,32 @@ private func coordinatorSubmitOrdinary(
         resumedGame.atbats.append(homeAtbat)
         try resumedContext.save()
 
+        let resumedHomeAtbats = resumedGame.atbats.filter { $0.team.ident == resumedGame.hteam!.ident }
+
         let op4 = nextIdentity()
         let act4 = resumedCoordinator.submitScoringAction(
             legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
-            displayedAtbats: resumedGame.atbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
+            displayedAtbats: resumedHomeAtbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
             save: { try resumedContext.save() }, operationIdentity: op4, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
         )
         #expect(act4.disposition == .accepted)
+
+        // Duplicate
+        let act6 = resumedCoordinator.submitScoringAction(
+            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
+            displayedAtbats: resumedHomeAtbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
+            save: { try resumedContext.save() }, operationIdentity: op4, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
+        )
+        #expect(act6.disposition == .duplicatePrevented)
+
+        // Failure
+        let op7 = nextIdentity()
+        let act7 = resumedCoordinator.submitScoringAction(
+            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
+            displayedAtbats: resumedHomeAtbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
+            save: { throw InjectedSaveError() }, operationIdentity: op7, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
+        )
+        #expect(act7.disposition == .persistenceFailed)
 
         // Correction
         let snapshot = LiveScoringWorkflowCoordinator.LegacyCorrectionSnapshot(homeAtbat)
@@ -2713,34 +2732,17 @@ private func coordinatorSubmitOrdinary(
         let act5 = resumedCoordinator.submitCorrection(
             target: correctionTarget,
             replacement: correctionPlan,
-            displayedAtbats: resumedGame.atbats,
+            displayedAtbats: resumedHomeAtbats,
             pitchers: [resumedHomePitcher, newPitcher],
             modelContext: resumedContext,
             save: { try resumedContext.save() }
         )
         #expect(act5.disposition == .accepted)
 
-        // Duplicate
-        let act6 = resumedCoordinator.submitScoringAction(
-            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
-            displayedAtbats: resumedGame.atbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
-            save: { try resumedContext.save() }, operationIdentity: op4, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
-        )
-        #expect(act6.disposition == .duplicatePrevented)
-
-        // Failure
-        let op7 = nextIdentity()
-        let act7 = resumedCoordinator.submitScoringAction(
-            legacyResult: "Single", targetAtbat: homeAtbat, game: resumedGame, battingTeam: resumedGame.hteam!,
-            displayedAtbats: resumedGame.atbats, pitchers: [resumedHomePitcher, newPitcher], supportedLegacyResults: ["Single", "Double"],
-            save: { throw InjectedSaveError() }, operationIdentity: op7, operationEvidenceAdapter: resumedAdapter, modelContext: resumedContext
-        )
-        #expect(act7.disposition == .persistenceFailed)
-
         // Final durable-state verification
         let evidence = try resumedContext.fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>())
-        #expect(evidence.count == 5)
-        #expect(evidence.filter { $0.disposition == "accepted" }.count == 5)
+        #expect(evidence.map(\.operationIdentity).sorted { $0.uuidString < $1.uuidString } == [op1, op2, op3, op4])
+        #expect(evidence.filter { $0.disposition == "accepted" }.count == 4)
         #expect(resumedGame.atbats.filter { $0.result != "Result" }.count == 4)
 
         #expect(try resumedContext.fetchCount(FetchDescriptor<CanonicalGameHistoryRecord>()) == 0)
