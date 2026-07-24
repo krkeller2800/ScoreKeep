@@ -264,16 +264,25 @@ final class PurchaseManager: ObservableObject {
 
     @MainActor
     internal func completeVerifiedRecovery(productID: String) async {
-        if let year = extractYear(fromProductID: productID) {
+        let currentYear = calendar.component(.year, from: currentDate())
+        let seasonClassifier = SeasonClassifier()
+        let classification = seasonClassifier.classify(identifier: productID, currentYear: currentYear)
+
+        if (classification == .current || classification == .prior),
+           let year = seasonClassifier.seasonYear(identifier: productID) {
             let expiration = endOfYear(for: year)
             saveLocalMaxExpiration(expiration)
+        }
 
-            await refreshEntitlements()
+        await refreshEntitlements()
 
-            // Correction 1: Clear pending and contradictory states after verified recovery
-            isPurchasePending = false
-            isPurchaseCancelled = false
-            isPurchaseFailed = false
+        // Correction 1: Clear pending and contradictory states after verified recovery.
+        isPurchasePending = false
+        isPurchaseCancelled = false
+        isPurchaseFailed = false
+
+        if classification == .future || classification == .wrong || classification == .missingSeason {
+            lastErrorMessage = "This purchase is not valid for the current ScoreKeep season."
         }
     }
 
@@ -281,13 +290,8 @@ final class PurchaseManager: ObservableObject {
     internal func handle(transactionUpdate update: VerificationResult<Transaction>) async {
         if let transaction = try? checkVerified(update) {
             // Non‑renewing product: compute/store expiration when we see a verified transaction
-            if extractYear(fromProductID: transaction.productID) != nil {
-                await completeVerifiedRecovery(productID: transaction.productID)
-                await transaction.finish()
-            } else {
-                // Finish any other transactions too, just in case
-                await transaction.finish()
-            }
+            await completeVerifiedRecovery(productID: transaction.productID)
+            await transaction.finish()
         }
     }
 
@@ -313,13 +317,6 @@ final class PurchaseManager: ObservableObject {
     }
 
     // MARK: - Year handling
-
-    private func extractYear(fromProductID productID: String) -> Int? {
-        // Expect last 4 characters to be the year (e.g., ...SeasonPass2026)
-        guard productID.count >= 4 else { return nil }
-        let suffix = String(productID.suffix(4))
-        return Int(suffix)
-    }
 
     private func endOfYear(for year: Int) -> Date {
         var comps = DateComponents()

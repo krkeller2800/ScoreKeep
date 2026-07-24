@@ -25,7 +25,7 @@ final class Task95EntitlementRecognitionSuite: XCTestCase {
         super.tearDown()
     }
     
-    func testNoEvidenceYieldsNotEntitled() async {
+    func testNoEvidenceYieldsStatusUnavailable() async {
         let fetcher = MockEntitlementFetcher(inputs: [])
         let manager = PurchaseManager(
             entitlementFetcher: fetcher,
@@ -35,7 +35,7 @@ final class Task95EntitlementRecognitionSuite: XCTestCase {
         
         await manager.refreshEntitlements()
         
-        XCTAssertEqual(manager.entitlementState, .notEntitled)
+        XCTAssertEqual(manager.entitlementState, .statusUnavailable)
         XCTAssertFalse(manager.isSeasonPassActive)
     }
     

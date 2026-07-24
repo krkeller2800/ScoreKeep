@@ -6,11 +6,11 @@ struct Task93EntitlementClassificationSuite {
     
     let classifier = EntitlementClassifier()
 
-    @Test("emptyEvidenceReturnsNotEntitled")
-    func emptyEvidenceReturnsNotEntitled() {
+    @Test("emptyEvidenceReturnsStatusUnavailable")
+    func emptyEvidenceReturnsStatusUnavailable() {
         let evidence: [EntitlementEvidence] = []
         let result = classifier.classify(evidence: evidence)
-        #expect(result == .notEntitled)
+        #expect(result == .statusUnavailable)
     }
 
     @Test("validCurrentSeasonReturnsEntitled")

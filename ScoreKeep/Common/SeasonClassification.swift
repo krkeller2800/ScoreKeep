@@ -18,24 +18,7 @@ public struct SeasonClassifier: Sendable {
             return .wrong
         }
         
-        let suffix = identifier.dropFirst(prefix.count)
-        let suffixArray = Array(suffix)
-        
-        guard suffixArray.count == 4 else {
-            return .missingSeason
-        }
-        
-        for c in suffixArray {
-            if c < "0" || c > "9" {
-                return .missingSeason
-            }
-        }
-        
-        if suffixArray[0] == "0" {
-            return .missingSeason
-        }
-        
-        guard let parsedSeason = Int(String(suffixArray)) else {
+        guard let parsedSeason = seasonYear(identifier: identifier) else {
             return .missingSeason
         }
         
@@ -46,5 +29,30 @@ public struct SeasonClassifier: Sendable {
         } else {
             return .future
         }
+    }
+
+    public func seasonYear(identifier: String) -> Int? {
+        guard !identifier.isEmpty, identifier.hasPrefix(prefix) else {
+            return nil
+        }
+
+        let suffix = identifier.dropFirst(prefix.count)
+        let suffixArray = Array(suffix)
+
+        guard suffixArray.count == 4 else {
+            return nil
+        }
+
+        for c in suffixArray {
+            if c < "0" || c > "9" {
+                return nil
+            }
+        }
+
+        if suffixArray[0] == "0" {
+            return nil
+        }
+
+        return Int(String(suffixArray))
     }
 }
