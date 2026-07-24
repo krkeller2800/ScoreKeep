@@ -95,6 +95,38 @@ private struct ScoreKeepUnitTestHostIsolationView: View {
     }
 }
 
+struct SeedManager {
+    @MainActor
+    static func seedIfNeeded(modelContext: ModelContext, hasSeededInitialGame: inout Bool) {
+        let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.date == "2025-11-01T22:00:00Z" })
+        let seededGameExists = (try? modelContext.fetchCount(fetchDescriptor)) ?? 0 > 0
+        
+        if hasSeededInitialGame && seededGameExists {
+            return
+        }
+        
+        if !hasSeededInitialGame && seededGameExists {
+            hasSeededInitialGame = true
+            return
+        }
+
+        // If the flag is true but the store lacks the sample data, we will fall through and re-seed.
+        if let url = Bundle.main.url(forResource: "seededGame", withExtension: "ScoreKeep_Games") {
+            do {
+                let importer = ImportService(modelContext: modelContext)
+                let shareGames = try importer.decodeSeededGame(from: url)
+                try importer.importShareGames(shareGames)
+                hasSeededInitialGame = true
+            } catch {
+                // If seeding fails, we won't reattempt until next launch; adjust as needed.
+                os_log("Initial game seeding failed: %{public}@", type: .error, error.localizedDescription)
+            }
+        } else {
+            os_log("seededGame.ScoreKeep_Games not found in bundle.", type: .error)
+        }
+    }
+}
+
 private struct SeederView: View {
     @Environment(\.modelContext) private var modelContext
     @Binding var hasSeededInitialGame: Bool
@@ -102,22 +134,7 @@ private struct SeederView: View {
     var body: some View {
         Color.clear
             .task {
-                guard hasSeededInitialGame == false else { return }
-                // Ensure the resource name and extension match exactly in your bundle.
-                // Add the file to the app target: seededGame.ScoreKeep_Games
-                if let url = Bundle.main.url(forResource: "seededGame", withExtension: "ScoreKeep_Games") {
-                    do {
-                        let importer = ImportService(modelContext: modelContext)
-                        let shareGames = try importer.decodeSeededGame(from: url)
-                        try importer.importShareGames(shareGames)
-                        hasSeededInitialGame = true
-                    } catch {
-                        // If seeding fails, we won't reattempt until next launch; adjust as needed.
-                        os_log("Initial game seeding failed: %{public}@", type: .error, error.localizedDescription)
-                    }
-                } else {
-                    os_log("seededGame.ScoreKeep_Games not found in bundle.", type: .error)
-                }
+                SeedManager.seedIfNeeded(modelContext: modelContext, hasSeededInitialGame: &hasSeededInitialGame)
             }
     }
 }
