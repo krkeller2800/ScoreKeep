@@ -324,7 +324,7 @@ enum ScoreKeepMigrationJournalTransition {
         }
         if phase == .completionRecorded {
             let backupDisposition = backupVerificationDisposition ?? record.backupVerificationDisposition
-            guard backupDisposition == .backupVerified || sourcePreservationDisposition == .notRequiredForNewEmptyStore else {
+            guard backupDisposition == .backupVerified || (sourcePreservationDisposition ?? record.sourcePreservationDisposition) == .notRequiredForNewEmptyStore else {
                 throw ScoreKeepMigrationJournalError.completionRequiresVerifiedBackup
             }
             guard (postOpenVerificationDisposition ?? record.postOpenVerificationDisposition) == "passed" else {

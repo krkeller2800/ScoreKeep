@@ -142,5 +142,39 @@ struct ScoreKeepMigrationJournalTests {
             operationUUID: uuid
         )
     }
+
+    @Test("empty store creation successfully advances to completion recorded")
+    func emptyStoreCreationAdvancesToCompletionRecorded() throws {
+        let operation = operationIdentity(storeIdentity: "source-empty")
+        var record = ScoreKeepMigrationJournalRecord.initial(
+            operationIdentity: operation,
+            sourceStoreDiagnosticIdentity: "source-empty",
+            sourceClassification: .emptyCurrentUnversionedStore
+        )
+        record = try ScoreKeepMigrationJournalTransition.advance(record, to: .preflightStarted)
+        record = try ScoreKeepMigrationJournalTransition.advance(record, to: .sourceClassified)
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .backupVerified,
+            sourcePreservationDisposition: .notRequiredForNewEmptyStore,
+            backupVerificationDisposition: .notRequiredForNewEmptyStore,
+            retryClassification: .noRetryRequired
+        )
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .postOpenVerificationPassed,
+            postOpenVerificationDisposition: "passed"
+        )
+
+        // This must not throw completionRequiresVerifiedBackup after our fix.
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .completionRecorded,
+            completionDisposition: "sidecarCompletionRecorded",
+            retryClassification: .noRetryRequired,
+            recoveryRequirement: .noRecoveryRequired
+        )
+        #expect(record.phase == .completionRecorded)
+    }
 }
 #endif
