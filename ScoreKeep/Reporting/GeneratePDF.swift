@@ -109,10 +109,13 @@ class PDFGenerator {
         guard let documentDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
-        let fileURL = documentDirectory.appendingPathComponent("\(fileName).pdf")
+        let uniqueFileName = "\(fileName)-\(UUID().uuidString)"
+        let fileURL = documentDirectory
+            .appendingPathComponent(uniqueFileName)
+            .appendingPathExtension("pdf")
 
         do {
-            try data.write(to: fileURL)
+            try data.write(to: fileURL, options: .atomic)
             return fileURL
         } catch {
             print("Error saving PDF: \(error.localizedDescription)")

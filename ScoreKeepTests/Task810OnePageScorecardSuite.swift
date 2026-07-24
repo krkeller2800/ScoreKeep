@@ -204,6 +204,8 @@ struct Task810OnePageScorecardSuite {
         let url2 = try #require(generator2.generatePDFData(game: game2, team: team2, title: "Test", body: "Test"))
         defer { try? FileManager.default.removeItem(at: url2) }
         
+        #expect(url1 != url2, "Independent scorecard renders must not share output file lifecycle")
+
         let doc1 = try #require(PDFDocument(url: url1))
         let doc2 = try #require(PDFDocument(url: url2))
         
