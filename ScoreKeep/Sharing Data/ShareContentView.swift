@@ -25,9 +25,9 @@ struct ShareContentView: View {
     
     // Keychain-backed MLB download counter
     @StateObject private var mlbCounter = KeychainBackedCounter(
-        key: "mlbDownloadCountKC",
-        defaultValue: 0,
-        invalidStoredValue: 4
+        key: MLBDownloadAllowanceState.counterKey,
+        defaultValue: MLBDownloadAllowanceState.defaultUsedCount,
+        invalidStoredValue: MLBDownloadAllowanceState.invalidStoredUsedCount
     )
     
     @State private var team:Team?
@@ -89,6 +89,13 @@ struct ShareContentView: View {
     }
     
     var isPremium: Bool { purchaseManager.isSeasonPassActive }
+
+    private var mlbDownloadAllowance: MLBDownloadAllowanceState {
+        MLBDownloadAllowanceState(
+            usedCount: mlbCounter.value,
+            storageInterpretation: mlbCounter.storageInterpretation
+        )
+    }
     
     var body: some View {
         VStack {
@@ -179,7 +186,7 @@ struct ShareContentView: View {
                             }
                             .frame(maxWidth: 150,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
                             .border(.gray).cornerRadius(10).accentColor(.black)
-                            .disabled(!isPremium && mlbCounter.value >= 4)
+                            .disabled(!isPremium && !mlbDownloadAllowance.canDownloadWithAllowance)
                             Spacer()
                         }
                         if let lastUpdated = lastUpdated {
@@ -205,10 +212,11 @@ struct ShareContentView: View {
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 6)
                             }
-                            Text("Downloads used: \(mlbCounter.value) of 4")
+                            Text(mlbDownloadAllowance.displayText)
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 4)
+                                .accessibilityLabel(mlbDownloadAllowance.accessibilityLabel)
                         }
                         // Upgrade button: only show when not premium
                         if !isPremium {
@@ -220,7 +228,7 @@ struct ShareContentView: View {
                             .tint(.blue)
                             .padding(.top, 4)
                             .overlay(alignment: .topTrailing) {
-                                if mlbCounter.value >= 4 {
+                                if !mlbDownloadAllowance.canDownloadWithAllowance {
                                     Circle()
                                         .fill(Color.red)
                                         .frame(width: 10, height: 10)
@@ -290,7 +298,7 @@ struct ShareContentView: View {
                 let downTeam = DownloadFiles()
                 Task {
                     // Gate: block if free limit reached
-                    if !isPremium && mlbCounter.value >= 4 {
+                    if !isPremium && !mlbDownloadAllowance.canDownloadWithAllowance {
                         showingAlert = true
                         alertMessage = "You’ve reached your 4 free downloads. Upgrade to continue."
                         paywallContext = .downloadLimit
