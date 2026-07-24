@@ -1,6 +1,6 @@
 import Foundation
 
-public enum EntitlementState: Equatable, Sendable {
+public enum EntitlementState: Hashable, Sendable {
     case entitled
     case notEntitled
     case priorSeason

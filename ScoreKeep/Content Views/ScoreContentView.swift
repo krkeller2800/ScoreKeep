@@ -36,6 +36,7 @@ struct ScoreContentView: View {
     @State private var interruptedWorkflow: PaywallInterruptedWorkflow?
     @State private var gameCreationAllowanceTransaction = GameCreationAllowanceTransaction()
     private let paywallResumePolicy = PaywallResumePolicy()
+    private let purchaseDecisionAuthority = PurchaseDecisionAuthority()
 
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
@@ -62,7 +63,11 @@ struct ScoreContentView: View {
         }
     }
 
-    var isPremium: Bool { purchaseManager.isSeasonPassActive }
+    var isPremium: Bool {
+        purchaseDecisionAuthority
+            .decision(for: purchaseManager.entitlementState)
+            .permitsCurrentSeasonAccess
+    }
 
     private var freeGameAllowance: FreeGameAllowanceState {
         FreeGameAllowanceState(
@@ -235,8 +240,8 @@ struct ScoreContentView: View {
         .sheet(isPresented: $showPaywall, onDismiss: cancelPendingCreationIfPaywallStillUnresolved) {
             paywallSheetContent()
         }
-        .onReceive(purchaseManager.$isSeasonPassActive) { active in
-            if active {
+        .onReceive(purchaseManager.$entitlementState) { entitlementState in
+            if purchaseDecisionAuthority.decision(for: entitlementState).permitsCurrentSeasonAccess {
                 resumePendingCreationIfAllowed()
             }
         }

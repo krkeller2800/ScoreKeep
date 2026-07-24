@@ -48,12 +48,11 @@ struct EditScoreView: View {
     @State var hasChanged = false
     @State var url:URL?
     @State private var generatedOutputGateLifecycle = PurchaseGatedWorkflowLifecycle()
+    private let purchaseDecisionAuthority = PurchaseDecisionAuthority()
 
     @FocusState private var focusedField: FocusField?
     
     @State var date = Date.now
-
-    private var isPremium: Bool { purchaseManager.isSeasonPassActive }
 
     var body: some View {
         GeometryReader { geometry in
@@ -264,8 +263,8 @@ struct EditScoreView: View {
                 .environmentObject(purchaseManager)
                 .presentationDetents([.large])
         }
-        .onReceive(purchaseManager.$isSeasonPassActive) { active in
-            guard active else { return }
+        .onReceive(purchaseManager.$entitlementState) { entitlementState in
+            guard purchaseDecisionAuthority.decision(for: entitlementState).permitsCurrentSeasonAccess else { return }
             applyGeneratedOutputTransition(generatedOutputGateLifecycle.entitlementBecameActive())
         }
         .onDisappear {
@@ -280,10 +279,6 @@ struct EditScoreView: View {
         _columnVisibility = columnVisability
     }
 
-    private var entitlementState: PurchaseEntitlementState {
-        isPremium ? .activeCurrentSeason : .inactive
-    }
-
     private func requestGeneratedOutput(_ action: PurchaseGatedAction) {
         let workflow = PurchaseGatedWorkflowState(
             action: action,
@@ -294,7 +289,7 @@ struct EditScoreView: View {
         )
         let transition = generatedOutputGateLifecycle.request(
             action: action,
-            entitlement: entitlementState,
+            entitlement: purchaseDecisionAuthority.purchaseEntitlementState(for: purchaseManager.entitlementState),
             workflow: workflow
         )
         applyGeneratedOutputTransition(transition)

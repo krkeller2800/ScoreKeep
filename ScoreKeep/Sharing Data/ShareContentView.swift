@@ -73,6 +73,7 @@ struct ShareContentView: View {
     @State private var pendingRosterDownloadSelection: String?
     @State private var interruptedWorkflow: PaywallInterruptedWorkflow?
     private let paywallResumePolicy = PaywallResumePolicy()
+    private let purchaseDecisionAuthority = PurchaseDecisionAuthority()
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case nameAsc, nameDec, orderAsc, numAsc
@@ -92,7 +93,11 @@ struct ShareContentView: View {
         }
     }
     
-    var isPremium: Bool { purchaseManager.isSeasonPassActive }
+    var isPremium: Bool {
+        purchaseDecisionAuthority
+            .decision(for: purchaseManager.entitlementState)
+            .permitsCurrentSeasonAccess
+    }
 
     private var mlbDownloadAllowance: MLBDownloadAllowanceState {
         MLBDownloadAllowanceState(
@@ -424,8 +429,8 @@ struct ShareContentView: View {
             }
         }
         // Optional: auto-dismiss paywall if premium flips true
-        .onReceive(purchaseManager.$isSeasonPassActive) { active in
-            if active {
+        .onReceive(purchaseManager.$entitlementState) { entitlementState in
+            if purchaseDecisionAuthority.decision(for: entitlementState).permitsCurrentSeasonAccess {
                 resumePendingRosterDownloadIfAllowed()
                 showPaywall = false
             }

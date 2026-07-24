@@ -5,6 +5,18 @@ import Foundation
 struct PurchaseGatingPolicy {
     static func decide(
         action: PurchaseGatedAction,
+        entitlement: EntitlementState,
+        workflow: PurchaseGatedWorkflowState
+    ) -> PurchaseGatingDecision {
+        decide(
+            action: action,
+            entitlement: PurchaseDecisionAuthority().purchaseEntitlementState(for: entitlement),
+            workflow: workflow
+        )
+    }
+
+    static func decide(
+        action: PurchaseGatedAction,
         entitlement: PurchaseEntitlementState,
         workflow: PurchaseGatedWorkflowState
     ) -> PurchaseGatingDecision {
@@ -164,4 +176,71 @@ enum PurchaseGatingDisposition: Hashable, Sendable {
 enum PurchaseGateAccessBasis: Hashable, Sendable {
     case currentSeasonEntitlement
     case sourceDataOwnership
+}
+
+struct PurchaseDecisionAuthority: Equatable, Sendable {
+    func decision(for entitlement: EntitlementState) -> PurchaseAccessDecision {
+        switch entitlement {
+        case .entitled:
+            return .currentSeasonEntitled
+        case .notEntitled, .priorSeason, .futureSeason, .statusUnavailable:
+            return .notCurrentSeasonEntitled(entitlement)
+        }
+    }
+
+    func purchaseEntitlementState(for entitlement: EntitlementState) -> PurchaseEntitlementState {
+        decision(for: entitlement).permitsCurrentSeasonAccess ? .activeCurrentSeason : .inactive
+    }
+}
+
+enum PurchaseAccessDecision: Hashable, Sendable {
+    case currentSeasonEntitled
+    case notCurrentSeasonEntitled(EntitlementState)
+
+    var permitsCurrentSeasonAccess: Bool {
+        switch self {
+        case .currentSeasonEntitled:
+            return true
+        case .notCurrentSeasonEntitled:
+            return false
+        }
+    }
+}
+
+struct AllowanceWriterRoutingAuthority: Equatable, Sendable {
+    func writerRoute(for action: QualifyingAllowanceAction) -> AllowanceWriterRoute {
+        switch action {
+        case .successfulGameCreation:
+            return .task922GameCreationTransaction
+        case .successfulMLBRosterDownloadImport:
+            return .task923RosterDownloadTransaction
+        }
+    }
+
+    func legacyMutationDecision(for action: NonQualifyingAllowanceAction) -> LegacyAllowanceMutationDecision {
+        .retired(action)
+    }
+
+    func resetDecision(buildConfiguration: FreeGameAllowanceBuildConfiguration) -> AllowanceResetDecision {
+        switch FreeGameAllowanceDebugResetPolicy.classify(buildConfiguration: buildConfiguration) {
+        case .debugOnlyResetToDefault:
+            return .debugOnly
+        case .noProductionReset:
+            return .notPermittedInProduction
+        }
+    }
+}
+
+enum AllowanceWriterRoute: Hashable, Sendable {
+    case task922GameCreationTransaction
+    case task923RosterDownloadTransaction
+}
+
+enum LegacyAllowanceMutationDecision: Hashable, Sendable {
+    case retired(NonQualifyingAllowanceAction)
+}
+
+enum AllowanceResetDecision: Hashable, Sendable {
+    case debugOnly
+    case notPermittedInProduction
 }
