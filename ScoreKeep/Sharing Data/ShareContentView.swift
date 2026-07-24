@@ -69,6 +69,7 @@ struct ShareContentView: View {
     @AppStorage("selectedShareCriteria") var selectedShareCriteria: SortCriteria = .orderAsc
     @State private var showPaywall: Bool = false
     @State private var paywallContext: PaywallContext = .general
+    @State private var rosterDownloadAllowanceTransaction = RosterDownloadAllowanceTransaction()
     
     enum SortCriteria: String, CaseIterable, Identifiable {
         case nameAsc, nameDec, orderAsc, numAsc
@@ -321,9 +322,8 @@ struct ShareContentView: View {
                         url = documentsDirectory.appendingPathComponent(destinationFileName)
                         if url != nil {
                             doImport = true
-                            // Increment usage after successful download if not upgraded
                             if !isPremium {
-                                mlbCounter.increment()
+                                applySuccessfulRosterDownloadAllowanceTransaction(for: destinationFileName)
                             }
                         }
                     } catch {
@@ -644,6 +644,18 @@ struct ShareContentView: View {
             }
         }
     }
+
+    private func applySuccessfulRosterDownloadAllowanceTransaction(for rosterID: String) {
+        let result = rosterDownloadAllowanceTransaction.successfulDownloadImportBoundary(
+            rosterID: rosterID,
+            allowance: mlbDownloadAllowance
+        )
+
+        if case .consume = result {
+            mlbCounter.increment()
+        }
+    }
+
     private func fetchIndexUpdated(from url: URL) {
         struct TeamsIndex: Decodable {
             let updated: String?
