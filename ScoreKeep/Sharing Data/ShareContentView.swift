@@ -24,7 +24,11 @@ struct ShareContentView: View {
     @State private var pendingPrefill: String?
     
     // Keychain-backed MLB download counter
-    @StateObject private var mlbCounter = KeychainBackedCounter(key: "mlbDownloadCountKC", defaultValue: 0)
+    @StateObject private var mlbCounter = KeychainBackedCounter(
+        key: "mlbDownloadCountKC",
+        defaultValue: 0,
+        invalidStoredValue: 4
+    )
     
     @State private var team:Team?
     @State private var game:Game?
