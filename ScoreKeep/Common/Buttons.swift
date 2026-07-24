@@ -55,8 +55,8 @@ struct ToolBarButtonStyle: ButtonStyle {
         configuration.label
             .padding(3)
             .foregroundStyle(.tint)
-            .background(configuration.isPressed ? Color.blue.opacity(0.8) : Color.blue.opacity(0.075), in: Capsule())
-//            .background(configuration.isPressed ? Color.blue.opacity(0.5) : Color.blue)
+            .background(configuration.isPressed ? Color.accentColor.opacity(0.8) : Color.accentColor.opacity(0.2), in: Capsule())
+//            .background(configuration.isPressed ? Color.accentColor.opacity(0.5) : Color.accentColor)
 //            .foregroundColor(.white)
 //            .cornerRadius(8)
     }
