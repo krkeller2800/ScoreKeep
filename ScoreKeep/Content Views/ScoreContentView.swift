@@ -25,7 +25,11 @@ struct ScoreContentView: View {
     @AppStorage("selectedGameCriteria") var selectedSortCriteria: SortCriteria = .dateAsc
 
     // Free tier: remaining game creations for non‑premium users (Keychain-backed)
-    @StateObject private var freeCreates = KeychainBackedCounter(key: "freeGameCreatesRemainingKC", defaultValue: 2)
+    @StateObject private var freeCreates = KeychainBackedCounter(
+        key: FreeGameAllowanceState.counterKey,
+        defaultValue: FreeGameAllowanceState.defaultRemaining,
+        invalidStoredValue: FreeGameAllowanceState.invalidStoredRemaining
+    )
     @State private var showPaywall: Bool = false
     @State private var paywallContext: PaywallContext = .general
     @State private var pendingCreation: PendingCreation?
@@ -57,11 +61,18 @@ struct ScoreContentView: View {
 
     var isPremium: Bool { purchaseManager.isSeasonPassActive }
 
+    private var freeGameAllowance: FreeGameAllowanceState {
+        FreeGameAllowanceState(
+            remaining: freeCreates.value,
+            storageInterpretation: freeCreates.storageInterpretation
+        )
+    }
+
     // Small extracted pieces to reduce type-checking pressure
     private var scoreEditOptions: [String] { ["Score", "Edit"] }
 
     private var freeCounterView: some View {
-        Text(hSizeClass == .compact ? "Free games: \(freeCreates.value)" : "Free games: \(freeCreates.value)")
+        Text(freeGameAllowance.displayText)
             .font(hSizeClass == .compact ? .caption2 : .caption)
             .padding(.horizontal, 4)
             .padding(.vertical, 4)
@@ -69,7 +80,7 @@ struct ScoreContentView: View {
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             .layoutPriority(1)
-            .accessibilityLabel("Free games remaining \(freeCreates.value)")
+            .accessibilityLabel(freeGameAllowance.accessibilityLabel)
     }
 
     var body: some View {
@@ -110,12 +121,7 @@ struct ScoreContentView: View {
             }
             .onAppear {
                 addAGame = false
-                // DEBUG-only: give ourselves a budget for testing
-                #if DEBUG
-                if freeCreates.value != 2 {
-                    freeCreates.set(2)
-                }
-                #endif
+                applyDebugFreeGameAllowanceResetIfNeeded()
             }
             .toolbar {
                 // Leading: Sort menu
@@ -296,7 +302,7 @@ struct ScoreContentView: View {
             return
         }
 
-        guard freeCreates.value > 0 else {
+        guard freeGameAllowance.canCreateWithAllowance else {
             paywallContext = .gameLimit
             showPaywall = true
             return
@@ -305,6 +311,14 @@ struct ScoreContentView: View {
         createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
         // Decrement remaining free creates for non-premium (user-initiated only)
         freeCreates.set(freeCreates.value - 1)
+    }
+
+    private func applyDebugFreeGameAllowanceResetIfNeeded() {
+        #if DEBUG
+        if freeCreates.value != FreeGameAllowanceState.defaultRemaining {
+            freeCreates.set(FreeGameAllowanceState.defaultRemaining)
+        }
+        #endif
     }
 
     private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {

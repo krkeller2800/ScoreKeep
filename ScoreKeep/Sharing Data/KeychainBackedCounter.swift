@@ -10,7 +10,14 @@ import Combine
 
 @MainActor
 final class KeychainBackedCounter: ObservableObject {
+    enum StorageInterpretation: Equatable, Sendable {
+        case missingDefault
+        case validStored
+        case invalidStored
+    }
+
     @Published private(set) var value: Int
+    @Published private(set) var storageInterpretation: StorageInterpretation = .missingDefault
 
     private let key: String
     private let defaultValue: Int
@@ -33,10 +40,13 @@ final class KeychainBackedCounter: ObservableObject {
             switch loaded {
             case .missing:
                 self.value = defaultValue
+                self.storageInterpretation = .missingDefault
             case .valid(let value):
                 self.value = value
+                self.storageInterpretation = .validStored
             case .invalid:
                 self.value = self.invalidStoredValue
+                self.storageInterpretation = .invalidStored
             }
         }
     }
@@ -51,6 +61,7 @@ final class KeychainBackedCounter: ObservableObject {
 
     func set(_ newValue: Int) {
         value = max(0, newValue)
+        storageInterpretation = .validStored
         scheduleSave()
     }
 
