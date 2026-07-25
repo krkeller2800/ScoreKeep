@@ -82,9 +82,10 @@ struct ScoreContentView: View {
     private var freeCounterView: some View {
         Text(freeGameAllowance.displayText)
             .font(hSizeClass == .compact ? .caption2 : .caption)
-            .padding(.horizontal, 4)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .foregroundColor(.black)
+            .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
             .layoutPriority(1)
@@ -273,11 +274,11 @@ struct ScoreContentView: View {
             } label: {
                 Text("Add Team")
                     .frame(maxWidth: .infinity)
-                    .foregroundColor(.blue)
+                    .foregroundStyle(ScoreKeepVisualStyle.accent)
                     .lineLimit(1)
             }
             .buttonStyle(.glassProminent)
-            .tint(.blue.opacity(0.075))
+            .tint(ScoreKeepVisualStyle.selectedFill)
         } else {
             Button("Add Team") {
                 addBlankTeam()

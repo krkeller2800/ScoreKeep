@@ -8,17 +8,17 @@ struct PremiumBadgeView: View {
         HStack(spacing: 4) {
             Image(systemName: "crown")
                 .imageScale(isCompact ? .small : .medium)
-                .foregroundStyle(.red)
+                .foregroundStyle(ScoreKeepVisualStyle.accent)
 
             Text("Season Pass")
                 .font(isCompact ? .caption2 : .caption).bold()
-                .foregroundStyle(.white)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .background(Color.blue.opacity(0.75), in: Capsule())
+        .background(ScoreKeepVisualStyle.selectedFill, in: Capsule())
         .fixedSize(horizontal: true, vertical: false)
         .accessibilityLabel("Season Pass active")
     }

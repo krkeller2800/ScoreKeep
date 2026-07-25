@@ -93,178 +93,37 @@ struct GameView: View {
         return !cal.isDate(gameDate, inSameDayAs: target)
     }
     
+    private var dateWidth: CGFloat { UIDevice.type == "iPhone" && title.isEmpty ? 100 : 230 }
+
     var body: some View {
         ZStack {
-            // Stable grouped background to avoid white flash
-            Color(.systemGroupedBackground)
+            ScoreKeepVisualStyle.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 // NOTE: Hint removed from layout — now shown via overlay below.
 
                 Form {
                     if games.count > 0 {
                         if self.title == "Edit a Game" && UIDevice.type == "iPad" {
-                            Text("Select a Game to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+                            Text("Select a Game to edit or swipe to delete")
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .font(.title3.bold())
+                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                         } else if self.title == "Score a Game" && UIDevice.type == "iPad" {
-                            Text("Select a Game to score or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title3).foregroundColor(.black).bold()
+                            Text("Select a Game to score or swipe to delete")
+                                .frame(maxWidth:.infinity, alignment:.leading)
+                                .font(.title3.bold())
+                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                         }
                     }
-                    HStack {
-                        Text("Game Date").frame(width: UIDevice.type == "iPhone" && title.isEmpty ? 105 : 235).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        if !title.isEmpty {
-                            Text("Field").frame(maxWidth:.infinity).border(.gray)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("All Hit").frame(maxWidth:50).border(.gray)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        }
-             
-                        Text("Visiting").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Home").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        if !title.isEmpty {
-                            Text("Score").frame(maxWidth:.infinity).border(.gray)
-                                .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        }
-                        Text("").frame(maxWidth:40)
-                    }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    headerRow()
                     if !title.isEmpty {
-                        HStack{
-                            DatePicker("", selection: $date)
-                                .onAppear {
-                                    date = ISO8601DateFormatter().date(from: theDate) ?? Date()
-                                }
-                                .onChange(of: date) {
-                                    theDate = date.ISO8601Format()
-                                }
-                                .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
-                                .frame(width: 220, alignment: .leading)
-                                .clipped()
-                            TextField("Field", text: $field)
-                                .frame(maxWidth: .infinity)
-                                .foregroundColor(.blue).bold()
-                                .overlay(Divider().background(.black), alignment: .trailing)
-                                .focused($focusedField, equals: .field)
-                                .autocapitalization(.words)
-                                .textContentType(.none)
-                            Button(action:{everyOneHits.toggle()}){
-                                Text(everyOneHits ? "True" : "False")
-                                    .frame(maxWidth:50,maxHeight:30)
-                                    .foregroundColor(.blue).bold()
-                                    .background(Color.white)
-                            }.buttonStyle(PlainButtonStyle())
-                                .cornerRadius(10)
-                                .overlay(Divider().background(.black), alignment: .trailing)
-                            Picker("Visiting Team", selection: $vTeam) {
-                                Text("Pick").tag(Optional<Team>.none)
-                                if teams.isEmpty == false {
-                                    Divider()
-                                    ForEach(teams, id: \.ident) { team in
-                                        if team.name != "" {
-                                            Text(team.name).tag(Optional(team))
-                                        }
-                                    }
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                            .overlay(Divider().background(.black), alignment: .trailing)
-                            Picker("Home Team", selection: $hTeam) {
-                                Text("Pick").tag(Optional<Team>.none)
-                                if teams.isEmpty == false {
-                                    Divider()
-                                    ForEach(teams, id: \.ident) { team in
-                                        if team.name != "" {
-                                            Text(team.name).tag(Optional(team))
-                                        }
-                                    }
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                            .overlay(Divider().background(.black), alignment: .trailing)
-                            Text("Not Played")
-                                .frame(maxWidth: .infinity)
-                                .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                            HStack {
-                                Image(systemName: "plus")
-                                    .onTapGesture {
-                                        if let vTeam, let hTeam {
-                                            // User-initiated creation: isSeeded = false
-                                            createGame(theDate, field, everyOneHits, vTeam, hTeam, false)
-                                            // reset UI fields
-                                            field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
-                                        } else {
-                                            alertMessage = "You must select a Home and Visiting Team!"
-                                            showingValidationAlert = true
-                                        }
-                                    }
-                            }
-                        }
+                        inputRow()
                     }
                     ForEach(displayedGames, id: \.ident) { game in
                         NavigationLink(value: game) {
-                            HStack {
-                                let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
-                                Text(date.formatted(date:.abbreviated, time: .shortened)).frame(width:UIDevice.type == "iPhone" && title.isEmpty ? 100 : 230, alignment: .center).foregroundColor(.black).bold().padding(.trailing,5).lineLimit(2).minimumScaleFactor(0.8)
-                                    .overlay(Divider().background(.black), alignment: .trailing)
-                                if !title.isEmpty {
-                                    Text(game.location).frame(maxWidth:.infinity, alignment: .leading).foregroundColor(.black).bold()
-                                        .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.8)
-                                    Text(game.everyOneHits ? "True" : "False").frame(maxWidth:50, alignment: .center).foregroundColor(.black).bold()
-                                        .padding(.leading, 0).overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.8)
-                                }
-                                HStack {
-                                    if let imageData = game.vteam?.logo, let uiImage = UIImage(data: imageData) {
-                                        Image(uiImage: uiImage)
-                                            .scaleImage(iHeight: 30, imageData: imageData)
-                                    }
-                                    Text(game.vteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                                .overlay(Divider().background(.black), alignment: .trailing)
-                                HStack {
-                                    if let imageData = game.hteam?.logo, let uiImage = UIImage(data: imageData) {
-                                        Image(uiImage: uiImage)
-                                            .scaleImage(iHeight: 30, imageData: imageData)
-                                    }
-                                    Text(game.hteam?.name ?? "").lineLimit(2).minimumScaleFactor(0.8)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                                .overlay(Divider().background(.black), alignment: .trailing)
-                                if !title.isEmpty {
-                                    if let hName = game.hteam?.name, let vName = game.vteam?.name {
-                                        let summary = scoreSummary(for: game, homeTeamName: hName, visitingTeamName: vName)
-                                        let inning = max(1, (summary.outs / 3) + 1)
-                                        let inningText: String = {
-                                            if com.innAbr.indices.contains(inning) {
-                                                return com.innAbr[inning]
-                                            } else {
-                                                return "Inning \(inning)"
-                                            }
-                                        }()
-
-                                        let hShort = hName.components(separatedBy: " ").last ?? hName
-                                        let vShort = vName.components(separatedBy: " ").last ?? vName
-                                        let winner = summary.visitingRuns > summary.homeRuns ? vShort : (summary.visitingRuns < summary.homeRuns ? hShort : "")
-                                        let isFinal = inning >= 9 && !winner.isEmpty
-                                        let suffix = isFinal ? " Final" : " in \(inningText)"
-
-                                        Text("\(summary.visitingRuns) to \(summary.homeRuns) \(winner)\(suffix)")
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .foregroundColor(.black).bold()
-                                            .overlay(Divider().background(.black), alignment: .trailing)
-                                            .lineLimit(2).minimumScaleFactor(0.7)
-                                    } else {
-                                        Text("Game teams not set")
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .foregroundColor(.secondary)
-                                            .overlay(Divider().background(.black), alignment: .trailing)
-                                    }
-                                }
-                                Spacer(minLength: 20)
-                            }
+                            gameRow(for: game)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -275,6 +134,8 @@ struct GameView: View {
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    .listRowBackground(ScoreKeepVisualStyle.contentSurface)
+                    .listRowSeparatorTint(ScoreKeepVisualStyle.separator)
                 }
                 // Keep the list background hidden so the grouped background shows through
                 .scrollContentBackground(.hidden)
@@ -303,9 +164,9 @@ struct GameView: View {
                     ToolbarItem(placement: .principal) {
                         Text(self.title)
                             .font(.title2)
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                         }
                 }
-                .listRowSeparator(.hidden)
             }
         }
         // Top overlay banner (no layout space taken)
@@ -317,9 +178,7 @@ struct GameView: View {
                         .imageScale(.small)
                     Text("Sample game added — try scoring it and check out the stats.")
                         .font(.caption)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.8)
-                        .foregroundColor(.red)
+                        .scorebookMultiLineText()
                     Button {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             hasDismissedSeedHint_Game = true
@@ -327,16 +186,16 @@ struct GameView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.caption2)
-                            .foregroundColor(.red)
+                            .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
                             .padding(4)
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(Color.blue.opacity(0.08), in: Capsule())
-                .foregroundColor(.blue)
-                .padding(.top, 8) // breathing room from safe area
+                .background(ScoreKeepVisualStyle.infoBannerBackground, in: Capsule())
+                .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
+                .padding(.top, -4)
                 .padding(.trailing, 20)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .animation(.easeInOut(duration: 0.25), value: hasDismissedSeedHint_Game)
@@ -397,5 +256,308 @@ struct GameView: View {
         modelContext.delete(game)
         gamePendingDeletion = nil
     }
+
+    @ViewBuilder
+    private func headerRow() -> some View {
+        HStack(spacing: 0) {
+            scorebookHeaderCell("Game Date")
+                .frame(width: dateWidth)
+                .scorebookTrailingSeparator()
+            if !title.isEmpty {
+                scorebookHeaderCell("Field")
+                    .frame(maxWidth: .infinity)
+                    .scorebookTrailingSeparator()
+                scorebookHeaderCell("All Hit")
+                    .frame(width: 58)
+                    .scorebookTrailingSeparator()
+            }
+
+            scorebookHeaderCell("Visiting")
+                .frame(maxWidth: .infinity)
+                .scorebookTrailingSeparator()
+            scorebookHeaderCell("Home")
+                .frame(maxWidth: .infinity)
+                .scorebookTrailingSeparator()
+            if !title.isEmpty {
+                scorebookHeaderCell("Score")
+                    .frame(maxWidth: .infinity)
+                    .scorebookTrailingSeparator()
+            }
+            Color.clear.frame(width: title.isEmpty ? 0 : 34)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.bottom, 6)
+        .background(ScoreKeepVisualStyle.contentSurface)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowBackground(ScoreKeepVisualStyle.contentSurface)
+    }
+
+    @ViewBuilder
+    private func inputRow() -> some View {
+        HStack(spacing: 0) {
+            DatePicker("", selection: $date)
+                .onAppear {
+                    date = ISO8601DateFormatter().date(from: theDate) ?? Date()
+                }
+                .onChange(of: date) {
+                    theDate = date.ISO8601Format()
+                }
+                .labelsHidden()
+                .frame(width: dateWidth, alignment: .leading)
+                .clipped()
+                .scorebookTrailingSeparator()
+            TextField("Field", text: $field)
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(ScoreKeepVisualStyle.accent)
+                .fontWeight(.semibold)
+                .focused($focusedField, equals: .field)
+                .autocapitalization(.words)
+                .textContentType(.none)
+                .scorebookTrailingSeparator()
+            Button(action:{everyOneHits.toggle()}){
+                Text(everyOneHits ? "True" : "False")
+                    .frame(width: 58, height: 30)
+                    .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                    .fontWeight(.semibold)
+                    .background(everyOneHits ? ScoreKeepVisualStyle.selectedFill : ScoreKeepVisualStyle.disabledFill, in: RoundedRectangle(cornerRadius: 8))
+            }.buttonStyle(PlainButtonStyle())
+                .scorebookTrailingSeparator()
+            Picker("Visiting Team", selection: $vTeam) {
+                Text("Pick").tag(Optional<Team>.none)
+                if teams.isEmpty == false {
+                    Divider()
+                    ForEach(teams, id: \.ident) { team in
+                        if team.name != "" {
+                            Text(team.name).tag(Optional(team))
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+            .scorebookTrailingSeparator()
+            Picker("Home Team", selection: $hTeam) {
+                Text("Pick").tag(Optional<Team>.none)
+                if teams.isEmpty == false {
+                    Divider()
+                    ForEach(teams, id: \.ident) { team in
+                        if team.name != "" {
+                            Text(team.name).tag(Optional(team))
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+            .scorebookTrailingSeparator()
+            Text("Not Played")
+                .frame(maxWidth: .infinity)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .fontWeight(.medium)
+                .scorebookMultiLineText()
+                .scorebookTrailingSeparator()
+            Button {
+                if let vTeam, let hTeam {
+                    createGame(theDate, field, everyOneHits, vTeam, hTeam, false)
+                    field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
+                } else {
+                    alertMessage = "You must select a Home and Visiting Team!"
+                    showingValidationAlert = true
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(ScoreKeepVisualStyle.accent)
+                    .frame(width: 34, height: 44)
+                    .contentShape(Rectangle())
+                    }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
+        .background(ScoreKeepVisualStyle.contentSurface)
+        .listRowBackground(ScoreKeepVisualStyle.contentSurface)
+    }
+
+    @ViewBuilder
+    private func gameRow(for game: Game) -> some View {
+        HStack(spacing: 0) {
+            let dateVal = ISO8601DateFormatter().date(from: game.date) ?? Date()
+            Text(dateVal.formatted(date:.abbreviated, time: .shortened))
+                .frame(width: dateWidth, alignment: .leading)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .fontWeight(.semibold)
+                .padding(.horizontal, 8)
+                .scorebookMultiLineText()
+                .scorebookTrailingSeparator()
+            if !title.isEmpty {
+                Text(game.location)
+                    .frame(maxWidth:.infinity, alignment: .leading)
+                    .foregroundStyle(game.location.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 8)
+                    .scorebookMultiLineText()
+                    .scorebookTrailingSeparator()
+                Text(game.everyOneHits ? "True" : "False")
+                    .frame(width: 58, alignment: .center)
+                    .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                    .fontWeight(.semibold)
+                    .padding(.horizontal, 4)
+                    .scorebookSingleLineText()
+                    .scorebookTrailingSeparator()
+            }
+            teamCell(name: game.vteam?.name ?? "", logoData: game.vteam?.logo)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .scorebookTrailingSeparator()
+            teamCell(name: game.hteam?.name ?? "", logoData: game.hteam?.logo)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .scorebookTrailingSeparator()
+            if !title.isEmpty {
+                gameRowScoreSummary(for: game)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private func gameRowScoreSummary(for game: Game) -> some View {
+        if let hName = game.hteam?.name, let vName = game.vteam?.name {
+            let summary = scoreSummary(for: game, homeTeamName: hName, visitingTeamName: vName)
+            let inning = max(1, (summary.outs / 3) + 1)
+            let inningText: String = {
+                if com.innAbr.indices.contains(inning) {
+                    return com.innAbr[inning]
+                } else {
+                    return "Inning \(inning)"
+                }
+            }()
+
+            let hShort = hName.components(separatedBy: " ").last ?? hName
+            let vShort = vName.components(separatedBy: " ").last ?? vName
+            let winner = summary.visitingRuns > summary.homeRuns ? vShort : (summary.visitingRuns < summary.homeRuns ? hShort : "")
+            let isFinal = inning >= 9 && !winner.isEmpty
+            let suffix = isFinal ? " Final" : " in \(inningText)"
+
+            Text("\(summary.visitingRuns) to \(summary.homeRuns) \(winner)\(suffix)")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .fontWeight(.semibold)
+                .padding(.horizontal, 8)
+                .scorebookMultiLineText()
+                .scorebookTrailingSeparator()
+        } else {
+            Text("Game teams not set")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
+                .padding(.horizontal, 8)
+                .scorebookTrailingSeparator()
+        }
+    }
+
+    private func scorebookHeaderCell(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(ScoreKeepVisualStyle.tableHeaderForeground)
+            .scorebookMultiLineText()
+            .lineLimit(title.contains(" ") ? 2 : 1)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .frame(maxHeight: .infinity)
+            .background(ScoreKeepVisualStyle.tableHeaderBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(ScoreKeepVisualStyle.separator, lineWidth: 1)
+            )
+    }
+
+    private func teamCell(name: String, logoData: Data?) -> some View {
+        HStack(spacing: 8) {
+            logoThumbnail(logoData)
+
+            teamNameText(name)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+        }
+        .padding(.horizontal, 8)
+    }
+
+    @ViewBuilder
+    private func teamNameText(_ name: String) -> some View {
+        if name.contains(" ") {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(teamNameLines(for: name).enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .scorebookSingleLineText()
+                }
+            }
+            .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
+            .fontWeight(.semibold)
+        } else {
+            Text(name)
+                .scorebookSingleLineText()
+                .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
+                .fontWeight(.semibold)
+        }
+    }
+
+    private func teamNameLines(for name: String) -> [String] {
+        let words = name.split(separator: " ").map(String.init)
+        guard words.count > 2 else { return words }
+
+        let splitIndex = Int(ceil(Double(words.count) / 2.0))
+        return [
+            words[..<splitIndex].joined(separator: " "),
+            words[splitIndex...].joined(separator: " ")
+        ]
+    }
+
+    @ViewBuilder
+    private func logoThumbnail(_ logoData: Data?) -> some View {
+        if let logoData, let uiImage = UIImage(data: logoData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFit()
+                .padding(3)
+                .frame(width: 38, height: 34)
+                .background(ScoreKeepVisualStyle.adaptiveLogoTile, in: RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(ScoreKeepVisualStyle.logoTileBorder, lineWidth: 0.75)
+                )
+                .accessibilityHidden(true)
+        } else {
+            Image(systemName: "baseball")
+                .font(.caption)
+                .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
+                .frame(width: 38, height: 34)
+                .background(ScoreKeepVisualStyle.adaptiveLogoTile, in: RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(ScoreKeepVisualStyle.logoTileBorder, lineWidth: 0.75)
+                )
+                .accessibilityHidden(true)
+        }
+    }
 }
 
+private extension View {
+    func scorebookSingleLineText() -> some View {
+        self
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .truncationMode(.tail)
+    }
+
+    func scorebookMultiLineText() -> some View {
+        self
+            .lineLimit(nil)
+            .minimumScaleFactor(0.75)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    func scorebookTrailingSeparator() -> some View {
+        overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(ScoreKeepVisualStyle.separator)
+                .frame(width: 1)
+        }
+    }
+}

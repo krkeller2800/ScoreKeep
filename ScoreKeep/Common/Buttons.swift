@@ -53,9 +53,11 @@ struct GlowButtonStyleLarge: ButtonStyle {
 struct ToolBarButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(3)
-            .foregroundStyle(.tint)
-            .background(configuration.isPressed ? Color.accentColor.opacity(0.8) : Color.accentColor.opacity(0.2), in: Capsule())
+            .fontWeight(.semibold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .foregroundStyle(configuration.isPressed ? Color.white : ScoreKeepVisualStyle.accent)
+            .background(configuration.isPressed ? ScoreKeepVisualStyle.accent : ScoreKeepVisualStyle.selectedFill, in: Capsule())
 //            .background(configuration.isPressed ? Color.accentColor.opacity(0.5) : Color.accentColor)
 //            .foregroundColor(.white)
 //            .cornerRadius(8)
