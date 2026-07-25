@@ -10,6 +10,7 @@ import SwiftUI
 struct StartView: View {
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject var router: AppRouter
+    @Environment(\.colorScheme) private var colorScheme
     @State private var didLogPaths = false
     @State var columnVisibility = NavigationSplitViewVisibility.doubleColumn
     @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers","presentScreenShot"]
@@ -17,6 +18,18 @@ struct StartView: View {
     @State private var navigationPath = NavigationPath()
     @State private var importUrl: URL?
     @State    var showImport = false
+
+    private var sidebarForeground: Color {
+        colorScheme == .dark ? .white.opacity(0.92) : .black
+    }
+
+    private var sidebarIconBrightness: Double {
+        colorScheme == .dark ? 0.5 : 0
+    }
+
+    private var sidebarShareIconForeground: Color {
+        colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.78)
+    }
   
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -25,24 +38,26 @@ struct StartView: View {
                     setFlags(flag: "presentGames")
                     columnVisibility = .doubleColumn
                 }
-                .foregroundColor(.black).bold().italic().font(.caption)
+                .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
                     Image("bgame")
                     .resizable()
                     .scaledToFill()
                     .frame(width: 75, height: 75)
+                    .brightness(sidebarIconBrightness)
                     }
                 Spacer()
                 Button("\n\n\n\n\nTeams") {
                     setFlags(flag: "presentTeams")
                     columnVisibility = .doubleColumn
                 }
-                .foregroundColor(.black).bold().italic().font(.caption)
+                .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
                     Image("bteam")
                     .resizable()
                     .scaledToFill()
                     .frame(width: 75, height: 75)
+                    .brightness(sidebarIconBrightness)
                     }
                 Spacer()
 //                Button("\n\n\n\n\nScore Games") {
@@ -61,36 +76,39 @@ struct StartView: View {
                     setFlags(flag: "presentPaste")
                     columnVisibility = .doubleColumn
                 }
-                .foregroundColor(.black).bold().italic().font(.caption)
+                .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
                     Image("Paste")
                     .resizable()
                     .scaledToFill()
                     .frame(width: 75, height: 75)
+                    .brightness(sidebarIconBrightness)
                     }
                 Spacer()
                 Button("\n\n\n\n\nHelp Documentation") {
                     setFlags(flag: "presentHelp")
                     columnVisibility = .doubleColumn
                 }
-                .foregroundColor(.black).bold().italic().font(.caption)
+                .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
                     Image("bhelp")
                     .resizable()
                     .scaledToFill()
                     .frame(width: 75, height: 75)
+                    .brightness(sidebarIconBrightness)
                     }
                 Spacer()
                 Button("\n\n\n\n\nShare Data") {
                     setFlags(flag: "presentShareLineup")
                     columnVisibility = .doubleColumn
                 }
-                .foregroundColor(.black).bold().italic().font(.caption)
+                .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
                     Image(systemName: "square.and.arrow.up")
                     .resizable()
                     .scaledToFill()
                     .frame(width: 50, height: 50)
+                    .foregroundStyle(sidebarShareIconForeground)
                     }
                 Spacer()
 //                Button("\n\n\n\n\nScreen Shot") {
@@ -206,4 +224,3 @@ struct StartView: View {
 //        return Text("Failed to create preview: \(error.localizedDescription)")
 //    }
 //}
-
