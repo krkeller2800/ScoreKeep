@@ -32,6 +32,13 @@ enum ScoreKeepSanitizedPersistentStoreErrorIdentity {
     }
 
     static func makeReport(for error: Error) -> ScoreKeepSanitizedPersistentStoreErrorReport {
+        if let journalError = error as? ScoreKeepMigrationJournalError {
+            return ScoreKeepSanitizedPersistentStoreErrorReport(
+                identity: journalErrorIdentity(journalError),
+                diagnostic: journalErrorDiagnostic(journalError)
+            )
+        }
+
         let chain = errorTree(from: error as NSError)
         let text = chain
             .flatMap { error in
@@ -71,6 +78,46 @@ enum ScoreKeepSanitizedPersistentStoreErrorIdentity {
             identity: identity,
             diagnostic: diagnostic(identity: identity, chain: chain)
         )
+    }
+
+    private static func journalErrorIdentity(_ error: ScoreKeepMigrationJournalError) -> String {
+        switch error {
+        case .phaseRegression:
+            return "journalPhaseRegression"
+        case .conflictingOperationIdentity:
+            return "journalConflictingOperationIdentity"
+        case .conflictingSourceIdentity:
+            return "journalConflictingSourceIdentity"
+        case .completionRequiresVerifiedBackup:
+            return "journalCompletionRequiresVerifiedBackup"
+        case .completionRequiresPostOpenVerification:
+            return "journalCompletionRequiresPostOpenVerification"
+        case .uncertaintyCannotBeErased:
+            return "journalUncertaintyCannotBeErased"
+        case .completedJournalConflictsWithTarget:
+            return "journalCompletedConflictsWithTarget"
+        case .atomicReplacementFailed:
+            return "journalAtomicReplacementFailed"
+        case .authorizationRequired:
+            return "journalAuthorizationRequired"
+        case .missingJournal:
+            return "journalMissing"
+        case .decodingFailed:
+            return "journalDecodingFailed"
+        case .unsupportedJournalVersion:
+            return "journalUnsupportedVersion"
+        }
+    }
+
+    private static func journalErrorDiagnostic(_ error: ScoreKeepMigrationJournalError) -> String {
+        switch error {
+        case .phaseRegression(let from, let to):
+            return "journalPhaseRegression.from.\(from.rawValue).to.\(to.rawValue)"
+        case .unsupportedJournalVersion(let version):
+            return "journalUnsupportedVersion.\(version)"
+        default:
+            return journalErrorIdentity(error)
+        }
     }
 
     private static func errorTree(from error: NSError) -> [NSError] {
@@ -443,12 +490,13 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             let targetURL = layout.operationTemporaryTargetURL(operationIdentity: record.operationIdentity)
             let targetAssessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: targetURL, fileManager: fileManager)
             let activeAssessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: layout.activeStore, fileManager: fileManager)
-            switch ScoreKeepCompletedJournalRecoveryRouter.route(
+            let route = ScoreKeepCompletedJournalRecoveryRouter.route(
                 target: targetAssessment,
                 active: activeAssessment,
                 journalSourceClassification: record.sourceClassification,
                 backupVerified: record.backupVerificationDisposition == .backupVerified
-            ) {
+            )
+            switch route {
             case .openCompletedTargetAsV3:
                 openProposedContainer(
                     at: targetURL,
@@ -1114,15 +1162,8 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         }
         let metadataAssessment = ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: layout.activeStore, fileManager: fileManager)
         let sourceClassification = family == nil ? .noStoreExists : metadataAssessment.sourceClassification
-        let supportedStartupClassifications: Set<ScoreKeepSourceStoreClassification> = [
-            .noStoreExists,
-            .existingProposedV2Store,
-            .existingProposedV3Store,
-            .existingProposedV4Store,
-            .convertedProposedV3Store,
-            .convertedProposedV4Store
-        ]
-        guard supportedStartupClassifications.contains(sourceClassification) else {
+        let existingJournalRecord = journalStore.load().record
+        guard Self.supportsProductionMigrationStartup(sourceClassification) else {
             status = .blocked(recoveryPresentation(
                 code: .sourceMissing,
                 protectedDataState: currentProtectedDataState(),
@@ -1135,7 +1176,8 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             ))
             return
         }
-        if sourceClassification == .existingProposedV4Store || sourceClassification == .convertedProposedV4Store {
+        if (existingJournalRecord == nil || existingJournalRecord?.phase == .completionRecorded),
+           sourceClassification == .existingProposedV4Store || sourceClassification == .convertedProposedV4Store {
             openProposedContainer(
                 at: layout.activeStore,
                 sourceClassification: sourceClassification,
@@ -1144,9 +1186,15 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             )
             return
         }
-        let operationIdentity = makeOperationIdentity(sourceStoreIdentity: family?.diagnosticIdentity ?? "no-existing-store", sourceClassification: sourceClassification)
-        let targetURL = layout.operationTemporaryTargetURL(operationIdentity: operationIdentity)
-        let backupURL = layout.operationBackupStoreURL(operationIdentity: operationIdentity)
+        let computedOperationIdentity = makeOperationIdentity(sourceStoreIdentity: family?.diagnosticIdentity ?? "no-existing-store", sourceClassification: sourceClassification)
+        let operationPlan = Self.productionMigrationOperationPlan(
+            layout: layout,
+            computedOperationIdentity: computedOperationIdentity,
+            existingJournal: existingJournalRecord
+        )
+        let operationIdentity = operationPlan.operationIdentity
+        let targetURL = operationPlan.targetURL
+        let backupURL = operationPlan.backupURL
 
         if let family {
             let capacity = ScoreKeepMigrationCapacityCalculator.evaluate(
@@ -1169,6 +1217,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         }
 
         var preservedBaseline: ScoreKeepMigrationBaselineRecord?
+        var postOpenFailureDiagnostics: [ScoreKeepMigrationJournalDiagnosticCode] = []
         do {
             let result = try ScoreKeepMigrationOrchestrator.run(
                 input: ScoreKeepMigrationOrchestratorInput(
@@ -1201,9 +1250,18 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                         return true
                     } : nil,
                     postOpenVerifier: { container in
-                        guard let baseline = preservedBaseline else { return sourceClassification == .noStoreExists }
-                        let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
-                        return Self.baselineMatches(record, baseline)
+                        let verification = Self.verifyPostOpenMigrationBaselineResult(
+                            container: container,
+                            sourceClassification: sourceClassification,
+                            preservedBaseline: preservedBaseline,
+                            backupURL: backupURL,
+                            fileManager: fileManager
+                        )
+                        postOpenFailureDiagnostics = verification.diagnosticCodes
+                        return verification.passed
+                    },
+                    postOpenFailureDiagnostics: {
+                        postOpenFailureDiagnostics
                     }
                 ),
                 journalStore: journalStore
@@ -1415,6 +1473,49 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         }
     }
 
+    static func supportsProductionMigrationStartup(_ sourceClassification: ScoreKeepSourceStoreClassification) -> Bool {
+        let supportedStartupClassifications: Set<ScoreKeepSourceStoreClassification> = [
+            .noStoreExists,
+            .proposedV1RecognizableStore,
+            .existingProposedV2Store,
+            .existingProposedV3Store,
+            .existingProposedV4Store,
+            .convertedProposedV3Store,
+            .convertedProposedV4Store
+        ]
+        return supportedStartupClassifications.contains(sourceClassification)
+    }
+
+    struct ProductionMigrationOperationPlan: Hashable, Sendable {
+        let operationIdentity: ScoreKeepMigrationOperationIdentity
+        let backupURL: URL
+        let targetURL: URL
+        let resumedFromExistingJournal: Bool
+    }
+
+    static func productionMigrationOperationPlan(
+        layout: ScoreKeepProductionMigrationLayout,
+        computedOperationIdentity: ScoreKeepMigrationOperationIdentity,
+        existingJournal: ScoreKeepMigrationJournalRecord?
+    ) -> ProductionMigrationOperationPlan {
+        let operationIdentity: ScoreKeepMigrationOperationIdentity
+        let resumedFromExistingJournal: Bool
+        if let existingJournal, existingJournal.phase != .completionRecorded {
+            operationIdentity = existingJournal.operationIdentity
+            resumedFromExistingJournal = true
+        } else {
+            operationIdentity = computedOperationIdentity
+            resumedFromExistingJournal = false
+        }
+
+        return ProductionMigrationOperationPlan(
+            operationIdentity: operationIdentity,
+            backupURL: layout.operationBackupStoreURL(operationIdentity: operationIdentity),
+            targetURL: layout.operationTemporaryTargetURL(operationIdentity: operationIdentity),
+            resumedFromExistingJournal: resumedFromExistingJournal
+        )
+    }
+
     private static func currentUnversionedContainer(url: URL, allowsSave: Bool) throws -> ModelContainer {
         let schema = Schema([Game.self, Team.self, Player.self, Atbat.self, Lineup.self, Pitcher.self])
         let configuration = ModelConfiguration(schema: schema, url: url, allowsSave: allowsSave)
@@ -1586,6 +1687,405 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             && lhs.substitutionEvidence == rhs.substitutionEvidence
             && lhs.mediaOwnershipFingerprint == rhs.mediaOwnershipFingerprint
             && lhs.difficultRunnerSequence.status == rhs.difficultRunnerSequence.status
+    }
+
+    static func verifyPostOpenMigrationBaseline(
+        container: ModelContainer,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        preservedBaseline: ScoreKeepMigrationBaselineRecord?,
+        backupURL: URL,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        verifyPostOpenMigrationBaseline(
+            container: container,
+            sourceClassification: sourceClassification,
+            preservedBaseline: preservedBaseline,
+            backupURL: backupURL,
+            fileManager: fileManager,
+            baselineReconstructor: { backupURL, sourceClassification, fileManager in
+                try reconstructExpectedSourceBaseline(
+                    fromVerifiedBackup: backupURL,
+                    sourceClassification: sourceClassification,
+                    fileManager: fileManager
+                )
+            }
+        )
+    }
+
+    static func verifyPostOpenMigrationBaseline(
+        container: ModelContainer,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        preservedBaseline: ScoreKeepMigrationBaselineRecord?,
+        backupURL: URL,
+        fileManager: FileManager = .default,
+        baselineReconstructor: (URL, ScoreKeepSourceStoreClassification, FileManager) throws -> ScoreKeepMigrationBaselineRecord?
+    ) -> Bool {
+        verifyPostOpenMigrationBaselineResult(
+            container: container,
+            sourceClassification: sourceClassification,
+            preservedBaseline: preservedBaseline,
+            backupURL: backupURL,
+            fileManager: fileManager,
+            baselineReconstructor: baselineReconstructor
+        ).passed
+    }
+
+    struct PostOpenMigrationBaselineVerificationResult: Hashable, Sendable {
+        let passed: Bool
+        let diagnosticCodes: [ScoreKeepMigrationJournalDiagnosticCode]
+    }
+
+    static func verifyPostOpenMigrationBaselineResult(
+        container: ModelContainer,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        preservedBaseline: ScoreKeepMigrationBaselineRecord?,
+        backupURL: URL,
+        fileManager: FileManager = .default
+    ) -> PostOpenMigrationBaselineVerificationResult {
+        let baseline: ScoreKeepMigrationBaselineRecord
+        if let preservedBaseline {
+            baseline = preservedBaseline
+        } else if sourceClassification == .noStoreExists {
+            return PostOpenMigrationBaselineVerificationResult(passed: true, diagnosticCodes: [])
+        } else {
+            let reconstruction = reconstructExpectedSourceBaselineForVerification(
+                fromVerifiedBackup: backupURL,
+                sourceClassification: sourceClassification,
+                fileManager: fileManager
+            )
+            guard let recoveredBaseline = reconstruction.baseline else {
+                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: reconstruction.diagnosticCodes)
+            }
+            baseline = recoveredBaseline
+        }
+
+        return verifyTargetBaseline(container: container, expectedBaseline: baseline)
+    }
+
+    static func verifyPostOpenMigrationBaselineResult(
+        container: ModelContainer,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        preservedBaseline: ScoreKeepMigrationBaselineRecord?,
+        backupURL: URL,
+        fileManager: FileManager = .default,
+        baselineReconstructor: (URL, ScoreKeepSourceStoreClassification, FileManager) throws -> ScoreKeepMigrationBaselineRecord?,
+        targetBaselineCapture: ((ModelContainer) throws -> ScoreKeepMigrationBaselineRecord)? = nil
+    ) -> PostOpenMigrationBaselineVerificationResult {
+        let baseline: ScoreKeepMigrationBaselineRecord
+        if let preservedBaseline {
+            baseline = preservedBaseline
+        } else if sourceClassification == .noStoreExists {
+            return PostOpenMigrationBaselineVerificationResult(passed: true, diagnosticCodes: [])
+        } else {
+            guard fileManager.fileExists(atPath: backupURL.path) else {
+                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenMissingVerifiedBackup])
+            }
+            do {
+                guard let recoveredBaseline = try baselineReconstructor(backupURL, sourceClassification, fileManager) else {
+                    return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenBackupBaselineCaptureFailed])
+                }
+                baseline = recoveredBaseline
+            } catch {
+                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [diagnosticCode(forBaselineReconstructionError: error)])
+            }
+        }
+
+        do {
+            let record = try targetBaselineCapture?(container) ?? ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
+            let mismatchDiagnostics = baselineMismatchDiagnostics(record, baseline)
+            return PostOpenMigrationBaselineVerificationResult(passed: mismatchDiagnostics.isEmpty, diagnosticCodes: mismatchDiagnostics)
+        } catch {
+            return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenTargetBaselineCaptureFailed])
+        }
+    }
+
+    private struct ExpectedBaselineReconstructionResult: Hashable, Sendable {
+        let baseline: ScoreKeepMigrationBaselineRecord?
+        let diagnosticCodes: [ScoreKeepMigrationJournalDiagnosticCode]
+    }
+
+    private enum ExpectedBaselineReconstructionFailure: Error {
+        case backupOpenFailed
+        case backupCaptureFailed
+    }
+
+    private enum VerifiedBackupBaselineRestoreCopyFailure: Error {
+        case backupFamilyDiscoveryFailed
+        case backupFamilyIncomplete
+        case restoreDirectoryCreateFailed
+        case memberCopyFailed
+        case restoredFamilyDiscoveryFailed
+        case restoreValidationFailed
+
+        var diagnosticCode: ScoreKeepMigrationJournalDiagnosticCode {
+            switch self {
+            case .backupFamilyDiscoveryFailed:
+                return .postOpenBackupFamilyDiscoveryFailed
+            case .backupFamilyIncomplete:
+                return .postOpenBackupFamilyIncomplete
+            case .restoreDirectoryCreateFailed:
+                return .postOpenBackupRestoreDirectoryCreateFailed
+            case .memberCopyFailed:
+                return .postOpenBackupRestoreMemberCopyFailed
+            case .restoredFamilyDiscoveryFailed:
+                return .postOpenBackupRestoreDiscoveryFailed
+            case .restoreValidationFailed:
+                return .postOpenBackupRestoreValidationFailed
+            }
+        }
+    }
+
+    private static func reconstructExpectedSourceBaselineForVerification(
+        fromVerifiedBackup backupURL: URL,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        fileManager: FileManager
+    ) -> ExpectedBaselineReconstructionResult {
+        guard fileManager.fileExists(atPath: backupURL.path) else {
+            return ExpectedBaselineReconstructionResult(baseline: nil, diagnosticCodes: [.postOpenMissingVerifiedBackup])
+        }
+        switch sourceClassification {
+        case .existingProposedV3Store, .convertedProposedV3Store:
+            return reconstructExpectedSourceBaselineForVerification(backupURL: backupURL, fileManager: fileManager) { restoreURL in
+                do {
+                    let restored = try proposedV3ExistingContainer(url: restoreURL)
+                    do {
+                        return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    } catch {
+                        throw ExpectedBaselineReconstructionFailure.backupCaptureFailed
+                    }
+                } catch ExpectedBaselineReconstructionFailure.backupCaptureFailed {
+                    throw ExpectedBaselineReconstructionFailure.backupCaptureFailed
+                } catch {
+                    throw ExpectedBaselineReconstructionFailure.backupOpenFailed
+                }
+            }
+        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore:
+            return reconstructExpectedSourceBaselineForVerification(backupURL: backupURL, fileManager: fileManager) { restoreURL in
+                do {
+                    let restored = try currentUnversionedContainer(url: restoreURL, allowsSave: true)
+                    do {
+                        return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    } catch {
+                        throw ExpectedBaselineReconstructionFailure.backupCaptureFailed
+                    }
+                } catch ExpectedBaselineReconstructionFailure.backupCaptureFailed {
+                    throw ExpectedBaselineReconstructionFailure.backupCaptureFailed
+                } catch {
+                    throw ExpectedBaselineReconstructionFailure.backupOpenFailed
+                }
+            }
+        case .noStoreExists, .existingProposedV2Store, .convertedProposedV2Store,
+             .existingProposedV4Store, .convertedProposedV4Store,
+             .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
+             .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
+             .migrationEvidenceMissing, .migrationEvidenceUncertain, .readOnlyDiagnosisRequired:
+            return ExpectedBaselineReconstructionResult(baseline: nil, diagnosticCodes: [.postOpenBackupBaselineCaptureFailed])
+        }
+    }
+
+    private static func reconstructExpectedSourceBaselineForVerification(
+        backupURL: URL,
+        fileManager: FileManager,
+        _ body: (URL) throws -> ScoreKeepMigrationBaselineRecord
+    ) -> ExpectedBaselineReconstructionResult {
+        let restoreURL: URL
+        do {
+            restoreURL = try copyVerifiedBackupForBaselineRead(backupURL: backupURL, fileManager: fileManager)
+        } catch let failure as VerifiedBackupBaselineRestoreCopyFailure {
+            return ExpectedBaselineReconstructionResult(
+                baseline: nil,
+                diagnosticCodes: [.postOpenBackupRestoreCopyFailed, failure.diagnosticCode]
+            )
+        } catch {
+            return ExpectedBaselineReconstructionResult(baseline: nil, diagnosticCodes: [.postOpenBackupRestoreCopyFailed])
+        }
+
+        let restoreDirectory = restoreURL.deletingLastPathComponent()
+        do {
+            let baseline = try autoreleasepool {
+                try body(restoreURL)
+            }
+            try fileManager.removeItem(at: restoreDirectory)
+            return ExpectedBaselineReconstructionResult(baseline: baseline, diagnosticCodes: [])
+        } catch ExpectedBaselineReconstructionFailure.backupOpenFailed {
+            try? fileManager.removeItem(at: restoreDirectory)
+            return ExpectedBaselineReconstructionResult(baseline: nil, diagnosticCodes: [.postOpenBackupContainerOpenFailed])
+        } catch ExpectedBaselineReconstructionFailure.backupCaptureFailed {
+            try? fileManager.removeItem(at: restoreDirectory)
+            return ExpectedBaselineReconstructionResult(baseline: nil, diagnosticCodes: [.postOpenBackupBaselineCaptureFailed])
+        } catch {
+            try? fileManager.removeItem(at: restoreDirectory)
+            return ExpectedBaselineReconstructionResult(baseline: nil, diagnosticCodes: [.postOpenBackupBaselineCaptureFailed])
+        }
+    }
+
+    private static func verifyTargetBaseline(
+        container: ModelContainer,
+        expectedBaseline baseline: ScoreKeepMigrationBaselineRecord
+    ) -> PostOpenMigrationBaselineVerificationResult {
+        do {
+            let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
+            let mismatchDiagnostics = baselineMismatchDiagnostics(record, baseline)
+            return PostOpenMigrationBaselineVerificationResult(passed: mismatchDiagnostics.isEmpty, diagnosticCodes: mismatchDiagnostics)
+        } catch {
+            return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenTargetBaselineCaptureFailed])
+        }
+    }
+
+    static func reconstructExpectedSourceBaseline(
+        fromVerifiedBackup backupURL: URL,
+        sourceClassification: ScoreKeepSourceStoreClassification,
+        fileManager: FileManager = .default
+    ) throws -> ScoreKeepMigrationBaselineRecord? {
+        guard fileManager.fileExists(atPath: backupURL.path) else { return nil }
+        switch sourceClassification {
+        case .noStoreExists:
+            return nil
+        case .existingProposedV2Store, .convertedProposedV2Store:
+            return nil
+        case .existingProposedV3Store, .convertedProposedV3Store:
+            return try withVerifiedBackupBaselineRestore(backupURL: backupURL, fileManager: fileManager) { restoreURL in
+                let restored = try proposedV3ExistingContainer(url: restoreURL)
+                return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+            }
+        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore:
+            return try withVerifiedBackupBaselineRestore(backupURL: backupURL, fileManager: fileManager) { restoreURL in
+                let restored = try currentUnversionedContainer(url: restoreURL, allowsSave: true)
+                return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+            }
+        case .existingProposedV4Store, .convertedProposedV4Store,
+             .automaticallyEvolvedComparisonStore, .unknownVersion, .unsupportedFutureVersion,
+             .unreadableStore, .contradictoryMetadata, .migrationEvidenceExists,
+             .migrationEvidenceMissing, .migrationEvidenceUncertain, .readOnlyDiagnosisRequired:
+            return nil
+        }
+    }
+
+    private static func diagnosticCode(forBaselineReconstructionError error: Error) -> ScoreKeepMigrationJournalDiagnosticCode {
+        switch error {
+        case ScoreKeepStoreFamilyError.primaryStoreMissing,
+             ScoreKeepStoreFamilyError.sourceDirectoryUnavailable,
+             ScoreKeepStoreFamilyError.backupDirectoryMatchesSource,
+             ScoreKeepStoreFamilyError.backupDirectoryNotFresh:
+            return .postOpenBackupRestoreCopyFailed
+        default:
+            return .postOpenBackupBaselineCaptureFailed
+        }
+    }
+
+    private static func baselineMismatchDiagnostics(_ lhs: ScoreKeepMigrationBaselineRecord, _ rhs: ScoreKeepMigrationBaselineRecord) -> [ScoreKeepMigrationJournalDiagnosticCode] {
+        var diagnostics: [ScoreKeepMigrationJournalDiagnosticCode] = []
+        if lhs.gameCount != rhs.gameCount
+            || lhs.teamCount != rhs.teamCount
+            || lhs.playerCount != rhs.playerCount
+            || lhs.lineupCount != rhs.lineupCount
+            || lhs.atbatCount != rhs.atbatCount
+            || lhs.pitcherCount != rhs.pitcherCount
+            || lhs.teamCreationOperationEvidenceCount != rhs.teamCreationOperationEvidenceCount
+            || lhs.canonicalHistoryCount != rhs.canonicalHistoryCount
+            || lhs.canonicalEventCount != rhs.canonicalEventCount
+            || lhs.canonicalPayloadCount != rhs.canonicalPayloadCount
+            || lhs.canonicalOperationCount != rhs.canonicalOperationCount
+            || lhs.canonicalCorrectionCount != rhs.canonicalCorrectionCount
+            || lhs.legacyScoringOperationEvidenceCount != rhs.legacyScoringOperationEvidenceCount {
+            diagnostics.append(.postOpenBaselineMismatchCounts)
+        }
+        if lhs.stableIdentityFingerprint != rhs.stableIdentityFingerprint {
+            diagnostics.append(.postOpenBaselineMismatchStableIdentity)
+        }
+        if lhs.relationshipFingerprint != rhs.relationshipFingerprint {
+            diagnostics.append(.postOpenBaselineMismatchRelationship)
+        }
+        if lhs.orderingFingerprint != rhs.orderingFingerprint {
+            diagnostics.append(.postOpenBaselineMismatchOrdering)
+        }
+        if lhs.scoreEvidence != rhs.scoreEvidence {
+            diagnostics.append(.postOpenBaselineMismatchScore)
+        }
+        if lhs.substitutionEvidence != rhs.substitutionEvidence {
+            diagnostics.append(.postOpenBaselineMismatchSubstitution)
+        }
+        if lhs.mediaOwnershipFingerprint != rhs.mediaOwnershipFingerprint {
+            diagnostics.append(.postOpenBaselineMismatchMedia)
+        }
+        if lhs.difficultRunnerSequence.status != rhs.difficultRunnerSequence.status {
+            diagnostics.append(.postOpenBaselineMismatchDifficultRunnerSequence)
+        }
+        return diagnostics
+    }
+
+    private static func withVerifiedBackupBaselineRestore<T>(
+        backupURL: URL,
+        fileManager: FileManager,
+        _ body: (URL) throws -> T
+    ) throws -> T {
+        let restoreURL = try copyVerifiedBackupForBaselineRead(backupURL: backupURL, fileManager: fileManager)
+        let restoreDirectory = restoreURL.deletingLastPathComponent()
+        do {
+            let result = try autoreleasepool {
+                try body(restoreURL)
+            }
+            try fileManager.removeItem(at: restoreDirectory)
+            return result
+        } catch {
+            try? fileManager.removeItem(at: restoreDirectory)
+            throw error
+        }
+    }
+
+    private static func copyVerifiedBackupForBaselineRead(backupURL: URL, fileManager: FileManager) throws -> URL {
+        let backupFamily: ScoreKeepStoreFamilyDescriptor
+        do {
+            backupFamily = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL, fileManager: fileManager)
+        } catch {
+            throw VerifiedBackupBaselineRestoreCopyFailure.backupFamilyDiscoveryFailed
+        }
+        guard backupFamily.isComplete else {
+            throw VerifiedBackupBaselineRestoreCopyFailure.backupFamilyIncomplete
+        }
+
+        let backupDirectory = backupURL.deletingLastPathComponent()
+        let restoreDirectory = backupDirectory
+            .deletingLastPathComponent()
+            .appendingPathComponent("baseline-restore-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try fileManager.createDirectory(at: restoreDirectory, withIntermediateDirectories: true)
+        } catch {
+            throw VerifiedBackupBaselineRestoreCopyFailure.restoreDirectoryCreateFailed
+        }
+        let restoreURL = restoreDirectory.appendingPathComponent(backupURL.lastPathComponent)
+
+        for member in backupFamily.members {
+            let sourceMemberURL = backupDirectory.appendingPathComponent(member.fileName)
+            let restoreMemberURL = restoreDirectory.appendingPathComponent(member.fileName)
+            do {
+                try fileManager.copyItem(at: sourceMemberURL, to: restoreMemberURL)
+            } catch {
+                throw VerifiedBackupBaselineRestoreCopyFailure.memberCopyFailed
+            }
+        }
+
+        let restoredFamily: ScoreKeepStoreFamilyDescriptor
+        do {
+            restoredFamily = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: restoreURL, fileManager: fileManager)
+        } catch {
+            throw VerifiedBackupBaselineRestoreCopyFailure.restoredFamilyDiscoveryFailed
+        }
+        do {
+            guard try ScoreKeepStoreFamilyDiscovery.validateBackup(
+                source: backupFamily,
+                backup: restoredFamily,
+                sourceURL: backupURL,
+                backupURL: restoreURL
+            ) else {
+                throw VerifiedBackupBaselineRestoreCopyFailure.restoreValidationFailed
+            }
+        } catch let failure as VerifiedBackupBaselineRestoreCopyFailure {
+            throw failure
+        } catch {
+            throw VerifiedBackupBaselineRestoreCopyFailure.restoreValidationFailed
+        }
+        return restoreURL
     }
 
     private func makeOperationIdentity(sourceStoreIdentity: String, sourceClassification: ScoreKeepSourceStoreClassification) -> ScoreKeepMigrationOperationIdentity {

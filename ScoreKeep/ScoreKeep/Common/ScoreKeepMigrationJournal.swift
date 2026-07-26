@@ -15,6 +15,25 @@ enum ScoreKeepMigrationJournalDiagnosticCode: String, CaseIterable, Codable, Has
     case proposedContainerConstructionFailed
     case constructionCompletionUncertain
     case postOpenVerificationFailed
+    case postOpenMissingVerifiedBackup
+    case postOpenBackupRestoreCopyFailed
+    case postOpenBackupFamilyDiscoveryFailed
+    case postOpenBackupFamilyIncomplete
+    case postOpenBackupRestoreDirectoryCreateFailed
+    case postOpenBackupRestoreMemberCopyFailed
+    case postOpenBackupRestoreDiscoveryFailed
+    case postOpenBackupRestoreValidationFailed
+    case postOpenBackupContainerOpenFailed
+    case postOpenBackupBaselineCaptureFailed
+    case postOpenTargetBaselineCaptureFailed
+    case postOpenBaselineMismatchCounts
+    case postOpenBaselineMismatchStableIdentity
+    case postOpenBaselineMismatchRelationship
+    case postOpenBaselineMismatchOrdering
+    case postOpenBaselineMismatchScore
+    case postOpenBaselineMismatchSubstitution
+    case postOpenBaselineMismatchMedia
+    case postOpenBaselineMismatchDifficultRunnerSequence
     case destinationCandidateUnreadable
     case destinationMetadataMismatch
     case destinationCountMismatch
@@ -316,7 +335,7 @@ enum ScoreKeepMigrationJournalTransition {
         guard candidateSourceIdentity == record.sourceStoreDiagnosticIdentity else {
             throw ScoreKeepMigrationJournalError.conflictingSourceIdentity
         }
-        guard phase >= record.phase || isTerminalOverride(from: record.phase, to: phase) else {
+        guard phase >= record.phase || isTerminalOverride(record: record, to: phase) else {
             throw ScoreKeepMigrationJournalError.phaseRegression(from: record.phase, to: phase)
         }
         guard record.phase != .completionUncertain || phase == .completionUncertain || phase == .recoveryRequired || phase == .disabled else {
@@ -350,10 +369,15 @@ enum ScoreKeepMigrationJournalTransition {
         return next
     }
 
-    private static func isTerminalOverride(from: ScoreKeepMigrationJournalPhase, to: ScoreKeepMigrationJournalPhase) -> Bool {
+    private static func isTerminalOverride(record: ScoreKeepMigrationJournalRecord, to: ScoreKeepMigrationJournalPhase) -> Bool {
+        if record.phase == .recoveryRequired,
+           record.recoveryRequirement == .verifyExistingTarget,
+           to == .postOpenVerificationPassed {
+            return true
+        }
         switch to {
         case .failedSafely, .completionUncertain, .recoveryRequired, .disabled, .destinationVerificationFailed:
-            return from != .completionRecorded
+            return record.phase != .completionRecorded
         case .noEvidence, .preflightStarted, .sourceClassified, .sourcePreservationStarted,
              .backupVerified, .workspaceCreationStarted, .workspaceVerified,
              .migrationAttemptStarted, .containerConstructed, .destinationVerificationPending,

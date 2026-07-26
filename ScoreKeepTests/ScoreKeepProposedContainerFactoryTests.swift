@@ -68,6 +68,25 @@ struct ScoreKeepProposedContainerFactoryTests {
         #expect(try context.fetch(FetchDescriptor<CanonicalScoringEventEnvelopeRecord>()).count == 0)
     }
 
+    @Test("production resumed V1 to V4 disposable target passes source support gate")
+    func productionResumedV1ToV4DisposableTargetPassesSourceSupportGate() throws {
+        let target = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let result = ScoreKeepProposedContainerFactory.construct(ScoreKeepProposedContainerFactoryInput(
+            storeLocation: .disposableMigrationTarget(url: target.url, requiresFreshDestination: false),
+            writabilityMode: .writable,
+            startupIntent: .isolatedVerification,
+            sourceClassification: .proposedV1RecognizableStore,
+            routeChoice: .proposedV4EligibleForIsolatedVerification
+        ))
+
+        #expect(ScoreKeepSourceStoreClassification.proposedV1RecognizableStore.isSupportedForProposedV2Startup)
+        #expect(result.disposition == .openedCompatibleSourceAndTransitionedToProposedV4)
+        #expect(result.container != nil)
+        #expect(result.diagnostics.storeLocationKind == .disposableMigrationTarget)
+        #expect(result.diagnostics.routeChoice == .proposedV4EligibleForIsolatedVerification)
+        #expect(result.diagnostics.sourceClassification == .proposedV1RecognizableStore)
+    }
+
     @Test("explicit V3 selection is not the current production factory target")
     func explicitV3SelectionIsNotCurrentProductionFactoryTarget() throws {
         let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
@@ -115,6 +134,16 @@ struct ScoreKeepProposedContainerFactoryTests {
         let futureURL = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
         let future = ScoreKeepProposedContainerFactory.construct(input(url: futureURL, source: .unsupportedFutureVersion))
         #expect(future.disposition == .unsupportedFutureSchema)
+
+        let unknownURL = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
+        let unknown = ScoreKeepProposedContainerFactory.construct(ScoreKeepProposedContainerFactoryInput(
+            storeLocation: .disposableMigrationTarget(url: unknownURL, requiresFreshDestination: false),
+            writabilityMode: .writable,
+            startupIntent: .isolatedVerification,
+            sourceClassification: .unknownVersion,
+            routeChoice: .proposedV4EligibleForIsolatedVerification
+        ))
+        #expect(unknown.disposition == .sourceVersionUnknown)
 
         let existing = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.empty)
         let nonEmpty = ScoreKeepProposedContainerFactory.construct(ScoreKeepProposedContainerFactoryInput(

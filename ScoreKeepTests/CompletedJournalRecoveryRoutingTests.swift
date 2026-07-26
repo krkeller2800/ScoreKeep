@@ -138,6 +138,27 @@ struct CompletedJournalRecoveryRoutingTests {
         #expect(ScoreKeepSanitizedPersistentStoreErrorIdentity.make(for: corrupt) == "storeCorrupt")
     }
 
+    @Test("persistent store error identity does not mislabel journal phase regression")
+    func persistentStoreErrorIdentityDoesNotMislabelJournalPhaseRegression() {
+        let error = ScoreKeepMigrationJournalError.phaseRegression(from: .recoveryRequired, to: .completionRecorded)
+        let report = ScoreKeepSanitizedPersistentStoreErrorIdentity.makeReport(for: error)
+
+        #expect(report.identity == "journalPhaseRegression")
+        #expect(report.identity != "storeFamilyInconsistent")
+        #expect(report.diagnostic == "journalPhaseRegression.from.recoveryRequired.to.completionRecorded")
+    }
+
+    @Test("persistent store error identity still reports WAL family inconsistency")
+    func persistentStoreErrorIdentityStillReportsWALFamilyInconsistency() {
+        let error = NSError(
+            domain: "NSCocoaErrorDomain",
+            code: 134100,
+            userInfo: [NSLocalizedFailureReasonErrorKey: "WAL checkpoint failed while opening persistent store."]
+        )
+
+        #expect(ScoreKeepSanitizedPersistentStoreErrorIdentity.make(for: error) == "storeFamilyInconsistent")
+    }
+
     @Test("persistent store error identity reports duplicate checksum distinctly")
     func persistentStoreErrorIdentityReportsDuplicateChecksum() {
         let duplicate = NSError(

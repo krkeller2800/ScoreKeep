@@ -79,6 +79,73 @@ struct ScoreKeepMigrationJournalTests {
         }
     }
 
+    @Test("verify existing target recovery can record post-open pass before completion")
+    func verifyExistingTargetRecoveryCanRecordPostOpenPassBeforeCompletion() throws {
+        let operation = operationIdentity(storeIdentity: "source-recovery-complete")
+        var record = ScoreKeepMigrationJournalRecord.initial(
+            operationIdentity: operation,
+            sourceStoreDiagnosticIdentity: "source-recovery-complete",
+            sourceClassification: .proposedV1RecognizableStore
+        )
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .backupVerified,
+            sourcePreservationDisposition: .backupVerified,
+            backupVerificationDisposition: .backupVerified,
+            retryClassification: .retryRequiresFreshTargetCopy
+        )
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .recoveryRequired,
+            postOpenVerificationDisposition: "failed",
+            recoveryRequirement: .verifyExistingTarget
+        )
+        let recoveryGeneration = record.transitionGeneration
+
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .postOpenVerificationPassed,
+            postOpenVerificationDisposition: "passed",
+            recoveryRequirement: .noRecoveryRequired
+        )
+        #expect(record.phase == .postOpenVerificationPassed)
+        #expect(record.postOpenVerificationDisposition == "passed")
+        #expect(record.transitionGeneration == recoveryGeneration + 1)
+
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .completionRecorded,
+            completionDisposition: "sidecarCompletionRecorded",
+            retryClassification: .noRetryRequired,
+            recoveryRequirement: .noRecoveryRequired
+        )
+        #expect(record.phase == .completionRecorded)
+        #expect(record.operationIdentity == operation)
+    }
+
+    @Test("unrelated recovery required phase regressions remain rejected")
+    func unrelatedRecoveryRequiredPhaseRegressionsRemainRejected() throws {
+        let operation = operationIdentity(storeIdentity: "source-recovery-regression")
+        var record = ScoreKeepMigrationJournalRecord.initial(
+            operationIdentity: operation,
+            sourceStoreDiagnosticIdentity: "source-recovery-regression",
+            sourceClassification: .proposedV1RecognizableStore
+        )
+        record = try ScoreKeepMigrationJournalTransition.advance(
+            record,
+            to: .recoveryRequired,
+            recoveryRequirement: .writesRemainProhibited
+        )
+
+        #expect(throws: ScoreKeepMigrationJournalError.phaseRegression(from: .recoveryRequired, to: .postOpenVerificationPassed)) {
+            try ScoreKeepMigrationJournalTransition.advance(
+                record,
+                to: .postOpenVerificationPassed,
+                postOpenVerificationDisposition: "passed"
+            )
+        }
+    }
+
     @Test("disable state and ownership fail closed and reject dual authority")
     func disableStateAndOwnershipFailClosedAndRejectDualAuthority() throws {
         #expect(ScoreKeepSchemaRouteDisableState.currentDefault == .legacyRouteRequired)

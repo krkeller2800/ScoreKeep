@@ -138,14 +138,7 @@ enum ScoreKeepProposedContainerFactory {
             return classified(.unsafe, input: input)
         }
 
-        let supportedSourceClassifications: Set<ScoreKeepSourceStoreClassification> = [
-            .noStoreExists,
-            .existingProposedV3Store,
-            .existingProposedV4Store,
-            .convertedProposedV3Store,
-            .convertedProposedV4Store
-        ]
-        guard supportedSourceClassifications.contains(input.sourceClassification) else {
+        guard input.sourceClassification.isSupportedForProposedV2Startup else {
             if input.sourceClassification == .existingProposedV2Store,
                input.storeLocation.kind == .disposableMigrationTarget,
                input.startupIntent == .isolatedVerification,

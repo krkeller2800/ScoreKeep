@@ -63,6 +63,7 @@ struct ScoreKeepMigrationOrchestratorInput {
     let factoryInjection: ScoreKeepProposedContainerFactoryInjection?
     let semanticRestoreVerifier: ((URL) throws -> Bool)?
     let postOpenVerifier: ((ModelContainer) throws -> Bool)?
+    let postOpenFailureDiagnostics: (() -> [ScoreKeepMigrationJournalDiagnosticCode])?
     let expectedSourceBaseline: ScoreKeepMigrationBaselineRecord?
     let expectedSourceFamilyIdentity: String?
     let expectedBackupFamilyIdentity: String?
@@ -83,6 +84,7 @@ struct ScoreKeepMigrationOrchestratorInput {
         factoryInjection: ScoreKeepProposedContainerFactoryInjection?,
         semanticRestoreVerifier: ((URL) throws -> Bool)?,
         postOpenVerifier: ((ModelContainer) throws -> Bool)?,
+        postOpenFailureDiagnostics: (() -> [ScoreKeepMigrationJournalDiagnosticCode])? = nil,
         expectedSourceBaseline: ScoreKeepMigrationBaselineRecord? = nil,
         expectedSourceFamilyIdentity: String? = nil,
         expectedBackupFamilyIdentity: String? = nil
@@ -102,6 +104,7 @@ struct ScoreKeepMigrationOrchestratorInput {
         self.factoryInjection = factoryInjection
         self.semanticRestoreVerifier = semanticRestoreVerifier
         self.postOpenVerifier = postOpenVerifier
+        self.postOpenFailureDiagnostics = postOpenFailureDiagnostics
         self.expectedSourceBaseline = expectedSourceBaseline
         self.expectedSourceFamilyIdentity = expectedSourceFamilyIdentity
         self.expectedBackupFamilyIdentity = expectedBackupFamilyIdentity
@@ -431,18 +434,27 @@ enum ScoreKeepMigrationOrchestrator {
 
         let postOpenPassed = try input.postOpenVerifier?(container) ?? true
         guard postOpenPassed else {
+            let diagnosticCodes = [.postOpenVerificationFailed] + (input.postOpenFailureDiagnostics?() ?? [])
             journal = try ScoreKeepMigrationJournalTransition.advance(
                 journal,
                 to: .recoveryRequired,
                 postOpenVerificationDisposition: "failed",
                 recoveryRequirement: .verifyExistingTarget,
-                diagnosticCodes: [.postOpenVerificationFailed]
+                diagnosticCodes: diagnosticCodes
             )
             try journalStore.save(journal)
-            return classified(.verificationFailed, journal: journal, container: container, diagnostics: [.postOpenVerificationFailed])
+            return classified(.verificationFailed, journal: journal, container: container, diagnostics: diagnosticCodes)
         }
 
-        if journal.phase < .postOpenVerificationPassed {
+        if journal.phase == .recoveryRequired, journal.recoveryRequirement == .verifyExistingTarget {
+            journal = try ScoreKeepMigrationJournalTransition.advance(
+                journal,
+                to: .postOpenVerificationPassed,
+                postOpenVerificationDisposition: "passed",
+                recoveryRequirement: .noRecoveryRequired
+            )
+            try journalStore.save(journal)
+        } else if journal.phase < .postOpenVerificationPassed {
             journal = try ScoreKeepMigrationJournalTransition.advance(
                 journal,
                 to: .postOpenVerificationPassed,
