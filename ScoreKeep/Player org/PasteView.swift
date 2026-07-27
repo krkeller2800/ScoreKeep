@@ -53,6 +53,9 @@ struct PasteView: View {
     @AppStorage("delimeters") var delimeters: String = "\n\nTab\nA Space\nComma\nType in\nReset"
     @AppStorage("theTags") var theTags: String = "\n\n\t\n \n,\nType in\nReset"
 
+    @State private var previousTeam: Team?
+    @State private var createTeamTrigger = Team(name: "CREATE_TEAM_TRIGGER", coach: "", details: "")
+
     @Query var teams: [Team]
     
     var body: some View {
@@ -61,17 +64,6 @@ struct PasteView: View {
             VStack(spacing:0) {
                 // Header row
                 HStack(alignment: .center) {
-                    Button {
-                        addTeam()
-                        newTeam = true
-                    } label: {
-                        Label("Add Team", systemImage: "plus.square")
-                            .frame(maxWidth: 150)
-                    }
-                    .foregroundColor(.blue)
-                    .buttonStyle(.bordered)
-                    .frame(width:150, height: 44, alignment: .center)
-
                     Spacer()
 
                     if let team, !team.name.isEmpty && selectPlayers.count > 0 && !newTeam {
@@ -88,7 +80,7 @@ struct PasteView: View {
                                     .font(.footnote).foregroundColor(.red)
                             } icon: {
                                 Image(systemName: "info.circle")
-                                    .foregroundColor(.blue)
+                                    .foregroundStyle(ScoreKeepVisualStyle.accent)
                             }
                             .frame(height: 34, alignment: .center)
                             .foregroundColor(.secondary)
@@ -123,7 +115,7 @@ struct PasteView: View {
                         Label("Reset", systemImage: "arrow.clockwise")
                             .frame(maxWidth: 150)
                     }
-                    .foregroundColor(.blue)
+                    .tint(ScoreKeepVisualStyle.accent)
                     .buttonStyle(.bordered)
                     .frame(width:150, height: 44, alignment: .center)
                 }
@@ -132,6 +124,7 @@ struct PasteView: View {
                 HStack(alignment: .center) {
                     Picker(selection: $team) {
                         Text("Select Team").tag(nil as Team?)
+                        Text("Create Team…").tag(createTeamTrigger as Team?)
                         if teams.isEmpty == false {
                             Divider()
                             ForEach(teams, id: \.self) { t in
@@ -143,20 +136,30 @@ struct PasteView: View {
                     } label: {
                         Text(team?.name ?? "Select Team")
                     }
-                    .pickerStyle(.menu) // ensure label shows
+                    
                     .frame(width: 140, height: 34, alignment:.center)
-                    .background(.blue)
-                    .border(.gray)
+                    .background(ScoreKeepVisualStyle.selectedFill)
                     .cornerRadius(10)
                     .padding()
-                    .accentColor(.white)
+                    .tint(ScoreKeepVisualStyle.primaryText)
                     .onChange(of: team) {
-                        if let team, !team.name.isEmpty {
-                            checkForPlayers()
-                            showPlayers = true
-                            newTeam = false
+                        if team === createTeamTrigger {
+                            team = previousTeam
+                            addTeam()
+                            newTeam = true
                         } else {
-                            showPlayers = false
+                            if let t = team, t.name.isEmpty {
+                                // Keep previousTeam as is
+                            } else {
+                                previousTeam = team
+                            }
+                            if let team, !team.name.isEmpty {
+                                checkForPlayers()
+                                showPlayers = true
+                                newTeam = false
+                            } else {
+                                showPlayers = false
+                            }
                         }
                     }
 
@@ -188,7 +191,7 @@ struct PasteView: View {
                     .bold()
                     .frame(height: 34)
                     .padding(.horizontal)
-                    .background(Color.blue)
+                    .background(ScoreKeepVisualStyle.accent)
                     .cornerRadius(22)
 
                     Spacer()
@@ -202,12 +205,11 @@ struct PasteView: View {
                         }
                     }
                     .frame(width: 140, height: 34, alignment:.center)
-                    .background(.blue)
-                    .border(.gray)
+                    .background(ScoreKeepVisualStyle.selectedFill)
                     .cornerRadius(10)
                     .padding(.leading, 15)
                     .padding()
-                    .accentColor(.white)
+                    .tint(ScoreKeepVisualStyle.primaryText)
                     .alert("Enter your Delimeter", isPresented: $addDelimeter) {
                         TextField("", text: $delim).disableAutocorrection(true).autocapitalization(.none)
                         Button("OK") {
@@ -259,8 +261,8 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(width: 130, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 5)
+                    .frame(width: 130, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                    .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText).padding(.leading, 5)
                     .onChange(of: numberIdx) {
                         updNum()
                     }
@@ -274,8 +276,8 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black)
+                    .frame(maxWidth: 140, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                    .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
                     .onChange(of: firstNameIdx) {
                         updFName()
                     }
@@ -289,8 +291,8 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black)
+                    .frame(maxWidth: 140, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                    .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
                     .onChange(of: lastNameIdx) {
                         updLName()
                     }
@@ -305,8 +307,8 @@ struct PasteView: View {
                         }
                         Text("Paste order").tag(fnames.count+1)
                     }
-                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black)
+                    .frame(maxWidth: 140, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                    .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
                     .onChange(of: batOrderIdx) {
                         updBatOrder()
                     }
@@ -320,8 +322,8 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black)
+                    .frame(maxWidth: 140, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                    .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
                     .onChange(of: batsDirIdx) {
                         updBatDir()
                     }
@@ -335,11 +337,20 @@ struct PasteView: View {
                             }
                         }
                     }
-                    .frame(maxWidth: 140, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.trailing, 5)
+                    .frame(maxWidth: 140, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                    .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText).padding(.trailing, 5)
                     .onChange(of: positionIdx) {
                         updPos()
                     }
+                }
+            }
+            .onAppear {
+                if let t = team, t.name.isEmpty {
+                    team = previousTeam
+                } else if let t = team, !t.name.isEmpty {
+                    checkForPlayers()
+                    showPlayers = true
+                    newTeam = false
                 }
             }
             Spacer()
@@ -487,7 +498,7 @@ struct PasteView: View {
         modelContext.insert(team)
         try? modelContext.save()
         self.team = team
-        navigationPath.append(team)
+        navigationPath.append(TeamNavigationDestination(teamIdentity: team.ident))
     }
     init() {
         _teams = Query(filter: #Predicate { team in
