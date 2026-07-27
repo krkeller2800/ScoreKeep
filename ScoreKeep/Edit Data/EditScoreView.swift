@@ -54,6 +54,10 @@ struct EditScoreView: View {
     
     @State var date = Date.now
 
+    private var scorecardBottomToolbarClearance: CGFloat {
+        UIDevice.type == "iPad" ? 1 : 1
+    }
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -136,6 +140,7 @@ struct EditScoreView: View {
                     .frame(maxWidth:.infinity,maxHeight: 75)
                     Spacer()
                     PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged,columnVisability: $columnVisibility)
+                        .padding(.bottom, scorecardBottomToolbarClearance)
                 }
                 .onChange(of: showingDetail, {
                     if isHomeTeam {
@@ -175,7 +180,7 @@ struct EditScoreView: View {
                         } label: {
                             Text("PDF")
                         }
-                        .frame(width: 40)
+                        .frame(width: 56)
                         .buttonStyle(ToolBarButtonStyle())
                         if let pdfURL = url {
                             ShareLink("Share", item: pdfURL)
@@ -205,7 +210,7 @@ struct EditScoreView: View {
                         }) {
                             Text("Pitch Stats")
                         }
-                        .frame(width: 100)
+                        .frame(width: 118)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showPitchRpt) {
                             if UIDevice.type == "iPad" {
@@ -220,7 +225,7 @@ struct EditScoreView: View {
                         }) {
                             Text("Hit Stats")
                         }
-                        .frame(width: 100)
+                        .frame(width: UIDevice.type == "iPad" ? 100 : 112)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showReport) {
                             if UIDevice.type == "iPad" {
