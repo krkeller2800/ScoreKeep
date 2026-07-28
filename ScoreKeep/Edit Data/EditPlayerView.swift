@@ -56,23 +56,25 @@ struct EditPlayerView: View {
                 .accessibilityHidden(true)
 
                 HStack {
-                    TextField("Player", text: $playerName, onEditingChanged: { (editingChanged) in
+                    TextField(" ", text: $playerName, onEditingChanged: { (editingChanged) in
                         if !editingChanged {
                             checkForDup(pname: playerName)
                         }})
                         .frame(width: 150)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                        .scorebookInputPromptOverlay("Player", isVisible: playerName.isEmpty)
+                        .accessibilityLabel("Player")
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
 //                        .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                    TextField("Number", text: $player.number).frame(maxWidth:.infinity)
+                    TextField("Number", text: $player.number, prompt: scorebookInputPrompt("Number")).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                    TextField("Pos", text: $player.position).frame(maxWidth:.infinity)
+                    TextField("Pos", text: $player.position, prompt: scorebookInputPrompt("Pos")).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                    TextField("Bat Dir", text: $player.batDir).frame(maxWidth:.infinity)
+                    TextField("Bat Dir", text: $player.batDir, prompt: scorebookInputPrompt("Bat Dir")).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                     Picker("Bat Order", selection: $player.batOrder) {
 

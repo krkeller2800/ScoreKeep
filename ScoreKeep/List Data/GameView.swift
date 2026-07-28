@@ -307,7 +307,7 @@ struct GameView: View {
                 .gameFixedColumn(width: dateWidth, alignment: .leading)
                 .clipped()
                 .gameTrailingSeparator()
-            TextField("Field", text: $field)
+            TextField("Field", text: $field, prompt: scorebookInputPrompt("Field"))
                 .scorebookInputField()
                 .fontWeight(.semibold)
                 .focused($focusedField, equals: .field)

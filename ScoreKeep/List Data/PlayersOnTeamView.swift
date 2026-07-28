@@ -67,24 +67,26 @@ struct PlayersOnTeamView: View {
                         }
                         .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent).lineLimit(1)
                             .minimumScaleFactor(0.5).padding(.leading,10)
-                        TextField("Player", text: $pName, onEditingChanged: { (editingChanged) in
+                        TextField(" ", text: $pName, onEditingChanged: { (editingChanged) in
                             if !editingChanged {
                                 checkForDup(pname:pName)
                             }})
                         .frame(width: nameWidth)
                         .textFieldStyle(.roundedBorder).scorebookInputField()
+                        .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
+                        .accessibilityLabel("Player")
                         .focused($focusedField, equals: .field)
                         //                        .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.name)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                        TextField("(00)", text: $pNum).frame(width:mediumWidth)
+                        TextField("(00)", text: $pNum, prompt: scorebookInputPrompt("(00)")).frame(width:mediumWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField()
-                        TextField("(1B)", text: $pPos).frame(width:mediumWidth)
+                        TextField("(1B)", text: $pPos, prompt: scorebookInputPrompt("(1B)")).frame(width:mediumWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField()
                             .autocapitalization(.none)
                             .textContentType(.none)
-                        TextField("(L)", text: $pDir).frame(width:mediumWidth)
+                        TextField("(L)", text: $pDir, prompt: scorebookInputPrompt("(L)")).frame(width:mediumWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField()
                             .autocapitalization(.none)
                             .textContentType(.none)

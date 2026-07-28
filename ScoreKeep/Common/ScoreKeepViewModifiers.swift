@@ -28,12 +28,27 @@ public extension View {
             .foregroundStyle(ScoreKeepVisualStyle.primaryText)
             .tint(ScoreKeepVisualStyle.accent)
     }
+
+    func scorebookInputPromptOverlay(_ title: String, isVisible: Bool) -> some View {
+        overlay(alignment: .leading) {
+            if isVisible {
+                scorebookInputPrompt(title)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
 }
 
 public func scorebookInputPrompt(_ title: String) -> Text {
     Text(title)
-        .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
+        .foregroundStyle(scorebookInputPromptColor)
 }
+
+private let scorebookInputPromptColor = Color(UIColor { traitCollection in
+    traitCollection.userInterfaceStyle == .dark
+        ? UIColor(white: 0.72, alpha: 1.0)
+        : UIColor.secondaryLabel
+})
 
 public func scorebookHeaderCell(_ title: String, semantic: Bool = true) -> some View {
     Text(title)

@@ -60,7 +60,7 @@ struct EditGameView: View {
                     .frame(width: 200, height: 30, alignment: .center)
 
                     .clipped()
-                TextField("Field", text: $game.location)
+                TextField("Field", text: $game.location, prompt: scorebookInputPrompt("Field"))
                     .frame(maxWidth: .infinity)
                     .scorebookInputField().bold()
                     .scorebookTrailingSeparator()

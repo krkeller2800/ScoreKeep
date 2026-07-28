@@ -72,20 +72,22 @@ struct TeamView: View {
             }
 
             HStack {
-                TextField("Name", text: $teamName, onEditingChanged: { (editingChanged) in
+                TextField(" ", text: $teamName, onEditingChanged: { (editingChanged) in
                     if !editingChanged {
                         checkForDup()
                     }})
                     .frame(maxWidth:.infinity).scorebookInputField().bold()
+                    .scorebookInputPromptOverlay("Name", isVisible: teamName.isEmpty)
+                    .accessibilityLabel("Name")
                     .scorebookTrailingSeparator().padding(.leading, 5)
                     .focused($focusedField, equals: .field)
 
                     .onChange(of: focusedField) { checkForDup()}
 //                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $coachName).frame(maxWidth:.infinity).scorebookInputField().bold()
+                TextField("Coach", text: $coachName, prompt: scorebookInputPrompt("Coach")).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
-                TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).scorebookInputField().bold()
+                TextField("Details", text: $teamInfo, prompt: scorebookInputPrompt("Details")).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
 
                 HStack {

@@ -80,19 +80,21 @@ struct EditTeamView: View {
                         .scorebookTrailingSeparator()
                 }
 
-                TextField("team", text: $teamName, onEditingChanged: { (editingChanged) in
+                TextField(" ", text: $teamName, onEditingChanged: { (editingChanged) in
                     if !editingChanged {
                         checkForDup()
                     }})
                     .frame(maxWidth:.infinity).scorebookInputField().bold()
+                    .scorebookInputPromptOverlay("team", isVisible: teamName.isEmpty)
+                    .accessibilityLabel("team")
                     .scorebookTrailingSeparator().padding(.leading, 5)
                     .focused($focusedField, equals: .field)
                     .onChange(of: focusedField) { checkForDup()}
 //                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $team.coach).frame(maxWidth:.infinity).scorebookInputField().bold()
+                TextField("Coach", text: $team.coach, prompt: scorebookInputPrompt("Coach")).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
-                TextField("Details", text: $team.details).frame(maxWidth:.infinity).scorebookInputField().bold()
+                TextField("Details", text: $team.details, prompt: scorebookInputPrompt("Details")).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
 
             }

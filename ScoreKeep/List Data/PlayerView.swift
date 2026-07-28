@@ -83,23 +83,25 @@ struct PlayerView: View {
                         }
 
                         HStack {
-                            TextField("Player", text: $pName, onEditingChanged: { (editingChanged) in
+                            TextField(" ", text: $pName, onEditingChanged: { (editingChanged) in
                                 if !editingChanged {
                                     checkForDup(pname:pName)
                                 }})
                             .frame(width: nameWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                            .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
+                            .accessibilityLabel("Player")
                             .focused($focusedField, equals: .field)
                             //                        .onAppear {self.focusedField = .field}
                             .autocapitalization(.words)
                             .textContentType(.name)
-                            TextField("(00)", text: $pNum).frame(width:smallWidth)
+                            TextField("(00)", text: $pNum, prompt: scorebookInputPrompt("(00)")).frame(width:smallWidth)
                                 .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                            TextField("(1B)", text: $pPos).frame(width:smallWidth)
+                            TextField("(1B)", text: $pPos, prompt: scorebookInputPrompt("(1B)")).frame(width:smallWidth)
                                 .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                                 .autocapitalization(.none)
                                 .textContentType(.none)
-                            TextField("(R)", text: $pDir).frame(width:smallWidth)
+                            TextField("(R)", text: $pDir, prompt: scorebookInputPrompt("(R)")).frame(width:smallWidth)
                                 .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                                 .autocapitalization(.none)
                                 .textContentType(.none)
@@ -373,4 +375,3 @@ struct PlayerView: View {
         }
     }
 }
-

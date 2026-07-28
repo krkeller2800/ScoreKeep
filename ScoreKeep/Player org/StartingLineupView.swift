@@ -82,7 +82,7 @@ struct StartingLineupView: View {
                             Text("Not Hitting").tag(99)
                         }
                         .frame(width:smallWidth).labelsHidden().pickerStyle(.menu).accentColor(ScoreKeepVisualStyle.accent).foregroundStyle(ScoreKeepVisualStyle.accent)
-                        TextField("Name", text: $pName)
+                        TextField("Name", text: $pName, prompt: scorebookInputPrompt("Name"))
                             .background(ScoreKeepVisualStyle.contentSurface).frame(width:nameWidth).textFieldStyle(.roundedBorder).scorebookInputField().bold()
                             .focused($focusedField, equals: .field1)
                             .onSubmit {
@@ -93,19 +93,19 @@ struct StartingLineupView: View {
                             .autocapitalization(.words)
                             .textContentType(.none)
                             .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                        TextField("00", text: $pNumber).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
+                        TextField("00", text: $pNumber, prompt: scorebookInputPrompt("00")).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                             .focused($focusedField, equals: .field2)
                             .onSubmit {
                                 focusedField = .field3 // Move focus to the next field
                             }
-                        TextField("1B", text: $pPosition).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
+                        TextField("1B", text: $pPosition, prompt: scorebookInputPrompt("1B")).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                             .focused($focusedField, equals: .field3)
                             .onSubmit {
                                 focusedField = .field4 // Move focus to the next field
                             }
-                        TextField("(L)", text: $pBatDir).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
+                        TextField("(L)", text: $pBatDir, prompt: scorebookInputPrompt("(L)")).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
                             .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                             .focused($focusedField, equals: .field4)
                         Spacer(minLength: 75)
