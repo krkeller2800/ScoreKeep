@@ -62,7 +62,7 @@ struct EditGameView: View {
                     .clipped()
                 TextField("Field", text: $game.location)
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookInputField().bold()
                     .scorebookTrailingSeparator()
                     .focused($focusedField, equals: .field)
 
@@ -117,12 +117,12 @@ struct EditGameView: View {
             HStack {
             }
             Text("Highlights").frame(width: 600, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).font(.title)
-            TextField("Comment", text: $game.highLights, prompt: Text("Please input game highlights"), axis: .vertical)
+            TextField("Comment", text: $game.highLights, prompt: scorebookInputPrompt("Please input game highlights"), axis: .vertical)
                     .padding()
                     .background(ScoreKeepVisualStyle.selectedFill)
                     .cornerRadius(5.0)
                     .frame(width:600)
-                    .foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookInputField().bold()
         }
         .scrollContentBackground(.hidden)
         .background(ScoreKeepVisualStyle.background)
@@ -149,4 +149,3 @@ struct EditGameView: View {
         try? modelContext.save()
     }
 }
-

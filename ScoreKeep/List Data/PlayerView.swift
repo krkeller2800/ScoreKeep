@@ -88,19 +88,19 @@ struct PlayerView: View {
                                     checkForDup(pname:pName)
                                 }})
                             .frame(width: nameWidth)
-                            .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                            .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                             .focused($focusedField, equals: .field)
                             //                        .onAppear {self.focusedField = .field}
                             .autocapitalization(.words)
                             .textContentType(.name)
                             TextField("(00)", text: $pNum).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                                .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                             TextField("(1B)", text: $pPos).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                                .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                                 .autocapitalization(.none)
                                 .textContentType(.none)
                             TextField("(R)", text: $pDir).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                                .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                                 .autocapitalization(.none)
                                 .textContentType(.none)
 
@@ -373,5 +373,4 @@ struct PlayerView: View {
         }
     }
 }
-
 

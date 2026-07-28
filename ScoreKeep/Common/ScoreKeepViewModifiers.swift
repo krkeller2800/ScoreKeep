@@ -22,6 +22,17 @@ public extension View {
                 .frame(width: 1)
         }
     }
+
+    func scorebookInputField() -> some View {
+        self
+            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+            .tint(ScoreKeepVisualStyle.accent)
+    }
+}
+
+public func scorebookInputPrompt(_ title: String) -> Text {
+    Text(title)
+        .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
 }
 
 public func scorebookHeaderCell(_ title: String, semantic: Bool = true) -> some View {

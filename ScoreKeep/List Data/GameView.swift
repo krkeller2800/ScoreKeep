@@ -308,7 +308,7 @@ struct GameView: View {
                 .clipped()
                 .gameTrailingSeparator()
             TextField("Field", text: $field)
-                .foregroundStyle(ScoreKeepVisualStyle.accent)
+                .scorebookInputField()
                 .fontWeight(.semibold)
                 .focused($focusedField, equals: .field)
                 .autocapitalization(.words)

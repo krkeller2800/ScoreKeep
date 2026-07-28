@@ -61,7 +61,7 @@ struct EditPlayerView: View {
                             checkForDup(pname: playerName)
                         }})
                         .frame(width: 150)
-                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                        .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
 //                        .onAppear {self.focusedField = .field}
@@ -69,11 +69,11 @@ struct EditPlayerView: View {
                         .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     TextField("Number", text: $player.number).frame(maxWidth:.infinity)
-                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                        .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                     TextField("Pos", text: $player.position).frame(maxWidth:.infinity)
-                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                        .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                     TextField("Bat Dir", text: $player.batDir).frame(maxWidth:.infinity)
-                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                        .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                     Picker("Bat Order", selection: $player.batOrder) {
 
                         let orders = ["None","1st","2nd","3rd","4th",
@@ -215,4 +215,3 @@ struct EditPlayerView: View {
         }
     }
 }
-

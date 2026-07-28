@@ -76,16 +76,16 @@ struct TeamView: View {
                     if !editingChanged {
                         checkForDup()
                     }})
-                    .frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator().padding(.leading, 5)
                     .focused($focusedField, equals: .field)
 
                     .onChange(of: focusedField) { checkForDup()}
 //                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $coachName).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                TextField("Coach", text: $coachName).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
-                TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
 
                 HStack {
@@ -298,4 +298,3 @@ struct TeamView: View {
         return submission
     }
 }
-

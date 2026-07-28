@@ -84,15 +84,15 @@ struct EditTeamView: View {
                     if !editingChanged {
                         checkForDup()
                     }})
-                    .frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator().padding(.leading, 5)
                     .focused($focusedField, equals: .field)
                     .onChange(of: focusedField) { checkForDup()}
 //                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $team.coach).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                TextField("Coach", text: $team.coach).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
-                TextField("Details", text: $team.details).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                TextField("Details", text: $team.details).frame(maxWidth:.infinity).scorebookInputField().bold()
                     .scorebookTrailingSeparator()
 
             }
@@ -256,4 +256,3 @@ struct EditTeamView: View {
     }
 
 }
-
