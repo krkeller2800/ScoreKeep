@@ -197,8 +197,11 @@ struct ImportService {
         fd.predicate = #Predicate { $0.team?.name == teamName }
         let existing = try modelContext.fetch(fd)
 
-        for sp in sharedPlayers {
-            if let curr = existing.first(where: { $0.name == sp.name || $0.name.split(separator: " ").last == sp.name.split(separator: " ").last }) {
+        RosterImportReconciler.apply(
+            sharedPlayers: sharedPlayers,
+            existingPlayers: existing,
+            boss: strategy == .imported ? .imported : .current,
+            updateMatched: { curr, sp in
                 switch strategy {
                 case .imported:
                     if !sp.number.isEmpty { curr.number = sp.number }
@@ -218,12 +221,14 @@ struct ImportService {
                     }
                     if curr.team == nil { curr.team = team }
                 }
-            } else {
-                let np = Player(name: sp.name, number: sp.number, position: sp.position, batDir: sp.batDir, batOrder: sp.batOrder, team: team)
+            },
+            insertUnmatched: { sp, batOrder in
+                let np = Player(name: sp.name, number: sp.number, position: sp.position, batDir: sp.batDir, batOrder: batOrder, team: team)
                 if !sp.photo.isEmpty { np.photo = sp.photo }
                 modelContext.insert(np)
+                return np
             }
-        }
+        )
         try modelContext.save()
     }
 

@@ -275,22 +275,24 @@ struct ImportPlayersView: View {
     func sharedPlayersBoss (sharedPlayers: [SharePlayer],teamName: String) {
         self.sharePlayers = sharedPlayers
         let players = getCurrentPlayers(teamName: teamName)
-        for sharePlayer in sharedPlayers {
-            if let currPlayer = players.first(where: { $0.name == sharePlayer.name ||
-                $0.name.components(separatedBy: " ").last ==
-                sharePlayer.name.components(separatedBy: " ").last}) {
+        RosterImportReconciler.apply(
+            sharedPlayers: sharedPlayers,
+            existingPlayers: players,
+            boss: .imported,
+            updateMatched: { currPlayer, sharePlayer in
                 currPlayer.number = !sharePlayer.number.isEmpty ? sharePlayer.number : currPlayer.number
                 currPlayer.batOrder = sharePlayer.batOrder < 50 ? sharePlayer.batOrder : currPlayer.batOrder
                 currPlayer.batDir = !sharePlayer.batDir.isEmpty ? sharePlayer.batDir : currPlayer.batDir
                 currPlayer.position = !sharePlayer.position.isEmpty ? sharePlayer.position : currPlayer.position
                 currPlayer.photo = !sharePlayer.photo.isEmpty ? sharePlayer.photo : currPlayer.photo
-            }
-            else {
+            },
+            insertUnmatched: { sharePlayer, batOrder in
                 let newPlayer = Player(name: sharePlayer.name, number: sharePlayer.number, position: sharePlayer.position,
-                                       batDir: sharePlayer.batDir, batOrder: sharePlayer.batOrder, team: team)
+                                       batDir: sharePlayer.batDir, batOrder: batOrder, team: team)
                 modelContext.insert(newPlayer)
+                return newPlayer
             }
-        }
+        )
         do {
             try modelContext.save()
         }
@@ -303,22 +305,24 @@ struct ImportPlayersView: View {
     func currentPlayersBoss (sharedPlayers: [SharePlayer],teamName: String) {
         
         let players = getCurrentPlayers(teamName: teamName)
-        for sharePlayer in sharedPlayers {
-            if let currPlayer = players.first(where: { $0.name == sharePlayer.name ||
-                $0.name.components(separatedBy: " ").last ==
-                sharePlayer.name.components(separatedBy: " ").last}) {
+        RosterImportReconciler.apply(
+            sharedPlayers: sharedPlayers,
+            existingPlayers: players,
+            boss: .current,
+            updateMatched: { currPlayer, sharePlayer in
                 currPlayer.number = currPlayer.number.isEmpty ? sharePlayer.number : currPlayer.number
                 currPlayer.batOrder = currPlayer.batOrder > 50 ? sharePlayer.batOrder : currPlayer.batOrder
                 currPlayer.batDir = currPlayer.batDir.isEmpty ? sharePlayer.batDir : currPlayer.batDir
                 currPlayer.position = currPlayer.position.isEmpty ? sharePlayer.position : currPlayer.position
                 currPlayer.photo = (currPlayer.photo?.isEmpty ?? true) ? sharePlayer.photo : currPlayer.photo
-            }
-            else {
+            },
+            insertUnmatched: { sharePlayer, batOrder in
                 let newPlayer = Player(name: sharePlayer.name, number: sharePlayer.number, position: sharePlayer.position,
-                                       batDir: sharePlayer.batDir, batOrder: sharePlayer.batOrder, team: team)
+                                       batDir: sharePlayer.batDir, batOrder: batOrder, team: team)
                 modelContext.insert(newPlayer)
+                return newPlayer
             }
-        }
+        )
         do {
             try modelContext.save()
         }
