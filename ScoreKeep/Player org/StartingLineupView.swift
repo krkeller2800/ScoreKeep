@@ -56,7 +56,7 @@ struct StartingLineupView: View {
                     let smallWidth = geometry.size.width/11
 //                    let mediumWidth = geometry.size.width/10
                     Text("Hold and drag Players to change the batting order or add a new Player if needed. Select a Player to make changes. Swipe left to delete a Player.")
-                        .frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPad" ? .title3 : .callout).foregroundColor(.black)
+                        .frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPad" ? .title3 : .callout).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     HStack () {
                         scorebookHeaderCell("Order")
                             .frame(width:smallWidth)
@@ -81,9 +81,9 @@ struct StartingLineupView: View {
                             }
                             Text("Not Hitting").tag(99)
                         }
-                        .frame(width:smallWidth).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                        .frame(width:smallWidth).labelsHidden().pickerStyle(.menu).accentColor(ScoreKeepVisualStyle.accent).foregroundStyle(ScoreKeepVisualStyle.accent)
                         TextField("Name", text: $pName)
-                            .background(Color.white).frame(width:nameWidth).textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                            .background(ScoreKeepVisualStyle.contentSurface).frame(width:nameWidth).textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                             .focused($focusedField, equals: .field1)
                             .onSubmit {
                                 focusedField = .field2 // Move focus to the next field
@@ -93,20 +93,20 @@ struct StartingLineupView: View {
                             .autocapitalization(.words)
                             .textContentType(.none)
                             .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                        TextField("00", text: $pNumber).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        TextField("00", text: $pNumber).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
+                            .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                             .focused($focusedField, equals: .field2)
                             .onSubmit {
                                 focusedField = .field3 // Move focus to the next field
                             }
-                        TextField("1B", text: $pPosition).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        TextField("1B", text: $pPosition).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
+                            .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                             .focused($focusedField, equals: .field3)
                             .onSubmit {
                                 focusedField = .field4 // Move focus to the next field
                             }
-                        TextField("(L)", text: $pBatDir).background(Color.white).frame(width:smallWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        TextField("(L)", text: $pBatDir).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
+                            .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                             .focused($focusedField, equals: .field4)
                         Spacer(minLength: 75)
                         Image(systemName: "plus")
@@ -127,21 +127,21 @@ struct StartingLineupView: View {
                                 try? self.modelContext.save()
                             }
                         }
-                        .border(.gray).cornerRadius(10).accentColor(.black).background(.blue.opacity(0.2))
+                        .border(ScoreKeepVisualStyle.separator).cornerRadius(10).accentColor(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill)
                     }
                     ForEach(linePlayers) { player in
                         NavigationLink(destination: EditPlayerView( player: player, team: team, navigationPath: $navigationPath)) { // Navigate to a DetailView
                             HStack {
-                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).bold().lineLimit(1).minimumScaleFactor(0.5)
-                                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 0)
-                                Text(player.number).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.position).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.batDir).frame(width:smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().lineLimit(1).minimumScaleFactor(0.5)
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading, 0)
+                                Text(player.number).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.position).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.batDir).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
                                 Text("").frame(width:25)
                             }
                         }
@@ -171,9 +171,21 @@ struct StartingLineupView: View {
                     if let prevLineup = lineups.first(where: { $0.team == team && $0.game == game }) {
                         updDateLineup = true
                         lineup = prevLineup
-                        linePlayers = lineup.players.sorted(by: { $0.batOrder < $1.batOrder })
+                        linePlayers = Self.resolvedLineupPlayers(
+                            savedLineup: prevLineup,
+                            atbats: atbats,
+                            fallbackPlayers: players,
+                            team: team,
+                            game: game
+                        )
                     } else {
-                        linePlayers = players.sorted(by: { $0.batOrder < $1.batOrder })
+                        linePlayers = Self.resolvedLineupPlayers(
+                            savedLineup: nil,
+                            atbats: atbats,
+                            fallbackPlayers: players,
+                            team: team,
+                            game: game
+                        )
                         updDateLineup = false
                     }
                     lineup.everyoneHits = game.everyOneHits
@@ -211,7 +223,7 @@ struct StartingLineupView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        Text("\(team.name) Lineup").font(.title2)
+                        Text("\(team.name) Lineup").font(.title2).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     }
                     ToolbarItemGroup(placement: .topBarLeading) {
                         Button(action: {
@@ -245,8 +257,8 @@ struct StartingLineupView: View {
                                 dismiss()
                             }
                         }
-                        .frame(maxWidth: 135,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                        .border(.gray).cornerRadius(10).accentColor(.black).padding(.horizontal, 10)
+                        .frame(maxWidth: 135,maxHeight: 30, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                        .border(ScoreKeepVisualStyle.separator).cornerRadius(10).accentColor(ScoreKeepVisualStyle.primaryText).padding(.horizontal, 10)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         if UIDevice.type == "iPhone" {
@@ -272,6 +284,26 @@ struct StartingLineupView: View {
             }
         }
     }
+    
+    static func resolvedLineupPlayers(savedLineup: Lineup?, atbats: [Atbat], fallbackPlayers: [Player], team: Team, game: Game) -> [Player] {
+        if let savedPlayers = savedLineup?.players.sorted(by: { $0.batOrder < $1.batOrder }), !savedPlayers.isEmpty {
+            return savedPlayers
+        }
+        let atbatPlayers = atbats
+            .filter { $0.team == team && $0.game == game && $0.inning <= 1 && $0.col == 1 && $0.batOrder != 99 }
+            .sorted {
+                if $0.batOrder == $1.batOrder {
+                    return $0.seq < $1.seq
+                }
+                return $0.batOrder < $1.batOrder
+            }
+            .map { $0.player }
+        if !atbatPlayers.isEmpty {
+            return atbatPlayers
+        }
+        return fallbackPlayers.sorted(by: { $0.batOrder < $1.batOrder })
+    }
+    
     func doLineup() {
         if let oldlineup = lineups.first(where: { $0.team == team && $0.game == game}) {
             lineup = oldlineup
@@ -419,5 +451,3 @@ struct StartingLineupView: View {
         }
     }
 }
-
-

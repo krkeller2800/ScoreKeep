@@ -582,7 +582,7 @@ struct ShareContentView: View {
     func getLineups (lineups: [Lineup]) -> [ShareLineup] {
         var sharelineups: [ShareLineup] = []
         for lineup in lineups {
-            let sharelineup = ShareLineup(everyoneHits: lineup.everyoneHits, team: shareTeam(team: lineup.team),inning: lineup.inning)
+            let sharelineup = ShareLineup(everyoneHits: lineup.everyoneHits, team: shareTeam(team: lineup.team), inning: lineup.inning, players: getPlayers(players: lineup.players))
             sharelineups.append(sharelineup)
         }
         return sharelineups
