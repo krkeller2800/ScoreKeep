@@ -213,11 +213,7 @@ struct EditScoreView: View {
                         .frame(width: 118)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showPitchRpt) {
-                            if UIDevice.type == "iPad" {
-                                ShowPitchRptView(tName: team.name, isLoading: $isLoading)
-                            } else {
-                                PitcherRptView(teamName: team.name, isLoading: $isLoading)
-                            }
+                            ShowPitchRptView(tName: team.name, isLoading: $isLoading)
                         }
                         Spacer()
                         Button(action: {
@@ -228,11 +224,7 @@ struct EditScoreView: View {
                         .frame(width: UIDevice.type == "iPad" ? 100 : 112)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showReport) {
-                            if UIDevice.type == "iPad" {
-                                ReportView(teamName: team.name, isLoading: $isLoading)
-                            } else {
-                                ShowReportView(tName: team.name, isLoading: $isLoading)
-                            }
+                            ShowReportView(tName: team.name, isLoading: $isLoading)
                         }
                     }
  

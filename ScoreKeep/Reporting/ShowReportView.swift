@@ -232,6 +232,26 @@ struct ShowReportView: View {
         AggregateHittingPDFNumericCell(identifier: "fc", xOffset: 615, width: 20)
     ]
 
+    static var aggregateHittingPDFTableWidth: CGFloat {
+        aggregateHittingPDFColumnLabels
+            .map { $0.xOffset + $0.width }
+            .max() ?? 0
+    }
+
+    static func aggregateHittingPDFRateText(_ thousandths: Int) -> String {
+        let sign = thousandths < 0 ? "-" : ""
+        let absoluteValue = abs(thousandths)
+        let whole = absoluteValue / 1000
+        let fractional = absoluteValue % 1000
+        let fractionalText = String(format: "%03d", fractional)
+
+        if whole == 0 {
+            return "\(sign).\(fractionalText)"
+        }
+
+        return "\(sign)\(whole).\(fractionalText)"
+    }
+
     static func meaningfulNameComponents(from name: String) -> [String] {
         name.split(whereSeparator: { $0.isWhitespace }).map(String.init)
     }
@@ -357,6 +377,43 @@ struct ShowReportView: View {
         in rect: CGRect
     ) {
         NSAttributedString(string: fitResult.selectedText, attributes: fitResult.attributes).draw(in: rect)
+    }
+
+    private static func drawAggregateHittingPDFTableFill(_ rect: CGRect, fillColor: UIColor) {
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        context.saveGState()
+        fillColor.setFill()
+        context.fill(rect)
+        context.restoreGState()
+    }
+
+    private static func strokeAggregateHittingPDFTableRect(_ rect: CGRect, lineColor: UIColor = UIColor(white: 0.2, alpha: 1)) {
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        context.saveGState()
+        context.setStrokeColor(lineColor.cgColor)
+        context.setLineWidth(0.6)
+        context.stroke(rect)
+        context.restoreGState()
+    }
+
+    private static func strokeAggregateHittingPDFTableLine(from start: CGPoint, to end: CGPoint, lineColor: UIColor = UIColor(white: 0.55, alpha: 1)) {
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        context.saveGState()
+        context.setStrokeColor(lineColor.cgColor)
+        context.setLineWidth(0.4)
+        context.move(to: start)
+        context.addLine(to: end)
+        context.strokePath()
+        context.restoreGState()
     }
 
     static func aggregateHittingPDFLineRect(x: CGFloat, y: CGFloat, width: CGFloat, font: UIFont) -> CGRect {
@@ -503,6 +560,18 @@ struct ShowReportView: View {
                 var currentY = geometry.firstRowY
 
                 for stats in orderedStats[rowRange] {
+                    let rowRect = CGRect(
+                        x: geometry.margin,
+                        y: currentY,
+                        width: aggregateHittingPDFTableWidth,
+                        height: geometry.playerRowHeight
+                    )
+                    drawAggregateHittingPDFTableFill(rowRect, fillColor: .white)
+                    strokeAggregateHittingPDFTableLine(
+                        from: CGPoint(x: rowRect.minX, y: rowRect.maxY),
+                        to: CGPoint(x: rowRect.maxX, y: rowRect.maxY)
+                    )
+
                     let avg:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * stats.hits / stats.atbats))
                     let obp:Int = stats.atbats == 0 ? 0 : Int(Double(1000 * (stats.hits + stats.BB + stats.hbp) /
                                                                      (stats.atbats + stats.BB + stats.hbp + stats.sacFly)))
@@ -529,10 +598,10 @@ struct ShowReportView: View {
                     drawAggregateHittingPDFText(fittedPlayerName, in: playerNameRect)
 
                     drawAggregateHittingPDFNumericValue("\(stats.atbats)", identifier: "atbats", geometry: geometry, currentY: currentY)
-                    drawAggregateHittingPDFNumericValue(String(format: "%03d", avg), identifier: "avg", geometry: geometry, currentY: currentY)
-                    drawAggregateHittingPDFNumericValue(String(format: "%03d", obp), identifier: "obp", geometry: geometry, currentY: currentY)
-                    drawAggregateHittingPDFNumericValue(String(format: "%03d", slg), identifier: "slg", geometry: geometry, currentY: currentY)
-                    drawAggregateHittingPDFNumericValue(String(format: "%03d", obp + slg), identifier: "ops", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(aggregateHittingPDFRateText(avg)) ", identifier: "avg", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(aggregateHittingPDFRateText(obp)) ", identifier: "obp", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(aggregateHittingPDFRateText(slg)) ", identifier: "slg", geometry: geometry, currentY: currentY)
+                    drawAggregateHittingPDFNumericValue("\(aggregateHittingPDFRateText(obp + slg)) ", identifier: "ops", geometry: geometry, currentY: currentY)
                     drawAggregateHittingPDFNumericValue("\(stats.runs)", identifier: "runs", geometry: geometry, currentY: currentY)
                     drawAggregateHittingPDFNumericValue("\(stats.hits)", identifier: "hits", geometry: geometry, currentY: currentY)
                     drawAggregateHittingPDFNumericValue("\(stats.strikeouts)", identifier: "strikeouts", geometry: geometry, currentY: currentY)
@@ -720,21 +789,40 @@ struct ShowReportView: View {
         )
         drawAggregateHittingPDFText(fittedHeading, in: headingRect)
 
+        let headerRect = CGRect(
+            x: geometry.margin,
+            y: currentY + 58,
+            width: aggregateHittingPDFTableWidth,
+            height: 19
+        )
+        drawAggregateHittingPDFTableFill(headerRect, fillColor: UIColor(white: 0.94, alpha: 1))
+        strokeAggregateHittingPDFTableRect(headerRect)
+
         for label in aggregateHittingPDFColumnLabels {
             let labelRect = aggregateHittingPDFLineRect(
                 x: geometry.margin + label.xOffset,
-                y: currentY + 60,
+                y: currentY + 61,
                 width: label.width,
                 font: columnLabelFont
+            )
+            strokeAggregateHittingPDFTableLine(
+                from: CGPoint(x: geometry.margin + label.xOffset, y: headerRect.minY),
+                to: CGPoint(x: geometry.margin + label.xOffset, y: headerRect.maxY),
+                lineColor: UIColor(white: 0.65, alpha: 1)
             )
             let fittedLabel = fittedAggregateHittingPDFSingleLine(
                 label.text,
                 initialFont: columnLabelFont,
                 rect: labelRect,
                 alignment: .left,
-                foregroundColor: .red
+                foregroundColor: .black
             )
             drawAggregateHittingPDFText(fittedLabel, in: labelRect)
         }
+        strokeAggregateHittingPDFTableLine(
+            from: CGPoint(x: headerRect.maxX, y: headerRect.minY),
+            to: CGPoint(x: headerRect.maxX, y: headerRect.maxY),
+            lineColor: UIColor(white: 0.65, alpha: 1)
+        )
     }
 }

@@ -29,6 +29,7 @@ struct ReportView: View {
             (lhs.player?.batOrder ?? 0) < (rhs.player?.batOrder ?? 0)
         })
     }
+    private let iPhoneTableWidth: CGFloat = 900
     private let rateColumnWidth: CGFloat = 42
 
     var body: some View {
@@ -51,55 +52,7 @@ struct ReportView: View {
                         Spacer()
                         Text(Date.now.formatted(date: .abbreviated, time: .omitted)).foregroundColor(.white).padding(.trailing,10)
                     }
-                    HStack {
-                        Text("").frame(maxWidth:5)
-                        scorebookHeaderCell("Nm", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("Name", semantic: true)
-                            .frame(width:125)
-                        scorebookHeaderCell("Bat", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        hittingRateHeader("AVG")
-                            .frame(width: rateColumnWidth)
-                        hittingRateHeader("OBP")
-                            .frame(width: rateColumnWidth)
-                        hittingRateHeader("SLG")
-                            .frame(width: rateColumnWidth)
-                        hittingRateHeader("OPS")
-                            .frame(width: rateColumnWidth)
-                        scorebookHeaderCell("R", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("H", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("K", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("ꓘ", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("BB", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("HR", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("1B", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("2B", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("3B", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("SB", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("SF", semantic: true)
-                            .frame(maxWidth:.infinity)
-                        Text("").frame(maxWidth:5)
-                    }
-                    .frame(height: 34)
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(sortedStats) { stats in
-                                PlayerStatsRow(stats: stats)
-                            }
-                            Spacer()
-                        }
-                    }
+                    hittingStatsTable
                 }
             }
             .onAppear() {
@@ -131,8 +84,9 @@ struct ReportView: View {
                             hasChanged = false
                             doShot = true
                         } label: {
-                            Text(" Screenshot")
+                            Text("Screenshot")
                         }
+                        .frame(width: 118)
                         .buttonStyle(ToolBarButtonStyle())
                         if let shotURL = url {
                             if hasChanged == false {
@@ -151,6 +105,80 @@ struct ReportView: View {
         }
         .alert(alertMessage, isPresented: $showingAlert) {
         Button("OK", role: .cancel) { }
+        }
+    }
+
+    @ViewBuilder
+    private var hittingStatsTable: some View {
+        if UIDevice.type == "iPhone" {
+            ScrollView(.horizontal) {
+                hittingStatsContent
+                    .frame(width: iPhoneTableWidth)
+            }
+        } else {
+            hittingStatsContent
+        }
+    }
+
+    private var hittingStatsContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            hittingStatsHeader
+            hittingStatsRows
+        }
+    }
+
+    private var hittingStatsHeader: some View {
+        HStack {
+            Text("").frame(maxWidth:5)
+            scorebookHeaderCell("Nm", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("Name", semantic: true)
+                .frame(width:125)
+            scorebookHeaderCell("Bat", semantic: true)
+                .frame(maxWidth:.infinity)
+            hittingRateHeader("AVG")
+                .frame(width: rateColumnWidth)
+            hittingRateHeader("OBP")
+                .frame(width: rateColumnWidth)
+            hittingRateHeader("SLG")
+                .frame(width: rateColumnWidth)
+            hittingRateHeader("OPS")
+                .frame(width: rateColumnWidth)
+            scorebookHeaderCell("R", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("H", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("K", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("ꓘ", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("BB", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("HR", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("1B", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("2B", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("3B", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("SB", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("SF", semantic: true)
+                .frame(maxWidth:.infinity)
+            Text("").frame(maxWidth:5)
+        }
+        .frame(height: 34)
+    }
+
+    private var hittingStatsRows: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(sortedStats) { stats in
+                    PlayerStatsRow(stats: stats)
+                }
+                Spacer()
+            }
         }
     }
 

@@ -24,6 +24,36 @@ struct ShowPitchRptView: View {
 
     var com:Common = Common()
 
+    private struct PitchingPDFColumn {
+        let title: String
+        let xOffset: CGFloat
+        let width: CGFloat
+    }
+
+    private static let pitchingPDFColumns: [PitchingPDFColumn] = [
+        PitchingPDFColumn(title: "Num", xOffset: 0, width: 30),
+        PitchingPDFColumn(title: "Name", xOffset: 30, width: 125),
+        PitchingPDFColumn(title: "ERA", xOffset: 160, width: 30),
+        PitchingPDFColumn(title: "INN", xOffset: 195, width: 30),
+        PitchingPDFColumn(title: "ER", xOffset: 230, width: 30),
+        PitchingPDFColumn(title: "UER", xOffset: 250, width: 30),
+        PitchingPDFColumn(title: "Hit", xOffset: 280, width: 30),
+        PitchingPDFColumn(title: "Ks", xOffset: 310, width: 30),
+        PitchingPDFColumn(title: "ꓘs", xOffset: 340, width: 30),
+        PitchingPDFColumn(title: "BB", xOffset: 375, width: 30),
+        PitchingPDFColumn(title: "HBP", xOffset: 400, width: 30),
+        PitchingPDFColumn(title: "HR", xOffset: 430, width: 20),
+        PitchingPDFColumn(title: "1B", xOffset: 460, width: 20),
+        PitchingPDFColumn(title: "2B", xOffset: 490, width: 20),
+        PitchingPDFColumn(title: "3B", xOffset: 520, width: 20)
+    ]
+
+    private static var pitchingPDFTableWidth: CGFloat {
+        pitchingPDFColumns
+            .map { $0.xOffset + $0.width }
+            .max() ?? 0
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             PitcherRptView(teamName: tName, isLoading: $isLoading)
@@ -73,7 +103,7 @@ struct ShowPitchRptView: View {
         let headAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 12),
             .paragraphStyle: NSMutableParagraphStyle(),
-            .foregroundColor: UIColor.red
+            .foregroundColor: UIColor.black
         ]
         let textAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 12),
@@ -108,6 +138,18 @@ struct ShowPitchRptView: View {
                     doHeader(headAttributes: headAttributes, titleAttributes: titleAttributes, textAttributes: textAttributes, currentY: currentY, contentWidth: contentWidth)
                     currentY += 80
                  }
+                let rowRect = CGRect(
+                    x: margin,
+                    y: currentY,
+                    width: Self.pitchingPDFTableWidth,
+                    height: textHeight
+                )
+                Self.drawPitchingPDFTableFill(rowRect, fillColor: .white)
+                Self.strokePitchingPDFTableLine(
+                    from: CGPoint(x: rowRect.minX, y: rowRect.maxY),
+                    to: CGPoint(x: rowRect.maxX, y: rowRect.maxY)
+                )
+
                 attributedString = NSAttributedString(string: String(stats.pitcher?.player.number ?? ""), attributes: textAttributes)
                 attributedString.draw(in: CGRect(x: margin + 5, y: currentY, width: 20, height: textHeight))
                 
@@ -158,6 +200,43 @@ struct ShowPitchRptView: View {
         }
         
         return data
+    }
+
+    private static func drawPitchingPDFTableFill(_ rect: CGRect, fillColor: UIColor) {
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        context.saveGState()
+        fillColor.setFill()
+        context.fill(rect)
+        context.restoreGState()
+    }
+
+    private static func strokePitchingPDFTableRect(_ rect: CGRect, lineColor: UIColor = UIColor(white: 0.2, alpha: 1)) {
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        context.saveGState()
+        context.setStrokeColor(lineColor.cgColor)
+        context.setLineWidth(0.6)
+        context.stroke(rect)
+        context.restoreGState()
+    }
+
+    private static func strokePitchingPDFTableLine(from start: CGPoint, to end: CGPoint, lineColor: UIColor = UIColor(white: 0.55, alpha: 1)) {
+        guard let context = UIGraphicsGetCurrentContext() else {
+            return
+        }
+
+        context.saveGState()
+        context.setStrokeColor(lineColor.cgColor)
+        context.setLineWidth(0.4)
+        context.move(to: start)
+        context.addLine(to: end)
+        context.strokePath()
+        context.restoreGState()
     }
     
     func savePDF(data: Data, fileName: String) -> URL? {
@@ -289,49 +368,26 @@ struct ShowPitchRptView: View {
         attributedString = NSAttributedString(string:"Pitching Statistics", attributes: textAttributes)
         attributedString.draw(in: CGRect(x: (800 - headingSize.width) / 2, y: currentY, width: headingSize.width, height: headHeight))
         
-        attributedString = NSAttributedString(string: String("Num"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("Name"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 30, y: currentY + 60, width: 125, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String(String("ERA")), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 160, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("INN"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 195, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("ER"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 230, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("UER"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 250, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("Hit"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 280, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("Ks"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 310, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("ꓘs"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 340, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("BB"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 375, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("HBP"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 400, y: currentY + 60, width: 30, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("HR"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 430, y: currentY + 60, width: 20, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("1B"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 460, y: currentY + 60, width: 20, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("2B"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 490, y: currentY + 60, width: 20, height: headHeight))
-        
-        attributedString = NSAttributedString(string: String("3B"), attributes: headAttributes)
-        attributedString.draw(in: CGRect(x: 50 + 520, y: currentY + 60, width: 20, height: headHeight))
+        let headerRect = CGRect(x: 50, y: currentY + 58, width: Self.pitchingPDFTableWidth, height: 19)
+        Self.drawPitchingPDFTableFill(headerRect, fillColor: UIColor(white: 0.94, alpha: 1))
+        Self.strokePitchingPDFTableRect(headerRect)
+
+        for column in Self.pitchingPDFColumns {
+            let dividerX = 50 + column.xOffset
+            Self.strokePitchingPDFTableLine(
+                from: CGPoint(x: dividerX, y: headerRect.minY),
+                to: CGPoint(x: dividerX, y: headerRect.maxY),
+                lineColor: UIColor(white: 0.65, alpha: 1)
+            )
+
+            attributedString = NSAttributedString(string: column.title, attributes: headAttributes)
+            attributedString.draw(in: CGRect(x: 50 + column.xOffset, y: currentY + 61, width: column.width, height: headHeight))
+        }
+
+        Self.strokePitchingPDFTableLine(
+            from: CGPoint(x: headerRect.maxX, y: headerRect.minY),
+            to: CGPoint(x: headerRect.maxX, y: headerRect.maxY),
+            lineColor: UIColor(white: 0.65, alpha: 1)
+        )
     }
 }

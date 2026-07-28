@@ -596,7 +596,7 @@ class PDFGenerator {
         paragraph.alignment = .center
         let pitchATTR: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 12),
-            .foregroundColor: UIColor.red, .paragraphStyle: paragraph]
+            .foregroundColor: UIColor.black, .paragraphStyle: paragraph]
         let headATTR: [NSAttributedString.Key: Any] = [
             .font: UIFont.italicSystemFont(ofSize: 14),
             .foregroundColor: UIColor.black, .paragraphStyle: paragraph]
@@ -606,51 +606,56 @@ class PDFGenerator {
         } else {
             tName = game.vteam?.name ?? ""
         }
-        drawFittedText("\(tName) Pitching Stats For This Game", in: CGRect(x: 35, y: (numOfPlayers * 30) + 150, width: 800, height: 18), attributes: headATTR, maxLines: 1)
+        let pitchingSectionY = CGFloat(numOfPlayers * 30)
+        let headerY = pitchingSectionY + 190
+        let headerHeight: CGFloat = 15
+        let headerLabelY = (headerY - headerHeight) + 1
+        drawFittedText("\(tName) Pitching Stats For This Game", in: CGRect(x: 35, y: pitchingSectionY + 150, width: 800, height: 18), attributes: headATTR, maxLines: 1)
+        makeNewRect(rec: CGRect(x:35, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         var pitchString = NSAttributedString(string: "Num", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 35, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect(rec: CGRect(x:90, y: (numOfPlayers * 30) + 190, width: 150, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 35, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect(rec: CGRect(x:90, y: headerY, width: 150, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Pitcher", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 90, y: (numOfPlayers * 30) + 175, width: 150, height: 15))
-        makeNewRect(rec: CGRect(x:255, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 90, y: headerLabelY, width: 150, height: headerHeight))
+        makeNewRect(rec: CGRect(x:255, y: headerY, width: 30, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Inn", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 255, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
-        makeNewRect(rec: CGRect(x:285, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 255, y: headerLabelY, width: 30, height: headerHeight))
+        makeNewRect(rec: CGRect(x:285, y: headerY, width: 30, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Outs", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 285, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
-        makeNewRect(rec: CGRect(x:315, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 285, y: headerLabelY, width: 30, height: headerHeight))
+        makeNewRect(rec: CGRect(x:315, y: headerY, width: 30, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Bats", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 315, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
-        makeNewRect(rec: CGRect(x:350, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 315, y: headerLabelY, width: 30, height: headerHeight))
+        makeNewRect(rec: CGRect(x:350, y: headerY, width: 30, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Inn", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 350, y: (numOfPlayers * 30) + 190 + ((numOfPlayers * 30) + 15), width: 30, height: 15))
-        makeNewRect(rec: CGRect(x:380, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 350, y: headerLabelY, width: 30, height: headerHeight))
+        makeNewRect(rec: CGRect(x:380, y: headerY, width: 30, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Outs", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 380, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
-        makeNewRect(rec: CGRect(x:410, y: (numOfPlayers * 30) + 190, width: 30, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 380, y: headerLabelY, width: 30, height: headerHeight))
+        makeNewRect(rec: CGRect(x:410, y: headerY, width: 30, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Bats", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 410, y: (numOfPlayers * 30) + 175, width: 30, height: 15))
-        makeNewRect(rec: CGRect(x:450, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 410, y: headerLabelY, width: 30, height: headerHeight))
+        makeNewRect(rec: CGRect(x:450, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "ERA", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 450, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect (rec: CGRect(x:505, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 450, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect (rec: CGRect(x:505, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "ER", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 505, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect (rec: CGRect(x:560, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 505, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect (rec: CGRect(x:560, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "UER", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 560, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect(rec: CGRect(x:615, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 560, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect(rec: CGRect(x:615, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Hit", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 615, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect(rec: CGRect(x:670, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 615, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect(rec: CGRect(x:670, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "Ks", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 670, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect(rec: CGRect(x:725, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 670, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect(rec: CGRect(x:725, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "BB", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 725, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
-        makeNewRect(rec: CGRect(x:780, y: (numOfPlayers * 30) + 190, width: 50, height: 15), fillColor: .yellow, lineColor: .gray)
+        pitchString.draw(in: CGRect(x: 725, y: headerLabelY, width: 50, height: headerHeight))
+        makeNewRect(rec: CGRect(x:780, y: headerY, width: 50, height: headerHeight), fillColor: .white, lineColor: .gray)
         pitchString = NSAttributedString(string: "HR", attributes: pitchATTR)
-        pitchString.draw(in: CGRect(x: 780, y: (numOfPlayers * 30) + 175, width: 50, height: 15))
+        pitchString.draw(in: CGRect(x: 780, y: headerLabelY, width: 50, height: headerHeight))
 
         drawPitchStats (game: game, team: team)
 
@@ -938,5 +943,3 @@ class PDFGenerator {
         NSAttributedString(string: text, attributes: currentAttributes).draw(in: rect)
     }
 }
-
-

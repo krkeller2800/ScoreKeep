@@ -493,7 +493,7 @@ struct Task810AggregateHittingPDFTextFittingSuite {
 
         #expect(text.contains("123"))
         #expect(text.contains("1234"))
-        #expect(text.contains("6000"))
+        #expect(text.contains("6.000"))
         #expect(text.contains("-12"))
         #expect(text.contains("7"))
         #expect(!text.contains("..."))

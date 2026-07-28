@@ -27,6 +27,7 @@ struct PitcherRptView: View {
     @Query var pitchers: [Pitcher]
     
     var com:Common = Common()
+    private let iPhoneTableWidth: CGFloat = 900
 
     var body: some View {
         NavigationStack {
@@ -46,82 +47,7 @@ struct PitcherRptView: View {
                     Spacer()
                     Text("Through \(Date.now.formatted(date: .abbreviated, time: .omitted))").foregroundColor(.white).padding(.trailing,10)
                 }
-                HStack {
-                    Text("").frame(maxWidth:5)
-                    scorebookHeaderCell("Num", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("Pitcher", semantic: true)
-                        .frame(width: 150)
-                    scorebookHeaderCell("ERA", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("INN", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("ER", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("UER", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("Hit", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("Ks", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("ꓘs", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("BB", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("HBP", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("HR", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("1B", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("2B", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    scorebookHeaderCell("3B", semantic: true)
-                        .frame(maxWidth:.infinity)
-                    Text("").frame(maxWidth:5)
-                }
-                .frame(height: 34)
-                ScrollView {
-                    let summedStats = sumedStats.sorted { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(summedStats) { stats in
-                            HStack {
-                                Text("").frame(maxWidth:5)
-                                Text("\(stats.pitcher?.player.number ?? "")")
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text("\(stats.pitcher?.player.name ?? "")")
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.ERA), format: .number.rounded(increment: 0.01))
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.innings), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.hits), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.Ksl), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.BB), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.hbp), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.HR), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.singles), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.doubles), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(Double(stats.triples), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                                Text("").frame(maxWidth:5)
-                            }
-                        }
-                    }
-                }
+                pitchingStatsTable
                 .onAppear() {
                     if !pitchers.isEmpty {
                         var prevPitcher = pitchers[0]
@@ -170,8 +96,9 @@ struct PitcherRptView: View {
                                 hasChanged = false
                                 doShot = true
                             } label: {
-                                Text(" Screenshot")
+                                Text("Screenshot")
                             }
+                            .frame(width: 118)
                             .buttonStyle(ToolBarButtonStyle())
                             if let shotURL = url {
                                 if hasChanged == false {
@@ -201,6 +128,107 @@ struct PitcherRptView: View {
 //                                }
             .screenshotMaker { screenshotMaker in
                  self.screenshotMaker = screenshotMaker
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pitchingStatsTable: some View {
+        if UIDevice.type == "iPhone" {
+            ScrollView(.horizontal) {
+                pitchingStatsContent
+                    .frame(width: iPhoneTableWidth)
+            }
+        } else {
+            pitchingStatsContent
+        }
+    }
+
+    private var pitchingStatsContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            pitchingStatsHeader
+            pitchingStatsRows
+        }
+    }
+
+    private var pitchingStatsHeader: some View {
+        HStack {
+            Text("").frame(maxWidth:5)
+            scorebookHeaderCell("Num", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("Pitcher", semantic: true)
+                .frame(width: 150)
+            scorebookHeaderCell("ERA", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("INN", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("ER", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("UER", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("Hit", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("Ks", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("ꓘs", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("BB", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("HBP", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("HR", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("1B", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("2B", semantic: true)
+                .frame(maxWidth:.infinity)
+            scorebookHeaderCell("3B", semantic: true)
+                .frame(maxWidth:.infinity)
+            Text("").frame(maxWidth:5)
+        }
+        .frame(height: 34)
+    }
+
+    private var pitchingStatsRows: some View {
+        ScrollView {
+            let summedStats = sumedStats.sorted { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(summedStats) { stats in
+                    HStack {
+                        Text("").frame(maxWidth:5)
+                        Text("\(stats.pitcher?.player.number ?? "")")
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text("\(stats.pitcher?.player.name ?? "")")
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.ERA), format: .number.rounded(increment: 0.01))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.innings), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.runs), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.uruns), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.hits), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.Ks), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.Ksl), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.BB), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.hbp), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.HR), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.singles), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.doubles), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text(Double(stats.triples), format: .number.rounded(increment: 1.0))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                        Text("").frame(maxWidth:5)
+                    }
+                }
             }
         }
     }
