@@ -35,20 +35,19 @@ struct EditAllPlayerView: View {
         Form {
             VStack {
                 HStack {
-                    Text("Name").frame(width: 150).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Number").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Pos").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Bat Dir").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Bat Order").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Team").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                    scorebookHeaderCell("Name")
+                        .frame(width: 150)
+                    scorebookHeaderCell("Number")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Pos")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Bat Dir")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Bat Order")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Team")
+                        .frame(maxWidth:.infinity)
                     }
-                .background {Color.yellow.opacity(0.3)}
                 HStack {
                     TextField("Player", text: $player.name).background(Color.white).frame(width: 150)
                         .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()

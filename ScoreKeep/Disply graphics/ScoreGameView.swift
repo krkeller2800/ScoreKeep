@@ -11,6 +11,7 @@ import UIKit
 
 struct ScoreGameView: View {
     @Environment(\.modelContext) var modelContext
+    @Environment(\.colorScheme) private var colorScheme
     @State private var path = NavigationPath()
     @Binding private var atbat:Atbat
     @Binding private var showingScoring:Bool
@@ -63,6 +64,22 @@ struct ScoreGameView: View {
         self.isCorrectionEntry = isCorrectionEntry
         self.submitCorrectionEntry = submitCorrectionEntry
     }
+
+    private var scorePlaySheetBackground: Color {
+        colorScheme == .dark ? ScoreKeepVisualStyle.contentSurface : Color.yellow.opacity(0.1)
+    }
+
+    private var scorePlaySheetBorder: Color {
+        colorScheme == .dark ? ScoreKeepVisualStyle.separator : .black
+    }
+
+    private var scorePlayControlBorder: Color {
+        colorScheme == .dark ? ScoreKeepVisualStyle.separator : .gray
+    }
+
+    private var scorePlayControlTint: Color {
+        colorScheme == .dark ? ScoreKeepVisualStyle.primaryText : .black
+    }
     
     var body: some View {
         Section {
@@ -93,7 +110,7 @@ struct ScoreGameView: View {
                         .accessibilityHint(pendingAdditionalChoice == nil ? "Closes the scoring sheet." : "Records the selected runner and out details.")
                         .accessibilityAddTraits(.isButton)
                         .frame(maxWidth: 120,minHeight: 30, alignment:.center).background(.green.opacity(0.5))
-                        .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
+                        .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding(.all, 15)
                         Spacer()
                         Text("\(atbat.player.team?.name ?? "") Batting").font(.title2)
                         Spacer()
@@ -114,7 +131,7 @@ struct ScoreGameView: View {
                         .accessibilityHint(isCorrectionEntry ? "Closes this correction edit without saving the draft." : "Removes this at-bat entry or clears the first scorecard cell.")
                         .accessibilityAddTraits(.isButton)
                         .frame(maxWidth: 120,minHeight: 30, alignment:.center).background(.red.opacity(0.5))
-                        .border(.gray).cornerRadius(10).accentColor(.black).padding(.all, 15)
+                        .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding(.all, 15)
 
                     }
                     HStack {
@@ -127,7 +144,7 @@ struct ScoreGameView: View {
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
                         .accessibilityLabel("Runs batted in")
                         .accessibilityValue("\(rbiBinding.wrappedValue)")
-                        .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                        .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding(.leading, 15)
                         Spacer()
                         Text("\(atbat.player.number) \(atbat.player.name)").font(.title3)
                         Spacer()
@@ -140,7 +157,7 @@ struct ScoreGameView: View {
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
                         .accessibilityLabel("Stolen bases")
                         .accessibilityValue("\(stolenBaseBinding.wrappedValue)")
-                        .border(.gray).cornerRadius(10).accentColor(.black).padding(.trailing, 15)
+                        .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding(.trailing, 15)
                     }
                     HStack(spacing: 0) {
                         Spacer()
@@ -175,7 +192,7 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
-                         .border(.gray).cornerRadius(10).accentColor(.black)
+                         .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                          .onChange(of: onBase) {
                              if onBase != "Result" {
                                  selectResult(onBase)
@@ -205,7 +222,7 @@ struct ScoreGameView: View {
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
                          .accessibilityLabel("Maximum base reached")
                          .accessibilityValue(maxBaseBinding.wrappedValue)
-                         .border(.gray).cornerRadius(10).accentColor(.black)
+                         .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                          .onChange(of: batOut) {
                              if batOut != "Result" {
                                  selectResult(batOut)
@@ -223,7 +240,7 @@ struct ScoreGameView: View {
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
                          .accessibilityLabel("Runner out location")
                          .accessibilityValue(displayedOutAt)
-                         .border(.gray).cornerRadius(10).accentColor(.black)
+                         .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                         Spacer()
                         Picker("Out", selection: outAtBinding) {
                             Text("Safe").tag("Safe")
@@ -233,7 +250,7 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
-                         .border(.gray).cornerRadius(10).accentColor(.black)
+                         .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                         Spacer()
                     }
                     .padding(.leading, 0)
@@ -308,7 +325,7 @@ struct ScoreGameView: View {
                             .accessibilityLabel("Earned run status")
                             .accessibilityValue(currentEarnedRun ? "Earned" : "Unearned")
                             .accessibilityAddTraits(.isButton)
-                            .border(.gray).cornerRadius(10).accentColor(.black).padding([.leading, .trailing, .bottom], 15)
+                            .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding([.leading, .trailing, .bottom], 15)
                         }
                         Spacer()
                         if recPlay {
@@ -321,12 +338,17 @@ struct ScoreGameView: View {
                              .accessibilityLabel("Clear recorded fielder play")
                              .accessibilityValue(currentPlayRecord.isEmpty ? "No fielder play selected" : currentPlayRecord)
                              .accessibilityAddTraits(.isButton)
-                             .border(.gray).cornerRadius(10).accentColor(.black).padding([.bottom,.trailing], 15)
+                             .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding([.bottom,.trailing], 15)
                         }
                     }
    
                 }
-                .background(RoundedRectangle(cornerRadius: 15).fill(Color.yellow.opacity(0.1)).stroke(.black, lineWidth: 8))
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .background(
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(scorePlaySheetBackground)
+                        .stroke(scorePlaySheetBorder, lineWidth: 8)
+                )
                 if recPlay {
                     fielderButtons(size: geometry.size, result: displayedResult, playRecord: playRecordBinding)
                 }

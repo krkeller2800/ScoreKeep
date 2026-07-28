@@ -21,16 +21,16 @@ struct showSharedPlayers: View {
                 
                 Section {
                     HStack {
-                        Text("Order")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.6).padding(.leading, 5)
-                        Text("Name")
-                            .frame(width:nameWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Num")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
-                        Text("Pos")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
-                        Text("Dir")
-                            .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.5)
+                        scorebookHeaderCell("Order", semantic: true)
+                            .frame(width:mediumWidth).padding(.leading, 5)
+                        scorebookHeaderCell("Name", semantic: true)
+                            .frame(width:nameWidth)
+                        scorebookHeaderCell("Num", semantic: true)
+                            .frame(width:mediumWidth)
+                        scorebookHeaderCell("Pos", semantic: true)
+                            .frame(width:mediumWidth)
+                        scorebookHeaderCell("Dir", semantic: true)
+                            .frame(width:mediumWidth)
                         Text("")
                             .frame(width:30)
                     }
@@ -81,16 +81,16 @@ struct showSharedGame: View {
                 
                 Section {
                     HStack {
-                        Text("Game Date").frame(width:UIDevice.type == "iPhone" ? 105 : 225).border(.gray)
-                            .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                        scorebookHeaderCell("Game Date", semantic: true)
+                            .frame(width:UIDevice.type == "iPhone" ? 105 : 225)
 //                        Text("Field").frame(maxWidth:.infinity).border(.gray)
 //                            .foregroundColor(.red).background(.yellow.opacity(0.3))
 //                        Text("All Hit").frame(maxWidth:60).border(.gray)
 //                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Visiting").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
-                        Text("Home").frame(maxWidth:.infinity).border(.gray)
-                            .foregroundColor(.red).background(.yellow.opacity(0.3))
+                        scorebookHeaderCell("Visiting", semantic: true)
+                            .frame(maxWidth:.infinity)
+                        scorebookHeaderCell("Home", semantic: true)
+                            .frame(maxWidth:.infinity)
 //                        Text("Score").frame(maxWidth:.infinity).border(.gray)
 //                            .foregroundColor(.red).background(.yellow.opacity(0.3))
                     }

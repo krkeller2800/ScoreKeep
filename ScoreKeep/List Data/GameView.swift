@@ -33,11 +33,11 @@ struct GameView: View {
     @AppStorage("hasDismissedSeedHint_Game") private var hasDismissedSeedHint_Game: Bool = false
 
     enum FocusField: Hashable {case field}
-    
+
     enum GameSort {
         case dateAsc, dateDec, homeTeam, visitorTeam
     }
-    
+
     @FocusState private var focusedField: FocusField?
     
     let com = Common()
@@ -93,7 +93,7 @@ struct GameView: View {
         return !cal.isDate(gameDate, inSameDayAs: target)
     }
     
-    private var dateWidth: CGFloat { UIDevice.type == "iPhone" && title.isEmpty ? 100 : 230 }
+    private var dateWidth: CGFloat { UIDevice.type == "iPhone" && title.isEmpty ? 100 : 265 }
 
     var body: some View {
         ZStack {
@@ -134,10 +134,10 @@ struct GameView: View {
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowBackground(ScoreKeepVisualStyle.contentSurface)
-                    .listRowSeparatorTint(ScoreKeepVisualStyle.separator)
+                    .listRowBackground(gameCardBackground)
+                    .listRowSeparatorTint(Color(UIColor.opaqueSeparator))
                 }
-                // Keep the list background hidden so the grouped background shows through
+                .shadow(color: Color.primary.opacity(0.08), radius: 4, x: 0, y: 2)
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .alert(alertMessage, isPresented: $showingValidationAlert) {
@@ -260,30 +260,30 @@ struct GameView: View {
     @ViewBuilder
     private func headerRow() -> some View {
         HStack(spacing: 0) {
-            scorebookHeaderCell("Game Date")
-                .frame(width: dateWidth)
-                .scorebookTrailingSeparator()
+            scorebookHeaderCell("Game Date", semantic: true)
+                .gameFixedColumn(width: dateWidth)
+                .gameTrailingSeparator()
             if !title.isEmpty {
-                scorebookHeaderCell("Field")
-                    .frame(maxWidth: .infinity)
-                    .scorebookTrailingSeparator()
-                scorebookHeaderCell("All Hit")
-                    .frame(width: 58)
-                    .scorebookTrailingSeparator()
+                scorebookHeaderCell("Field", semantic: true)
+                    .gameFlexibleColumn()
+                    .gameTrailingSeparator()
+                scorebookHeaderCell("All Hit", semantic: true)
+                    .gameFixedColumn(width: 58)
+                    .gameTrailingSeparator()
             }
 
-            scorebookHeaderCell("Visiting")
-                .frame(maxWidth: .infinity)
-                .scorebookTrailingSeparator()
-            scorebookHeaderCell("Home")
-                .frame(maxWidth: .infinity)
-                .scorebookTrailingSeparator()
+            scorebookHeaderCell("Visiting", semantic: true)
+                .gameFlexibleColumn()
+                .gameTrailingSeparator()
+            scorebookHeaderCell("Home", semantic: true)
+                .gameFlexibleColumn()
+                .gameTrailingSeparator()
             if !title.isEmpty {
-                scorebookHeaderCell("Score")
-                    .frame(maxWidth: .infinity)
-                    .scorebookTrailingSeparator()
+                scorebookHeaderCell("Score", semantic: true)
+                    .gameFlexibleColumn()
+                    .gameTrailingSeparator()
             }
-            Color.clear.frame(width: title.isEmpty ? 0 : 34)
+            Color.clear.gameFixedColumn(width: title.isEmpty ? 0 : 34)
         }
         .fixedSize(horizontal: false, vertical: true)
         .padding(.bottom, 6)
@@ -303,25 +303,28 @@ struct GameView: View {
                     theDate = date.ISO8601Format()
                 }
                 .labelsHidden()
-                .frame(width: dateWidth, alignment: .leading)
+                .padding(.horizontal, 4)
+                .gameFixedColumn(width: dateWidth, alignment: .leading)
                 .clipped()
-                .scorebookTrailingSeparator()
+                .gameTrailingSeparator()
             TextField("Field", text: $field)
-                .frame(maxWidth: .infinity)
                 .foregroundStyle(ScoreKeepVisualStyle.accent)
                 .fontWeight(.semibold)
                 .focused($focusedField, equals: .field)
                 .autocapitalization(.words)
                 .textContentType(.none)
-                .scorebookTrailingSeparator()
+                .padding(.horizontal, 8)
+                .gameFlexibleColumn(alignment: .leading)
+                .gameTrailingSeparator()
             Button(action:{everyOneHits.toggle()}){
                 Text(everyOneHits ? "True" : "False")
-                    .frame(width: 58, height: 30)
+                    .frame(height: 30)
+                    .gameFixedColumn(width: 58)
                     .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     .fontWeight(.semibold)
                     .background(everyOneHits ? ScoreKeepVisualStyle.selectedFill : ScoreKeepVisualStyle.disabledFill, in: RoundedRectangle(cornerRadius: 8))
             }.buttonStyle(PlainButtonStyle())
-                .scorebookTrailingSeparator()
+                .gameTrailingSeparator()
             Picker("Visiting Team", selection: $vTeam) {
                 Text("Pick").tag(Optional<Team>.none)
                 if teams.isEmpty == false {
@@ -333,8 +336,9 @@ struct GameView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
-            .scorebookTrailingSeparator()
+            .labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+            .gameFlexibleColumn()
+            .gameTrailingSeparator()
             Picker("Home Team", selection: $hTeam) {
                 Text("Pick").tag(Optional<Team>.none)
                 if teams.isEmpty == false {
@@ -346,14 +350,16 @@ struct GameView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .center).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
-            .scorebookTrailingSeparator()
+            .labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+            .gameFlexibleColumn()
+            .gameTrailingSeparator()
             Text("Not Played")
-                .frame(maxWidth: .infinity)
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .fontWeight(.medium)
                 .scorebookMultiLineText()
-                .scorebookTrailingSeparator()
+                .padding(.horizontal, 8)
+                .gameFlexibleColumn()
+                .gameTrailingSeparator()
             Button {
                 if let vTeam, let hTeam {
                     createGame(theDate, field, everyOneHits, vTeam, hTeam, false)
@@ -366,13 +372,15 @@ struct GameView: View {
                 Image(systemName: "plus")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(ScoreKeepVisualStyle.accent)
-                    .frame(width: 34, height: 44)
+                    .frame(height: 44)
                     .contentShape(Rectangle())
                     }
             .buttonStyle(.plain)
+            .gameFixedColumn(width: 34)
         }
         .padding(.vertical, 8)
         .background(ScoreKeepVisualStyle.contentSurface)
+        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
         .listRowBackground(ScoreKeepVisualStyle.contentSurface)
     }
 
@@ -381,34 +389,33 @@ struct GameView: View {
         HStack(spacing: 0) {
             let dateVal = ISO8601DateFormatter().date(from: game.date) ?? Date()
             Text(dateVal.formatted(date:.abbreviated, time: .shortened))
-                .frame(width: dateWidth, alignment: .leading)
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 8)
                 .scorebookMultiLineText()
-                .scorebookTrailingSeparator()
+                .gameFixedColumn(width: dateWidth, alignment: .leading)
+                .gameTrailingSeparator()
             if !title.isEmpty {
                 Text(game.location)
-                    .frame(maxWidth:.infinity, alignment: .leading)
                     .foregroundStyle(game.location.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 8)
                     .scorebookMultiLineText()
-                    .scorebookTrailingSeparator()
+                    .gameFlexibleColumn(alignment: .leading)
+                    .gameTrailingSeparator()
                 Text(game.everyOneHits ? "True" : "False")
-                    .frame(width: 58, alignment: .center)
                     .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     .fontWeight(.semibold)
-                    .padding(.horizontal, 4)
                     .scorebookSingleLineText()
-                    .scorebookTrailingSeparator()
+                    .gameFixedColumn(width: 58)
+                    .gameTrailingSeparator()
             }
             teamCell(name: game.vteam?.name ?? "", logoData: game.vteam?.logo)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .scorebookTrailingSeparator()
+                .gameFlexibleColumn(alignment: .leading)
+                .gameTrailingSeparator()
             teamCell(name: game.hteam?.name ?? "", logoData: game.hteam?.logo)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .scorebookTrailingSeparator()
+                .gameFlexibleColumn(alignment: .leading)
+                .gameTrailingSeparator()
             if !title.isEmpty {
                 gameRowScoreSummary(for: game)
             }
@@ -436,36 +443,19 @@ struct GameView: View {
             let suffix = isFinal ? " Final" : " in \(inningText)"
 
             Text("\(summary.visitingRuns) to \(summary.homeRuns) \(winner)\(suffix)")
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 8)
                 .scorebookMultiLineText()
-                .scorebookTrailingSeparator()
+                .gameFlexibleColumn(alignment: .leading)
+                .gameTrailingSeparator()
         } else {
             Text("Game teams not set")
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
                 .padding(.horizontal, 8)
-                .scorebookTrailingSeparator()
+                .gameFlexibleColumn(alignment: .leading)
+                .gameTrailingSeparator()
         }
-    }
-
-    private func scorebookHeaderCell(_ title: String) -> some View {
-        Text(title)
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(ScoreKeepVisualStyle.tableHeaderForeground)
-            .scorebookMultiLineText()
-            .lineLimit(title.contains(" ") ? 2 : 1)
-            .multilineTextAlignment(.center)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .frame(maxHeight: .infinity)
-            .background(ScoreKeepVisualStyle.tableHeaderBackground)
-            .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(ScoreKeepVisualStyle.separator, lineWidth: 1)
-            )
     }
 
     private func teamCell(name: String, logoData: Data?) -> some View {
@@ -536,27 +526,27 @@ struct GameView: View {
                 .accessibilityHidden(true)
         }
     }
+
+    private var gameCardBackground: Color {
+        Color(UIColor { tc in
+            tc.userInterfaceStyle == .dark ? UIColor(white: 0.16, alpha: 1.0) : UIColor.white
+        })
+    }
 }
 
 private extension View {
-    func scorebookSingleLineText() -> some View {
-        self
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .truncationMode(.tail)
+    func gameFixedColumn(width: CGFloat, alignment: Alignment = .center) -> some View {
+        self.frame(width: width, alignment: alignment)
     }
 
-    func scorebookMultiLineText() -> some View {
-        self
-            .lineLimit(nil)
-            .minimumScaleFactor(0.75)
-            .fixedSize(horizontal: false, vertical: true)
+    func gameFlexibleColumn(alignment: Alignment = .center) -> some View {
+        self.frame(minWidth: 0, maxWidth: .infinity, alignment: alignment)
     }
 
-    func scorebookTrailingSeparator() -> some View {
+    func gameTrailingSeparator() -> some View {
         overlay(alignment: .trailing) {
             Rectangle()
-                .fill(ScoreKeepVisualStyle.separator)
+                .fill(Color(UIColor.opaqueSeparator))
                 .frame(width: 1)
         }
     }

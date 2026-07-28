@@ -60,8 +60,8 @@ struct PlayersToScoreView: View {
                 drawInnings(game: game, atbats: atbats, space: calcSpace(gWidth: gWidth),offset: offset,gWidth: gWidth)
                 VStack ( spacing: 0) {
                     HStack(alignment: .top) {
-                        Text("Num").frame(width:30, height: 15, alignment:.center).font(.caption).foregroundColor(.black).bold().padding(.leading, 3)
-                        Text("Name").frame(width:50, height: 15, alignment:.leading).font(.caption).foregroundColor(.black).bold()
+                        Text("Num").frame(width:30, height: 15, alignment:.center).font(.caption).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().padding(.leading, 3)
+                        Text("Name").frame(width:50, height: 15, alignment:.leading).font(.caption).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                         Spacer()
                     }
                     ScrollView() {
@@ -75,9 +75,9 @@ struct PlayersToScoreView: View {
                                             let strikeIt = containsPlayer(player, in: game.replaced)
                                             let isIncoming = containsPlayer(player, in: game.incomings)
                                             let iName = isIncoming ? "    \(player.name)" : player.name
-                                            Text(player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundColor(.black)
-                                                .overlay(Divider().background(.black), alignment: .trailing)
-                                            Text(iName).frame(width: 150, alignment: .leading).foregroundColor(.black).strikethrough(strikeIt)
+                                            Text(player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                            Text(iName).frame(width: 150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).strikethrough(strikeIt)
                                                 .fixedSize(horizontal: true, vertical: true).padding(.leading,5).lineLimit(2)
 
                                         }
@@ -569,12 +569,14 @@ struct PlayersToScoreView: View {
         return Text(text)
             .font(.caption)
             .bold()
-            .foregroundColor(.black)
+            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color.white.opacity(0.85))
-            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.black.opacity(0.25), lineWidth: 1))
+            .background(ScoreKeepVisualStyle.elevatedSurface.opacity(0.92))
+            .overlay(RoundedRectangle(cornerRadius: 4).stroke(ScoreKeepVisualStyle.separator, lineWidth: 1))
             .position(x: min(size.width - 120, max(120, size.width * 0.5)), y: 18)
+            .opacity(0)
+            .allowsHitTesting(false)
             .accessibilityLabel(presentation.accessibilityLabel)
             .accessibilityValue(presentation.accessibilityValue)
             .accessibilityAddTraits(.isStaticText)

@@ -39,42 +39,43 @@ struct EditPlayerView: View {
     var body: some View {
         Form {
             VStack {
-                HStack {
-                    Text("Name").frame(width:150).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Number").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Position").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Bat Dir").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Bat Order").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                    Text("Team").frame(maxWidth:.infinity).border(.gray)
-                        .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                HStack(spacing: 0) {
+                    scorebookHeaderCell("Name")
+                        .frame(width:150)
+                    scorebookHeaderCell("Number")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Position")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Bat Dir")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Bat Order")
+                        .frame(maxWidth:.infinity)
+                    scorebookHeaderCell("Team")
+                        .frame(maxWidth:.infinity)
                     }
-                .background {Color.yellow.opacity(0.3)}
                 .accessibilityHidden(true)
+
                 HStack {
                     TextField("Player", text: $playerName, onEditingChanged: { (editingChanged) in
                         if !editingChanged {
                             checkForDup(pname: playerName)
                         }})
-                        .background(Color.white).frame(width: 150)
-                        .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                        .frame(width: 150)
+                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
 //                        .onAppear {self.focusedField = .field}
                         .autocapitalization(.words)
                         .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                    TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
-                        .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                    TextField("Pos", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
-                        .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                    TextField("Bat Dir", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
-                        .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                    TextField("Number", text: $player.number).frame(maxWidth:.infinity)
+                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    TextField("Pos", text: $player.position).frame(maxWidth:.infinity)
+                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    TextField("Bat Dir", text: $player.batDir).frame(maxWidth:.infinity)
+                        .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                     Picker("Bat Order", selection: $player.batOrder) {
+
                         let orders = ["None","1st","2nd","3rd","4th",
                                        "5th","6th","7th","8th","9th",
                                        "10th","11th","12th","13th","14th",
@@ -84,7 +85,7 @@ struct EditPlayerView: View {
                         }
                     Text("Not Hitting").tag(99)
                     }
-                    .frame(maxWidth:.infinity).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                    .frame(maxWidth:.infinity).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
 
                     Picker("Player Team", selection: $player.team) {
                         Text("Unknown Team").tag(Optional<Team>.none)
@@ -98,8 +99,10 @@ struct EditPlayerView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                    .labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
                     }
+
+
             }
             HStack {
                 Spacer()
@@ -122,8 +125,9 @@ struct EditPlayerView: View {
                         Text("Photos").padding(.leading,5)
                     }
                 }
-                .frame(width: 100, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .frame(width: 100, alignment:.center).tint(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill).cornerRadius(10).buttonStyle(.borderless)
                 .onChange(of: selectedItem, loadPhoto)
+
                 Text(" or ")
                 Button {
                     let pasteboard = UIPasteboard.general
@@ -136,8 +140,9 @@ struct EditPlayerView: View {
                         Text("Paste").padding(.leading,5)
                     }
                 }
-                .frame(width: 100, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .frame(width: 100, alignment:.center).tint(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill).cornerRadius(10).buttonStyle(.borderless)
                 Spacer()
+
                 .onDisappear() {
                     if dups || playerName.isEmpty {
                         modelContext.delete(player)
@@ -156,7 +161,10 @@ struct EditPlayerView: View {
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
+        .scrollContentBackground(.hidden)
+        .background(ScoreKeepVisualStyle.background)
         .toolbar {
+
             ToolbarItem(placement: .principal) {
                 Text("Update a Player")
                     .font(.title2)

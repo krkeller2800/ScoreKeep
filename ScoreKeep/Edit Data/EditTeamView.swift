@@ -51,12 +51,17 @@ struct EditTeamView: View {
     var body: some View {
         VStack(spacing: 0) {
         Form {
-            HStack {
-                Text("Logo").frame(width:185,height:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Name").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Coach Name").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Notes").frame(maxWidth:.infinity,maxHeight:25).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+            HStack(spacing: 0) {
+                scorebookHeaderCell("Logo")
+                    .frame(width:185, height:25)
+                scorebookHeaderCell("Name")
+                    .frame(maxWidth:.infinity, maxHeight:25)
+                scorebookHeaderCell("Coach Name")
+                    .frame(maxWidth:.infinity, maxHeight:25)
+                scorebookHeaderCell("Notes")
+                    .frame(maxWidth:.infinity, maxHeight:25)
             }
+
             .accessibilityHidden(true)
             HStack {
                 if let imageData = team.logo, let uiImage = UIImage(data: imageData) {
@@ -68,32 +73,35 @@ struct EditTeamView: View {
 //                            .frame(maxWidth: 50, maxHeight: 50, alignment: .center)
                     }
                     .frame(width: 185, height: 30, alignment: .center)
-                    .overlay(Divider().background(.black), alignment: .trailing)
+                    .scorebookTrailingSeparator()
                 } else {
                     Text("")
                         .frame(width: 185, height: 30, alignment: .center)
-                        .overlay(Divider().background(.black), alignment: .trailing)
+                        .scorebookTrailingSeparator()
                 }
+
                 TextField("team", text: $teamName, onEditingChanged: { (editingChanged) in
                     if !editingChanged {
                         checkForDup()
                     }})
-                    .frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
+                    .frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator().padding(.leading, 5)
                     .focused($focusedField, equals: .field)
                     .onChange(of: focusedField) { checkForDup()}
 //                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $team.coach).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing)
-                TextField("Details", text: $team.details).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing)
+                TextField("Coach", text: $team.coach).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator()
+                TextField("Details", text: $team.details).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator()
+
             }
             HStack(spacing:0) {
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Text("Photos")
                 }
-                .frame(width: 75, height:25, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .frame(width: 75, height:25, alignment:.center).tint(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill).cornerRadius(10).buttonStyle(.borderless)
+
                 .onChange(of: selectedItem, loadLogo)
                 Text(" or ")
                 Button {
@@ -107,11 +115,15 @@ struct EditTeamView: View {
                         Text("Paste").padding(.leading,5)
                     }
                 }
-                .frame(width: 80,height:25, alignment:.center).accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(10).buttonStyle(.borderless)
+                .frame(width: 80,height:25, alignment:.center).tint(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill).cornerRadius(10).buttonStyle(.borderless)
+
                 Spacer()
             }
         }
         .frame(maxHeight: UIDevice.type != "iPhone" ? 225 : nil, alignment: .top)
+        .scrollContentBackground(.hidden)
+        .background(ScoreKeepVisualStyle.background)
+
         if UIDevice.type != "iPhone" {
             VStack(alignment: .leading, spacing: 6) {
 //                Text("Select a Player to edit")
@@ -122,9 +134,9 @@ struct EditTeamView: View {
             }
             .padding(.top, 4)
         }
-        
         }
         .toolbar {
+
             if UIDevice.type != "iPhone" {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Menu("Sort", systemImage: "arrow.up.arrow.down") {

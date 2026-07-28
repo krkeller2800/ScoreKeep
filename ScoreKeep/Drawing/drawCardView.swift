@@ -63,18 +63,18 @@ struct drawSing: View {
                     .stroke(Color.cyan, lineWidth: 2)
                     Text(abb)
                         .frame(width: 28, alignment: .center).lineLimit(1).minimumScaleFactor(0.01)
-                        .font(.system(size: 22)).bold()
+                        .font(.system(size: 22)).bold().foregroundColor(.black)
                         .position(x: 0.5 * w + x, y: 0.55 * h + y)
                 } else {
                     Text(abb)
                         .frame(width: 28, alignment: .center).lineLimit(1).minimumScaleFactor(0.01)
-                        .font(.system(size: 22)).bold()
+                        .font(.system(size: 22)).bold().foregroundColor(.black)
                         .position(x: 0.5 * w + x, y: 0.55 * h + y)
                 }
                 if com.recOuts.contains(atbat.result) || atbat.outAt != "Safe" {
                     let pctIn = atbat.result == "Fielder's Choice" || atbat.outAt != "Safe" ? 0.8 : 0.5
                     Text(atbat.playRec)
-                        .font(.system(size: 12))
+                        .font(.system(size: 12)).foregroundColor(.black)
                         .position(x: pctIn * w + x, y: 0.86 * h + y)
                  }
                 if atbat.maxbase != "No Bases" {
@@ -145,15 +145,15 @@ struct drawout: View {
             .stroke(Color.cyan, lineWidth: 2)
             if atbat.outAt == "First" {
                 Text("x")
-                    .font(.system(size: 20))
+                    .font(.system(size: 20)).foregroundColor(.black)
                     .position(x: 0.9 * space.width + space.minX, y: 0.5 * space.height + space.minY)
             } else if atbat.outAt == "Second" {
                 Text("x")
-                    .font(.system(size: 20))
+                    .font(.system(size: 20)).foregroundColor(.black)
                     .position(x: 0.5 * space.width + space.minX, y: 0.1 * space.height + space.minY)
             } else if atbat.outAt == "Third" {
                 Text("x")
-                    .font(.system(size: 20))
+                    .font(.system(size: 20)).foregroundColor(.black)
                     .position(x: 0.1 * space.width + space.minX, y: 0.5 * space.height + space.minY)
             }
         }
@@ -193,7 +193,7 @@ struct drawRunner: View {
             .stroke(Color.cyan, lineWidth: 2)
             Text(abb)
                 .frame(width: 28, alignment: .center).lineLimit(1).minimumScaleFactor(0.01)
-                .font(.system(size: 22)).bold()
+                .font(.system(size: 22)).bold().foregroundColor(.black)
                 .position(x: 0.5 * space.width + space.minX, y: 0.55 * space.height + space.minY)
         }
     }
@@ -230,6 +230,8 @@ struct drawTots: View {
         let eachLine = CGRect(x: (( maxCol  + 2) * space.width) + space.minX, y: space.height + y, width:0, height:0)
         let x = CGFloat(atbat.col) * space.width + space.minX
         let placeBox = CGRect(x: x - (0 * space.width), y: 0.1 * space.height + newy, width:space.width, height:space.height)
+        let labelBox = CGRect(x: space.minX + 2, y: 0.1 * space.height + newy, width:space.width, height:space.height)
+        let summaryHeight = max(0, to.minY - from.minY)
         
 //        if inning < 99 {
 //            Text(com.innAbr[inning] + " Inn")
@@ -254,6 +256,20 @@ struct drawTots: View {
 //        Text("SB")
 //            .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .leading)
 //            .position(x: from.minX + (space.width * 2.5), y:space.minY - 7)
+        if atbats.first?.persistentModelID == atbat.persistentModelID {
+            Rectangle()
+                .fill(Color.white)
+                .frame(width: 3.6 * space.width, height: summaryHeight)
+                .position(x: from.minX + space.width, y: from.minY + (0.5 * summaryHeight))
+            Rectangle()
+                .fill(Color.white)
+                .frame(width: labelBox.width, height: 0.5 * labelBox.height)
+                .position(x: labelBox.minX + (0.5 * labelBox.width), y: labelBox.minY + (0.25 * labelBox.height))
+        }
+        Rectangle()
+            .fill(Color.white)
+            .frame(width: placeBox.width, height: 0.5 * placeBox.height)
+            .position(x: placeBox.minX + (0.5 * placeBox.width), y: placeBox.minY + (0.25 * placeBox.height))
         Text("  R   H ")
             .foregroundColor(.black).frame(alignment: .leading)
             .position(x: space.minX + (0.5 * space.width), y: 0.35 * space.height + newy)
@@ -300,7 +316,7 @@ struct drawTots: View {
             .position(x: placeBox.minX + (space.width * 0.75), y:0.25 * space.height + placeBox.minY)
             .font(.headline).foregroundColor(.black).background(.clear)
  
-        Text(".").position(x:from.minX + 500 + (space.width * 2.5), y:0.5 * space.height + y)
+        Text(".").foregroundColor(.black).position(x:from.minX + 500 + (space.width * 2.5), y:0.5 * space.height + y)
 
         if newCol < 13 {
             Text("Total >")
@@ -309,29 +325,29 @@ struct drawTots: View {
         }
         
         drawLines(from: from, to: to, ffacter: (-0.8 * space.width), tfacter: (-0.8 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (-0.2 * space.width), tfacter: (-0.2 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (0.4 * space.width), tfacter: (0.4 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (1 * space.width), tfacter: (1 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (1.6 * space.width), tfacter: (1.6 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (2.2 * space.width), tfacter: (2.2 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (2.8 * space.width), tfacter: (2.8 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: to, to: to, ffacter: (-0.8 * space.width), tfacter: (2.8 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: from, ffacter: (-0.8 * space.width), tfacter: (2.8 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawLines(from: eachLine, to: eachLine, ffacter: (-0.8 * space.width), tfacter: (2.8 * space.width))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
         drawBox(start: placeBox)
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-        drawBox(start:CGRect(x: space.minX + 2, y: 0.1 * space.height + newy, width:space.width, height:space.height))
-            .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+            .stroke(Color.black, lineWidth: 1)
+        drawBox(start:labelBox)
+            .stroke(Color.black, lineWidth: 1)
  
         if atbat.col == 1 && atbat.batOrder == 1 {
 //            drawPitchers(space: space, atbats: atbats, abb: "", inning: 1)
@@ -381,41 +397,41 @@ struct drawBoxScore: View {
         let theHalf = homeOuts < visitOuts && v3outs ? "Bot" : "Top"
 
         Text(game.vteam?.name ?? "")
-            .font(font).foregroundColor(.black).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
             .position(x: placeBox.minX - 55, y: placeBox.minY + 13).bold()
         Text(game.hteam?.name ?? "")
-            .font(font).foregroundColor(.black).background(.white, ignoresSafeAreaEdges: []).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear).frame(width:100,alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
             .position(x: placeBox.minX - 55, y: placeBox.minY + 38 - 2*adj).bold()
         Text("\(boxVisit.runs)")
             .position(x: placeBox.minX + 56 - 4*adj, y: placeBox.minY + 13)
-            .font(font).foregroundColor(.black).background(.clear)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear)
         Text("\(boxVisit.hits)")
             .position(x: placeBox.minX + 93 - 9*adj, y: placeBox.minY + 13)
-            .font(font).foregroundColor(.black).background(.clear)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear)
         Text("\(boxVisit.error)")
             .position(x: placeBox.minX + 130 - 13*adj, y: placeBox.minY + 13)
-            .font(font).foregroundColor(.black).background(.clear)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear)
         Text("\(boxHome.runs)")
             .position(x: placeBox.minX + 56 - 4*adj, y: placeBox.minY + 38 - 2*adj)
-            .font(font).foregroundColor(.black).background(.clear)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear)
         Text("\(boxHome.hits)")
             .position(x: placeBox.minX + 93 - 9*adj, y: placeBox.minY + 38 - 2*adj)
-            .font(font).foregroundColor(.black).background(.clear)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear)
         Text("\(boxHome.error)")
             .position(x: placeBox.minX + 130 - 13*adj, y: placeBox.minY + 38 - 2*adj)
-            .font(font).foregroundColor(.black).background(.clear)
+            .font(font).foregroundStyle(ScoreKeepVisualStyle.primaryText).background(.clear)
         Text(UIDevice.type == "iPhone" ? "  Inn  R  H  E" : "Inning  Runs   Hits   Errors")
-            .font(.caption).italic().foregroundColor(.black).frame(width:150,alignment: .leading)
+            .font(.caption).italic().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width:150,alignment: .leading)
             .position(x: placeBox.minX + 75, y:placeBox.minY - 10 + 2*adj)
         Text(theHalf)
-            .font(.caption).italic().foregroundColor(.black).frame(width: 35, alignment: .center).lineLimit(1).minimumScaleFactor(0.1)
+            .font(.caption).italic().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: 35, alignment: .center).lineLimit(1).minimumScaleFactor(0.1)
             .position(x: placeBox.minX + 20 - 1*adj, y:placeBox.minY + 15)
         Text(theInning)
-            .font(.caption).italic().foregroundColor(.black).frame(width: 35, alignment: .center).lineLimit(1).minimumScaleFactor(0.1)
+            .font(.caption).italic().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: 35, alignment: .center).lineLimit(1).minimumScaleFactor(0.1)
             .position(x: placeBox.minX + 20 - 1*adj, y:placeBox.minY + 35 - adj)
 
         drawBox(start: placeBox, adj:adj)
-            .stroke(Color.gray, lineWidth: 1)
+            .stroke(ScoreKeepVisualStyle.primaryText.opacity(0.72), lineWidth: 1)
 
         
     }
@@ -522,36 +538,36 @@ struct drawPitchers: View {
                                 let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
                                 let lName = pitcher.player.name.split(separator: " ").last ?? ""
                                 Text(lName).lineLimit(1).minimumScaleFactor(0.6)
-                                    .foregroundColor(.black).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
                                 Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
                                 Text(Double(pitcher.sOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
                                 Text(Double(pitcher.sBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth: .infinity)
-                                Text("to").foregroundColor(.black)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                Text("to").foregroundStyle(ScoreKeepVisualStyle.primaryText)
                                 Text(Double(pitcher.endInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
                                 Text(Double(pitcher.eOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
                                 Text(Double(pitcher.eBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth: .infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
                                 Text(Double(stats.ERA), format: Int(stats.ERA) > 99 ? .number.rounded(increment: 1.0) :
                                                                 stats.ERA > 9.99 ? .number.rounded(increment: 0.1) : .number.rounded(increment: 0.01)).lineLimit(1).minimumScaleFactor(0.8)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.8)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.8)
                                 Text(Double(stats.runs), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
                                 Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
                                 if width > 1000 {
                                     Text(Double(stats.hits), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                        .foregroundColor(.black).frame(maxWidth:.infinity)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
                                     Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                        .foregroundColor(.black).frame(maxWidth:.infinity)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
                                     Text(Double(stats.BB), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                        .foregroundColor(.black).frame(maxWidth:.infinity)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
                                     Text(Double(stats.HR), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                        .foregroundColor(.black).frame(maxWidth:.infinity)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
                                 }
                                 Image(systemName: "chevron.right").padding(.horizontal,0)
                             }
@@ -643,15 +659,20 @@ struct drawIndicator: View {
         
         //        let com = Common()
         let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.76 : 0.70) * size.width, y: UIDevice.type == "iPhone" ? -60 : -110, width:150, height:100)
-        Rectangle().fill(iStat.onThird && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
+        let indicatorOutline = Color(UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark ? UIColor.white.withAlphaComponent(0.75) : UIColor.gray
+        })
+        Rectangle().fill(iStat.onThird && iStat.outs != 3 ? Color.yellow : Color.clear).border(indicatorOutline, width: 1)
             .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX, y:placeBox.minY)
-        Rectangle().fill(iStat.onSecond && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
+        Rectangle().fill(iStat.onSecond && iStat.outs != 3 ? Color.yellow : Color.clear).border(indicatorOutline, width: 1)
             .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX+17, y:placeBox.minY-17)
-        Rectangle().fill(iStat.onFirst && iStat.outs != 3 ? Color.yellow : Color.clear).border(Color.gray, width: 1)
+        Rectangle().fill(iStat.onFirst && iStat.outs != 3 ? Color.yellow : Color.clear).border(indicatorOutline, width: 1)
             .frame(width: 20, height: 20).rotationEffect(.degrees(45)).position(x:placeBox.minX+34, y:placeBox.minY)
         Circle().fill(iStat.outs == 1 || iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
+            .overlay(Circle().stroke(indicatorOutline, lineWidth: 1))
             .position(x:placeBox.minX+13, y:placeBox.minY+15)
         Circle().fill(iStat.outs == 2 ? Color.red : Color.clear).frame(width: 10, height: 10)
+            .overlay(Circle().stroke(indicatorOutline, lineWidth: 1))
             .position(x:placeBox.minX+25, y:placeBox.minY+15)
         //        ForEach(Array(colbox.enumerated()), id: \.1) { index, colb in
         //            if colb.inning != 0 {
@@ -679,7 +700,7 @@ struct drawInnings: View {
                 let xVal = ((0.5 * space.width + x + 185) - offset)
                 if inning < 99 && xVal > 185 {
                     Text(com.innAbr[Int(inning)] + " Inn")
-                        .font(.system(size: 10)).bold().foregroundColor(.black)
+                        .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText)
                         .position(x: (0.5 * space.width + x + fix) - offset, y: space.minY + 10)
                 }
             }
@@ -691,24 +712,23 @@ struct drawInnings: View {
             let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
             let from = CGRect(x: (( maxCol + 2) * space.width) + space.minX + fix, y: space.minY+3,width:0, height:0)
             Text("Runs")
-                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(alignment: .center)
                 .position(x: (from.minX + (space.width * -0.5)) - offset, y:space.minY + 10)
             Text("Hits")
-                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(alignment: .center)
                 .position(x: (from.minX + (space.width * 0.1)) - offset, y:space.minY + 10)
             Text("HR")
-                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(alignment: .center)
                 .position(x: (from.minX + (space.width * 0.7)) - offset, y:space.minY + 10)
             Text("BB")
-                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(alignment: .center)
                 .position(x: (from.minX + (space.width * 1.3)) - offset, y:space.minY + 10)
             Text("Ks")
-                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(alignment: .center)
                 .position(x: (from.minX + (space.width * 1.9)) - offset, y:space.minY + 10)
             Text("SB")
-                .font(.system(size: 10)).bold().foregroundColor(.black).frame(alignment: .center)
+                .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(alignment: .center)
                 .position(x: (from.minX + (space.width * 2.5)) - offset, y:space.minY + 10)
         }
     }
 }
-

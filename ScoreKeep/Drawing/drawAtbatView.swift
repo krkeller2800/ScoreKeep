@@ -337,6 +337,7 @@ struct drawoutAt: View {
 }
 
 struct fielderButtons: View {
+    @Environment(\.colorScheme) private var colorScheme
     var size: CGSize
     var result: String
     @Binding var playRecord: String
@@ -364,6 +365,10 @@ struct fielderButtons: View {
         _playRecord = playRecord
     }
 
+    private func fielderLabelColor(selected: Bool) -> Color {
+        selected ? .red : (colorScheme == .dark ? ScoreKeepVisualStyle.primaryText : .black)
+    }
+
     var body: some View {
         let sz = UIDevice.type == "iPhone" ? 32.5: 45.0
         let phone = UIDevice.type == "iPhone" ? true : false
@@ -374,7 +379,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "F7" : result == "Line Out" ? "L7" : "7"
             }
         }
-        .foregroundColor(showShadow7 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow7)).italic().font(.caption)
         .position(x:(phone ? 0.33 :0.15) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         .shadow(color: Color.red, radius: showShadow7 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -397,7 +402,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "F8" : result == "Line Out" ? "L8" : "8"
             }
         }
-        .foregroundColor(showShadow8 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow8)).italic().font(.caption)
         .position(x:(phone ? 0.5 :0.5) * size.width, y:(phone ? 0.5 : 0.35) * size.height)
         .shadow(color: Color.red, radius: showShadow8 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -414,7 +419,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "F9" : result == "Line Out" ? "L9" : "9"
             }
         }
-        .foregroundColor(showShadow9 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow9)).italic().font(.caption)
         .position(x:(phone ? 0.67 :0.85) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         .shadow(color: Color.red, radius: showShadow9 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -431,7 +436,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "P5" : result == "Line Out" ? "L5": "5"
             }
         }
-        .foregroundColor(showShadow5 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow5)).italic().font(.caption)
         .position(x:(phone ? 0.40 : 0.25) * size.width, y:(phone ? 0.68 : 0.59) * size.height)
         .shadow(color: Color.red, radius: showShadow5 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -448,7 +453,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "P6" : result == "Line Out" ? "L6" : "6"
             }
         }
-        .foregroundColor(showShadow6 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow6)).italic().font(.caption)
         .position(x:(phone ? 0.46 : 0.36) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         .shadow(color: Color.red, radius: showShadow6 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -465,7 +470,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "P4" : result == "Line Out" ? "L4" : "4"
             }
         }
-        .foregroundColor(showShadow4 ? .red : .black).bold().italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow4)).bold().italic().font(.caption)
         .position(x:(phone ? 0.54 : 0.64) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         .shadow(color: Color.red, radius: showShadow4 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -481,7 +486,7 @@ struct fielderButtons: View {
             } else {
                 playRecord += result == "Fly Out" ? "P3" : result == "Line Out" ? "L3" : "3"
             }        }
-        .foregroundColor(showShadow3 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow3)).italic().font(.caption)
         .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
         .shadow(color: Color.red, radius: showShadow3 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -498,7 +503,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "P1" : result == "Line Out" ? "L1" : "1"
             }
         }
-        .foregroundColor(showShadow1 ? .red : .black).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow1)).italic().font(.caption)
         .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.77 : 0.7) * size.height)
         .shadow(color: Color.red, radius: showShadow1 ? 5 : 0, x: 0, y: 0)
         .background {
@@ -515,7 +520,7 @@ struct fielderButtons: View {
                 playRecord += result == "Fly Out" ? "P2" : result == "Line Out" ? "L2" : "2"
             }
         }
-        .foregroundColor(showShadow2 ? .red : .black).bold().italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: showShadow2)).bold().italic().font(.caption)
         .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.93 : 0.94) * size.height)
         .shadow(color: Color.red, radius: showShadow2 ? 5 : 0, x: 0, y: 0)
         .background {

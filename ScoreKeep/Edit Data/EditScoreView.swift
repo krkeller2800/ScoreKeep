@@ -65,18 +65,18 @@ struct EditScoreView: View {
                     HStack {
                         VStack{
                          if game.location.count < 15 {
-                                Text(game.location).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                                Text(game.location).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
                             } else {
                                 Text("")
                                 let firstWord = game.location.split(separator: " ").count > 0 ? game.location.split(separator: " ")[0] : ""
                                 let secondWord = game.location.split(separator: " ").count > 1 ? game.location.split(separator: " ")[1] : ""
-                                Text(firstWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
-                                Text(secondWord).font(.title3).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                                Text(firstWord).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
+                                Text(secondWord).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .leading).padding(.leading, 5)
                             }
                         }
                         Spacer()
                         VStack (spacing: 5) {
-                            Text("Select which team to score!").font(.headline).frame(maxWidth: .infinity,alignment: .center)
+                            Text("Select which team to score!").font(.headline).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .center)
                             HStack {
                                 ForEach([game.vteam?.name ?? "", game.hteam?.name ?? ""], id: \.self) { option in
                                     Button(action: {
@@ -95,12 +95,12 @@ struct EditScoreView: View {
                                                         .scaleImage(iHeight: 30, imageData: imageData)
                                                 }
                                                 Text(option)
-                                                    .lineLimit(1).minimumScaleFactor(0.5).foregroundColor(selectedOption == option ? Color.blue : Color.gray).bold().italic()
+                                                    .lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(selectedOption == option ? ScoreKeepVisualStyle.accent : ScoreKeepVisualStyle.secondaryText).bold().italic()
                                             }
                                         }
                                     }
                                     if option == game.vteam?.name ?? "" {
-                                        Text(" at ").foregroundColor(.black)
+                                        Text(" at ").foregroundStyle(ScoreKeepVisualStyle.primaryText)
                                     }
                                 }
                             }
@@ -131,9 +131,9 @@ struct EditScoreView: View {
                         Spacer ()
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
                         VStack {
-                            Text(date.formatted(date:.abbreviated, time: .omitted)).font(.title3).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
+                            Text(date.formatted(date:.abbreviated, time: .omitted)).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
                                 .lineLimit(1).minimumScaleFactor(0.60)
-                            Text(date.formatted(date:.omitted, time: .shortened)).font(.title3).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
+                            Text(date.formatted(date:.omitted, time: .shortened)).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
                                 .lineLimit(1).minimumScaleFactor(0.60)
                         }
                     }
@@ -192,7 +192,7 @@ struct EditScoreView: View {
                         }) {
                             Text("Replace Players")
                         }
-                        .frame(width: 140)
+                        .frame(width: 160)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $presentReplacements) {
                             ReplacementView(game: game, team: team)

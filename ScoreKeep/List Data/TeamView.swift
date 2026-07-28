@@ -58,32 +58,36 @@ struct TeamView: View {
     var body: some View {
         Form {
             if teams.count > 0 {
-                Text("Select a Team to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundColor(.black).bold()
+                Text("Select a Team to edit or swipe to delete").frame(maxWidth:.infinity, alignment:.leading).font(.title2).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
             }
+
             HStack {
-                Text("Team").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red).bold()
-                    .background(.yellow.opacity(0.3))
-                Text("coach").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red)
-                    .background(.yellow.opacity(0.3))
-                Text("Team Info").frame(maxWidth:.infinity).border(.gray).foregroundColor(.red)
-                    .background(.yellow.opacity(0.3))
+                scorebookHeaderCell("Team")
+                    .frame(maxWidth: .infinity)
+                scorebookHeaderCell("coach")
+                    .frame(maxWidth: .infinity)
+                scorebookHeaderCell("Team Info")
+                    .frame(maxWidth: .infinity)
                 Spacer(minLength: 30)
             }
+
             HStack {
                 TextField("Name", text: $teamName, onEditingChanged: { (editingChanged) in
                     if !editingChanged {
                         checkForDup()
                     }})
-                    .frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
+                    .frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator().padding(.leading, 5)
                     .focused($focusedField, equals: .field)
+
                     .onChange(of: focusedField) { checkForDup()}
 //                    .onAppear {self.focusedField = .field}
                     .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $coachName).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing)
-                TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing)
+                TextField("Coach", text: $coachName).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator()
+                TextField("Details", text: $teamInfo).frame(maxWidth:.infinity).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator()
+
                 HStack {
                     Button {
                         guard submittingSimpleTeam == false else { return }
@@ -99,8 +103,9 @@ struct TeamView: View {
                     .disabled(submittingSimpleTeam)
                     .accessibilityLabel("Create team")
                 }
-                .accentColor(.black).background(.blue.opacity(0.2)).cornerRadius(20).padding(.leading,5)
+                .tint(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill).cornerRadius(20).padding(.leading,5)
             }
+
             ForEach(teams) { team in
                 NavigationLink(value: TeamNavigationDestination(teamIdentity: team.ident)) {
                     HStack {
@@ -111,13 +116,13 @@ struct TeamView: View {
                             }
                             Text(team.name).lineLimit(2).minimumScaleFactor(0.5)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                        .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
+                        .frame(maxWidth: .infinity, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                        .scorebookTrailingSeparator().padding(.leading, 5)
                         
-                        Text(team.coach).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
-                        Text(team.details).frame(maxWidth: .infinity, alignment: .leading).foregroundColor(.black).bold()
-                            .overlay(Divider().background(.black), alignment: .trailing).lineLimit(2).minimumScaleFactor(0.5)
+                        Text(team.coach).frame(maxWidth: .infinity, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                            .scorebookTrailingSeparator().lineLimit(2).minimumScaleFactor(0.5)
+                        Text(team.details).frame(maxWidth: .infinity, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                            .scorebookTrailingSeparator().lineLimit(2).minimumScaleFactor(0.5)
                         Spacer(minLength: 15)
                     }
                 }
@@ -131,7 +136,10 @@ struct TeamView: View {
             }
         }
         .listRowSeparator(.hidden)
+        .scrollContentBackground(.hidden)
+        .background(ScoreKeepVisualStyle.background)
     }
+
     init(searchString: String = "", sortOrder: [SortDescriptor<Team>] = []) {
         
         _teams = Query(filter: #Predicate { team in

@@ -48,20 +48,19 @@ struct EditLineupView: View {
             }
             Text("").frame(height: 5)
             HStack {
-                Text("Name").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Number").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Position").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Bat Direction").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Order").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Team").frame(maxWidth:.infinity).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+                scorebookHeaderCell("Name")
+                    .frame(maxWidth:.infinity)
+                scorebookHeaderCell("Number")
+                    .frame(maxWidth:.infinity)
+                scorebookHeaderCell("Position")
+                    .frame(maxWidth:.infinity)
+                scorebookHeaderCell("Bat Direction")
+                    .frame(maxWidth:.infinity)
+                scorebookHeaderCell("Order")
+                    .frame(maxWidth:.infinity)
+                scorebookHeaderCell("Team")
+                    .frame(maxWidth:.infinity)
             }
-            .background {Color.yellow.opacity(0.3)}
             HStack {
                 TextField("Player", text: $player.name).background(Color.white).frame(maxWidth:.infinity)
                     .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()

@@ -35,21 +35,19 @@ struct EditGameView: View {
     
     var body: some View {
         Form {
-            HStack{
-                Text("Select Game Date").frame(width: 200, alignment: .center).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Field").frame(maxWidth: .infinity, alignment: .center).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("All Hit").frame(maxWidth: .infinity, alignment: .center).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-//                Text("Innings").frame(maxWidth: .infinity, alignment: .center).border(.gray)
-//                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-//                Spacer()
-                Text("Visiting").frame(maxWidth: .infinity, alignment: .center).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                Text("Home").frame(maxWidth: .infinity, alignment: .center).border(.gray)
-                    .foregroundColor(.red).bold().background(.yellow.opacity(0.3))
+            HStack(spacing: 0) {
+                scorebookHeaderCell("Select Game Date")
+                    .frame(width: 200)
+                scorebookHeaderCell("Field")
+                    .frame(maxWidth: .infinity)
+                scorebookHeaderCell("All Hit")
+                    .frame(maxWidth: .infinity)
+                scorebookHeaderCell("Visiting")
+                    .frame(maxWidth: .infinity)
+                scorebookHeaderCell("Home")
+                    .frame(maxWidth: .infinity)
             }
+
             HStack{
                 DatePicker("", selection: $date)
                     .onAppear {
@@ -58,25 +56,27 @@ struct EditGameView: View {
                     .onChange(of: date) {
                         game.date = date.ISO8601Format()
                     }
-                    .labelsHidden().overlay(Divider().background(.black), alignment: .trailing)
+                    .labelsHidden().scorebookTrailingSeparator()
                     .frame(width: 200, height: 30, alignment: .center)
+
                     .clipped()
                 TextField("Field", text: $game.location)
                     .frame(maxWidth: .infinity)
-                    .foregroundColor(.blue).bold()
-                    .overlay(Divider().background(.black), alignment: .trailing)
+                    .foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                    .scorebookTrailingSeparator()
                     .focused($focusedField, equals: .field)
+
 //                    .onAppear {self.focusedField = .field}
                     .autocapitalization(.words)
                     .textContentType(.none)
                 Button(action:{game.everyOneHits.toggle()}){
                     Text(game.everyOneHits ? "True" : "False")
                         .frame(maxWidth:.infinity,maxHeight:30)
-                        .foregroundColor(.blue).bold()
-                        .background(Color.white)
+                        .foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                 }.buttonStyle(PlainButtonStyle())
                 .cornerRadius(10)
-                .overlay(Divider().background(.black), alignment: .trailing)
+                .scorebookTrailingSeparator()
+
                 Picker("Visiting Team", selection: $game.vteam) {
                     Text("Unknown Team").tag(Optional<Team>.none)
                     if teams.isEmpty == false {
@@ -88,8 +88,9 @@ struct EditGameView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                .overlay(Divider().background(.black), alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .leading).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+                .scorebookTrailingSeparator()
+
                 Picker("Home Team", selection: $game.hteam) {
                     Text("Unknown Team").tag(Optional<Team>.none)
                     if teams.isEmpty == false {
@@ -101,8 +102,9 @@ struct EditGameView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading).labelsHidden().pickerStyle(.menu).accentColor(.blue)
-                .overlay(Divider().background(.black), alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .leading).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+                .scorebookTrailingSeparator()
+
             }
             .onDisappear() {
                 if (game.hteam == nil || game.vteam == nil) && !addingTeam {
@@ -114,17 +116,20 @@ struct EditGameView: View {
             .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
             HStack {
             }
-            Text("Highlights").frame(width: 600, alignment: .center).foregroundColor(.black).font(.title)
+            Text("Highlights").frame(width: 600, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).font(.title)
             TextField("Comment", text: $game.highLights, prompt: Text("Please input game highlights"), axis: .vertical)
                     .padding()
-                    .background(.green.opacity(0.2))
+                    .background(ScoreKeepVisualStyle.selectedFill)
                     .cornerRadius(5.0)
                     .frame(width:600)
-                    .foregroundColor(.blue).bold()
+                    .foregroundStyle(ScoreKeepVisualStyle.accent).bold()
         }
+        .scrollContentBackground(.hidden)
+        .background(ScoreKeepVisualStyle.background)
 //        .navigationDestination(for: Team.self) { team in
 //            EditTeamView(navigationPath: $navigationPath, team: team)
 //            }
+
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Add home or visiting team", action: addTeam)

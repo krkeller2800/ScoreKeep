@@ -141,8 +141,9 @@ struct ShareContentView: View {
                                 }
                             }
                         }
-                        .frame(maxWidth: 175,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                        .border(.gray).cornerRadius(10).accentColor(.black)
+                        .frame(maxWidth: 175,maxHeight: 30, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                        .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
+
                     }
                     if doGame {
                         let srtedGames = games.sorted { $0.date > $1.date }
@@ -160,8 +161,9 @@ struct ShareContentView: View {
                                 }
                             }
                         }
-                        .frame(maxWidth: 225,maxHeight: 50, alignment:.center).background(.blue.opacity(0.2))
-                        .border(.gray).cornerRadius(10).accentColor(.black)
+                        .frame(maxWidth: 225,maxHeight: 50, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                        .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
+
                     }
                     if doDown {
                         if isLoading {
@@ -193,8 +195,9 @@ struct ShareContentView: View {
                                     }
                                 }
                             }
-                            .frame(maxWidth: 150,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                            .border(.gray).cornerRadius(10).accentColor(.black)
+                            .frame(maxWidth: 150,maxHeight: 30, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
+                            .cornerRadius(10).tint(ScoreKeepVisualStyle.primaryText)
+
                             .disabled(!isPremium && !mlbDownloadAllowance.canDownloadWithAllowance)
                             Spacer()
                         }
@@ -234,7 +237,8 @@ struct ShareContentView: View {
                                 showPaywall = true
                             }
                             .buttonStyle(.borderedProminent)
-                            .tint(.blue)
+                            .tint(ScoreKeepVisualStyle.accent)
+
                             .padding(.top, 4)
                             .overlay(alignment: .topTrailing) {
                                 if !mlbDownloadAllowance.canDownloadWithAllowance {
@@ -445,7 +449,8 @@ struct ShareContentView: View {
             } else {
                 isSearching = true
             }
-            UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)
+            UISegmentedControl.appearance().selectedSegmentTintColor = UIColor(ScoreKeepVisualStyle.accent).withAlphaComponent(0.1)
+
         }
         .onChange(of: isSearching) {
             if isSearching == false {

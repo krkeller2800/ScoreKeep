@@ -69,39 +69,41 @@ struct PlayerView: View {
                     Section {
                         //            Text("Select a Player to Edit or Swipe to Delete").frame(maxWidth:.infinity, alignment: .center).font(.title)
                         HStack {
-                            Text("Name")
-                                .frame(width: nameWidth).border(.gray).foregroundColor(.red).bold().background(.yellow.opacity(0.3))
-                            Text("Num")
-                                .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Pos")
-                                .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Dir")
-                                .frame(width:smallWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
-                            Text("Order")
-                                .frame(width:mediumWidth).border(.gray).foregroundColor(.red).background(.yellow.opacity(0.3))
+                            scorebookHeaderCell("Name")
+                                .frame(width: nameWidth)
+                            scorebookHeaderCell("Num")
+                                .frame(width:smallWidth)
+                            scorebookHeaderCell("Pos")
+                                .frame(width:smallWidth)
+                            scorebookHeaderCell("Dir")
+                                .frame(width:smallWidth)
+                            scorebookHeaderCell("Order")
+                                .frame(width:mediumWidth)
                             Text("").frame(width:45)
                         }
+
                         HStack {
                             TextField("Player", text: $pName, onEditingChanged: { (editingChanged) in
                                 if !editingChanged {
                                     checkForDup(pname:pName)
                                 }})
-                            .background(Color.white).frame(width: nameWidth)
-                            .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                            .frame(width: nameWidth)
+                            .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                             .focused($focusedField, equals: .field)
                             //                        .onAppear {self.focusedField = .field}
                             .autocapitalization(.words)
                             .textContentType(.name)
-                            TextField("(00)", text: $pNum).background(Color.white).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                            TextField("(1B)", text: $pPos).background(Color.white).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                            TextField("(00)", text: $pNum).frame(width:smallWidth)
+                                .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
+                            TextField("(1B)", text: $pPos).frame(width:smallWidth)
+                                .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                                 .autocapitalization(.none)
                                 .textContentType(.none)
-                            TextField("(R)", text: $pDir).background(Color.white).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                            TextField("(R)", text: $pDir).frame(width:smallWidth)
+                                .textFieldStyle(.roundedBorder).foregroundStyle(ScoreKeepVisualStyle.accent).bold()
                                 .autocapitalization(.none)
                                 .textContentType(.none)
+
                             Picker("Bat Order", selection: $pOrder) {
                                 let orders = ["Pick","1st","2nd","3rd","4th",
                                               "5th","6th","7th","8th","9th",
@@ -112,12 +114,13 @@ struct PlayerView: View {
                                 }
                                 Text("Not Hitting").tag(99)
                             }
-                            .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                            .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
+
                             HStack {
                                 Spacer(minLength: 75)
-                                Image(systemName: "plus")
-                                .onTapGesture {
+                                Button {
                                     if !dups && !pName.isEmpty {
+
                                         let thisPlayer = Player(name: pName, number: pNum,  position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team:pTeam)
                                         modelContext.insert(thisPlayer)
                                         try? self.modelContext.save()
@@ -130,27 +133,31 @@ struct PlayerView: View {
                                         alertMessage = "Be sure to input a name and select a team for the new player."
                                         showingAlert = true
                                     }
+                                } label: {
+                                    Image(systemName: "plus")
                                 }
                             }
+
                             .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                         }
                         ForEach(players) { player in
                             NavigationLink(value: player) {
                                 HStack {
-                                    Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).bold()
-                                        .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 5)
-                                    Text(player.number).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                        .overlay(Divider().background(.black), alignment: .trailing)
-                                    Text(player.position).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                        .overlay(Divider().background(.black), alignment: .trailing)
-                                    Text(player.batDir).frame(width: smallWidth, alignment: .center).foregroundColor(.black).bold()
-                                        .overlay(Divider().background(.black), alignment: .trailing)
+                                    Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                        .scorebookTrailingSeparator().padding(.leading, 5)
+                                    Text(player.number).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                        .scorebookTrailingSeparator()
+                                    Text(player.position).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                        .scorebookTrailingSeparator()
+                                    Text(player.batDir).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                        .scorebookTrailingSeparator()
                                     Text(Double(player.batOrder), format: .number.rounded(increment: 1.0))
-                                        .frame(width: mediumWidth, alignment: .center).foregroundColor(.black).bold()
-                                        .overlay(Divider().background(.black), alignment: .trailing)
+                                        .frame(width: mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                        .scorebookTrailingSeparator()
                                     Text("")
                                         .frame(width:25)
                                 }
+
                             }
                             .onChange(of: player.batOrder) {
                                 renumOrder(players: players.sorted{($0.batOrder < $1.batOrder)}, player: player, order: player.batOrder)
@@ -160,9 +167,10 @@ struct PlayerView: View {
                     }
                     header: {
                         if players.count > 0 {
-                            Text("Select a Player to edit").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundColor(.black).bold()
+                            Text("Select a Player to edit").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                         }
                     }
+
 
                 }
                 .toolbar {
@@ -229,8 +237,11 @@ struct PlayerView: View {
                     EditPlayerView( player: player, team: pTeam, navigationPath: $navigationPath)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(ScoreKeepVisualStyle.background)
         }
     }
+
     
     init(team: Team, navigationPath:Binding<NavigationPath>, searchString: Binding<String>, sortOrder: [SortDescriptor<Player>] = []) {
         
