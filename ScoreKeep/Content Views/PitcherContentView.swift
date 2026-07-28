@@ -86,6 +86,7 @@ struct PitcherContentView: View {
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
+                    .frame(width: UIDevice.type == "iPad" ? 220 : 180)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if UIDevice.type == "iPhone" {

@@ -33,6 +33,30 @@ struct ReplacementView: View {
     @State private var isSearching = false
 
     @Query var players: [Player]
+    
+    private var replacementPickerBackground: Color {
+        Color(UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark
+            ? UIColor.secondarySystemBackground
+            : UIColor.systemBlue.withAlphaComponent(0.2)
+        })
+    }
+    
+    private var replacementPickerBorder: Color {
+        Color(UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark
+            ? UIColor.separator.withAlphaComponent(0.72)
+            : UIColor.gray
+        })
+    }
+    
+    private var replacementPickerForeground: Color {
+        Color(UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark
+            ? UIColor.label
+            : UIColor.black
+        })
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -45,8 +69,8 @@ struct ReplacementView: View {
                             Text(rplPlayer.name).tag(index+1)
                         }
                     }
-                    .frame(maxWidth: 200,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .frame(maxWidth: 200,maxHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(replacementPickerBackground)
+                    .border(replacementPickerBorder).cornerRadius(10).accentColor(replacementPickerForeground).padding(.leading, 15)
                     Text("  Replaced by ").font(.title)
                     Picker("incoming", selection: $incomingIdx) {
                         Text("Incoming Players").tag(0)
@@ -54,8 +78,8 @@ struct ReplacementView: View {
                             Text(incPlayer.name).tag(index+1)
                         }
                     }
-                    .frame(maxWidth: 200,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 15)
+                    .frame(maxWidth: 200,maxHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(replacementPickerBackground)
+                    .border(replacementPickerBorder).cornerRadius(10).accentColor(replacementPickerForeground).padding(.leading, 15)
                     Spacer()
                     Button("Do it!") {
                         if replacedIdx > 0 && incomingIdx > 0 {
@@ -71,8 +95,8 @@ struct ReplacementView: View {
                             showingAlert = true
                         }
                     }
-                    .frame(maxWidth: 100,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
-                    .border(.gray).cornerRadius(10).accentColor(.black).padding(.leading, 0)
+                    .frame(maxWidth: 100,maxHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(.blue.opacity(0.2))
+                    .border(.gray).cornerRadius(10).accentColor(replacementPickerForeground).padding(.leading, 0)
                     .alert("Confirm Substitution", isPresented: Binding(
                         get: { reviewState != nil && reviewState!.outcome == .pending },
                         set: { if !$0 { _ = presenter.cancelSubstitutionReview(&reviewState) } }
@@ -246,4 +270,3 @@ struct ReplacementView: View {
         }
     }
 }
-

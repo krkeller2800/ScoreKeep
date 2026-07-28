@@ -40,7 +40,7 @@ struct PitcherRptView: View {
                                 Image(uiImage: uiImage)
                                     .scaleImage(iHeight: 30, imageData: imageData)
                             }
-                            Text("\(tName) Pitching Stats").font(.headline).foregroundColor(.black).bold().italic().frame(alignment: .center)
+                            Text("\(tName) Pitching Stats").font(.headline).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().italic().frame(alignment: .center)
                         }
                     }
                     Spacer()
@@ -80,6 +80,7 @@ struct PitcherRptView: View {
                         .frame(maxWidth:.infinity)
                     Text("").frame(maxWidth:5)
                 }
+                .frame(height: 34)
                 ScrollView {
                     let summedStats = sumedStats.sorted { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
                     VStack(alignment: .leading, spacing: 0) {
@@ -87,35 +88,35 @@ struct PitcherRptView: View {
                             HStack {
                                 Text("").frame(maxWidth:5)
                                 Text("\(stats.pitcher?.player.number ?? "")")
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text("\(stats.pitcher?.player.name ?? "")")
-                                    .foregroundColor(.black).frame(width: 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.ERA), format: .number.rounded(increment: 0.01))
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.innings), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.runs), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.hits), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.Ksl), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.BB), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.hbp), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.HR), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.singles), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.doubles), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text(Double(stats.triples), format: .number.rounded(increment: 1.0)) // 12 (whole number)
-                                    .foregroundColor(.black).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                                 Text("").frame(maxWidth:5)
                             }
                         }

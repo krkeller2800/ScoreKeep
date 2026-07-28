@@ -29,6 +29,7 @@ struct ReportView: View {
             (lhs.player?.batOrder ?? 0) < (rhs.player?.batOrder ?? 0)
         })
     }
+    private let rateColumnWidth: CGFloat = 42
 
     var body: some View {
         NavigationStack {
@@ -44,7 +45,7 @@ struct ReportView: View {
                                     Image(uiImage: uiImage)
                                         .scaleImage(iHeight: 30, imageData: imageData)
                                 }
-                                Text("\(tName) Hitting").font(.headline).foregroundColor(.black).bold().italic().frame(alignment: .center)
+                                Text("\(tName) Hitting").font(.headline).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().italic().frame(alignment: .center)
                             }
                         }
                         Spacer()
@@ -58,14 +59,14 @@ struct ReportView: View {
                             .frame(width:125)
                         scorebookHeaderCell("Bat", semantic: true)
                             .frame(maxWidth:.infinity)
-                        scorebookHeaderCell("avg", semantic: true)
-                            .frame(width: 30)
-                        scorebookHeaderCell("obp", semantic: true)
-                            .frame(width: 30)
-                        scorebookHeaderCell("slg", semantic: true)
-                            .frame(width: 30)
-                        scorebookHeaderCell("ops", semantic: true)
-                            .frame(width: 30)
+                        hittingRateHeader("AVG")
+                            .frame(width: rateColumnWidth)
+                        hittingRateHeader("OBP")
+                            .frame(width: rateColumnWidth)
+                        hittingRateHeader("SLG")
+                            .frame(width: rateColumnWidth)
+                        hittingRateHeader("OPS")
+                            .frame(width: rateColumnWidth)
                         scorebookHeaderCell("R", semantic: true)
                             .frame(maxWidth:.infinity)
                         scorebookHeaderCell("H", semantic: true)
@@ -90,6 +91,7 @@ struct ReportView: View {
                             .frame(maxWidth:.infinity)
                         Text("").frame(maxWidth:5)
                     }
+                    .frame(height: 34)
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(sortedStats) { stats in
@@ -150,6 +152,24 @@ struct ReportView: View {
         .alert(alertMessage, isPresented: $showingAlert) {
         Button("OK", role: .cancel) { }
         }
+    }
+
+    private func hittingRateHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(ScoreKeepVisualStyle.elevatedSurface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(Color.primary.opacity(0.25), lineWidth: 1)
+            )
+            .padding(2)
     }
     
     init(teamName: String, isLoading: Binding<Bool> ,sortOrder: [SortDescriptor<Atbat>] = [SortDescriptor(\Atbat.player.name)]) {
@@ -221,6 +241,7 @@ struct ReportView: View {
 
 struct PlayerStatsRow: View {
     let stats: PlayerStats
+    private let rateColumnWidth: CGFloat = 42
 
     var body: some View {
         let atbats = stats.atbats
@@ -277,97 +298,108 @@ struct PlayerStatsRow: View {
             Text("")
                 .frame(maxWidth: 5)
             Text(stats.player?.number ?? "")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text(name)
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(width: 125, alignment: .leading)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.atbats)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            Text(String(format: "%03d", avg))
-                .foregroundColor(.black)
-                .frame(width: 30)
+            Text(Self.battingRateText(avg))
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .frame(width: rateColumnWidth)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            Text(String(format: "%03d", obp))
-                .foregroundColor(.black)
-                .frame(width: 30)
+            Text(Self.battingRateText(obp))
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .frame(width: rateColumnWidth)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            Text(String(format: "%03d", slg))
-                .foregroundColor(.black)
-                .frame(width: 30)
+            Text(Self.battingRateText(slg))
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .frame(width: rateColumnWidth)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            Text(String(format: "%03d", obp + slg))
-                .foregroundColor(.black)
-                .frame(width: 30)
+            Text(Self.battingRateText(obp + slg))
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .frame(width: rateColumnWidth)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.runs)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.hits)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.strikeouts)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.strikeoutl)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.BB)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.HR)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.single)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.double)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.triple)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.sacBunt)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("\(stats.sacFly)")
-                .foregroundColor(.black)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .frame(maxWidth: .infinity)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             Text("")
                 .frame(maxWidth: 5)
         }
+    }
+
+    private static func battingRateText(_ value: Int) -> String {
+        let whole = value / 1000
+        let fractional = value % 1000
+
+        if whole == 0 {
+            return String(format: ".%03d", fractional)
+        }
+
+        return String(format: "%d.%03d", whole, fractional)
     }
 }

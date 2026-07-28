@@ -68,54 +68,54 @@ struct PitchersStaffView: View {
             }
             .minimumScaleFactor(0.8).lineLimit(1)
             HStack (spacing:0) {
-                Text(pNum).frame(width:50, alignment: .center).foregroundColor(.black).minimumScaleFactor(0.5).lineLimit(1)
-                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading,10)
-                Text(pName).frame(width:150, alignment: .leading).foregroundColor(.black).minimumScaleFactor(0.5).lineLimit(1)
-                    .overlay(Divider().background(.black), alignment: .trailing)
-                Text(pPos).frame(width:45, alignment: .center).foregroundColor(.black).minimumScaleFactor(0.5).lineLimit(1)
-                    .overlay(Divider().background(.black), alignment: .trailing)
+                Text(pNum).frame(width:50, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
+                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading,10)
+                Text(pName).frame(width:150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
+                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                Text(pPos).frame(width:45, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
+                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
                 Picker("Start Inning", selection: $startInn) {
                     let innings = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
                         Text(inning).tag(index)
                     }
                 }
-                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
                 Picker("Starts Outs", selection: $sOuts) {
                     let outs = ["0","1","2","3"]
                     ForEach(Array(outs.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
-                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
                 Picker("Starts Bats", selection: $sBats) {
                     let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(bats.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
-                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
                 Picker("End Inning", selection: $endInn) {
                     let innings = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
                         Text(inning).tag(index)
                     }
                 }
-                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
                 Picker("End Outs", selection: $eOuts) {
                     let outs = ["0","1","2","3"]
                     ForEach(Array(outs.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
-                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
                 Picker("End Bats", selection: $eBats) {
                     let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(bats.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
-                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
+                .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
                 Button("Delete") {
                     deleteStats()
                 }
@@ -180,25 +180,25 @@ struct PitchersStaffView: View {
                 HStack(spacing:0) {
                     Spacer(minLength: 10).background(.white)
                     HStack(spacing: 0) {
-                        Text(player.number).frame(width: 50, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(player.name).frame(width: 150, alignment: .leading).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(player.position).frame(width: 45, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(player.number).frame(width: 50, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(player.name).frame(width: 150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(player.position).frame(width: 45, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
                         let pitch = game.pitchers.first(where: { $0.player.id == player.id })
-                        Text(String(pitch?.startInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(String(pitch?.sOuts ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(String(pitch?.sBats ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(String(pitch?.endInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(String(pitch?.eOuts ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(String(pitch?.eBats ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundColor(.black)
-                            .overlay(Divider().background(.black), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.startInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.sOuts ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.sBats ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.endInn ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.eOuts ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
+                        Text(String(pitch?.eBats ?? 0)).frame(maxWidth: .infinity, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(4)
