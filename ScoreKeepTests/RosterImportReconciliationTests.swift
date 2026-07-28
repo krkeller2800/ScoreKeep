@@ -6,6 +6,80 @@ import Testing
 @MainActor
 @Suite("Roster import reconciliation")
 struct RosterImportReconciliationTests {
+    @Test("suffix-normalized name with matching number identifies same player")
+    func suffixNormalizedNameWithMatchingNumberMatches() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+        let importedPlayer = sharePlayer(name: "Vladimir Guerrero Jr.", number: "27", position: "1B", batDir: "R", batOrder: 3)
+
+        let matchedPlayer = RosterImportReconciler.matchingPlayer(for: importedPlayer, in: [existingPlayer])
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("suffix punctuation and roman numeral variants normalize when number matches")
+    func suffixPunctuationAndRomanNumeralVariantsMatch() throws {
+        let team = Team(name: "Braves", coach: "", details: "")
+        let existingJr = Player(name: "Ronald Acuna Jr", number: "13", position: "RF", batDir: "R", batOrder: 1, team: team)
+        let existingRoman = Player(name: "Michael Harris", number: "23", position: "CF", batDir: "L", batOrder: 2, team: team)
+
+        let matchedJr = RosterImportReconciler.matchingPlayer(
+            for: sharePlayer(name: "Ronald Acuña Jr.", number: "13", position: "RF", batDir: "R", batOrder: 1),
+            in: [existingJr]
+        )
+        let matchedRoman = RosterImportReconciler.matchingPlayer(
+            for: sharePlayer(name: "Michael Harris II", number: "23", position: "CF", batDir: "L", batOrder: 2),
+            in: [existingRoman]
+        )
+
+        #expect(matchedJr === existingJr)
+        #expect(matchedRoman === existingRoman)
+    }
+
+    @Test("diacritic-only name variant matches when number corroborates identity")
+    func diacriticOnlyNameVariantMatchesWithNumber() throws {
+        let team = Team(name: "Guardians", coach: "", details: "")
+        let existingPlayer = Player(name: "Jose Ramirez", number: "11", position: "3B", batDir: "S", batOrder: 3, team: team)
+        let importedPlayer = sharePlayer(name: "José Ramírez", number: "11", position: "3B", batDir: "S", batOrder: 3)
+
+        let matchedPlayer = RosterImportReconciler.matchingPlayer(for: importedPlayer, in: [existingPlayer])
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("conflicting uniform number blocks suffix-normalized automatic match")
+    func conflictingNumberBlocksSuffixNormalizedMatch() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+        let importedPlayer = sharePlayer(name: "Vladimir Guerrero Jr.", number: "99", position: "1B", batDir: "R", batOrder: 3)
+
+        let matchedPlayer = RosterImportReconciler.matchingPlayer(for: importedPlayer, in: [existingPlayer])
+
+        #expect(matchedPlayer == nil)
+    }
+
+    @Test("same surname with different first name does not match")
+    func sameSurnameDifferentFirstNameDoesNotMatch() throws {
+        let team = Team(name: "Dodgers", coach: "", details: "")
+        let existingPlayer = Player(name: "Will Smith", number: "16", position: "C", batDir: "R", batOrder: 5, team: team)
+        let importedPlayer = sharePlayer(name: "John Smith", number: "16", position: "P", batDir: "R", batOrder: 99)
+
+        let matchedPlayer = RosterImportReconciler.matchingPlayer(for: importedPlayer, in: [existingPlayer])
+
+        #expect(matchedPlayer == nil)
+    }
+
+    @Test("similar typo name does not fuzzy match")
+    func similarTypoNameDoesNotMatch() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Dalton Varsho", number: "5", position: "CF", batDir: "L", batOrder: 7, team: team)
+        let importedPlayer = sharePlayer(name: "Daulton Varsho", number: "23", position: "CF", batDir: "L", batOrder: 7)
+
+        let matchedPlayer = RosterImportReconciler.matchingPlayer(for: importedPlayer, in: [existingPlayer])
+
+        #expect(matchedPlayer == nil)
+    }
+
     @Test("imported boss demotes old-only players displaced by imported active slots")
     func importedBossDemotesOldOnlyConflicts() throws {
         let environment = try IsolatedPersistenceEnvironment()
@@ -124,6 +198,8 @@ struct RosterImportReconciliationTests {
         #expect(players.first { $0.name == "Jesus Sanchez" }?.batOrder == 6)
         #expect(players.first { $0.name == "Brandon Valenzuela" }?.batOrder == 8)
         #expect(players.first { $0.name == "Tyler Heineman" }?.batOrder == 9)
+        #expect(players.contains { $0.name == "Vladimir Guerrero Jr." } == false)
+        #expect(players.first { $0.name == "Vladimir Guerrero" }?.batOrder == 3)
     }
 
     private func sharePlayer(

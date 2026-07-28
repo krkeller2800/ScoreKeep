@@ -11,9 +11,10 @@ enum RosterImportReconciler {
     }
 
     static func matchingPlayer(for sharePlayer: SharePlayer, in players: [Player]) -> Player? {
-        players.first {
-            $0.name == sharePlayer.name ||
-            $0.name.split(separator: " ").last == sharePlayer.name.split(separator: " ").last
+        let importedIdentity = PlayerImportIdentity(name: sharePlayer.name, number: sharePlayer.number)
+
+        return players.first {
+            importedIdentity.matches(PlayerImportIdentity(name: $0.name, number: $0.number))
         }
     }
 
@@ -142,5 +143,58 @@ enum RosterImportReconciler {
                 owners[slot] = player
             }
         }
+    }
+}
+
+private struct PlayerImportIdentity {
+    private static let terminalSuffixes: Set<String> = ["jr", "sr", "ii", "iii", "iv", "v"]
+
+    let originalName: String
+    let normalizedName: String
+    let suffixStrippedName: String
+    let normalizedNumber: String
+
+    init(name: String, number: String) {
+        let normalizedTokens = Self.normalizedTokens(from: name)
+
+        originalName = name
+        normalizedName = normalizedTokens.joined(separator: " ")
+        suffixStrippedName = Self.strippingTerminalSuffix(from: normalizedTokens).joined(separator: " ")
+        normalizedNumber = number.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func matches(_ other: PlayerImportIdentity) -> Bool {
+        if originalName == other.originalName {
+            return true
+        }
+
+        guard hasMatchingUniformNumber(with: other) else {
+            return false
+        }
+
+        return normalizedName == other.normalizedName ||
+            suffixStrippedName == other.suffixStrippedName
+    }
+
+    private func hasMatchingUniformNumber(with other: PlayerImportIdentity) -> Bool {
+        normalizedNumber.isEmpty == false && normalizedNumber == other.normalizedNumber
+    }
+
+    private static func normalizedTokens(from name: String) -> [String] {
+        let folded = name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+
+        return folded
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.isEmpty == false }
+    }
+
+    private static func strippingTerminalSuffix(from tokens: [String]) -> [String] {
+        guard let lastToken = tokens.last, terminalSuffixes.contains(lastToken) else {
+            return tokens
+        }
+
+        return Array(tokens.dropLast())
     }
 }
