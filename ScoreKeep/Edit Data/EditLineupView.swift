@@ -38,11 +38,11 @@ struct EditLineupView: View {
                 Button("Back to Lineup") {
                     self.addPlayer.toggle()
                 }
-                .frame(maxWidth: .infinity, alignment:.leading).background(Color.white)
+                .frame(maxWidth: .infinity, alignment:.leading)
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     Label("Select a photo", systemImage: "person")
                 }
-                .frame(maxWidth: .infinity, alignment:.trailing).background(Color.white)
+                .frame(maxWidth: .infinity, alignment:.trailing)
                 .onChange(of: selectedItem, loadPhoto)
                 Spacer(minLength: 10)
             }
@@ -62,21 +62,21 @@ struct EditLineupView: View {
                     .frame(maxWidth:.infinity)
             }
             HStack {
-                TextField("Player", text: $player.name).background(Color.white).frame(maxWidth:.infinity)
-                    .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                TextField("Player", text: $player.name, prompt: scorebookInputPrompt("Player")).frame(maxWidth:.infinity)
+                    .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                     .focused($focusedField, equals: .field)
                     .onAppear {self.focusedField = .field}
                     .autocapitalization(.words)
                     .textContentType(.none)
-                TextField("Number", text: $player.number).background(Color.white).frame(maxWidth:.infinity)
-                    .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                TextField("Position", text: $player.position).background(Color.white).frame(maxWidth:.infinity)
-                    .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
-                TextField("Bat Direction", text: $player.batDir).background(Color.white).frame(maxWidth:.infinity)
-                    .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                TextField("Number", text: $player.number, prompt: scorebookInputPrompt("Number")).frame(maxWidth:.infinity)
+                    .textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                TextField("Position", text: $player.position, prompt: scorebookInputPrompt("Position")).frame(maxWidth:.infinity)
+                    .textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                TextField("Bat Direction", text: $player.batDir, prompt: scorebookInputPrompt("Bat Direction")).frame(maxWidth:.infinity)
+                    .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                 TextField("Batting Order", value: $player.batOrder, formatter: formatter)
-                    .background(Color.white).frame(maxWidth:.infinity)
-                    .textFieldStyle(.roundedBorder).foregroundColor(.blue).bold()
+                    .frame(maxWidth:.infinity)
+                    .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                 Picker("Player Team", selection: $player.team) {
                     Text("Unknown Team").tag(Optional<Team>.none)
                     if teams.isEmpty == false {
@@ -89,7 +89,7 @@ struct EditLineupView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .labelsHidden().pickerStyle(.menu).accentColor(.blue)
+                .labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
             }
             HStack {
                 if let imageData = player.photo, let uiImage = UIImage(data: imageData) {
