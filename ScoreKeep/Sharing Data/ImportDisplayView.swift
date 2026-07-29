@@ -7,6 +7,38 @@
 
 import SwiftUI
 
+enum ImportedPlayerDisplayFiltering {
+    struct VisiblePlayer: Identifiable {
+        let sourceIndex: Int
+        let player: SharePlayer
+
+        var id: Int {
+            sourceIndex
+        }
+    }
+
+    static func visiblePlayers(from players: [SharePlayer], searchText: String) -> [VisiblePlayer] {
+        players.enumerated().compactMap { index, player in
+            guard searchText.isEmpty ||
+                    player.name.localizedStandardContains(searchText) ||
+                    player.number.localizedStandardContains(searchText) else {
+                return nil
+            }
+
+            return VisiblePlayer(sourceIndex: index, player: player)
+        }
+    }
+
+    static func sourceOffsets(for visibleOffsets: IndexSet, in visiblePlayers: [VisiblePlayer]) -> IndexSet {
+        IndexSet(
+            visibleOffsets.compactMap { visibleOffset in
+                guard visiblePlayers.indices.contains(visibleOffset) else { return nil }
+                return visiblePlayers[visibleOffset].sourceIndex
+            }
+        )
+    }
+}
+
 struct showSharedPlayers: View {
     
     @Binding var sharePlayers: [SharePlayer]
@@ -20,6 +52,7 @@ struct showSharedPlayers: View {
                 let mediumWidth =  geometry.size.width/9
                 
                 Section {
+                    let visiblePlayers = ImportedPlayerDisplayFiltering.visiblePlayers(from: sharePlayers, searchText: searchText)
                     HStack {
                         scorebookHeaderCell("Order", semantic: true)
                             .frame(width:mediumWidth).padding(.leading, 5)
@@ -34,24 +67,25 @@ struct showSharedPlayers: View {
                         Text("")
                             .frame(width:30)
                     }
-                    ForEach(sharePlayers) { player in
-                        if player.name.localizedStandardContains(searchText) || player.number.localizedStandardContains(searchText) || searchText.isEmpty {
-                            HStack {
-                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).padding(.leading, 5)
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).lineLimit(1).minimumScaleFactor(0.5)
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading, 0)
-                                Text(player.number).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.position).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.batDir).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text("").frame(width:30)
-                            }
+                    ForEach(visiblePlayers) { visiblePlayer in
+                        let player = visiblePlayer.player
+                        HStack {
+                            Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).padding(.leading, 5)
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                            Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).lineLimit(1).minimumScaleFactor(0.5)
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading, 0)
+                            Text(player.number).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                            Text(player.position).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                            Text(player.batDir).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                            Text("").frame(width:30)
                         }
                     }
-                    .onDelete(perform: deletePlayer)
+                    .onDelete { offsets in
+                        deletePlayer(at: offsets, visiblePlayers: visiblePlayers)
+                    }
                 }
                 header: {
                     if sharePlayers.count > 0 {
@@ -61,8 +95,9 @@ struct showSharedPlayers: View {
             }
         }
     }
-    func deletePlayer(at offsets: IndexSet) {
-        sharePlayers.remove(atOffsets: offsets)
+    func deletePlayer(at offsets: IndexSet, visiblePlayers: [ImportedPlayerDisplayFiltering.VisiblePlayer]) {
+        let sourceOffsets = ImportedPlayerDisplayFiltering.sourceOffsets(for: offsets, in: visiblePlayers)
+        sharePlayers.remove(atOffsets: sourceOffsets)
     }
 
 }

@@ -471,6 +471,22 @@ struct RosterImportReconciliationTests {
         #expect(players.first { $0.name == "Vladimir Guerrero" }?.batOrder == 3)
     }
 
+    @Test("filtered imported-player delete maps visible row to original temporary source index")
+    func filteredImportedPlayerDeleteMapsVisibleRowToOriginalSourceIndex() throws {
+        let sharePlayers = [
+            sharePlayer(name: "Alpha One", number: "1", position: "CF", batDir: "R", batOrder: 1),
+            sharePlayer(name: "Target First", number: "12", position: "SS", batDir: "L", batOrder: 2),
+            sharePlayer(name: "Beta Two", number: "2", position: "RF", batDir: "R", batOrder: 3),
+            sharePlayer(name: "Target Second", number: "34", position: "1B", batDir: "L", batOrder: 4)
+        ]
+
+        let visiblePlayers = ImportedPlayerDisplayFiltering.visiblePlayers(from: sharePlayers, searchText: "Target")
+        let sourceOffsets = ImportedPlayerDisplayFiltering.sourceOffsets(for: IndexSet(integer: 1), in: visiblePlayers)
+
+        #expect(visiblePlayers.map(\.sourceIndex) == [1, 3])
+        #expect(sourceOffsets == IndexSet(integer: 3))
+    }
+
     private func sharePlayer(
         name: String,
         number: String,
