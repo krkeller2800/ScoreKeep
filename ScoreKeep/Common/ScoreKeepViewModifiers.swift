@@ -33,6 +33,7 @@ public extension View {
         overlay(alignment: .leading) {
             if isVisible {
                 scorebookInputPrompt(title)
+                    .padding(.leading, scorebookInputPromptOverlayLeadingInset)
                     .allowsHitTesting(false)
             }
         }
@@ -49,6 +50,8 @@ private let scorebookInputPromptColor = Color(UIColor { traitCollection in
         ? UIColor(white: 0.72, alpha: 1.0)
         : UIColor.secondaryLabel
 })
+
+private let scorebookInputPromptOverlayLeadingInset: CGFloat = 6
 
 public func scorebookHeaderCell(_ title: String, semantic: Bool = true) -> some View {
     Text(title)
