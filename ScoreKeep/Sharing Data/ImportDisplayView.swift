@@ -37,16 +37,16 @@ struct showSharedPlayers: View {
                     ForEach(sharePlayers) { player in
                         if player.name.localizedStandardContains(searchText) || player.number.localizedStandardContains(searchText) || searchText.isEmpty {
                             HStack {
-                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:mediumWidth, alignment: .center).foregroundColor(.black).padding(.leading, 5)
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundColor(.black).lineLimit(1).minimumScaleFactor(0.5)
-                                    .overlay(Divider().background(.black), alignment: .trailing).padding(.leading, 0)
-                                Text(player.number).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.position).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.batDir).frame(width:mediumWidth, alignment: .center).foregroundColor(.black)
-                                    .overlay(Divider().background(.black), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).padding(.leading, 5)
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).lineLimit(1).minimumScaleFactor(0.5)
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading, 0)
+                                Text(player.number).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.position).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
+                                Text(player.batDir).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
                                 Text("").frame(width:30)
                             }
                         }
@@ -55,7 +55,7 @@ struct showSharedPlayers: View {
                 }
                 header: {
                     if sharePlayers.count > 0 {
-                        Text("Swipe a Player to delete").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundColor(.black)
+                        Text("Swipe a Player to delete").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     }
                  }
             }
