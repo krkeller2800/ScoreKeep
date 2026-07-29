@@ -96,21 +96,64 @@ private struct ScoreKeepUnitTestHostIsolationView: View {
 }
 
 struct SeedManager {
+    static let seededSampleGameDate = "2025-11-01T22:00:00Z"
+
     @MainActor
-    static func seedIfNeeded(modelContext: ModelContext, hasSeededInitialGame: inout Bool) {
-        let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.date == "2025-11-01T22:00:00Z" })
-        let seededGameExists = (try? modelContext.fetchCount(fetchDescriptor)) ?? 0 > 0
-        
-        if hasSeededInitialGame && seededGameExists {
+    static func seedIfNeeded(
+        modelContext: ModelContext,
+        hasSeededInitialGame: inout Bool,
+        startupVerified: Bool = true,
+        importSample: ((ModelContext) throws -> Void)? = nil
+    ) {
+        let snapshot = StartupSampleSeedingPolicy.Snapshot(
+            startupVerified: startupVerified,
+            sampleGameExists: seededSampleGameExists(in: modelContext),
+            containsBaseballData: containsBaseballData(in: modelContext)
+        )
+
+        switch StartupSampleSeedingPolicy.decision(for: snapshot) {
+        case .doNothing:
             return
-        }
-        
-        if !hasSeededInitialGame && seededGameExists {
+        case .markComplete:
             hasSeededInitialGame = true
+        case .importSample:
+            importSeededSample(modelContext: modelContext, hasSeededInitialGame: &hasSeededInitialGame, importSample: importSample)
+        }
+    }
+
+    @MainActor
+    private static func seededSampleGameExists(in modelContext: ModelContext) -> Bool {
+        let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.date == seededSampleGameDate })
+        return ((try? modelContext.fetchCount(fetchDescriptor)) ?? 0) > 0
+    }
+
+    @MainActor
+    private static func containsBaseballData(in modelContext: ModelContext) -> Bool {
+        let gameCount = (try? modelContext.fetchCount(FetchDescriptor<Game>())) ?? 0
+        let teamCount = (try? modelContext.fetchCount(FetchDescriptor<Team>())) ?? 0
+        let playerCount = (try? modelContext.fetchCount(FetchDescriptor<Player>())) ?? 0
+        let atbatCount = (try? modelContext.fetchCount(FetchDescriptor<Atbat>())) ?? 0
+        let lineupCount = (try? modelContext.fetchCount(FetchDescriptor<Lineup>())) ?? 0
+        let pitcherCount = (try? modelContext.fetchCount(FetchDescriptor<Pitcher>())) ?? 0
+        return gameCount + teamCount + playerCount + atbatCount + lineupCount + pitcherCount > 0
+    }
+
+    @MainActor
+    private static func importSeededSample(
+        modelContext: ModelContext,
+        hasSeededInitialGame: inout Bool,
+        importSample: ((ModelContext) throws -> Void)?
+    ) {
+        if let importSample {
+            do {
+                try importSample(modelContext)
+                hasSeededInitialGame = true
+            } catch {
+                os_log("Initial game seeding failed: %{public}@", type: .error, error.localizedDescription)
+            }
             return
         }
 
-        // If the flag is true but the store lacks the sample data, we will fall through and re-seed.
         if let url = Bundle.main.url(forResource: "seededGame", withExtension: "ScoreKeep_Games") {
             do {
                 let importer = ImportService(modelContext: modelContext)

@@ -12,6 +12,32 @@ import Foundation
 
 @Suite("Sample Data Seeding Tests")
 struct ScoreKeepTests {
+    @Test("Startup sample seeding policy distinguishes empty, sample-present, populated, and blocked stores")
+    func testStartupSampleSeedingPolicyDecisionTable() {
+        #expect(StartupSampleSeedingPolicy.decision(for: .init(
+            startupVerified: true,
+            sampleGameExists: false,
+            containsBaseballData: false
+        )) == .importSample)
+
+        #expect(StartupSampleSeedingPolicy.decision(for: .init(
+            startupVerified: true,
+            sampleGameExists: true,
+            containsBaseballData: true
+        )) == .markComplete)
+
+        #expect(StartupSampleSeedingPolicy.decision(for: .init(
+            startupVerified: true,
+            sampleGameExists: false,
+            containsBaseballData: true
+        )) == .markComplete)
+
+        #expect(StartupSampleSeedingPolicy.decision(for: .init(
+            startupVerified: false,
+            sampleGameExists: false,
+            containsBaseballData: false
+        )) == .doNothing)
+    }
 
     @MainActor
     @Test("An empty store with hasSeededInitialGame == false imports the sample data")
@@ -46,6 +72,81 @@ struct ScoreKeepTests {
         let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.date == "2025-11-01T22:00:00Z" })
         let count = try context.fetchCount(fetchDescriptor)
         #expect(count > 0, "Seed data should be imported even if flag was true but store was empty")
+    }
+
+    @MainActor
+    @Test("A populated store without the sample marks seeding complete without backfilling")
+    func testPopulatedStoreWithoutSampleDoesNotBackfill() async throws {
+        let container = try ModelContainer(for: Game.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+        context.insert(Team(name: "Existing Team", coach: "Coach", details: "Legacy data"))
+        try context.save()
+
+        var flag = false
+        var importAttempts = 0
+        SeedManager.seedIfNeeded(modelContext: context, hasSeededInitialGame: &flag) { _ in
+            importAttempts += 1
+        }
+
+        #expect(flag == true)
+        #expect(importAttempts == 0)
+        let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.date == "2025-11-01T22:00:00Z" })
+        let count = try context.fetchCount(fetchDescriptor)
+        #expect(count == 0, "Populated stores without the sample should not receive a backfilled sample game")
+    }
+
+    @MainActor
+    @Test("A blocked or recovery-required startup does not seed or mark complete")
+    func testBlockedStartupDoesNotSeedOrMarkComplete() async throws {
+        let container = try ModelContainer(for: Game.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+
+        var flag = false
+        var importAttempts = 0
+        SeedManager.seedIfNeeded(modelContext: context, hasSeededInitialGame: &flag, startupVerified: false) { _ in
+            importAttempts += 1
+        }
+
+        #expect(flag == false)
+        #expect(importAttempts == 0)
+        #expect(try context.fetchCount(FetchDescriptor<Game>()) == 0)
+    }
+
+    @MainActor
+    @Test("An eligible first-install seed failure retries on a later successful attempt")
+    func testEligibleSeedFailureRetries() async throws {
+        let container = try ModelContainer(for: Game.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let context = container.mainContext
+
+        struct SeedFailure: Error {}
+
+        var flag = false
+        var failedAttempts = 0
+        SeedManager.seedIfNeeded(modelContext: context, hasSeededInitialGame: &flag) { _ in
+            failedAttempts += 1
+            throw SeedFailure()
+        }
+
+        #expect(flag == false)
+        #expect(failedAttempts == 1)
+
+        var successfulAttempts = 0
+        SeedManager.seedIfNeeded(modelContext: context, hasSeededInitialGame: &flag) { context in
+            successfulAttempts += 1
+            context.insert(Game(
+                date: "2025-11-01T22:00:00Z",
+                location: "Sample",
+                highLights: "Sample",
+                hscore: 0,
+                vscore: 0
+            ))
+            try context.save()
+        }
+
+        #expect(flag == true)
+        #expect(successfulAttempts == 1)
+        let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.date == "2025-11-01T22:00:00Z" })
+        #expect(try context.fetchCount(fetchDescriptor) == 1)
     }
     
     @MainActor
