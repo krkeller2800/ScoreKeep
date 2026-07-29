@@ -80,6 +80,275 @@ struct RosterImportReconciliationTests {
         #expect(matchedPlayer == nil)
     }
 
+    @Test("manual create warning finds exact same-team name without requiring number")
+    func manualCreateWarningFindsExactNameWithoutNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Bo Bichette", number: "", position: "SS", batDir: "R", batOrder: 4, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Bo Bichette",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning matches Jr punctuation variant without number")
+    func manualCreateWarningMatchesJrPunctuationVariantWithoutNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Vladimir Guerrero Jr",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning matches leading-space name variant without number")
+    func manualCreateWarningMatchesLeadingSpaceNameVariantWithoutNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: " Vladimir Guerrero Jr.",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning matches trailing-space name variant without number")
+    func manualCreateWarningMatchesTrailingSpaceNameVariantWithoutNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Vladimir Guerrero Jr. ",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning matches repeated internal-space name variant without number")
+    func manualCreateWarningMatchesRepeatedInternalSpaceNameVariantWithoutNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Vladimir  Guerrero   Jr.",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning surfaces suffix-added variant even without number")
+    func manualCreateWarningSurfacesSuffixAddedVariantWithoutNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Vladimir Guerrero Jr.",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning surfaces suffix-removed variant even with conflicting number")
+    func manualCreateWarningSurfacesSuffixRemovedVariantWithConflictingNumber() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Vladimir Guerrero",
+            number: "99",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning surfaces diacritic-only variant without number")
+    func manualCreateWarningSurfacesDiacriticOnlyVariantWithoutNumber() throws {
+        let team = Team(name: "Guardians", coach: "", details: "")
+        let existingPlayer = Player(name: "Jose Ramirez", number: "", position: "3B", batDir: "S", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "José Ramírez",
+            number: "",
+            in: [existingPlayer]
+        )
+
+        #expect(matchedPlayer === existingPlayer)
+    }
+
+    @Test("manual create warning excludes the player currently being edited")
+    func manualCreateWarningExcludesCurrentEditedPlayer() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let editedPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let matchedPlayer = RosterImportReconciler.likelyMatchingPlayer(
+            name: "Vladimir Guerrero Jr.",
+            number: "27",
+            in: [editedPlayer],
+            excluding: editedPlayer
+        )
+
+        #expect(matchedPlayer == nil)
+    }
+
+    @Test("manual use-existing decision does not mutate matched player")
+    func manualUseExistingDecisionDoesNotMutateMatchedPlayer() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .useExistingPlayer,
+            matchedPlayer: existingPlayer,
+            name: "Vladimir Guerrero",
+            number: "99",
+            position: "DH",
+            batDir: "L",
+            preserveHistoricalEvidence: false
+        )
+
+        #expect(result.shouldUseExistingPlayer)
+        #expect(result.shouldCreateNewPlayer == false)
+        #expect(result.didUpdateExistingPlayer == false)
+        #expect(existingPlayer.name == "Vladimir Guerrero Jr.")
+        #expect(existingPlayer.number == "27")
+        #expect(existingPlayer.position == "1B")
+        #expect(existingPlayer.batDir == "R")
+    }
+
+    @Test("manual update-existing decision applies nonblank entered fields")
+    func manualUpdateExistingDecisionAppliesNonblankEnteredFields() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .updateExistingPlayer,
+            matchedPlayer: existingPlayer,
+            name: "Vladimir Guerrero Jr. ",
+            number: "",
+            position: "DH",
+            batDir: "L",
+            preserveHistoricalEvidence: false
+        )
+
+        #expect(result.shouldUseExistingPlayer)
+        #expect(result.shouldCreateNewPlayer == false)
+        #expect(result.didUpdateExistingPlayer)
+        #expect(result.skippedUpdateForHistoricalReferences == false)
+        #expect(existingPlayer.name == "Vladimir Guerrero Jr.")
+        #expect(existingPlayer.number == "27")
+        #expect(existingPlayer.position == "DH")
+        #expect(existingPlayer.batDir == "L")
+    }
+
+    @Test("manual create-new-anyway decision leaves matched player unchanged")
+    func manualCreateNewAnywayDecisionLeavesMatchedPlayerUnchanged() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .createNewPlayerAnyway,
+            matchedPlayer: existingPlayer,
+            name: "Vladimir Guerrero",
+            number: "99",
+            position: "DH",
+            batDir: "L",
+            preserveHistoricalEvidence: false
+        )
+
+        #expect(result.shouldUseExistingPlayer == false)
+        #expect(result.shouldCreateNewPlayer)
+        #expect(result.didUpdateExistingPlayer == false)
+        #expect(existingPlayer.name == "Vladimir Guerrero Jr.")
+        #expect(existingPlayer.number == "27")
+        #expect(existingPlayer.position == "1B")
+        #expect(existingPlayer.batDir == "R")
+    }
+
+    @Test("manual cancel decision leaves matched player unchanged")
+    func manualCancelDecisionLeavesMatchedPlayerUnchanged() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero Jr.", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .cancel,
+            matchedPlayer: existingPlayer,
+            name: "Vladimir Guerrero",
+            number: "99",
+            position: "DH",
+            batDir: "L",
+            preserveHistoricalEvidence: false
+        )
+
+        #expect(result.shouldUseExistingPlayer == false)
+        #expect(result.shouldCreateNewPlayer == false)
+        #expect(result.didUpdateExistingPlayer == false)
+        #expect(existingPlayer.name == "Vladimir Guerrero Jr.")
+        #expect(existingPlayer.number == "27")
+        #expect(existingPlayer.position == "1B")
+        #expect(existingPlayer.batDir == "R")
+    }
+
+    @Test("manual update-existing applies fields even when historical references exist")
+    func manualUpdateExistingAppliesFieldsWhenHistoricalReferencesExist() throws {
+        let team = Team(name: "Blue Jays", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .updateExistingPlayer,
+            matchedPlayer: existingPlayer,
+            name: "Vladimir Guerrero Jr.",
+            number: "99",
+            position: "DH",
+            batDir: "L",
+            preserveHistoricalEvidence: true
+        )
+
+        #expect(result.shouldUseExistingPlayer)
+        #expect(result.shouldCreateNewPlayer == false)
+        #expect(result.didUpdateExistingPlayer)
+        #expect(result.skippedUpdateForHistoricalReferences == false)
+        #expect(existingPlayer.name == "Vladimir Guerrero Jr.")
+        #expect(existingPlayer.number == "99")
+        #expect(existingPlayer.position == "DH")
+        #expect(existingPlayer.batDir == "L")
+    }
+
+    @Test("PlayerView update-existing persists matched player identity")
+    func playerViewUpdateExistingPersistsMatchedPlayerIdentity() throws {
+        try assertManualUpdateExistingPersists(entryPath: "PlayerView")
+    }
+
+    @Test("PlayersOnTeamView update-existing persists matched player identity")
+    func playersOnTeamViewUpdateExistingPersistsMatchedPlayerIdentity() throws {
+        try assertManualUpdateExistingPersists(entryPath: "PlayersOnTeamView")
+    }
+
+    @Test("StartingLineupView update-existing persists matched player identity")
+    func startingLineupViewUpdateExistingPersistsMatchedPlayerIdentity() throws {
+        try assertManualUpdateExistingPersists(entryPath: "StartingLineupView")
+    }
+
+    @Test("EditPlayerView update-existing persists matched player identity")
+    func editPlayerViewUpdateExistingPersistsMatchedPlayerIdentity() throws {
+        try assertManualUpdateExistingPersists(entryPath: "EditPlayerView")
+    }
+
     @Test("imported boss demotes old-only players displaced by imported active slots")
     func importedBossDemotesOldOnlyConflicts() throws {
         let environment = try IsolatedPersistenceEnvironment()
@@ -216,6 +485,39 @@ struct RosterImportReconciliationTests {
         var descriptor = FetchDescriptor<Player>(sortBy: [SortDescriptor(\.batOrder), SortDescriptor(\.name)])
         descriptor.predicate = #Predicate { $0.team?.name == teamName }
         return try environment.fetch(descriptor)
+    }
+
+    private func assertManualUpdateExistingPersists(entryPath: String) throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let team = Team(name: "\(entryPath) Team", coach: "", details: "")
+        let existingPlayer = Player(name: "Vladimir Guerrero", number: "27", position: "1B", batDir: "R", batOrder: 3, team: team)
+        environment.context.insert(team)
+        environment.context.insert(existingPlayer)
+        try environment.save()
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .updateExistingPlayer,
+            matchedPlayer: existingPlayer,
+            name: "Vladimir Guerrero Jr.",
+            number: "99",
+            position: "DH",
+            batDir: "L",
+            preserveHistoricalEvidence: true
+        )
+        try environment.save()
+
+        let players = try fetchPlayers(environment, teamName: team.name)
+        let fetchedPlayer = try #require(players.first)
+        #expect(players.count == 1)
+        #expect(fetchedPlayer.identifier == existingPlayer.identifier)
+        #expect(fetchedPlayer.name == "Vladimir Guerrero Jr.")
+        #expect(fetchedPlayer.number == "99")
+        #expect(fetchedPlayer.position == "DH")
+        #expect(fetchedPlayer.batDir == "L")
+        #expect(result.shouldUseExistingPlayer)
+        #expect(result.shouldCreateNewPlayer == false)
+        #expect(result.didUpdateExistingPlayer)
+        #expect(result.skippedUpdateForHistoricalReferences == false)
     }
 
     private func activeSlotCounts(_ players: [Player]) -> [Int: Int] {

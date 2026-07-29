@@ -5,6 +5,20 @@ enum RosterImportBoss {
     case current
 }
 
+enum ManualDuplicatePlayerChoice {
+    case useExistingPlayer
+    case updateExistingPlayer
+    case createNewPlayerAnyway
+    case cancel
+}
+
+struct ManualDuplicatePlayerChoiceResult {
+    let shouldUseExistingPlayer: Bool
+    let shouldCreateNewPlayer: Bool
+    let didUpdateExistingPlayer: Bool
+    let skippedUpdateForHistoricalReferences: Bool
+}
+
 enum RosterImportReconciler {
     static func activeSlot(_ order: Int) -> Int? {
         (1...9).contains(order) ? order : nil
@@ -14,7 +28,68 @@ enum RosterImportReconciler {
         let importedIdentity = PlayerImportIdentity(name: sharePlayer.name, number: sharePlayer.number)
 
         return players.first {
-            importedIdentity.matches(PlayerImportIdentity(name: $0.name, number: $0.number))
+            importedIdentity.stronglyMatches(PlayerImportIdentity(name: $0.name, number: $0.number))
+        }
+    }
+
+    static func likelyMatchingPlayer(name: String, number: String, in players: [Player], excluding excludedPlayer: Player? = nil) -> Player? {
+        let candidateIdentity = PlayerImportIdentity(name: name, number: number)
+
+        return players.first {
+            if let excludedPlayer, $0 === excludedPlayer {
+                return false
+            }
+
+            return candidateIdentity.isLikelyManualMatch(for: PlayerImportIdentity(name: $0.name, number: $0.number))
+        }
+    }
+
+    @discardableResult
+    static func resolveManualDuplicatePlayerChoice(
+        _ choice: ManualDuplicatePlayerChoice,
+        matchedPlayer: Player,
+        name: String,
+        number: String,
+        position: String,
+        batDir: String,
+        preserveHistoricalEvidence _: Bool
+    ) -> ManualDuplicatePlayerChoiceResult {
+        switch choice {
+        case .useExistingPlayer:
+            return ManualDuplicatePlayerChoiceResult(
+                shouldUseExistingPlayer: true,
+                shouldCreateNewPlayer: false,
+                didUpdateExistingPlayer: false,
+                skippedUpdateForHistoricalReferences: false
+            )
+        case .updateExistingPlayer:
+            let didUpdate = updateNonblankPlayerFields(
+                matchedPlayer,
+                name: name,
+                number: number,
+                position: position,
+                batDir: batDir
+            )
+            return ManualDuplicatePlayerChoiceResult(
+                shouldUseExistingPlayer: true,
+                shouldCreateNewPlayer: false,
+                didUpdateExistingPlayer: didUpdate,
+                skippedUpdateForHistoricalReferences: false
+            )
+        case .createNewPlayerAnyway:
+            return ManualDuplicatePlayerChoiceResult(
+                shouldUseExistingPlayer: false,
+                shouldCreateNewPlayer: true,
+                didUpdateExistingPlayer: false,
+                skippedUpdateForHistoricalReferences: false
+            )
+        case .cancel:
+            return ManualDuplicatePlayerChoiceResult(
+                shouldUseExistingPlayer: false,
+                shouldCreateNewPlayer: false,
+                didUpdateExistingPlayer: false,
+                skippedUpdateForHistoricalReferences: false
+            )
         }
     }
 
@@ -144,6 +219,43 @@ enum RosterImportReconciler {
             }
         }
     }
+
+    @discardableResult
+    private static func updateNonblankPlayerFields(
+        _ player: Player,
+        name: String,
+        number: String,
+        position: String,
+        batDir: String
+    ) -> Bool {
+        var didUpdate = false
+
+        if applyNonblank(name, to: &player.name) {
+            didUpdate = true
+        }
+        if applyNonblank(number, to: &player.number) {
+            didUpdate = true
+        }
+        if applyNonblank(position, to: &player.position) {
+            didUpdate = true
+        }
+        if applyNonblank(batDir, to: &player.batDir) {
+            didUpdate = true
+        }
+
+        return didUpdate
+    }
+
+    @discardableResult
+    private static func applyNonblank(_ newValue: String, to currentValue: inout String) -> Bool {
+        let trimmedValue = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedValue.isEmpty == false, currentValue != trimmedValue else {
+            return false
+        }
+
+        currentValue = trimmedValue
+        return true
+    }
 }
 
 private struct PlayerImportIdentity {
@@ -163,16 +275,21 @@ private struct PlayerImportIdentity {
         normalizedNumber = number.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func matches(_ other: PlayerImportIdentity) -> Bool {
+    func stronglyMatches(_ other: PlayerImportIdentity) -> Bool {
         if originalName == other.originalName {
             return true
         }
 
-        guard hasMatchingUniformNumber(with: other) else {
-            return false
+        if normalizedName == other.normalizedName {
+            return true
         }
 
-        return normalizedName == other.normalizedName ||
+        return hasMatchingUniformNumber(with: other) &&
+            suffixStrippedName == other.suffixStrippedName
+    }
+
+    func isLikelyManualMatch(for other: PlayerImportIdentity) -> Bool {
+        stronglyMatches(other) ||
             suffixStrippedName == other.suffixStrippedName
     }
 

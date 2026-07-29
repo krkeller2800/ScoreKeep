@@ -10,6 +10,7 @@ import SwiftData
 
 struct EditPlayerView: View {
     @Environment(\.modelContext) var modelContext
+    @Environment(\.dismiss) var dismiss
     @State private var selectedItem: PhotosPickerItem?
     @Bindable var player: Player
     @Bindable var team: Team
@@ -17,9 +18,19 @@ struct EditPlayerView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var playerName = ""
+    @State private var playerNumber = ""
+    @State private var playerPosition = ""
+    @State private var playerBatDir = ""
     @State private var prevPName = ""
+    @State private var originalPlayerName = ""
+    @State private var originalPlayerNumber = ""
+    @State private var originalPlayerPosition = ""
+    @State private var originalPlayerBatDir = ""
     @State private var dups = false
     @State private var checkForDups = true
+    @State private var likelyDuplicatePlayer: Player?
+    @State private var showingDuplicatePlayerAlert = false
+    @State private var removedPlaceholderForExisting = false
 
     enum FocusField: Hashable {case field}
     
@@ -70,11 +81,11 @@ struct EditPlayerView: View {
                         .autocapitalization(.words)
                         .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                    TextField("Number", text: $player.number, prompt: scorebookInputPrompt("Number")).frame(maxWidth:.infinity)
+                    TextField("Number", text: $playerNumber, prompt: scorebookInputPrompt("Number")).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                    TextField("Pos", text: $player.position, prompt: scorebookInputPrompt("Pos")).frame(maxWidth:.infinity)
+                    TextField("Pos", text: $playerPosition, prompt: scorebookInputPrompt("Pos")).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                    TextField("Bat Dir", text: $player.batDir, prompt: scorebookInputPrompt("Bat Dir")).frame(maxWidth:.infinity)
+                    TextField("Bat Dir", text: $playerBatDir, prompt: scorebookInputPrompt("Bat Dir")).frame(maxWidth:.infinity)
                         .textFieldStyle(.roundedBorder).scorebookInputField().bold()
                     Picker("Bat Order", selection: $player.batOrder) {
 
@@ -146,14 +157,29 @@ struct EditPlayerView: View {
                 Spacer()
 
                 .onDisappear() {
-                    if dups || playerName.isEmpty {
+                    guard !removedPlaceholderForExisting else { return }
+
+                    if playerName.isEmpty {
                         modelContext.delete(player)
+                    } else if dups {
+                        if originalPlayerName.isEmpty {
+                            modelContext.delete(player)
+                        } else {
+                            restoreOriginalPlayerFields()
+                        }
                     } else {
-                        player.name = playerName
+                        applyBufferedFields(to: player)
                     }
                 }
                 .onAppear() {
                     playerName = player.name
+                    playerNumber = player.number
+                    playerPosition = player.position
+                    playerBatDir = player.batDir
+                    originalPlayerName = player.name
+                    originalPlayerNumber = player.number
+                    originalPlayerPosition = player.position
+                    originalPlayerBatDir = player.batDir
                     prevPName = player.name
                     if !playerName.isEmpty {
                         checkForDups = false
@@ -165,6 +191,20 @@ struct EditPlayerView: View {
         }
         .scrollContentBackground(.hidden)
         .background(ScoreKeepVisualStyle.background)
+        .alert("Possible Duplicate Player", isPresented: $showingDuplicatePlayerAlert, presenting: likelyDuplicatePlayer) { matchedPlayer in
+            Button("Use Existing Player") {
+                useExistingPlayer(matchedPlayer)
+            }
+            Button("Update Existing Player") {
+                updateExistingPlayer(matchedPlayer)
+            }
+            Button("Create New Player Anyway") {
+                createNewPlayerAnyway()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: { matchedPlayer in
+            Text("A similar player already exists on \(team.name): \(duplicatePlayerSummary(matchedPlayer)).")
+        }
         .toolbar {
 
             ToolbarItem(placement: .principal) {
@@ -191,23 +231,12 @@ struct EditPlayerView: View {
         prevPName = playName
         
         if !teamName.isEmpty && !playName.isEmpty && checkForDups{
-            
-            var fetchDescriptor = FetchDescriptor<Player>()
-            
-            fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName && $0.name == playName}
-            
-            do {
-                let existPlayers = try self.modelContext.fetch(fetchDescriptor)
-                
-                if existPlayers.first != nil {
-                    dups = true
-                    showingAlert = true
-                    alertMessage = "\(pname) is already on the team."
-                } else {
-                    dups = false
-                }
-            } catch {
-                print("SwiftData Error: \(error)")
+            if let likelyDuplicate = findLikelyDuplicatePlayer(for: playName) {
+                likelyDuplicatePlayer = likelyDuplicate
+                dups = true
+                showingDuplicatePlayerAlert = true
+            } else {
+                dups = false
             }
         } else {
             if teamName.isEmpty && !playerName.isEmpty {
@@ -215,5 +244,87 @@ struct EditPlayerView: View {
                 alertMessage = "Please select a team so we can check if \(pname) is on already on it."
             }
         }
+    }
+
+    func findLikelyDuplicatePlayer(for name: String) -> Player? {
+        let teamName = team.name
+        guard !teamName.isEmpty, !name.isEmpty else { return nil }
+
+        var fetchDescriptor = FetchDescriptor<Player>()
+        fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }
+
+        do {
+            let teamPlayers = try self.modelContext.fetch(fetchDescriptor)
+            return RosterImportReconciler.likelyMatchingPlayer(
+                name: name,
+                number: playerNumber,
+                in: teamPlayers,
+                excluding: player
+            )
+        } catch {
+            print("SwiftData Error: \(error)")
+            return nil
+        }
+    }
+
+    func useExistingPlayer(_ matchedPlayer: Player) {
+        likelyDuplicatePlayer = matchedPlayer
+
+        if originalPlayerName.isEmpty {
+            removedPlaceholderForExisting = true
+            modelContext.delete(player)
+            try? modelContext.save()
+            dismiss()
+        } else {
+            playerName = originalPlayerName
+            restoreOriginalPlayerFields()
+            dups = false
+            likelyDuplicatePlayer = nil
+        }
+    }
+
+    func updateExistingPlayer(_ matchedPlayer: Player) {
+        RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .updateExistingPlayer,
+            matchedPlayer: matchedPlayer,
+            name: playerName,
+            number: playerNumber,
+            position: playerPosition,
+            batDir: playerBatDir,
+            preserveHistoricalEvidence: false
+        )
+        try? modelContext.save()
+        useExistingPlayer(matchedPlayer)
+    }
+
+    func createNewPlayerAnyway() {
+        dups = false
+        likelyDuplicatePlayer = nil
+        applyBufferedFields(to: player)
+        try? modelContext.save()
+    }
+
+    func duplicatePlayerSummary(_ player: Player) -> String {
+        let number = player.number.isEmpty ? "no number" : "#\(player.number)"
+        let position = player.position.isEmpty ? "no position" : player.position
+        return "\(player.name), \(number), \(position)"
+    }
+
+    func applyBufferedFields(to player: Player) {
+        player.name = playerName
+        player.number = playerNumber
+        player.position = playerPosition
+        player.batDir = playerBatDir
+    }
+
+    func restoreOriginalPlayerFields() {
+        playerName = originalPlayerName
+        playerNumber = originalPlayerNumber
+        playerPosition = originalPlayerPosition
+        playerBatDir = originalPlayerBatDir
+        player.name = originalPlayerName
+        player.number = originalPlayerNumber
+        player.position = originalPlayerPosition
+        player.batDir = originalPlayerBatDir
     }
 }

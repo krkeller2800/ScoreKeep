@@ -35,6 +35,8 @@ struct StartingLineupView: View {
     @State private var isSearching = false
     @State private var dups = false
     @State private var checkForDups = true
+    @State private var likelyDuplicatePlayer: Player?
+    @State private var showingDuplicatePlayerAlert = false
     @State var navigationPath: NavigationPath = NavigationPath()
     @State private var playerName = ""
     @State private var prevPName = ""
@@ -111,23 +113,23 @@ struct StartingLineupView: View {
                         Spacer(minLength: 75)
                         Image(systemName: "plus")
                             .onTapGesture {
-                            checkForDup(pname: pName)
-                            if !dups {
-                                thisPlayer = Player(name: pName, number: pNumber, position: pPosition, batDir: pBatDir, batOrder: pBatOrder, team: team)
-                                modelContext.insert(thisPlayer)
-                                pName = ""; pNumber = ""; pPosition = ""; pBatDir = ""; pBatOrder = 0
-                                linePlayers = players.sorted(by: { $0.batOrder < $1.batOrder })
-                                for (index, player) in linePlayers.enumerated() {
-                                    if index+1 <= numOfHitters || lineup.everyoneHits {
-                                        player.batOrder = index+1
-                                    } else if !lineup.everyoneHits {
-                                        player.batOrder = 99
-                                    }
-                                }
-                                try? self.modelContext.save()
+                                addPlayerCheckingForLikelyDuplicate()
                             }
-                        }
                         .border(ScoreKeepVisualStyle.separator).cornerRadius(10).accentColor(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill)
+                        .alert("Possible Duplicate Player", isPresented: $showingDuplicatePlayerAlert, presenting: likelyDuplicatePlayer) { player in
+                            Button("Use Existing Player") {
+                                useExistingPlayer(player)
+                            }
+                            Button("Update Existing Player") {
+                                updateExistingPlayer(player)
+                            }
+                            Button("Create New Player Anyway") {
+                                createPendingPlayer()
+                            }
+                            Button("Cancel", role: .cancel) { }
+                        } message: { player in
+                            Text("A similar player already exists on \(team.name): \(duplicatePlayerSummary(player)).")
+                        }
                     }
                     ForEach(linePlayers) { player in
                         NavigationLink(destination: EditPlayerView( player: player, team: team, navigationPath: $navigationPath)) { // Navigate to a DetailView
@@ -424,6 +426,90 @@ struct StartingLineupView: View {
             }
         }
     }
+
+    func addPlayerCheckingForLikelyDuplicate() {
+        guard validatePendingPlayerName() else { return }
+
+        if let likelyDuplicate = RosterImportReconciler.likelyMatchingPlayer(name: pName, number: pNumber, in: players) {
+            likelyDuplicatePlayer = likelyDuplicate
+            showingDuplicatePlayerAlert = true
+            return
+        }
+
+        createPendingPlayer()
+    }
+
+    func validatePendingPlayerName() -> Bool {
+        guard !team.name.isEmpty else {
+            alertMessage = "Please select a team so we can check if \(pName) is already on it."
+            showingAlert = true
+            dups = true
+            return false
+        }
+
+        guard !pName.isEmpty else {
+            alertMessage = "Please input at least a Player name."
+            showingAlert = true
+            dups = true
+            return false
+        }
+
+        dups = false
+        return true
+    }
+
+    func createPendingPlayer() {
+        thisPlayer = Player(name: pName, number: pNumber, position: pPosition, batDir: pBatDir, batOrder: pBatOrder, team: team)
+        modelContext.insert(thisPlayer)
+        clearPendingPlayer()
+        linePlayers = players.sorted(by: { $0.batOrder < $1.batOrder })
+        for (index, player) in linePlayers.enumerated() {
+            if index+1 <= numOfHitters || lineup.everyoneHits {
+                player.batOrder = index+1
+            } else if !lineup.everyoneHits {
+                player.batOrder = 99
+            }
+        }
+        try? self.modelContext.save()
+    }
+
+    func useExistingPlayer(_ player: Player) {
+        if !linePlayers.contains(where: { $0 === player }) {
+            linePlayers.append(player)
+        }
+        clearPendingPlayer()
+    }
+
+    func updateExistingPlayer(_ player: Player) {
+        RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .updateExistingPlayer,
+            matchedPlayer: player,
+            name: pName,
+            number: pNumber,
+            position: pPosition,
+            batDir: pBatDir,
+            preserveHistoricalEvidence: false
+        )
+        try? self.modelContext.save()
+        useExistingPlayer(player)
+    }
+
+    func clearPendingPlayer() {
+        pName = ""
+        pNumber = ""
+        pPosition = ""
+        pBatDir = ""
+        pBatOrder = 0
+        dups = false
+        likelyDuplicatePlayer = nil
+    }
+
+    func duplicatePlayerSummary(_ player: Player) -> String {
+        let number = player.number.isEmpty ? "no number" : "#\(player.number)"
+        let position = player.position.isEmpty ? "no position" : player.position
+        return "\(player.name), \(number), \(position)"
+    }
+
     func getPlayers () {
         
         let teamName = team.name
