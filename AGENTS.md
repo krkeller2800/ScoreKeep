@@ -60,7 +60,7 @@ After updating the report, verify the exact assigned path with:
 
 Include the verification result in the final response.
 
-Also include the complete final report in the agent’s conversation response as a copy-and-paste backup in case file transfer or upload fails. This conversation copy is required as a backup but does not replace the persistent report file.
+Always update and verify the persistent model-specific report file before finishing. Do not repeat the complete report in the conversation response when the persistent report file was successfully written and verified. If the persistent report cannot be written or verified, include the complete report in the conversation response as a backup.
 
 ## Failure Handling
 
