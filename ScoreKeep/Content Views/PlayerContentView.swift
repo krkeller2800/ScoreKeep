@@ -40,10 +40,6 @@ struct PlayerContentView: View {
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
-//            PlayerView(team: <#Team#>, searchString: searchText, sortOrder: sortDescriptor, navigationPath: $navigationPath)
-//                .navigationDestination(for: Player.self) { player in
-//                    EditAllPlayerView(player: player, navigationPath: $navigationPath)
-//                }
             VStack {
                 
             }
