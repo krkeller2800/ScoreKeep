@@ -331,6 +331,7 @@ enum ScoreKeepPhysicalMigrationExecutor {
         let backupURL = preflight.layout.operationBackupStoreURL(operationIdentity: operationIdentity)
         let targetURL = preflight.layout.operationTemporaryTargetURL(operationIdentity: operationIdentity)
         let journalStore = ScoreKeepMigrationJournalStore(directory: preflight.layout.journal.deletingLastPathComponent(), fileManager: fileManager)
+        var semanticBackupBaseline: ScoreKeepMigrationBaselineRecord?
         let result = try ScoreKeepMigrationOrchestrator.run(
             input: ScoreKeepMigrationOrchestratorInput(
                 operationIdentity: operationIdentity,
@@ -346,7 +347,14 @@ enum ScoreKeepPhysicalMigrationExecutor {
                 semanticRestoreVerifier: { restoreURL in
                     let restored = try currentUnversionedContainer(url: restoreURL, allowsSave: false)
                     let restoredRecord = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    semanticBackupBaseline = restoredRecord
                     return baselineMatches(restoredRecord, baseline)
+                },
+                semanticBaselineMismatchDiagnosticLines: {
+                    guard let semanticBackupBaseline else {
+                        return ["baselineMismatch.fields=unavailable"]
+                    }
+                    return ScoreKeepMigrationBaselineCapture.baselineMismatchDiagnosticLines(expected: baseline, actual: semanticBackupBaseline)
                 },
                 postOpenVerifier: { container in
                     let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)

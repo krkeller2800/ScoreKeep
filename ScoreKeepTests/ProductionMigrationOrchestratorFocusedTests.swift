@@ -262,9 +262,149 @@ struct ScoreKeepMigrationOrchestratorTests {
         #expect(ScoreKeepProductionStartupModel.supportsProductionMigrationStartup(.unknownVersion) == false)
     }
 
+    @Test("exact V1 baseline capture skips absent optional V2 V3 V4 entities")
+    func exactV1BaselineCaptureSkipsAbsentOptionalV2V3V4Entities() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.minimal)
+
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: source.url).sourceClassification == .proposedV1RecognizableStore)
+        let baseline = try formerUnversionedReadOnlyBaselineRecord(from: source.url)
+
+        #expect(baseline.matchesRecordCounts(source.snapshot.counts))
+        #expect(baseline.teamCreationOperationEvidenceCount == 0)
+        #expect(baseline.canonicalHistoryCount == 0)
+        #expect(baseline.canonicalEventCount == 0)
+        #expect(baseline.canonicalPayloadCount == 0)
+        #expect(baseline.canonicalOperationCount == 0)
+        #expect(baseline.canonicalCorrectionCount == 0)
+        #expect(baseline.legacyScoringOperationEvidenceCount == 0)
+
+        let v1Schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V1.self)
+        let optionalEntityNames = [
+            "TeamCreationOperationEvidenceRecord",
+            "CanonicalGameHistoryRecord",
+            "CanonicalScoringEventEnvelopeRecord",
+            "CanonicalScoringEventPayloadRecord",
+            "CanonicalScoringOperationEvidenceRecord",
+            "CanonicalScoringCorrectionRecord",
+            "LegacyScoringOperationEvidenceRecord"
+        ]
+        for entityName in optionalEntityNames {
+            var fetchWasConstructed = false
+            let count = ScoreKeepMigrationBaselineCapture.optionalRecordCount(entityName: entityName, schema: v1Schema) {
+                fetchWasConstructed = true
+                return 1
+            }
+            #expect(count == 0)
+            #expect(fetchWasConstructed == false)
+        }
+    }
+
+    @Test("exact V1 backup helper captures baseline without mutating source or verified backup")
+    func exactV1BackupHelperCapturesBaselineWithoutMutatingSourceOrVerifiedBackup() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.representative)
+        let sourceBefore = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: source.url)
+        let sourceFingerprint = try IsolatedUnversionedProductionStoreSupport.storeFamilyFingerprint(for: source.url)
+        let backupURL = try storeURL()
+        var capturedBaseline: ScoreKeepMigrationBaselineRecord?
+
+        let evidence = try ScoreKeepSourcePreservationExecutor.preserve(
+            ScoreKeepSourcePreservationRequest(
+                sourceStoreURL: source.url,
+                backupStoreURL: backupURL,
+                sourceLocation: .disposableTestStore,
+                sourceClosureEvidence: .closedForDisposableVerification,
+                allowIncompleteTestOwnedBackupRemoval: true,
+                semanticRestoreVerifier: { restoreURL in
+                    let record = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: restoreURL)
+                    capturedBaseline = record
+                    return record.matchesRecordCounts(source.snapshot.counts)
+                }
+            )
+        )
+        let backupBeforeExplicitRead = try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL)
+        let backupFingerprint = try IsolatedUnversionedProductionStoreSupport.storeFamilyFingerprint(for: backupURL)
+        let explicitRead = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: backupURL)
+
+        #expect(evidence.disposition == .backupVerified)
+        #expect(evidence.semanticVerificationPassed)
+        #expect(capturedBaseline?.matchesRecordCounts(source.snapshot.counts) == true)
+        #expect(explicitRead.matchesRecordCounts(source.snapshot.counts))
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: source.url) == sourceBefore)
+        #expect(try IsolatedUnversionedProductionStoreSupport.storeFamilyFingerprint(for: source.url) == sourceFingerprint)
+        #expect(try ScoreKeepStoreFamilyDiscovery.discover(storeURL: backupURL) == backupBeforeExplicitRead)
+        #expect(try IsolatedUnversionedProductionStoreSupport.storeFamilyFingerprint(for: backupURL) == backupFingerprint)
+        #expect(evidence.sourceBefore.fileNames == evidence.backupAfter.fileNames)
+        #expect(evidence.sourceBefore.missingOptionalSidecars == evidence.backupAfter.missingOptionalSidecars)
+    }
+
+    @Test("V1 semantic open failure remains backup verification failed and recovery required")
+    func v1SemanticOpenFailureRemainsBackupVerificationFailedAndRecoveryRequired() throws {
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.minimal)
+        let backupURL = try storeURL()
+        let targetURL = try storeURL()
+        var persistedDiagnosticSection: String?
+        let diagnosticContext = ScoreKeepSourcePreservationSemanticDiagnosticContext(
+            sourceClassification: ScoreKeepSourceStoreClassification.proposedV1RecognizableStore.rawValue,
+            operationIdentity: "migration-2-v1diag",
+            configurationName: "ScoreKeepProposedV1BackupSemanticVerification",
+            allowsSave: true,
+            automaticMigrationOptionPresent: true,
+            inferredMigrationOptionPresent: true,
+            requestedModelVersion: "ScoreKeepProposedVersionedSchema.V1:1.0.0",
+            requestedModelEntityHashes: ["Game:hash-a"]
+        )
+
+        let result = try ScoreKeepMigrationOrchestrator.run(
+            input: v1ToV4Input(
+                source: source,
+                backupURL: backupURL,
+                targetURL: targetURL,
+                journalStoreIdentity: "v1-semantic-open-failure",
+                semanticRestoreVerifier: { _ in
+                    throw ScoreKeepSourcePreservationSemanticRestoreOpenDiagnosticError(diagnostic: "containerOpenFailed.readOnlyMigration")
+                },
+                postOpenVerifier: { _ in
+                    Issue.record("Post-open verifier should not run after V1 backup semantic open failure.")
+                    return false
+                },
+                semanticDiagnosticContext: diagnosticContext,
+                semanticDiagnosticSnapshotSink: { persistedDiagnosticSection = $0 }
+            ),
+            journalStore: try journalStore()
+        )
+
+        #expect(result.disposition == .sourcePreservationFailed)
+        #expect(ScoreKeepStartupOutcomePolicy.map(orchestratorDisposition: result.disposition) == .backupVerificationFailed)
+        #expect(result.journal.phase == .recoveryRequired)
+        #expect(result.journal.recoveryRequirement == .writesRemainProhibited)
+        #expect(result.recoveryRequirement == .writesRemainProhibited)
+        #expect(result.container == nil)
+        #expect(FileManager.default.fileExists(atPath: targetURL.path) == false)
+        let persistedDiagnostic = try #require(persistedDiagnosticSection)
+        #expect(persistedDiagnostic.contains("V1 Backup Semantic Verification Diagnostics"))
+        #expect(persistedDiagnostic.contains("phase=afterOpenFailure"))
+        #expect(persistedDiagnostic.contains("sourceUnchanged=true"))
+        #expect(persistedDiagnostic.contains("verifiedBackupUnchanged=true"))
+        let presentation = ScoreKeepProductionStartupRecoveryPresentation.make(
+            diagnosticCode: .backupVerificationFailed,
+            protectedDataState: .available,
+            capacityStatus: "capacity.sufficient",
+            sourceStatus: ScoreKeepSourceStoreClassification.proposedV1RecognizableStore.rawValue,
+            backupStatus: "uncertain",
+            migrationPhase: result.journal.phase.rawValue,
+            targetVerification: result.journal.postOpenVerificationDisposition,
+            retryAllowed: false,
+            additionalSupportSection: persistedDiagnostic
+        )
+        #expect(presentation.diagnosticCode == ScoreKeepProductionStartupDiagnosticCode.backupVerificationFailed)
+        #expect(presentation.supportSummary.contains("Startup Outcome: backupVerificationFailed"))
+        #expect(presentation.supportSummary.contains("V1 Backup Semantic Verification Diagnostics"))
+        #expect(presentation.supportSummary.contains("operationIdentity=migration-2-v1diag"))
+    }
+
     @Test("V1 to V4 production post-open verifier uses in-memory baseline without fallback on uninterrupted run")
     func v1ToV4ProductionPostOpenVerifierUsesInMemoryBaselineWhenUninterrupted() throws {
-        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.minimal)
         let backupURL = try storeURL()
         let targetURL = try storeURL()
         var preservedBaseline: ScoreKeepMigrationBaselineRecord?
@@ -277,8 +417,7 @@ struct ScoreKeepMigrationOrchestratorTests {
                 targetURL: targetURL,
                 journalStoreIdentity: "v1-v4-uninterrupted",
                 semanticRestoreVerifier: { restoreURL in
-                    let restored = try IsolatedUnversionedProductionStoreSupport.exactCurrentUnversionedProductionStyleContainer(url: restoreURL)
-                    let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    let record = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: restoreURL)
                     preservedBaseline = record
                     return true
                 },
@@ -308,7 +447,7 @@ struct ScoreKeepMigrationOrchestratorTests {
 
     @Test("V1 to V4 production post-open verifier reconstructs resumed baseline from verified backup")
     func v1ToV4ProductionPostOpenVerifierReconstructsResumedBaselineFromVerifiedBackup() throws {
-        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.minimal)
         let journalStore = try journalStore()
         let backupURL = try storeURL()
         let targetURL = try storeURL()
@@ -323,8 +462,7 @@ struct ScoreKeepMigrationOrchestratorTests {
                 interruptionPoint: .afterBackupVerification,
                 semanticRestoreVerifier: { restoreURL in
                     firstRunSemanticVerifierCalls += 1
-                    let restored = try IsolatedUnversionedProductionStoreSupport.exactCurrentUnversionedProductionStyleContainer(url: restoreURL)
-                    _ = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    _ = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: restoreURL)
                     return true
                 },
                 postOpenVerifier: { _ in false }
@@ -609,7 +747,7 @@ struct ScoreKeepMigrationOrchestratorTests {
 
     @Test("orchestrator persists post-open verifier subdiagnostics")
     func orchestratorPersistsPostOpenVerifierSubdiagnostics() throws {
-        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.minimal)
         let backupURL = try storeURL()
         let targetURL = try storeURL()
         var diagnostics: [ScoreKeepMigrationJournalDiagnosticCode] = []
@@ -621,8 +759,7 @@ struct ScoreKeepMigrationOrchestratorTests {
                 targetURL: targetURL,
                 journalStoreIdentity: "v1-v4-post-open-subdiagnostics",
                 semanticRestoreVerifier: { restoreURL in
-                    let restored = try IsolatedUnversionedProductionStoreSupport.exactCurrentUnversionedProductionStyleContainer(url: restoreURL)
-                    _ = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    _ = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: restoreURL)
                     return true
                 },
                 postOpenVerifier: { container in
@@ -654,7 +791,7 @@ struct ScoreKeepMigrationOrchestratorTests {
 
     @Test("recovery required verify existing target completes after post-open verifier passes")
     func recoveryRequiredVerifyExistingTargetCompletesAfterPostOpenVerifierPasses() throws {
-        let source = try IsolatedUnversionedProductionStoreSupport.createSourceStore(.minimal)
+        let source = try IsolatedUnversionedProductionStoreSupport.createProposedV1SourceStore(.minimal)
         let backupURL = try storeURL()
         let targetURL = try storeURL()
         let journalStore = try journalStore()
@@ -668,8 +805,7 @@ struct ScoreKeepMigrationOrchestratorTests {
                 targetURL: targetURL,
                 journalStoreIdentity: identity,
                 semanticRestoreVerifier: { restoreURL in
-                    let restored = try IsolatedUnversionedProductionStoreSupport.exactCurrentUnversionedProductionStyleContainer(url: restoreURL)
-                    preservedBaseline = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    preservedBaseline = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: restoreURL)
                     return true
                 },
                 postOpenVerifier: { _ in false }
@@ -989,7 +1125,9 @@ struct ScoreKeepMigrationOrchestratorTests {
         interruptionPoint: ScoreKeepMigrationInterruptionPoint? = nil,
         semanticRestoreVerifier: @escaping (URL) throws -> Bool,
         postOpenVerifier: @escaping (ModelContainer) throws -> Bool,
-        postOpenFailureDiagnostics: (() -> [ScoreKeepMigrationJournalDiagnosticCode])? = nil
+        postOpenFailureDiagnostics: (() -> [ScoreKeepMigrationJournalDiagnosticCode])? = nil,
+        semanticDiagnosticContext: ScoreKeepSourcePreservationSemanticDiagnosticContext? = nil,
+        semanticDiagnosticSnapshotSink: ((String) -> Void)? = nil
     ) -> ScoreKeepMigrationOrchestratorInput {
         ScoreKeepMigrationOrchestratorInput(
             operationIdentity: operationIdentity(storeIdentity: journalStoreIdentity, source: .proposedV1RecognizableStore, target: .proposedV4),
@@ -1003,6 +1141,9 @@ struct ScoreKeepMigrationOrchestratorTests {
             interruptionPoint: interruptionPoint,
             factoryInjection: nil,
             semanticRestoreVerifier: semanticRestoreVerifier,
+            makeSemanticRestoreCopyWritable: true,
+            semanticDiagnosticContext: semanticDiagnosticContext,
+            semanticDiagnosticSnapshotSink: semanticDiagnosticSnapshotSink,
             postOpenVerifier: postOpenVerifier,
             postOpenFailureDiagnostics: postOpenFailureDiagnostics
         )
@@ -1048,6 +1189,13 @@ struct ScoreKeepMigrationOrchestratorTests {
             backupURL: backupURL,
             fileManager: fileManager
         )
+    }
+
+    private func formerUnversionedReadOnlyBaselineRecord(from url: URL) throws -> ScoreKeepMigrationBaselineRecord {
+        let schema = Schema([Game.self, Team.self, Player.self, Atbat.self, Lineup.self, Pitcher.self])
+        let configuration = ModelConfiguration(schema: schema, url: url, allowsSave: false)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
     }
 
     private func singleMemberBackupURL(fileName: String) throws -> URL {

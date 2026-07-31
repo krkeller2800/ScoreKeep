@@ -119,13 +119,13 @@ enum ScoreKeepMigrationBaselineCapture {
         let lineups = try modelContext.fetch(FetchDescriptor<Lineup>())
         let atbats = try modelContext.fetch(FetchDescriptor<Atbat>())
         let pitchers = try modelContext.fetch(FetchDescriptor<Pitcher>())
-        let teamCreationOperationEvidenceCount = (try? modelContext.fetch(FetchDescriptor<TeamCreationOperationEvidenceRecord>()).count) ?? 0
-        let canonicalHistoryCount = (try? modelContext.fetch(FetchDescriptor<CanonicalGameHistoryRecord>()).count) ?? 0
-        let canonicalEventCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringEventEnvelopeRecord>()).count) ?? 0
-        let canonicalPayloadCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringEventPayloadRecord>()).count) ?? 0
-        let canonicalOperationCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringOperationEvidenceRecord>()).count) ?? 0
-        let canonicalCorrectionCount = (try? modelContext.fetch(FetchDescriptor<CanonicalScoringCorrectionRecord>()).count) ?? 0
-        let legacyScoringOperationEvidenceCount = (try? modelContext.fetch(FetchDescriptor<LegacyScoringOperationEvidenceRecord>()).count) ?? 0
+        let teamCreationOperationEvidenceCount = try optionalRecordCount(TeamCreationOperationEvidenceRecord.self, in: modelContext)
+        let canonicalHistoryCount = try optionalRecordCount(CanonicalGameHistoryRecord.self, in: modelContext)
+        let canonicalEventCount = try optionalRecordCount(CanonicalScoringEventEnvelopeRecord.self, in: modelContext)
+        let canonicalPayloadCount = try optionalRecordCount(CanonicalScoringEventPayloadRecord.self, in: modelContext)
+        let canonicalOperationCount = try optionalRecordCount(CanonicalScoringOperationEvidenceRecord.self, in: modelContext)
+        let canonicalCorrectionCount = try optionalRecordCount(CanonicalScoringCorrectionRecord.self, in: modelContext)
+        let legacyScoringOperationEvidenceCount = try optionalRecordCount(LegacyScoringOperationEvidenceRecord.self, in: modelContext)
 
         return ScoreKeepMigrationBaselineRecord(
             schemaVersion: 1,
@@ -169,6 +169,17 @@ enum ScoreKeepMigrationBaselineCapture {
             return .loaded(try decoder().decode(ScoreKeepMigrationBaselineRecord.self, from: data))
         } catch {
             return .corrupt
+        }
+    }
+
+    static func optionalRecordCount(entityName: String, schema: Schema, fetchCount: () throws -> Int) rethrows -> Int {
+        guard schema.entitiesByName[entityName] != nil else { return 0 }
+        return try fetchCount()
+    }
+
+    private static func optionalRecordCount<T: PersistentModel>(_ modelType: T.Type, in modelContext: ModelContext) throws -> Int {
+        try optionalRecordCount(entityName: String(describing: modelType), schema: modelContext.container.schema) {
+            try modelContext.fetch(FetchDescriptor<T>()).count
         }
     }
 
@@ -229,11 +240,23 @@ enum ScoreKeepMigrationBaselineCapture {
             return "game:\(game.ident.uuidString):\(orderedAtbats)"
         }
         evidence += lineups.map { lineup in
-            "lineup:\(lineup.ident.uuidString):inning=\(lineup.inning):players=\(lineup.players.map { $0.identifier.uuidString }.joined(separator: ","))"
+            "lineup:\(lineup.ident.uuidString):inning=\(lineup.inning):players=\(orderedLineupPlayerEvidence(lineup.players))"
         }
         evidence += pitchers.map { "pitcher:\($0.ident.uuidString):start=\($0.startInn).\($0.sOuts).\($0.sBats):end=\($0.endInn).\($0.eOuts).\($0.eBats)" }
         evidence += atbats.map { "atbat:\($0.ident.uuidString):inning=\($0.inning):seq=\($0.seq):col=\($0.col):batOrder=\($0.batOrder)" }
         return fingerprint(evidence.sorted())
+    }
+
+    private static func orderedLineupPlayerEvidence(_ players: [Player]) -> String {
+        players
+            .sorted {
+                if $0.batOrder == $1.batOrder {
+                    return $0.identifier.uuidString < $1.identifier.uuidString
+                }
+                return $0.batOrder < $1.batOrder
+            }
+            .map { "\($0.batOrder):\($0.identifier.uuidString)" }
+            .joined(separator: ",")
     }
 
     private static func scoreEvidence(games: [Game]) -> String {
@@ -242,9 +265,16 @@ enum ScoreKeepMigrationBaselineCapture {
 
     private static func substitutionEvidence(games: [Game]) -> String {
         let values = games.map { game in
-            "\(game.ident.uuidString):replaced=\(game.replaced.map { $0.identifier.uuidString }.joined(separator: ",")):incoming=\(game.incomings.map { $0.identifier.uuidString }.joined(separator: ","))"
+            "\(game.ident.uuidString):replaced=\(unorderedPlayerIdentityEvidence(game.replaced)):incoming=\(unorderedPlayerIdentityEvidence(game.incomings))"
         }
         return fingerprint(values.sorted())
+    }
+
+    private static func unorderedPlayerIdentityEvidence(_ players: [Player]) -> String {
+        players
+            .map { $0.identifier.uuidString }
+            .sorted()
+            .joined(separator: ",")
     }
 
     private static func mediaOwnershipFingerprint(teams: [Team], players: [Player]) -> String {
@@ -315,6 +345,62 @@ enum ScoreKeepMigrationBaselineCapture {
         if players.isEmpty { codes.append("baseline.noPlayers") }
         if atbats.isEmpty { codes.append("baseline.noAtbats") }
         return codes
+    }
+
+    static func baselineMismatchDiagnosticLines(expected: ScoreKeepMigrationBaselineRecord, actual: ScoreKeepMigrationBaselineRecord) -> [String] {
+        var lines: [String] = []
+        appendMismatch("gameCount", expected.gameCount, actual.gameCount, to: &lines)
+        appendMismatch("teamCount", expected.teamCount, actual.teamCount, to: &lines)
+        appendMismatch("playerCount", expected.playerCount, actual.playerCount, to: &lines)
+        appendMismatch("lineupCount", expected.lineupCount, actual.lineupCount, to: &lines)
+        appendMismatch("atbatCount", expected.atbatCount, actual.atbatCount, to: &lines)
+        appendMismatch("pitcherCount", expected.pitcherCount, actual.pitcherCount, to: &lines)
+        appendMismatch("teamCreationOperationEvidenceCount", expected.teamCreationOperationEvidenceCount, actual.teamCreationOperationEvidenceCount, to: &lines)
+        appendMismatch("canonicalHistoryCount", expected.canonicalHistoryCount, actual.canonicalHistoryCount, to: &lines)
+        appendMismatch("canonicalEventCount", expected.canonicalEventCount, actual.canonicalEventCount, to: &lines)
+        appendMismatch("canonicalPayloadCount", expected.canonicalPayloadCount, actual.canonicalPayloadCount, to: &lines)
+        appendMismatch("canonicalOperationCount", expected.canonicalOperationCount, actual.canonicalOperationCount, to: &lines)
+        appendMismatch("canonicalCorrectionCount", expected.canonicalCorrectionCount, actual.canonicalCorrectionCount, to: &lines)
+        appendMismatch("legacyScoringOperationEvidenceCount", expected.legacyScoringOperationEvidenceCount, actual.legacyScoringOperationEvidenceCount, to: &lines)
+        appendMismatch("stableIdentityFingerprint", expected.stableIdentityFingerprint, actual.stableIdentityFingerprint, to: &lines)
+        appendMismatch("relationshipFingerprint", expected.relationshipFingerprint, actual.relationshipFingerprint, to: &lines)
+        appendMismatch("orderingFingerprint", expected.orderingFingerprint, actual.orderingFingerprint, to: &lines)
+        appendMismatch("scoreEvidence", expected.scoreEvidence, actual.scoreEvidence, to: &lines)
+        appendMismatch("substitutionEvidence", expected.substitutionEvidence, actual.substitutionEvidence, to: &lines)
+        appendMismatch("mediaOwnershipFingerprint", expected.mediaOwnershipFingerprint, actual.mediaOwnershipFingerprint, to: &lines)
+        appendMismatch("importSourceClassification", expected.importSourceClassification, actual.importSourceClassification, to: &lines)
+        appendMismatch("difficultRunnerSequence.status", expected.difficultRunnerSequence.status, actual.difficultRunnerSequence.status, to: &lines)
+        appendMismatch("difficultRunnerSequence.runnerIdentityFingerprint", expected.difficultRunnerSequence.runnerIdentityFingerprint, actual.difficultRunnerSequence.runnerIdentityFingerprint, to: &lines)
+        appendMismatch("difficultRunnerSequence.originatingAtbatFingerprint", expected.difficultRunnerSequence.originatingAtbatFingerprint, actual.difficultRunnerSequence.originatingAtbatFingerprint, to: &lines)
+        appendMismatch("difficultRunnerSequence.interveningAtbatOrderFingerprint", expected.difficultRunnerSequence.interveningAtbatOrderFingerprint, actual.difficultRunnerSequence.interveningAtbatOrderFingerprint, to: &lines)
+        appendMismatch("difficultRunnerSequence.runnerOutEvidence", expected.difficultRunnerSequence.runnerOutEvidence, actual.difficultRunnerSequence.runnerOutEvidence, to: &lines)
+        appendMismatch("difficultRunnerSequence.thirdOutClassification", expected.difficultRunnerSequence.thirdOutClassification, actual.difficultRunnerSequence.thirdOutClassification, to: &lines)
+        appendMismatch("difficultRunnerSequence.inningBoundary", expected.difficultRunnerSequence.inningBoundary, actual.difficultRunnerSequence.inningBoundary, to: &lines)
+        appendMismatch("difficultRunnerSequence.nextBatterEvidence", expected.difficultRunnerSequence.nextBatterEvidence, actual.difficultRunnerSequence.nextBatterEvidence, to: &lines)
+        appendMismatch("difficultRunnerSequence.scoreBeforeBoundary", expected.difficultRunnerSequence.scoreBeforeBoundary, actual.difficultRunnerSequence.scoreBeforeBoundary, to: &lines)
+        appendMismatch("difficultRunnerSequence.scoreAfterBoundary", expected.difficultRunnerSequence.scoreAfterBoundary, actual.difficultRunnerSequence.scoreAfterBoundary, to: &lines)
+        appendMismatch("difficultRunnerSequence.unsupportedFacts", expected.difficultRunnerSequence.unsupportedFacts.joined(separator: ","), actual.difficultRunnerSequence.unsupportedFacts.joined(separator: ","), to: &lines)
+        return lines.isEmpty ? ["baselineMismatch.fields=none"] : Array(lines.prefix(48))
+    }
+
+    private static func appendMismatch<T: CustomStringConvertible>(_ field: String, _ expected: T, _ actual: T, to lines: inout [String]) where T: Equatable {
+        guard expected != actual else { return }
+        lines.append("baselineMismatch.field=\(field);expected=\(expected.description);actual=\(actual.description)")
+    }
+
+    private static func appendMismatch(_ field: String, _ expected: String, _ actual: String, to lines: inout [String]) {
+        guard expected != actual else { return }
+        lines.append("baselineMismatch.field=\(field);expected=\(redactedDiagnosticValue(expected));actual=\(redactedDiagnosticValue(actual))")
+    }
+
+    private static func appendMismatch(_ field: String, _ expected: String?, _ actual: String?, to lines: inout [String]) {
+        guard expected != actual else { return }
+        lines.append("baselineMismatch.field=\(field);expected=\(redactedDiagnosticValue(expected));actual=\(redactedDiagnosticValue(actual))")
+    }
+
+    private static func redactedDiagnosticValue(_ value: String?) -> String {
+        guard let value else { return "nil" }
+        return "len=\(value.count),fingerprint=\(dataFingerprint(Data(value.utf8)))"
     }
 
     private static func dataFingerprint(_ data: Data?) -> String {

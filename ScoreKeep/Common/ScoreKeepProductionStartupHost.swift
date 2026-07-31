@@ -256,32 +256,34 @@ struct ScoreKeepProductionStartupRecoveryPresentation: Hashable, Sendable {
         migrationPhase: String,
         targetVerification: String,
         retryAllowed: Bool,
-        retryInProgress: Bool = false
+        retryInProgress: Bool = false,
+        additionalSupportSection: String? = nil
     ) -> ScoreKeepProductionStartupRecoveryPresentation {
         let content = userContent(for: diagnosticCode, retryAllowed: retryAllowed, retryInProgress: retryInProgress)
         var actions = content.actions
         actions.insert(.copySupportSummary)
         let finalCode: ScoreKeepProductionStartupDiagnosticCode = retryInProgress ? .retryInProgress : diagnosticCode
+        let baseSupportSummary = [
+            "ScoreKeep Startup Support Summary",
+            "App Version: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown")",
+            "Build: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown")",
+            "Startup Outcome: \(finalCode.rawValue)",
+            "Protected Data: \(protectedDataState.rawValue)",
+            "Capacity: \(capacityStatus)",
+            "Source: \(sourceStatus)",
+            "Backup: \(backupStatus)",
+            "Migration Phase: \(migrationPhase)",
+            "Target Verification: \(targetVerification)",
+            "Retry: \((retryAllowed && retryInProgress == false) ? "allowed" : "prohibited")",
+            "Codes: startup.\(finalCode.rawValue)"
+        ].joined(separator: "\n")
         return ScoreKeepProductionStartupRecoveryPresentation(
             diagnosticCode: finalCode,
             title: content.title,
             explanation: content.explanation,
             actions: actions,
             retryAllowed: retryAllowed && retryInProgress == false,
-            supportSummary: [
-                "ScoreKeep Startup Support Summary",
-                "App Version: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown")",
-                "Build: \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown")",
-                "Startup Outcome: \(finalCode.rawValue)",
-                "Protected Data: \(protectedDataState.rawValue)",
-                "Capacity: \(capacityStatus)",
-                "Source: \(sourceStatus)",
-                "Backup: \(backupStatus)",
-                "Migration Phase: \(migrationPhase)",
-                "Target Verification: \(targetVerification)",
-                "Retry: \((retryAllowed && retryInProgress == false) ? "allowed" : "prohibited")",
-                "Codes: startup.\(finalCode.rawValue)"
-            ].joined(separator: "\n")
+            supportSummary: [baseSupportSummary, additionalSupportSection].compactMap { $0 }.joined(separator: "\n\n")
         )
     }
 
@@ -349,6 +351,11 @@ enum ScoreKeepProductionStartupStatus: Hashable {
             hasher.combine(presentation)
         }
     }
+}
+
+private struct ScoreKeepStartupDiagnosticState: Codable, Hashable, Sendable {
+    var v1BackupVerificationDiagnosticSection: String? = nil
+    var postOpenBaselineMismatchDiagnosticSection: String? = nil
 }
 
 @MainActor
@@ -422,6 +429,23 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             retryAllowed: false
         ))
     }
+
+    #if DEBUG
+    func prepareFreshMigrationAttemptForDebug(fileManager: FileManager = .default) -> String {
+        guard case .blocked(let presentation) = status,
+              presentation.diagnosticCode == .migrationRecoveryRequired else {
+            return "Fresh migration attempt is available only from migration recovery."
+        }
+        let root = ScoreKeepPhysicalDeviceDiagnostics.applicationSupportRoot(fileManager: fileManager)
+        let layout = ScoreKeepProductionMigrationLayout.resolve(applicationSupportRoot: root)
+        do {
+            let result = try ScoreKeepDebugFreshMigrationAttempt.prepare(layout: layout, fileManager: fileManager)
+            return "\(result.userMessage) Archive: \(result.archiveURL.lastPathComponent)"
+        } catch {
+            return "Fresh migration attempt was not prepared: \(String(describing: error))"
+        }
+    }
+    #endif
 
     private func runStartup(allowJournalResume: Bool) {
         #if SCOREKEEP_MIGRATION_TEST_PROPOSED
@@ -868,9 +892,12 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                         from: sourceURL,
                         to: backupURL,
                         sourceLocation: .productionIntendedApplicationStore,
+                        semanticDiagnosticContext: Self.proposedV1BackupSemanticDiagnosticContext(operationIdentity: recoveryIdentity),
+                        semanticDiagnosticSnapshotSink: Self.v1BackupVerificationDiagnosticSink(layout: layout, fileManager: fileManager),
                         semanticRestoreVerifier: { restoreURL in
                             ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: restoreURL, fileManager: fileManager).sourceClassification == .proposedV1RecognizableStore
                         },
+                        makeSemanticRestoreCopyWritable: true,
                         fileManager: fileManager
                     )
                     recoveryBoundary = .sourceBackupJournalRecord
@@ -1131,7 +1158,8 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 backupStatus: "present",
                 migrationPhase: "completedJournalV1ToV3Recovery.\(recoveryBoundary.rawValue).\(Self.stagedV1RecoveryErrorIdentity(error))",
                 targetVerification: "notRun",
-                retryAllowed: true
+                retryAllowed: true,
+                additionalSupportSection: Self.persistedV1BackupVerificationDiagnosticSection(layout: layout, fileManager: fileManager)
             ))
         }
     }
@@ -1244,11 +1272,17 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                             preservedBaseline = record
                             return true
                         }
-                        let restored = try Self.currentUnversionedContainer(url: restoreURL, allowsSave: false)
-                        let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                        let record = try Self.proposedV1BackupBaselineRecord(from: restoreURL)
                         preservedBaseline = record
                         return true
                     } : nil,
+                    makeSemanticRestoreCopyWritable: sourceClassification == .proposedV1RecognizableStore,
+                    semanticDiagnosticContext: sourceClassification == .proposedV1RecognizableStore
+                        ? Self.proposedV1BackupSemanticDiagnosticContext(operationIdentity: operationIdentity)
+                        : nil,
+                    semanticDiagnosticSnapshotSink: sourceClassification == .proposedV1RecognizableStore
+                        ? Self.v1BackupVerificationDiagnosticSink(layout: layout, fileManager: fileManager)
+                        : nil,
                     postOpenVerifier: { container in
                         let verification = Self.verifyPostOpenMigrationBaselineResult(
                             container: container,
@@ -1258,6 +1292,11 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                             fileManager: fileManager
                         )
                         postOpenFailureDiagnostics = verification.diagnosticCodes
+                        Self.persistPostOpenBaselineMismatchDiagnosticSection(
+                            verification.mismatchDiagnosticSection,
+                            layout: layout,
+                            fileManager: fileManager
+                        )
                         return verification.passed
                     },
                     postOpenFailureDiagnostics: {
@@ -1277,7 +1316,12 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                     backupStatus: result.journal.backupVerificationDisposition == .backupVerified ? "present" : "uncertain",
                     migrationPhase: result.journal.phase.rawValue,
                     targetVerification: result.journal.postOpenVerificationDisposition,
-                    retryAllowed: retryAllowed
+                    retryAllowed: retryAllowed,
+                    additionalSupportSection: Self.persistedMigrationDiagnosticSection(
+                        for: code,
+                        layout: layout,
+                        fileManager: fileManager
+                    )
                 ))
                 return
             }
@@ -1303,15 +1347,17 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         } catch {
             let loaded = journalStore.load()
             let recovery = ScoreKeepMigrationOrchestrator.reconcile(loaded.record)
+            let code: ScoreKeepProductionStartupDiagnosticCode = Self.retryAllowed(for: recovery) ? .migrationInterruptedRetryable : .migrationRecoveryRequired
             status = .blocked(recoveryPresentation(
-                code: Self.retryAllowed(for: recovery) ? .migrationInterruptedRetryable : .migrationRecoveryRequired,
+                code: code,
                 protectedDataState: currentProtectedDataState(),
                 capacityStatus: family == nil ? "notRequiredForEmptyStore" : "capacity.sufficient",
                 sourceStatus: sourceClassification.rawValue,
                 backupStatus: loaded.record?.backupVerificationDisposition == .backupVerified ? "present" : "uncertain",
                 migrationPhase: loaded.record?.phase.rawValue ?? "notStarted",
                 targetVerification: loaded.record?.postOpenVerificationDisposition ?? "notRun",
-                retryAllowed: Self.retryAllowed(for: recovery)
+                retryAllowed: Self.retryAllowed(for: recovery),
+                additionalSupportSection: Self.persistedV1BackupVerificationDiagnosticSection(layout: layout, fileManager: fileManager)
             ))
         }
     }
@@ -1405,7 +1451,8 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         migrationPhase: String,
         targetVerification: String,
         retryAllowed: Bool,
-        retryInProgress: Bool = false
+        retryInProgress: Bool = false,
+        additionalSupportSection: String? = nil
     ) -> ScoreKeepProductionStartupRecoveryPresentation {
         ScoreKeepProductionStartupRecoveryPresentation.make(
             diagnosticCode: code,
@@ -1416,8 +1463,108 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             migrationPhase: migrationPhase,
             targetVerification: targetVerification,
             retryAllowed: retryAllowed,
-            retryInProgress: retryInProgress
+            retryInProgress: retryInProgress,
+            additionalSupportSection: additionalSupportSection
         )
+    }
+
+    static func persistV1BackupVerificationDiagnosticSection(
+        _ section: String,
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) {
+        persistDiagnosticState(layout: layout, fileManager: fileManager) { state in
+            state.v1BackupVerificationDiagnosticSection = section.isEmpty ? nil : section
+        }
+    }
+
+    static func persistPostOpenBaselineMismatchDiagnosticSection(
+        _ section: String?,
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) {
+        persistDiagnosticState(layout: layout, fileManager: fileManager) { state in
+            state.postOpenBaselineMismatchDiagnosticSection = section?.isEmpty == false ? section : nil
+        }
+    }
+
+    private static func persistDiagnosticState(
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager,
+        update: (inout ScoreKeepStartupDiagnosticState) -> Void
+    ) {
+        do {
+            try fileManager.createDirectory(at: layout.diagnosticsState.deletingLastPathComponent(), withIntermediateDirectories: true)
+            var state = loadDiagnosticState(layout: layout, fileManager: fileManager)
+            update(&state)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(state)
+            try data.write(to: layout.diagnosticsState, options: [.atomic])
+        } catch {
+            // Diagnostic persistence must not alter migration or recovery behavior.
+        }
+    }
+
+    private static func loadDiagnosticState(
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) -> ScoreKeepStartupDiagnosticState {
+        guard let data = try? Data(contentsOf: layout.diagnosticsState),
+              let state = try? JSONDecoder().decode(ScoreKeepStartupDiagnosticState.self, from: data) else {
+            return ScoreKeepStartupDiagnosticState()
+        }
+        return state
+    }
+
+    static func persistedV1BackupVerificationDiagnosticSection(
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) -> String? {
+        let state = loadDiagnosticState(layout: layout, fileManager: fileManager)
+        guard let section = state.v1BackupVerificationDiagnosticSection,
+              section.isEmpty == false else {
+            return nil
+        }
+        return section
+    }
+
+    static func persistedPostOpenBaselineMismatchDiagnosticSection(
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) -> String? {
+        let state = loadDiagnosticState(layout: layout, fileManager: fileManager)
+        guard let section = state.postOpenBaselineMismatchDiagnosticSection,
+              section.isEmpty == false else {
+            return nil
+        }
+        return section
+    }
+
+    static func persistedMigrationDiagnosticSection(
+        for code: ScoreKeepProductionStartupDiagnosticCode,
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) -> String? {
+        switch code {
+        case .backupVerificationFailed:
+            return persistedV1BackupVerificationDiagnosticSection(layout: layout, fileManager: fileManager)
+        case .postMigrationVerificationFailed:
+            return persistedPostOpenBaselineMismatchDiagnosticSection(layout: layout, fileManager: fileManager)
+        case .protectedDataUnavailable, .capacityInsufficient, .capacityUnavailable, .migrationInterruptedRetryable,
+             .migrationRecoveryRequired, .journalCorrupt, .journalUnsupported, .sourceMissing, .sourceIncomplete,
+             .proposedOpenFailed, .completionRecordFailed, .retryInProgress, .retryBlocked, .startupCompleted:
+            return nil
+        }
+    }
+
+    private static func v1BackupVerificationDiagnosticSink(
+        layout: ScoreKeepProductionMigrationLayout,
+        fileManager: FileManager
+    ) -> (String) -> Void {
+        { section in
+            persistV1BackupVerificationDiagnosticSection(section, layout: layout, fileManager: fileManager)
+        }
     }
 
     private func currentProtectedDataState() -> ScoreKeepProtectedDataObservationState {
@@ -1522,6 +1669,39 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
+    static func proposedV1BackupBaselineRecord(from restoreURL: URL) throws -> ScoreKeepMigrationBaselineRecord {
+        let container = try proposedV1BackupBaselineContainer(url: restoreURL)
+        return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
+    }
+
+    private static func proposedV1BackupBaselineContainer(url: URL) throws -> ModelContainer {
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V1.self)
+        let configuration = ModelConfiguration(
+            "ScoreKeepProposedV1BackupSemanticVerification",
+            schema: schema,
+            url: url,
+            allowsSave: true
+        )
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    private static func proposedV1BackupSemanticDiagnosticContext(
+        operationIdentity: ScoreKeepMigrationOperationIdentity
+    ) -> ScoreKeepSourcePreservationSemanticDiagnosticContext {
+        ScoreKeepSourcePreservationSemanticDiagnosticContext(
+            sourceClassification: ScoreKeepSourceStoreClassification.proposedV1RecognizableStore.rawValue,
+            operationIdentity: operationIdentity.diagnosticToken,
+            configurationName: "ScoreKeepProposedV1BackupSemanticVerification",
+            allowsSave: true,
+            automaticMigrationOptionPresent: true,
+            inferredMigrationOptionPresent: true,
+            requestedModelVersion: "ScoreKeepProposedVersionedSchema.V1:1.0.0",
+            requestedModelEntityHashes: ScoreKeepProposedVersionedSchema.v1ModelNames.map { modelName in
+                "\(modelName):\(ScoreKeepStoreFamilyDiscovery.digest(Data("ScoreKeepProposedVersionedSchema.V1.\(modelName)".utf8)))"
+            }
+        )
+    }
+
     private static func proposedV2MigratingFromV1Container(url: URL) throws -> ModelContainer {
         let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V2.self)
         let configuration = ModelConfiguration("ScoreKeepStagedRecoveryV2", url: url, allowsSave: true)
@@ -1614,7 +1794,10 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         from sourceURL: URL,
         to destinationURL: URL,
         sourceLocation: ScoreKeepStartupStoreLocation.Kind,
+        semanticDiagnosticContext: ScoreKeepSourcePreservationSemanticDiagnosticContext? = nil,
+        semanticDiagnosticSnapshotSink: ((String) -> Void)? = nil,
         semanticRestoreVerifier: ((URL) throws -> Bool)?,
+        makeSemanticRestoreCopyWritable: Bool = false,
         fileManager: FileManager
     ) throws -> ScoreKeepSourcePreservationEvidence {
         try ScoreKeepSourcePreservationExecutor.preserve(
@@ -1625,7 +1808,10 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 sourceClosureEvidence: .closedForProductionStartup,
                 allowIncompleteTestOwnedBackupRemoval: false,
                 semanticRestoreVerifier: semanticRestoreVerifier,
-                authorizationScope: sourceLocation == .productionIntendedApplicationStore ? .productionTransitionExplicitlyAuthorized : .testOwnedDisposable
+                makeSemanticRestoreCopyWritable: makeSemanticRestoreCopyWritable,
+                authorizationScope: sourceLocation == .productionIntendedApplicationStore ? .productionTransitionExplicitlyAuthorized : .testOwnedDisposable,
+                semanticDiagnosticContext: semanticDiagnosticContext,
+                semanticDiagnosticSnapshotSink: semanticDiagnosticSnapshotSink
             ),
             fileManager: fileManager
         )
@@ -1733,6 +1919,14 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
     struct PostOpenMigrationBaselineVerificationResult: Hashable, Sendable {
         let passed: Bool
         let diagnosticCodes: [ScoreKeepMigrationJournalDiagnosticCode]
+        let mismatchDiagnosticLines: [String]
+
+        var mismatchDiagnosticSection: String? {
+            guard mismatchDiagnosticLines.isEmpty == false else { return nil }
+            return ([Self.mismatchDiagnosticSectionTitle] + mismatchDiagnosticLines.prefix(48)).joined(separator: "\n")
+        }
+
+        private static let mismatchDiagnosticSectionTitle = "Post-Open Baseline Mismatch Diagnostics"
     }
 
     static func verifyPostOpenMigrationBaselineResult(
@@ -1746,7 +1940,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         if let preservedBaseline {
             baseline = preservedBaseline
         } else if sourceClassification == .noStoreExists {
-            return PostOpenMigrationBaselineVerificationResult(passed: true, diagnosticCodes: [])
+            return PostOpenMigrationBaselineVerificationResult(passed: true, diagnosticCodes: [], mismatchDiagnosticLines: [])
         } else {
             let reconstruction = reconstructExpectedSourceBaselineForVerification(
                 fromVerifiedBackup: backupURL,
@@ -1754,7 +1948,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 fileManager: fileManager
             )
             guard let recoveredBaseline = reconstruction.baseline else {
-                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: reconstruction.diagnosticCodes)
+                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: reconstruction.diagnosticCodes, mismatchDiagnosticLines: [])
             }
             baseline = recoveredBaseline
         }
@@ -1775,27 +1969,34 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         if let preservedBaseline {
             baseline = preservedBaseline
         } else if sourceClassification == .noStoreExists {
-            return PostOpenMigrationBaselineVerificationResult(passed: true, diagnosticCodes: [])
+            return PostOpenMigrationBaselineVerificationResult(passed: true, diagnosticCodes: [], mismatchDiagnosticLines: [])
         } else {
             guard fileManager.fileExists(atPath: backupURL.path) else {
-                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenMissingVerifiedBackup])
+                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenMissingVerifiedBackup], mismatchDiagnosticLines: [])
             }
             do {
                 guard let recoveredBaseline = try baselineReconstructor(backupURL, sourceClassification, fileManager) else {
-                    return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenBackupBaselineCaptureFailed])
+                    return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenBackupBaselineCaptureFailed], mismatchDiagnosticLines: [])
                 }
                 baseline = recoveredBaseline
             } catch {
-                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [diagnosticCode(forBaselineReconstructionError: error)])
+                return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [diagnosticCode(forBaselineReconstructionError: error)], mismatchDiagnosticLines: [])
             }
         }
 
         do {
             let record = try targetBaselineCapture?(container) ?? ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
             let mismatchDiagnostics = baselineMismatchDiagnostics(record, baseline)
-            return PostOpenMigrationBaselineVerificationResult(passed: mismatchDiagnostics.isEmpty, diagnosticCodes: mismatchDiagnostics)
+            let mismatchLines = mismatchDiagnostics.isEmpty
+                ? []
+                : ScoreKeepMigrationBaselineCapture.baselineMismatchDiagnosticLines(expected: baseline, actual: record)
+            return PostOpenMigrationBaselineVerificationResult(
+                passed: mismatchDiagnostics.isEmpty,
+                diagnosticCodes: mismatchDiagnostics,
+                mismatchDiagnosticLines: mismatchLines
+            )
         } catch {
-            return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenTargetBaselineCaptureFailed])
+            return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenTargetBaselineCaptureFailed], mismatchDiagnosticLines: [])
         }
     }
 
@@ -1859,7 +2060,22 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                     throw ExpectedBaselineReconstructionFailure.backupOpenFailed
                 }
             }
-        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore:
+        case .proposedV1RecognizableStore:
+            return reconstructExpectedSourceBaselineForVerification(backupURL: backupURL, fileManager: fileManager) { restoreURL in
+                do {
+                    let restored = try proposedV1BackupBaselineContainer(url: restoreURL)
+                    do {
+                        return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
+                    } catch {
+                        throw ExpectedBaselineReconstructionFailure.backupCaptureFailed
+                    }
+                } catch ExpectedBaselineReconstructionFailure.backupCaptureFailed {
+                    throw ExpectedBaselineReconstructionFailure.backupCaptureFailed
+                } catch {
+                    throw ExpectedBaselineReconstructionFailure.backupOpenFailed
+                }
+            }
+        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore:
             return reconstructExpectedSourceBaselineForVerification(backupURL: backupURL, fileManager: fileManager) { restoreURL in
                 do {
                     let restored = try currentUnversionedContainer(url: restoreURL, allowsSave: true)
@@ -1926,9 +2142,16 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
         do {
             let record = try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: container.mainContext)
             let mismatchDiagnostics = baselineMismatchDiagnostics(record, baseline)
-            return PostOpenMigrationBaselineVerificationResult(passed: mismatchDiagnostics.isEmpty, diagnosticCodes: mismatchDiagnostics)
+            let mismatchLines = mismatchDiagnostics.isEmpty
+                ? []
+                : ScoreKeepMigrationBaselineCapture.baselineMismatchDiagnosticLines(expected: baseline, actual: record)
+            return PostOpenMigrationBaselineVerificationResult(
+                passed: mismatchDiagnostics.isEmpty,
+                diagnosticCodes: mismatchDiagnostics,
+                mismatchDiagnosticLines: mismatchLines
+            )
         } catch {
-            return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenTargetBaselineCaptureFailed])
+            return PostOpenMigrationBaselineVerificationResult(passed: false, diagnosticCodes: [.postOpenTargetBaselineCaptureFailed], mismatchDiagnosticLines: [])
         }
     }
 
@@ -1948,7 +2171,11 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
                 let restored = try proposedV3ExistingContainer(url: restoreURL)
                 return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
             }
-        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore, .proposedV1RecognizableStore:
+        case .proposedV1RecognizableStore:
+            return try withVerifiedBackupBaselineRestore(backupURL: backupURL, fileManager: fileManager) { restoreURL in
+                try proposedV1BackupBaselineRecord(from: restoreURL)
+            }
+        case .emptyCurrentUnversionedStore, .populatedCurrentUnversionedStore:
             return try withVerifiedBackupBaselineRestore(backupURL: backupURL, fileManager: fileManager) { restoreURL in
                 let restored = try currentUnversionedContainer(url: restoreURL, allowsSave: true)
                 return try ScoreKeepMigrationBaselineCapture.makeRecord(modelContext: restored.mainContext)
@@ -2325,7 +2552,11 @@ struct ScoreKeepProductionStartupHost<Content: View>: View {
             case .proposedMigrationExecutionRequired:
                 ScoreKeepPhysicalMigrationExecutionView()
             case .blocked(let presentation):
-                ScoreKeepStartupBlockedView(presentation: presentation, retry: startup.retry)
+                ScoreKeepStartupBlockedView(
+                    presentation: presentation,
+                    retry: startup.retry,
+                    prepareFreshMigrationAttempt: debugFreshMigrationAttemptHandler
+                )
             }
         }
         .task {
@@ -2338,6 +2569,14 @@ struct ScoreKeepProductionStartupHost<Content: View>: View {
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataWillBecomeUnavailableNotification)) { _ in
             startup.protectedDataWillBecomeUnavailable()
         }
+        #endif
+    }
+
+    private var debugFreshMigrationAttemptHandler: (() -> String)? {
+        #if DEBUG
+        return { startup.prepareFreshMigrationAttemptForDebug() }
+        #else
+        return nil
         #endif
     }
 }
@@ -2390,7 +2629,10 @@ private struct DisposableRehearsalSummaryBanner: View {
 private struct ScoreKeepStartupBlockedView: View {
     let presentation: ScoreKeepProductionStartupRecoveryPresentation
     let retry: () -> Void
+    let prepareFreshMigrationAttempt: (() -> String)?
     @State private var copied = false
+    @State private var showingFreshMigrationConfirmation = false
+    @State private var freshMigrationMessage: String?
 
     var body: some View {
         VStack(spacing: 18) {
@@ -2430,6 +2672,36 @@ private struct ScoreKeepStartupBlockedView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                     .accessibilityLabel(copied ? "Support summary copied" : "Copy support summary")
+                }
+                #if DEBUG
+                if presentation.diagnosticCode == .migrationRecoveryRequired,
+                   let prepareFreshMigrationAttempt {
+                    Button("Prepare Fresh Migration Attempt", role: .destructive) {
+                        showingFreshMigrationConfirmation = true
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .accessibilityLabel("Prepare fresh migration attempt")
+                    .confirmationDialog(
+                        "Prepare fresh migration attempt?",
+                        isPresented: $showingFreshMigrationConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Prepare Fresh Migration Attempt", role: .destructive) {
+                            freshMigrationMessage = prepareFreshMigrationAttempt()
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This archives only the migration control directory. Close and relaunch ScoreKeep after it succeeds.")
+                    }
+                }
+                #endif
+                if let freshMigrationMessage {
+                    Text(freshMigrationMessage)
+                        .font(.callout)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                 }
             }
         }

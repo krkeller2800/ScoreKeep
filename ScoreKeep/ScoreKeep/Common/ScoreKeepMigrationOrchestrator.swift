@@ -62,6 +62,10 @@ struct ScoreKeepMigrationOrchestratorInput {
     let interruptionPoint: ScoreKeepMigrationInterruptionPoint?
     let factoryInjection: ScoreKeepProposedContainerFactoryInjection?
     let semanticRestoreVerifier: ((URL) throws -> Bool)?
+    let makeSemanticRestoreCopyWritable: Bool
+    let semanticDiagnosticContext: ScoreKeepSourcePreservationSemanticDiagnosticContext?
+    let semanticDiagnosticSnapshotSink: ((String) -> Void)?
+    let semanticBaselineMismatchDiagnosticLines: (() -> [String])?
     let postOpenVerifier: ((ModelContainer) throws -> Bool)?
     let postOpenFailureDiagnostics: (() -> [ScoreKeepMigrationJournalDiagnosticCode])?
     let expectedSourceBaseline: ScoreKeepMigrationBaselineRecord?
@@ -83,6 +87,10 @@ struct ScoreKeepMigrationOrchestratorInput {
         interruptionPoint: ScoreKeepMigrationInterruptionPoint?,
         factoryInjection: ScoreKeepProposedContainerFactoryInjection?,
         semanticRestoreVerifier: ((URL) throws -> Bool)?,
+        makeSemanticRestoreCopyWritable: Bool = false,
+        semanticDiagnosticContext: ScoreKeepSourcePreservationSemanticDiagnosticContext? = nil,
+        semanticDiagnosticSnapshotSink: ((String) -> Void)? = nil,
+        semanticBaselineMismatchDiagnosticLines: (() -> [String])? = nil,
         postOpenVerifier: ((ModelContainer) throws -> Bool)?,
         postOpenFailureDiagnostics: (() -> [ScoreKeepMigrationJournalDiagnosticCode])? = nil,
         expectedSourceBaseline: ScoreKeepMigrationBaselineRecord? = nil,
@@ -103,6 +111,10 @@ struct ScoreKeepMigrationOrchestratorInput {
         self.interruptionPoint = interruptionPoint
         self.factoryInjection = factoryInjection
         self.semanticRestoreVerifier = semanticRestoreVerifier
+        self.makeSemanticRestoreCopyWritable = makeSemanticRestoreCopyWritable
+        self.semanticDiagnosticContext = semanticDiagnosticContext
+        self.semanticDiagnosticSnapshotSink = semanticDiagnosticSnapshotSink
+        self.semanticBaselineMismatchDiagnosticLines = semanticBaselineMismatchDiagnosticLines
         self.postOpenVerifier = postOpenVerifier
         self.postOpenFailureDiagnostics = postOpenFailureDiagnostics
         self.expectedSourceBaseline = expectedSourceBaseline
@@ -204,7 +216,11 @@ enum ScoreKeepMigrationOrchestrator {
                         sourceClosureEvidence: input.sourceClosureEvidence,
                         allowIncompleteTestOwnedBackupRemoval: input.allowIncompleteBackupRemoval,
                         semanticRestoreVerifier: input.semanticRestoreVerifier,
-                        authorizationScope: input.sourcePreservationAuthorizationScope
+                        makeSemanticRestoreCopyWritable: input.makeSemanticRestoreCopyWritable,
+                        authorizationScope: input.sourcePreservationAuthorizationScope,
+                        semanticDiagnosticContext: input.semanticDiagnosticContext,
+                        semanticDiagnosticSnapshotSink: input.semanticDiagnosticSnapshotSink,
+                        semanticBaselineMismatchDiagnosticLines: input.semanticBaselineMismatchDiagnosticLines
                     )
                 )
             } catch {

@@ -141,6 +141,21 @@ enum IsolatedUnversionedProductionStoreSupport {
         return (url, try snapshot(from: reopened, fixtureIdentity: scenario.rawValue))
     }
 
+    static func createProposedV1SourceStore(_ scenario: UnversionedStoreScenario, name: String = UUID().uuidString) throws -> (url: URL, snapshot: UnversionedStoreSnapshot) {
+        let url = try temporaryStoreURL(name)
+        do {
+            let container = try proposedV1Container(url: url)
+            let context = ModelContext(container)
+            try populate(scenario, in: context)
+            try context.save()
+        }
+        let baseline = try ScoreKeepProductionStartupModel.proposedV1BackupBaselineRecord(from: url)
+        let reopened = try proposedV1Container(url: url)
+        let snapshot = try snapshot(from: reopened, fixtureIdentity: scenario.rawValue)
+        #expect(baseline.matchesRecordCounts(snapshot.counts))
+        return (url, snapshot)
+    }
+
     static func copyStoreFamily(from sourceURL: URL, name: String = UUID().uuidString) throws -> URL {
         let destinationURL = try temporaryStoreURL(name)
         let fileManager = FileManager.default
@@ -492,5 +507,16 @@ enum IsolatedUnversionedProductionStoreSupport {
     private static func fingerprint(_ data: Data?) -> String {
         guard let data else { return "nil" }
         return "bytes-\(data.count)-sum-\(data.reduce(0) { $0 + Int($1) })"
+    }
+}
+
+extension ScoreKeepMigrationBaselineRecord {
+    func matchesRecordCounts(_ counts: CanonicalMigrationRecordCounts) -> Bool {
+        gameCount == counts.games
+            && teamCount == counts.teams
+            && playerCount == counts.players
+            && atbatCount == counts.atbats
+            && lineupCount == counts.lineups
+            && pitcherCount == counts.pitchers
     }
 }
