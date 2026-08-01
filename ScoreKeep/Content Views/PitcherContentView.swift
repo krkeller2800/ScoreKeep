@@ -16,11 +16,12 @@ struct PitcherContentView: View {
     @State var game:Game 
     @State private var navigationPath = NavigationPath()
     @State private var searchText = ""
-    @State private var rpText = ""
-    @State private var spText = ""
-    @State private var whichPlayers = "All Players"
+    @State private var rpText = "RP"
+    @State private var spText = "SP"
+    @State private var whichPlayers = "Pitchers"
     @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Player.name)]
+    let pitcherChangeCompleted: (LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Void
     @AppStorage("selectedPitcherCriteria") var selectedPitcherCriteria: SortCriteria = .nameAsc
     
     enum SortCriteria: String, CaseIterable, Identifiable {
@@ -41,10 +42,20 @@ struct PitcherContentView: View {
         }
     }
 
+    init(
+        team: Team,
+        game: Game,
+        pitcherChangeCompleted: @escaping (LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Void = { _ in }
+    ) {
+        _team = State(initialValue: team)
+        _game = State(initialValue: game)
+        self.pitcherChangeCompleted = pitcherChangeCompleted
+    }
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack {
-                PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name, rpText: rpText, spText: spText)
+                PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name, rpText: rpText, spText: spText, pitcherChangeCompleted: pitcherChangeCompleted)
                     .navigationDestination(for: Player.self) { player in
                         EditPlayerView(player: player, team: team, navigationPath: $navigationPath)
                 }

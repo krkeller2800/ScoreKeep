@@ -8,6 +8,7 @@ struct LiveScoringShellPresentation {
         let shouldPresentScoringSheet: Bool
         let shouldMarkChanged: Bool
         let message: String?
+        let targetAction: LiveScoringWorkflowCoordinator.ScoringActionIdentity?
     }
 
     struct ProjectionPresentation {
@@ -203,6 +204,15 @@ struct LiveScoringShellPresentation {
         let message: String?
     }
 
+    struct PitcherSectionScrollRequest: Equatable {
+        let identity: UUID
+        let targetID: String
+    }
+
+    static func pitcherRowScrollTargetID(for playerIdentity: UUID) -> String {
+        "pitcher_row_scroll_target_\(playerIdentity.uuidString.lowercased())"
+    }
+
     struct PitcherChangeReviewState: Equatable {
         let gameIdentity: UUID
         let teamIdentity: UUID
@@ -367,6 +377,23 @@ struct LiveScoringShellPresentation {
         column > 0 && sourceAtbat != nil
     }
 
+    func pitcherSectionScrollRequest(
+        afterPitcherChange presentation: SubstitutionReviewPresentation,
+        incomingPitcherIdentity: UUID?,
+        identity: UUID = UUID()
+    ) -> PitcherSectionScrollRequest? {
+        guard presentation.outcome == .accepted,
+              presentation.shouldClearPendingReview,
+              presentation.shouldMarkChanged,
+              let incomingPitcherIdentity else {
+            return nil
+        }
+        return PitcherSectionScrollRequest(
+            identity: identity,
+            targetID: Self.pitcherRowScrollTargetID(for: incomingPitcherIdentity)
+        )
+    }
+
     func presentSelectionResult(_ result: LiveScoringWorkflowCoordinator.SelectionResult) -> SelectionPresentation {
         let canPresent = (result.disposition == .success || result.disposition == .noChange) && result.atbat != nil
         return SelectionPresentation(
@@ -374,7 +401,8 @@ struct LiveScoringShellPresentation {
             selectedAtbat: result.atbat,
             shouldPresentScoringSheet: canPresent,
             shouldMarkChanged: canPresent,
-            message: result.message
+            message: result.message,
+            targetAction: result.targetAction
         )
     }
 

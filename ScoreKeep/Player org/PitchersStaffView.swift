@@ -10,6 +10,7 @@ import SwiftData
 
 struct PitchersStaffView: View {
     @Environment(\.modelContext) var modelContext
+    @Environment(\.dismiss) var dismiss
     @State var team: Team
     @State var game: Game
     @State var numOfHitters = 9
@@ -34,6 +35,7 @@ struct PitchersStaffView: View {
     @State private var editPitcher: Bool = false
     @State private var alertMessage = ""
     @State private var showingAlert = false
+    let pitcherChangeCompleted: (LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Void
 
     enum FocusField: Hashable {case field}
     @FocusState private var focusedField: FocusField?
@@ -250,6 +252,7 @@ struct PitchersStaffView: View {
             }
             Button("Confirm") {
                 let coordinator = LiveScoringWorkflowCoordinator()
+                let incomingPitcherIdentity = reviewState?.incomingPitcherIdentity
                 let presentation = presenter.confirmPitcherChangeReview(&reviewState) { gameId, teamId, incomingId, sInn, sOuts, sBats in
                     coordinator.submitPitcherChange(
                         gameIdentity: gameId,
@@ -267,6 +270,14 @@ struct PitchersStaffView: View {
                 if presentation.outcome != .accepted {
                     alertMessage = presentation.message ?? "Pitcher change failed."
                     showingAlert = true
+                } else {
+                    if let scrollRequest = presenter.pitcherSectionScrollRequest(
+                        afterPitcherChange: presentation,
+                        incomingPitcherIdentity: incomingPitcherIdentity
+                    ) {
+                        pitcherChangeCompleted(scrollRequest)
+                    }
+                    dismiss()
                 }
             }
         } message: {
@@ -298,6 +309,20 @@ struct PitchersStaffView: View {
                     if result.disposition != .accepted {
                         alertMessage = result.message ?? "Error saving new pitcher"
                         showingAlert = true
+                    } else {
+                        let presentation = LiveScoringShellPresentation.SubstitutionReviewPresentation(
+                            outcome: .accepted,
+                            shouldClearPendingReview: true,
+                            shouldMarkChanged: true,
+                            refreshedState: result.refreshedState,
+                            message: result.message
+                        )
+                        if let scrollRequest = presenter.pitcherSectionScrollRequest(
+                        afterPitcherChange: presentation,
+                        incomingPitcherIdentity: thisPlayer.identifier
+                    ) {
+                            pitcherChangeCompleted(scrollRequest)
+                        }
                     }
                 }
             }
@@ -311,9 +336,19 @@ struct PitchersStaffView: View {
         }
         Spacer()
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], passedGame: Game, passedTeam: Team, theTeam: String,rpText: String = "", spText: String = "") {
+    init(
+        searchString: String = "",
+        sortOrder: [SortDescriptor<Player>] = [],
+        passedGame: Game,
+        passedTeam: Team,
+        theTeam: String,
+        rpText: String = "",
+        spText: String = "",
+        pitcherChangeCompleted: @escaping (LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Void = { _ in }
+    ) {
         team = passedTeam
         game = passedGame
+        self.pitcherChangeCompleted = pitcherChangeCompleted
         
         _players = Query(filter: #Predicate { player in
             if searchString.isEmpty && rpText.isEmpty && spText.isEmpty

@@ -17,6 +17,7 @@ struct PlayersToScoreView: View {
     @Binding var isLoading: Bool
     @Binding var hasChanged: Bool
     @Binding var columnVisability:NavigationSplitViewVisibility
+    @Binding var pitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
     @State var screenSize: CGSize = .zero
     @State var screenWidth = UIScreen.screenWidth
     @State var screenHeight = UIScreen.screenHeight
@@ -39,6 +40,11 @@ struct PlayersToScoreView: View {
     @State private var showingCorrectionReview = false
     @State private var correctionReviewState: LiveScoringShellPresentation.CorrectionReviewState?
     @State private var correctionReviewMessage: String?
+    @State private var pendingPitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
+    @State private var scorecardScrollController = ScorecardScrollController()
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    @State private var highlightedCell: String? = nil
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
     let com = Common()
@@ -65,28 +71,29 @@ struct PlayersToScoreView: View {
                         Spacer()
                     }
                     ScrollView() {
-                        HStack {
-                            VStack (spacing: 0){
-                                ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
-                                    HStack(spacing: 2) {
-                                        if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
-                                            let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
-                                            let player = atbat.player
-                                            let strikeIt = containsPlayer(player, in: game.replaced)
-                                            let isIncoming = containsPlayer(player, in: game.incomings)
-                                            let iName = isIncoming ? "    \(player.name)" : player.name
-                                            Text(player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
-                                            Text(iName).frame(width: 150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).strikethrough(strikeIt)
-                                                .fixedSize(horizontal: true, vertical: true).padding(.leading,5).lineLimit(2)
+                            HStack {
+                                VStack (spacing: 0){
+                                    ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
+                                        HStack(spacing: 2) {
+                                            if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
+                                                let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
+                                                let player = atbat.player
+                                                let strikeIt = containsPlayer(player, in: game.replaced)
+                                                let isIncoming = containsPlayer(player, in: game.incomings)
+                                                let iName = isIncoming ? "    \(player.name)" : player.name
+                                                Text(player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                                Text(iName).frame(width: 150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).strikethrough(strikeIt)
+                                                    .fixedSize(horizontal: true, vertical: true).padding(.leading,5).lineLimit(2)
 
+                                            }
                                         }
                                     }
+                                    Spacer()
                                 }
-                                Spacer()
-                            }
-                            ScrollView(.horizontal) {
-                                ZStack {
+                                ScrollView(.horizontal) {
+                                    ScrollViewReader { scrollProxy in
+                                        ZStack {
                                     let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
                                     let gridSz = CGFloat(gWidth > 1100 ? 60 : 50)
                                     let bSize = Int(((gWidth - (gWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
@@ -98,19 +105,19 @@ struct PlayersToScoreView: View {
                                                 if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                                     ForEach((1...maxCol), id: \.self) {ind in
                                                         let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
-                                                        Button(action: {
-                                                            doAtbat(ind: ind, index: index, atbat: atbat)
-                                                        }, label: {
-                                                            Image("field").resizable().scaledToFit()
-                                                        })
-                                                        .frame(width: bSiz, height: bSiz)
-                                                        .buttonStyle(GlowButtonStyle())
-                                                        .disabled(!scorecardCellPresentation(column: ind, atbat: atbat).isEnabled)
-                                                        .accessibilityLabel(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityLabel)
-                                                        .accessibilityValue(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityValue ?? "")
-                                                        .accessibilityHint(scorecardCellPresentation(column: ind, atbat: atbat).accessibilityHint ?? "")
-                                                        .accessibilityAddTraits(.isButton)
-                                                        .accessibilityIdentifier("scorecard_cell_\(atbat.batOrder)_\(ind)")
+                                                        let cellId = "scorecard_cell_\(atbat.batOrder)_\(ind)"
+                                                        let isHighlighted = highlightedCell == cellId
+                                                        let cellPresentation = scorecardCellPresentation(column: ind, atbat: atbat)
+                                                        ScorecardCellView(
+                                                            atbat: atbat,
+                                                            ind: ind,
+                                                            bSiz: bSiz,
+                                                            isHighlighted: isHighlighted,
+                                                            cellPresentation: cellPresentation,
+                                                            action: {
+                                                                doAtbat(ind: ind, index: index, atbat: atbat)
+                                                            }
+                                                        )
                                                     }
                                                 }
                                                 let mCol = Double(gWidth) - 150 - (Double(maxCol+1) * gridSz)
@@ -132,16 +139,52 @@ struct PlayersToScoreView: View {
                                     if let firstAtbat = atbats.first,
                                        let opTeam = opponentTeam(for: firstAtbat.team) {
                                         drawSing(space: calcSpace(gWidth:gWidth), atbats: atbats.sorted{ ($0.col, $0.seq) < ($1.col, $1.seq) },colbox: colbox,batbox: batbox, totbox: totbox,sWidth: gWidth, isLoading: $isLoading)
-                                        drawPitchers(space: calcSpace(gWidth:gWidth), atbats: atbats, abb: "", inning: 1,game: game, team: opTeam, width: gWidth)
+                                        drawPitchers(
+                                            space: calcSpace(gWidth:gWidth),
+                                            atbats: atbats,
+                                            abb: "",
+                                            inning: 1,
+                                            game: game,
+                                            team: opTeam,
+                                            width: gWidth
+                                        )
+                                    }
+                                }
+                                .onChange(of: highlightedCell) { _, newValue in
+                                    if let target = newValue {
+                                        withAnimation {
+                                            scrollProxy.scrollTo(target, anchor: .center)
+                                        }
+                                    }
+                                }
+                                .coordinateSpace(name: "scroll")
                                     }
                                 }
                             }
-                            .coordinateSpace(name: "scroll")
+                            .background(
+                                ScorecardScrollViewObserver(controller: scorecardScrollController)
+                            )
                         }
-                    }
+                        .coordinateSpace(name: "pitcher_vertical_scroll")
+                        .onChange(of: pitcherSectionScrollRequest) { _, request in
+                            guard let request else { return }
+                            pendingPitcherSectionScrollRequest = request
+                            scorecardScrollController.prepareForPitcherSectionScroll(requestID: request.identity)
+                            refreshLiveScoringWorkflow()
+                            scrollToPendingPitcherSectionIfAvailable()
+                        }
+                        .onChange(of: pitchers.map { $0.player.identifier }) { _, _ in
+                            refreshLiveScoringWorkflow()
+                            scrollToPendingPitcherSectionIfAvailable()
+                        }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
                 .accessibilityIdentifier("live_scoring_root")
+                .alert("Notice", isPresented: $showingAlert) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(alertMessage)
+                }
                 .onAppear() {
                     lAtbats = atbats
                 }
@@ -182,6 +225,12 @@ struct PlayersToScoreView: View {
                         _ = prepareCorrectionReview(replacement: replacement)
                     }
                 )
+            }
+            .onChange(of: showingScoring) { _, isPresented in
+                guard !isPresented,
+                      correctionReviewState != nil,
+                      !showingCorrectionReview else { return }
+                showingCorrectionReview = true
             }
             .sheet(isPresented: $showingCorrectionReview) {
                 if let review = correctionReviewState {
@@ -265,12 +314,23 @@ struct PlayersToScoreView: View {
             print(message)
         }
     }
-    init(passedGame: Binding<Game>, teamName: String, searchString: String = "", sortOrder: [SortDescriptor<Atbat>] = [], theAtbats: Binding<[Atbat]>, isLoading: Binding<Bool>, hasChanged: Binding<Bool>, columnVisability: Binding<NavigationSplitViewVisibility>) {
+    init(
+        passedGame: Binding<Game>,
+        teamName: String,
+        searchString: String = "",
+        sortOrder: [SortDescriptor<Atbat>] = [],
+        theAtbats: Binding<[Atbat]>,
+        isLoading: Binding<Bool>,
+        hasChanged: Binding<Bool>,
+        columnVisability: Binding<NavigationSplitViewVisibility>,
+        pitcherSectionScrollRequest: Binding<LiveScoringShellPresentation.PitcherSectionScrollRequest?> = .constant(nil)
+    ) {
         _game = passedGame
         _lAtbats = theAtbats
         _isLoading = isLoading
         _hasChanged = hasChanged
         _columnVisability = columnVisability
+        _pitcherSectionScrollRequest = pitcherSectionScrollRequest
 
         let date = game.date
         let location = game.location
@@ -299,6 +359,23 @@ struct PlayersToScoreView: View {
             return game.hteam
         }
         return nil
+    }
+
+    private func scrollToPendingPitcherSectionIfAvailable() {
+        guard let request = pendingPitcherSectionScrollRequest else { return }
+        guard pitcherRowTargetExists(for: request) else { return }
+
+        let didBeginScroll = scorecardScrollController.markPitcherSectionRendered(for: request.identity)
+        if didBeginScroll {
+            pendingPitcherSectionScrollRequest = nil
+            pitcherSectionScrollRequest = nil
+        }
+    }
+
+    private func pitcherRowTargetExists(for request: LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Bool {
+        pitchers.contains {
+            LiveScoringShellPresentation.pitcherRowScrollTargetID(for: $0.player.identifier) == request.targetID
+        }
     }
 
     private func containsPlayer(_ player: Player, in players: [Player]) -> Bool {
@@ -363,6 +440,22 @@ struct PlayersToScoreView: View {
 
         if let message = presentation.message {
             print(message)
+            if !presentation.shouldPresentScoringSheet {
+                alertMessage = message
+                showingAlert = true
+
+                if let targetAction = presentation.targetAction {
+                    if case .scorecardCell(let column, let battingOrder) = targetAction {
+                        let targetId = "scorecard_cell_\(battingOrder)_\(column)"
+                        highlightedCell = targetId
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            if highlightedCell == targetId {
+                                highlightedCell = nil
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         return presentation
@@ -383,7 +476,6 @@ struct PlayersToScoreView: View {
         correctionReviewMessage = presentation.message
         if let review = presentation.reviewState, presentation.shouldPresentReview {
             correctionReviewState = review
-            showingCorrectionReview = true
         }
 
         if let message = presentation.message {
@@ -651,5 +743,183 @@ struct ViewOffsetKey: PreferenceKey {
     static var defaultValue = CGFloat.zero
     static func reduce(value: inout Value, nextValue: () -> Value) {
         value += nextValue()
+    }
+}
+
+struct ScorecardCellView: View {
+    let atbat: Atbat
+    let ind: Int
+    let bSiz: CGFloat
+    let isHighlighted: Bool
+    let cellPresentation: LiveScoringShellPresentation.EnabledActionPresentation
+    let action: () -> Void
+
+    var body: some View {
+        let cellId = "scorecard_cell_\(atbat.batOrder)_\(ind)"
+        Button(action: action) {
+            Image("field").resizable().scaledToFit()
+        }
+        .frame(width: bSiz, height: bSiz)
+        .buttonStyle(GlowButtonStyle())
+        .disabled(!cellPresentation.isEnabled)
+        .accessibilityLabel(cellPresentation.accessibilityLabel)
+        .accessibilityValue(cellPresentation.accessibilityValue ?? "")
+        .accessibilityHint(cellPresentation.accessibilityHint ?? "")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier(cellId)
+        .id(cellId)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color.yellow, lineWidth: isHighlighted ? 3 : 0)
+        )
+        .overlay(
+            Group {
+                if isHighlighted {
+                    Text("Next at-bat")
+                        .font(.caption2)
+                        .padding(4)
+                        .background(Color.yellow.opacity(0.9))
+                        .foregroundColor(.black)
+                        .cornerRadius(4)
+                        .offset(y: -bSiz / 2 - 10)
+                }
+            }
+        )
+    }
+}
+
+struct ScorecardScrollViewObserver: UIViewRepresentable {
+    let controller: ScorecardScrollController
+
+    func makeUIView(context: Context) -> ObserverView {
+        let view = ObserverView()
+        view.controller = controller
+        return view
+    }
+
+    func updateUIView(_ uiView: ObserverView, context: Context) {
+        uiView.controller = controller
+        uiView.attachToEnclosingScrollViewSoon()
+    }
+
+    final class ObserverView: UIView {
+        var controller: ScorecardScrollController?
+        private weak var observedScrollView: UIScrollView?
+        private var contentSizeObservation: NSKeyValueObservation?
+
+        override func didMoveToSuperview() {
+            super.didMoveToSuperview()
+            attachToEnclosingScrollViewSoon()
+        }
+
+        func attachToEnclosingScrollViewSoon() {
+            DispatchQueue.main.async { [weak self] in
+                self?.attachToEnclosingScrollView()
+            }
+        }
+
+        private func attachToEnclosingScrollView() {
+            guard let scrollView = firstEnclosingScrollView() else { return }
+            guard scrollView !== observedScrollView else { return }
+
+            contentSizeObservation?.invalidate()
+            observedScrollView = scrollView
+            controller?.attach(scrollView)
+            contentSizeObservation = scrollView.observe(\.contentSize, options: [.initial, .new]) { [weak self, weak scrollView] _, _ in
+                guard let self, let scrollView else { return }
+                self.controller?.recordLayoutChange(scrollView)
+            }
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            if let observedScrollView {
+                controller?.recordLayoutChange(observedScrollView)
+            }
+        }
+
+        private func firstEnclosingScrollView() -> UIScrollView? {
+            var candidate = superview
+            while let view = candidate {
+                if let scrollView = view as? UIScrollView {
+                    return scrollView
+                }
+                candidate = view.superview
+            }
+            return nil
+        }
+
+        deinit {
+            contentSizeObservation?.invalidate()
+        }
+    }
+}
+
+final class ScorecardScrollController {
+    private weak var scrollView: UIScrollView?
+    private var pendingRequestID: UUID?
+    private var renderedRequestIDs: Set<UUID> = []
+    private var completedRequestIDs: Set<UUID> = []
+
+    func attach(_ scrollView: UIScrollView) {
+        self.scrollView = scrollView
+        attemptPendingScroll()
+    }
+
+    func recordLayoutChange(_ scrollView: UIScrollView) {
+        self.scrollView = scrollView
+        attemptPendingScroll()
+    }
+
+    func prepareForPitcherSectionScroll(requestID: UUID) {
+        pendingRequestID = requestID
+        attemptPendingScroll()
+    }
+
+    @discardableResult
+    func markPitcherSectionRendered(for requestID: UUID) -> Bool {
+        renderedRequestIDs.insert(requestID)
+        return attemptPendingScroll()
+    }
+
+    func hasCompletedScroll(for requestID: UUID) -> Bool {
+        completedRequestIDs.contains(requestID)
+    }
+
+    @discardableResult
+    private func attemptPendingScroll() -> Bool {
+        guard let requestID = pendingRequestID,
+              renderedRequestIDs.contains(requestID),
+              !completedRequestIDs.contains(requestID),
+              let scrollView else {
+            return false
+        }
+
+        let targetOffset = Self.scorecardBottomOffset(
+            contentSize: scrollView.contentSize,
+            boundsSize: scrollView.bounds.size,
+            adjustedContentInset: scrollView.adjustedContentInset,
+            currentOffset: scrollView.contentOffset
+        )
+        guard let targetOffset else { return false }
+
+        completedRequestIDs.insert(requestID)
+        pendingRequestID = nil
+        scrollView.setContentOffset(targetOffset, animated: true)
+        return true
+    }
+
+    static func scorecardBottomOffset(
+        contentSize: CGSize,
+        boundsSize: CGSize,
+        adjustedContentInset: UIEdgeInsets,
+        currentOffset: CGPoint
+    ) -> CGPoint? {
+        guard contentSize.height > 0, boundsSize.height > 0 else { return nil }
+
+        let maxY = max(-adjustedContentInset.top, contentSize.height - boundsSize.height + adjustedContentInset.bottom)
+        guard abs(currentOffset.y - maxY) > 0.5 else { return nil }
+
+        return CGPoint(x: currentOffset.x, y: maxY)
     }
 }

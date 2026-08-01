@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import ScoreKeep
 
 @MainActor
@@ -10,7 +11,7 @@ struct LiveScoringShellPresentationTests {
         let atbat = Fixture.atbat()
         let presenter = LiveScoringShellPresentation()
 
-        let presentation = presenter.presentSelectionResult(.init(disposition: .success, atbat: atbat, message: nil))
+        let presentation = presenter.presentSelectionResult(.init(disposition: .success, atbat: atbat, message: nil, targetAction: nil))
 
         #expect(presentation.disposition == .success)
         #expect(presentation.selectedAtbat === atbat)
@@ -24,7 +25,7 @@ struct LiveScoringShellPresentationTests {
         let atbat = Fixture.atbat()
         let presenter = LiveScoringShellPresentation()
 
-        let presentation = presenter.presentSelectionResult(.init(disposition: .noChange, atbat: atbat, message: nil))
+        let presentation = presenter.presentSelectionResult(.init(disposition: .noChange, atbat: atbat, message: nil, targetAction: nil))
 
         #expect(presentation.disposition == .noChange)
         #expect(presentation.selectedAtbat === atbat)
@@ -37,8 +38,8 @@ struct LiveScoringShellPresentationTests {
         let atbat = Fixture.atbat()
         let presenter = LiveScoringShellPresentation()
 
-        let invalid = presenter.presentSelectionResult(.init(disposition: .validationFailed, atbat: nil, message: "Batter selection is unavailable."))
-        let failed = presenter.presentSelectionResult(.init(disposition: .persistenceFailed, atbat: atbat, message: "Error saving new atbats."))
+        let invalid = presenter.presentSelectionResult(.init(disposition: .validationFailed, atbat: nil, message: "Batter selection is unavailable.", targetAction: nil))
+        let failed = presenter.presentSelectionResult(.init(disposition: .persistenceFailed, atbat: atbat, message: "Error saving new atbats.", targetAction: nil))
 
         #expect(invalid.selectedAtbat == nil)
         #expect(!invalid.shouldPresentScoringSheet)
@@ -623,6 +624,128 @@ struct LiveScoringShellPresentationTests {
         #expect(presentation.shouldMarkChanged == true)
         #expect(presentation.refreshedState == refreshed)
         #expect(review == nil)
+    }
+
+    @Test("accepted pitcher change emits pitcher section scroll request")
+    func acceptedPitcherChangeEmitsPitcherSectionScrollRequest() {
+        let presenter = LiveScoringShellPresentation()
+        let requestID = UUID(uuidString: "98000000-0000-0000-0000-000000000001")!
+        let pitcherID = UUID(uuidString: "98000000-0000-0000-0000-000000000004")!
+        let presentation = LiveScoringShellPresentation.SubstitutionReviewPresentation(
+            outcome: .accepted,
+            shouldClearPendingReview: true,
+            shouldMarkChanged: true,
+            refreshedState: nil,
+            message: nil
+        )
+
+        let request = presenter.pitcherSectionScrollRequest(
+            afterPitcherChange: presentation,
+            incomingPitcherIdentity: pitcherID,
+            identity: requestID
+        )
+
+        #expect(request?.identity == requestID)
+        #expect(request?.targetID == LiveScoringShellPresentation.pitcherRowScrollTargetID(for: pitcherID))
+    }
+
+    @Test("failed and canceled pitcher changes do not emit pitcher section scroll request")
+    func failedAndCanceledPitcherChangesDoNotEmitPitcherSectionScrollRequest() {
+        let presenter = LiveScoringShellPresentation()
+        let pitcherID = UUID(uuidString: "98000000-0000-0000-0000-000000000005")!
+        let failed = LiveScoringShellPresentation.SubstitutionReviewPresentation(
+            outcome: .validationRejected,
+            shouldClearPendingReview: false,
+            shouldMarkChanged: false,
+            refreshedState: nil,
+            message: "Failed"
+        )
+        let canceled = LiveScoringShellPresentation.SubstitutionReviewPresentation(
+            outcome: .canceled,
+            shouldClearPendingReview: true,
+            shouldMarkChanged: false,
+            refreshedState: nil,
+            message: nil
+        )
+
+        #expect(presenter.pitcherSectionScrollRequest(afterPitcherChange: failed, incomingPitcherIdentity: pitcherID) == nil)
+        #expect(presenter.pitcherSectionScrollRequest(afterPitcherChange: canceled, incomingPitcherIdentity: pitcherID) == nil)
+        #expect(presenter.pitcherSectionScrollRequest(afterPitcherChange: canceled, incomingPitcherIdentity: nil) == nil)
+    }
+
+    @Test("repeated accepted pitcher changes can emit repeated scroll requests")
+    func repeatedAcceptedPitcherChangesCanEmitRepeatedScrollRequests() {
+        let presenter = LiveScoringShellPresentation()
+        let firstID = UUID(uuidString: "98000000-0000-0000-0000-000000000002")!
+        let secondID = UUID(uuidString: "98000000-0000-0000-0000-000000000003")!
+        let firstPitcherID = UUID(uuidString: "98000000-0000-0000-0000-000000000006")!
+        let secondPitcherID = UUID(uuidString: "98000000-0000-0000-0000-000000000007")!
+        let presentation = LiveScoringShellPresentation.SubstitutionReviewPresentation(
+            outcome: .accepted,
+            shouldClearPendingReview: true,
+            shouldMarkChanged: true,
+            refreshedState: nil,
+            message: nil
+        )
+
+        let first = presenter.pitcherSectionScrollRequest(
+            afterPitcherChange: presentation,
+            incomingPitcherIdentity: firstPitcherID,
+            identity: firstID
+        )
+        let second = presenter.pitcherSectionScrollRequest(
+            afterPitcherChange: presentation,
+            incomingPitcherIdentity: secondPitcherID,
+            identity: secondID
+        )
+
+        #expect(first?.identity == firstID)
+        #expect(second?.identity == secondID)
+        #expect(first?.targetID == LiveScoringShellPresentation.pitcherRowScrollTargetID(for: firstPitcherID))
+        #expect(second?.targetID == LiveScoringShellPresentation.pitcherRowScrollTargetID(for: secondPitcherID))
+        #expect(first?.targetID != second?.targetID)
+        #expect(first != second)
+    }
+
+    @Test("scorecard scroll controller begins one direct scroll per rendered request")
+    func scorecardScrollControllerBeginsOneDirectScrollPerRenderedRequest() {
+        let controller = ScorecardScrollController()
+        let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 320, height: 500))
+        scrollView.contentSize = CGSize(width: 320, height: 900)
+        controller.attach(scrollView)
+        let first = UUID(uuidString: "98000000-0000-0000-0000-000000000008")!
+        let second = UUID(uuidString: "98000000-0000-0000-0000-000000000009")!
+
+        controller.prepareForPitcherSectionScroll(requestID: first)
+        #expect(!controller.hasCompletedScroll(for: first))
+
+        #expect(controller.markPitcherSectionRendered(for: first))
+        #expect(controller.hasCompletedScroll(for: first))
+        #expect(!controller.markPitcherSectionRendered(for: first))
+
+        scrollView.contentSize = CGSize(width: 320, height: 950)
+        controller.prepareForPitcherSectionScroll(requestID: second)
+        #expect(controller.markPitcherSectionRendered(for: second))
+        #expect(controller.hasCompletedScroll(for: second))
+    }
+
+    @Test("scorecard bottom offset preserves horizontal position and targets vertical bottom")
+    func scorecardBottomOffsetPreservesHorizontalPositionAndTargetsVerticalBottom() {
+        let offset = ScorecardScrollController.scorecardBottomOffset(
+            contentSize: CGSize(width: 1200, height: 900),
+            boundsSize: CGSize(width: 600, height: 500),
+            adjustedContentInset: .zero,
+            currentOffset: CGPoint(x: 42, y: 120)
+        )
+        let alreadyAtBottom = ScorecardScrollController.scorecardBottomOffset(
+            contentSize: CGSize(width: 1200, height: 900),
+            boundsSize: CGSize(width: 600, height: 500),
+            adjustedContentInset: .zero,
+            currentOffset: CGPoint(x: 42, y: 400)
+        )
+
+        #expect(offset == CGPoint(x: 42, y: 400))
+        #expect(alreadyAtBottom == nil)
     }
 
     @Test("substitution review cancellation clears state without submission")

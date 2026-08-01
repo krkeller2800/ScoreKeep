@@ -6,10 +6,41 @@ import Testing
 @MainActor
 @Suite("Live scoring workflow coordination")
 struct LiveScoringWorkflowCoordinatorTests {
-    @Test("selecting an existing scorecard cell returns the existing legacy at-bat without duplication")
-    func selectingExistingScorecardCellReturnsExistingAtbatWithoutDuplication() throws {
+    @Test("blank first current cell without pitcher fails visibly without creating a placeholder")
+    func blankFirstCurrentCellWithoutPitcherFailsVisiblyWithoutCreatingPlaceholder() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let presenter = LiveScoringShellPresentation()
+
+        let result = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: fixture.displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let presentation = presenter.presentSelectionResult(result)
+
+        #expect(result.disposition == .validationFailed)
+        #expect(result.atbat == nil)
+        #expect(result.message == "Select the starting pitcher before scoring the game.")
+        #expect(!presentation.shouldPresentScoringSheet)
+        #expect(!presentation.shouldMarkChanged)
+        #expect(presentation.message == "Select the starting pitcher before scoring the game.")
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("blank first current cell with starting pitcher selects existing lineup placeholder")
+    func blankFirstCurrentCellWithStartingPitcherSelectsExistingLineupPlaceholder() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        _ = Fixture.insertPitcher(for: fixture, into: store.context)
         try store.context.save()
         let coordinator = LiveScoringWorkflowCoordinator()
 
@@ -26,6 +57,67 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(result.disposition == .noChange)
         #expect(result.atbat?.ident == fixture.visitingFirst.ident)
         #expect(fixture.game.atbats.count == 2)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("later current cell without pitcher fails visibly without creating a placeholder")
+    func laterCurrentCellWithoutPitcherFailsVisiblyWithoutCreatingPlaceholder() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.seq = 1
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let presenter = LiveScoringShellPresentation()
+
+        let result = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 1,
+            sourceAtbat: fixture.visitingSecond,
+            displayedAtbats: fixture.displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let presentation = presenter.presentSelectionResult(result)
+
+        #expect(result.disposition == .validationFailed)
+        #expect(result.atbat == nil)
+        #expect(result.message == "Select the starting pitcher before scoring the game.")
+        #expect(!presentation.shouldPresentScoringSheet)
+        #expect(!presentation.shouldMarkChanged)
+        #expect(presentation.message == "Select the starting pitcher before scoring the game.")
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.fetchLegacyAtbats().count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("completed scorecard cell remains selectable for correction without active pitcher")
+    func completedScorecardCellRemainsSelectableForCorrectionWithoutActivePitcher() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.seq = 1
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        let result = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: fixture.displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+
+        #expect(result.disposition == .noChange)
+        #expect(result.atbat?.ident == fixture.visitingFirst.ident)
+        #expect(fixture.game.atbats.count == 2)
+        #expect(try store.fetchLegacyAtbats().count == 2)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
@@ -33,6 +125,13 @@ struct LiveScoringWorkflowCoordinatorTests {
     func selectingEmptyScorecardCellCreatesOneLegacyPlaceholderAtbatAndNoCanonicalRecords() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
+        _ = Fixture.insertPitcher(for: fixture, into: store.context)
+        fixture.visitingFirst.result = "Ground Out"
+        fixture.visitingFirst.seq = 1
+        fixture.visitingFirst.outs = 1
+        fixture.visitingSecond.result = "Ground Out"
+        fixture.visitingSecond.seq = 2
+        fixture.visitingSecond.outs = 2
         try store.context.save()
         let coordinator = LiveScoringWorkflowCoordinator()
 

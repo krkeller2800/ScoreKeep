@@ -27,6 +27,8 @@ struct EditScoreView: View {
     
     @State private var presentReplacements = false
     @State private var showPitchers:Bool = false
+    @State private var pendingPitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
+    @State private var pitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
     @State private var visitSelected = true
     @State private var homeSelected = false
     @State private var showAlert = false
@@ -139,7 +141,7 @@ struct EditScoreView: View {
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
                     Spacer()
-                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged,columnVisability: $columnVisibility)
+                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged,columnVisability: $columnVisibility, pitcherSectionScrollRequest: $pitcherSectionScrollRequest)
                         .padding(.bottom, scorecardBottomToolbarClearance)
                 }
                 .onChange(of: showingDetail, {
@@ -172,9 +174,9 @@ struct EditScoreView: View {
                         .frame(width: 120)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showPitchers) {
-                            let opTeam = team == game.hteam ? game.vteam! : game.hteam!
-                            PitcherContentView(team: opTeam, game: game)
+                            pitcherSelectionView()
                         }
+                        .onChange(of: showPitchers, handlePitcherSelectionPresentationChange)
                         Button {
                             requestGeneratedOutput(.scorecardPDF)
                         } label: {
@@ -322,6 +324,39 @@ struct EditScoreView: View {
         case .existingRecordReview, .compatibleSourceDataExport:
             break
         }
+    }
+
+    @ViewBuilder
+    private func pitcherSelectionView() -> some View {
+        if let opTeam = opposingPitcherTeam() {
+            PitcherContentView(team: opTeam, game: game) { request in
+                pendingPitcherSectionScrollRequest = request
+                publishPendingPitcherSectionScrollRequestIfReady()
+            }
+        }
+    }
+
+    private func opposingPitcherTeam() -> Team? {
+        if team == game.hteam {
+            return game.vteam
+        }
+        if team == game.vteam {
+            return game.hteam
+        }
+        return nil
+    }
+
+    private func handlePitcherSelectionPresentationChange(_ oldValue: Bool, _ isPresented: Bool) {
+        publishPendingPitcherSectionScrollRequestIfReady()
+    }
+
+    private func publishPendingPitcherSectionScrollRequestIfReady() {
+        guard !showPitchers else {
+            return
+        }
+        guard let request = pendingPitcherSectionScrollRequest else { return }
+        pendingPitcherSectionScrollRequest = nil
+        pitcherSectionScrollRequest = request
     }
 
     func saveImage(uiimage: UIImage?)-> URL? {
