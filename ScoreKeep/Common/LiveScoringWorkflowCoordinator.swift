@@ -863,9 +863,15 @@ struct LiveScoringWorkflowCoordinator {
 
         let baseState = preparedBaseOccupancy(from: completedAtbats)
         let lastCompleted = completedAtbats.last
-        let inning = max(1, Int((lastCompleted?.inning ?? 1).rounded(.up)))
-        let outs = lastCompleted?.outs ?? 0
-        let currentColumn = preparedCurrentColumn(after: lastCompleted, lineupCount: lineup.count)
+        let completedInning = max(1, Int((lastCompleted?.inning ?? 1).rounded(.up)))
+        let completedHalfInningEnded = lastCompleted?.outs == 3 && lastCompleted?.endOfInning == true
+        let inning = completedHalfInningEnded ? completedInning + 1 : completedInning
+        let outs = completedHalfInningEnded ? 0 : (lastCompleted?.outs ?? 0)
+        let currentColumn = preparedCurrentColumn(
+            after: lastCompleted,
+            lineupCount: lineup.count,
+            completedHalfInningEnded: completedHalfInningEnded
+        )
         let currentBatterEntry = preparedCurrentBatter(after: lastCompleted, lineup: lineup)
         let preparedPitchers = preparedPitcherAppearances(from: pitchers, game: game, defensiveTeam: defensiveTeam)
         let currentPitcher = preparedPitchers.last
@@ -1702,6 +1708,13 @@ struct LiveScoringWorkflowCoordinator {
         }
 
         let rollback = LegacySubstitutionRollbackSnapshot(game: authoritativeGame)
+        let battingTeamAtbats = authoritativeGame.atbats.filter { $0.team.ident != teamIdentity }
+        let existingGamePitchers = authoritativeGame.pitchers.filter { $0.game.ident == authoritativeGame.ident }
+        updatePitcherMarkersInMemory(
+            displayedAtbats: battingTeamAtbats,
+            pitchers: existingGamePitchers,
+            game: authoritativeGame
+        )
 
         if let existing = authoritativeGame.pitchers.first(where: { $0.player.identifier == incomingPlayer.identifier }) {
              existing.startInn = startInning
@@ -1728,6 +1741,13 @@ struct LiveScoringWorkflowCoordinator {
              authoritativeGame.pitchers.append(pitcher)
         }
 
+        let gamePitchers = authoritativeGame.pitchers.filter { $0.game.ident == authoritativeGame.ident }
+        updatePitcherMarkersInMemory(
+            displayedAtbats: battingTeamAtbats,
+            pitchers: gamePitchers,
+            game: authoritativeGame
+        )
+
         do {
             try save()
         } catch {
@@ -1742,8 +1762,8 @@ struct LiveScoringWorkflowCoordinator {
         let refreshed = prepareLiveGameState(
             game: authoritativeGame,
             battingTeam: authoritativeGame.hteam?.ident == teamIdentity ? authoritativeGame.vteam : authoritativeGame.hteam,
-            displayedAtbats: authoritativeGame.atbats.filter { $0.team.ident != teamIdentity },
-            pitchers: pitchers.filter { $0.game.ident == authoritativeGame.ident }
+            displayedAtbats: battingTeamAtbats,
+            pitchers: gamePitchers
         )
 
         return SubstitutionSubmissionResult(
@@ -1921,51 +1941,28 @@ struct LiveScoringWorkflowCoordinator {
     ) {
         let firstTeam = displayedAtbats.first?.team
         let currentBatter = displayedAtbats.sorted(by: atbatPrecedes).last(where: { $0.result != "Result" })
+        let currentBoundary = pitcherBoundary(after: currentBatter)
         let opposingPitchers = pitchers.filter { $0.team != firstTeam && $0.game.ident == game.ident }
         guard let currentPitcher = opposingPitchers.last else { return }
 
         if opposingPitchers.count == 1,
            currentPitcher.startInn == 0 && currentPitcher.sOuts == 0 && currentPitcher.sBats == 0 {
-            currentPitcher.startInn = 1
-            currentPitcher.sOuts = 0
-            currentPitcher.sBats = 0
-            currentPitcher.endInn = 1
-            currentPitcher.eOuts = 0
-            currentPitcher.eBats = 0
+            currentPitcher.startInn = currentBoundary.inning
+            currentPitcher.sOuts = currentBoundary.outs
+            currentPitcher.sBats = currentBoundary.batters
+            currentPitcher.endInn = currentBoundary.inning
+            currentPitcher.eOuts = currentBoundary.outs
+            currentPitcher.eBats = currentBoundary.batters
         } else if opposingPitchers.count > 1 {
             let previousPitcher = opposingPitchers[opposingPitchers.count - 2]
             if currentPitcher.startInn == 0 && currentPitcher.sOuts == 0 && currentPitcher.sBats == 0 {
-                var startInn = previousPitcher.endInn
-                var startOuts = previousPitcher.eOuts
-                var startBats = previousPitcher.eBats
+                previousPitcher.endInn = currentBoundary.inning
+                previousPitcher.eOuts = currentBoundary.outs
+                previousPitcher.eBats = currentBoundary.batters
 
-                if startInn == 0 {
-                    if let currentBatter {
-                        if currentBatter.outs == 3 {
-                            startInn = Int(currentBatter.inning.rounded(.up)) + 1
-                            startOuts = 0
-                            startBats = 0
-                        } else {
-                            startInn = Int(currentBatter.inning.rounded(.up))
-                            startOuts = currentBatter.outs
-                            startBats = currentBatter.seq
-                        }
-                    } else {
-                        startInn = 1
-                        startOuts = 0
-                        startBats = 0
-                    }
-                }
-
-                if previousPitcher.endInn == 0 {
-                    previousPitcher.endInn = startInn
-                    previousPitcher.eOuts = startOuts
-                    previousPitcher.eBats = startBats
-                }
-
-                currentPitcher.startInn = previousPitcher.endInn
-                currentPitcher.sOuts = previousPitcher.eOuts
-                currentPitcher.sBats = previousPitcher.eBats
+                currentPitcher.startInn = currentBoundary.inning
+                currentPitcher.sOuts = currentBoundary.outs
+                currentPitcher.sBats = currentBoundary.batters
                 currentPitcher.endInn = currentPitcher.startInn
                 currentPitcher.eOuts = currentPitcher.sOuts
                 currentPitcher.eBats = currentPitcher.sBats
@@ -1973,15 +1970,10 @@ struct LiveScoringWorkflowCoordinator {
         }
 
         if let currentBatter {
-            if currentBatter.outs == 3 {
-                currentPitcher.endInn = Int(currentBatter.inning.rounded(.up)) + 1
-                currentPitcher.eOuts = 0
-                currentPitcher.eBats = 0
-            } else {
-                currentPitcher.endInn = Int(currentBatter.inning.rounded(.up))
-                currentPitcher.eOuts = currentBatter.outs
-                currentPitcher.eBats = currentBatter.seq
-            }
+            let endBoundary = pitcherBoundary(after: currentBatter)
+            currentPitcher.endInn = endBoundary.inning
+            currentPitcher.eOuts = endBoundary.outs
+            currentPitcher.eBats = endBoundary.batters
         }
 
         if opposingPitchers.count >= 2 {
@@ -1992,6 +1984,22 @@ struct LiveScoringWorkflowCoordinator {
                 previousPitcher.eBats = currentPitcher.sBats
             }
         }
+    }
+
+    private func pitcherBoundary(after currentBatter: Atbat?) -> (inning: Int, outs: Int, batters: Int) {
+        guard let currentBatter else {
+            return (inning: 1, outs: 0, batters: 0)
+        }
+
+        if currentBatter.outs == 3 {
+            return (inning: Int(currentBatter.inning.rounded(.up)) + 1, outs: 0, batters: 0)
+        }
+
+        return (
+            inning: Int(currentBatter.inning.rounded(.up)),
+            outs: currentBatter.outs,
+            batters: currentBatter.seq
+        )
     }
 
     private func canonicalReplacementEvent(
@@ -2287,6 +2295,7 @@ struct LiveScoringWorkflowCoordinator {
         let firstTeam = displayedAtbats.first?.team
         let otherTeamHitting = displayedAtbats.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
         let currentBatter = otherTeamHitting.last(where: { $0.result != "Result" })
+        let currentBoundary = pitcherBoundary(after: currentBatter)
         let opposingPitchers = pitchers.filter { $0.team != firstTeam }
 
         guard !opposingPitchers.isEmpty else { return (.noChange, nil) }
@@ -2295,12 +2304,12 @@ struct LiveScoringWorkflowCoordinator {
 
         if opposingPitchers.count == 1 {
             if currentPitcher.startInn == 0 && currentPitcher.sOuts == 0 && currentPitcher.sBats == 0 {
-                currentPitcher.startInn = 1
-                currentPitcher.sOuts = 0
-                currentPitcher.sBats = 0
-                currentPitcher.endInn = 1
-                currentPitcher.eOuts = 0
-                currentPitcher.eBats = 0
+                currentPitcher.startInn = currentBoundary.inning
+                currentPitcher.sOuts = currentBoundary.outs
+                currentPitcher.sBats = currentBoundary.batters
+                currentPitcher.endInn = currentBoundary.inning
+                currentPitcher.eOuts = currentBoundary.outs
+                currentPitcher.eBats = currentBoundary.batters
 
                 do {
                     try save()
@@ -2312,37 +2321,13 @@ struct LiveScoringWorkflowCoordinator {
             let previousPitcher = opposingPitchers[opposingPitchers.count - 2]
 
             if currentPitcher.startInn == 0 && currentPitcher.sOuts == 0 && currentPitcher.sBats == 0 {
-                var startInn = previousPitcher.endInn
-                var startOuts = previousPitcher.eOuts
-                var startBats = previousPitcher.eBats
+                previousPitcher.endInn = currentBoundary.inning
+                previousPitcher.eOuts = currentBoundary.outs
+                previousPitcher.eBats = currentBoundary.batters
 
-                if startInn == 0 {
-                    if let currentBatter {
-                        if currentBatter.outs == 3 {
-                            startInn = Int(currentBatter.inning.rounded(.up)) + 1
-                            startOuts = 0
-                            startBats = 0
-                        } else {
-                            startInn = Int(currentBatter.inning.rounded(.up))
-                            startOuts = currentBatter.outs
-                            startBats = currentBatter.seq
-                        }
-                    } else {
-                        startInn = 1
-                        startOuts = 0
-                        startBats = 0
-                    }
-                }
-
-                if previousPitcher.endInn == 0 {
-                    previousPitcher.endInn = startInn
-                    previousPitcher.eOuts = startOuts
-                    previousPitcher.eBats = startBats
-                }
-
-                currentPitcher.startInn = previousPitcher.endInn
-                currentPitcher.sOuts = previousPitcher.eOuts
-                currentPitcher.sBats = previousPitcher.eBats
+                currentPitcher.startInn = currentBoundary.inning
+                currentPitcher.sOuts = currentBoundary.outs
+                currentPitcher.sBats = currentBoundary.batters
                 currentPitcher.endInn = currentPitcher.startInn
                 currentPitcher.eOuts = currentPitcher.sOuts
                 currentPitcher.eBats = currentPitcher.sBats
@@ -2357,15 +2342,10 @@ struct LiveScoringWorkflowCoordinator {
         }
 
         if let currentBatter {
-            if currentBatter.outs == 3 {
-                currentPitcher.endInn = Int(currentBatter.inning.rounded(.up)) + 1
-                currentPitcher.eOuts = 0
-                currentPitcher.eBats = 0
-            } else {
-                currentPitcher.endInn = Int(currentBatter.inning.rounded(.up))
-                currentPitcher.eOuts = currentBatter.outs
-                currentPitcher.eBats = currentBatter.seq
-            }
+            let endBoundary = pitcherBoundary(after: currentBatter)
+            currentPitcher.endInn = endBoundary.inning
+            currentPitcher.eOuts = endBoundary.outs
+            currentPitcher.eBats = endBoundary.batters
         }
 
         if opposingPitchers.count >= 2 {
@@ -2905,8 +2885,9 @@ struct LiveScoringWorkflowCoordinator {
         return lineup.first
     }
 
-    private func preparedCurrentColumn(after lastCompleted: Atbat?, lineupCount: Int) -> Int {
+    private func preparedCurrentColumn(after lastCompleted: Atbat?, lineupCount: Int, completedHalfInningEnded: Bool) -> Int {
         guard let lastCompleted else { return 1 }
+        if completedHalfInningEnded { return lastCompleted.col + 1 }
         guard lineupCount > 0 else { return max(1, lastCompleted.col) }
         return lastCompleted.batOrder >= lineupCount ? lastCompleted.col + 1 : max(1, lastCompleted.col)
     }

@@ -271,3 +271,7 @@ struct SharePitcher: Identifiable, Codable {
     var runs: Int
     var won: Bool
 }
+
+extension SharePitcher: CanonicalPitcherAppearance {
+    var canonicalIdentString: String { id.uuidString }
+}

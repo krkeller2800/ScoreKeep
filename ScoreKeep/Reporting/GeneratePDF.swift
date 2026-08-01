@@ -705,8 +705,7 @@ class PDFGenerator {
 
     }
     func fixInnings(pitchers:[Pitcher])->[Pitcher] {
-        let pitchs = pitchers.sorted {( ($0.startInn, $0.sBats) < ($1.startInn, $1.eBats) )}
-        return pitchs
+        return pitchers.sorted(by: CanonicalPitcherOrdering.canonicalOrder)
     }
     func makeRect (rec: CGRect, fillColor: UIColor, lineColor: UIColor) {
         let aPath = UIBezierPath()

@@ -45,3 +45,32 @@ class Pitcher {
         self.won = won
     }
 }
+
+protocol CanonicalPitcherAppearance {
+    var startInn: Int { get }
+    var sBats: Int { get }
+    var sOuts: Int { get }
+    var endInn: Int { get }
+    var eBats: Int { get }
+    var eOuts: Int { get }
+    var canonicalIdentString: String { get }
+}
+
+enum CanonicalPitcherOrdering {
+    /// Canonical ordering for pitcher appearances across all game presentation and mapping contexts.
+    /// Uses complete start and end boundaries, falling back to UUID only for exact deterministic ties.
+    /// Note: UUID fallback has no baseball meaning but prevents migration instability for malformed data.
+    static func canonicalOrder(lhs: CanonicalPitcherAppearance, rhs: CanonicalPitcherAppearance) -> Bool {
+        if lhs.startInn != rhs.startInn { return lhs.startInn < rhs.startInn }
+        if lhs.sBats != rhs.sBats { return lhs.sBats < rhs.sBats }
+        if lhs.sOuts != rhs.sOuts { return lhs.sOuts < rhs.sOuts }
+        if lhs.endInn != rhs.endInn { return lhs.endInn < rhs.endInn }
+        if lhs.eBats != rhs.eBats { return lhs.eBats < rhs.eBats }
+        if lhs.eOuts != rhs.eOuts { return lhs.eOuts < rhs.eOuts }
+        return lhs.canonicalIdentString < rhs.canonicalIdentString
+    }
+}
+
+extension Pitcher: CanonicalPitcherAppearance {
+    var canonicalIdentString: String { ident.uuidString }
+}

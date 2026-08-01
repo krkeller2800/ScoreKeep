@@ -124,6 +124,250 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertEqual(fixture.visitingSecond.result, "Result")
     }
 
+    func testStartingPitcherChangeWithZeroStartAutofillsAndRefreshesCurrentPitcher() throws {
+        let fixture = Fixture.insertGame(into: modelContext)
+        let game = fixture.game
+        try modelContext.save()
+
+        let result = coordinator.submitPitcherChange(
+            gameIdentity: game.ident,
+            teamIdentity: fixture.homeTeam.ident,
+            incomingPitcherIdentity: fixture.homePitcher.identifier,
+            startInning: 0,
+            startOuts: 0,
+            startBatters: 0,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+
+        XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+        let savedPitcher = try XCTUnwrap(game.pitchers.first { $0.player.identifier == fixture.homePitcher.identifier })
+        XCTAssertEqual(savedPitcher.startInn, 1)
+        XCTAssertEqual(savedPitcher.sOuts, 0)
+        XCTAssertEqual(savedPitcher.sBats, 0)
+        XCTAssertEqual(savedPitcher.endInn, 1)
+        XCTAssertEqual(result.refreshedState?.currentPitcher?.player.identity, fixture.homePitcher.identifier)
+        XCTAssertEqual(result.refreshedState?.pitcherAppearances.count, 1)
+    }
+
+    func testReliefPitcherChangeAfterScoringBeginsPersistsRefreshesProjectionAndClearsReview() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ReliefPitcherChangeRegression-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Store.sqlite")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
+        let configuration = ModelConfiguration("LiveScoringWorkflowCoordinatorSubstitutionTests-ReliefPitcherChange", url: url)
+        var fileContainer: ModelContainer? = try ModelContainer(for: schema, configurations: [configuration])
+        var fileContext: ModelContext? = ModelContext(fileContainer!)
+
+        let fixture = Fixture.insertGame(into: fileContext!)
+        let starterResult = coordinator.submitPitcherChange(
+            gameIdentity: fixture.game.ident,
+            teamIdentity: fixture.homeTeam.ident,
+            incomingPitcherIdentity: fixture.homePitcher.identifier,
+            startInning: 0,
+            startOuts: 0,
+            startBatters: 0,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [],
+            modelContext: fileContext!,
+            save: { try fileContext!.save() }
+        )
+        XCTAssertEqual(starterResult.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+        let starter = try XCTUnwrap(fixture.game.pitchers.first { $0.player.identifier == fixture.homePitcher.identifier })
+
+        let scoringResult = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: fixture.game.pitchers,
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try fileContext!.save() }
+        )
+        XCTAssertEqual(scoringResult.disposition, LiveScoringWorkflowCoordinator.SubmissionDisposition.accepted)
+        XCTAssertEqual(fixture.visitingFirst.result, "Single")
+
+        let reliefPitcher = Player(name: "Relief Pitcher", number: "44", position: "RP", batDir: "R", batOrder: 99)
+        reliefPitcher.team = fixture.homeTeam
+        fileContext!.insert(reliefPitcher)
+        fixture.homeTeam.players.append(reliefPitcher)
+        fixture.game.players.append(reliefPitcher)
+        try fileContext!.save()
+
+        let presenter = LiveScoringShellPresentation()
+        var reviewState: LiveScoringShellPresentation.PitcherChangeReviewState? = presenter.preparePitcherChangeReview(
+            gameIdentity: fixture.game.ident,
+            teamIdentity: fixture.homeTeam.ident,
+            incomingPitcherIdentity: reliefPitcher.identifier,
+            startInning: 0,
+            startOuts: 0,
+            startBatters: 0,
+            summaryIncomingName: reliefPitcher.name
+        )
+
+        let presentation = presenter.confirmPitcherChangeReview(&reviewState) { gameId, teamId, incomingId, startInning, startOuts, startBatters in
+            self.coordinator.submitPitcherChange(
+                gameIdentity: gameId,
+                teamIdentity: teamId,
+                incomingPitcherIdentity: incomingId,
+                startInning: startInning,
+                startOuts: startOuts,
+                startBatters: startBatters,
+                displayedAtbats: fixture.displayedAtbats,
+                pitchers: [starter],
+                modelContext: fileContext!,
+                save: { try fileContext!.save() }
+            )
+        }
+
+        XCTAssertEqual(presentation.outcome, LiveScoringShellPresentation.SubstitutionReviewOutcome.accepted)
+        XCTAssertTrue(presentation.shouldClearPendingReview)
+        XCTAssertTrue(presentation.shouldMarkChanged)
+        XCTAssertNil(reviewState)
+
+        let relief = try XCTUnwrap(fixture.game.pitchers.first { $0.player.identifier == reliefPitcher.identifier })
+        XCTAssertEqual(starter.endInn, 1)
+        XCTAssertEqual(starter.eOuts, 0)
+        XCTAssertEqual(starter.eBats, 1)
+        XCTAssertEqual(relief.startInn, 1)
+        XCTAssertEqual(relief.sOuts, 0)
+        XCTAssertEqual(relief.sBats, 1)
+        XCTAssertEqual(relief.endInn, 1)
+        XCTAssertEqual(relief.eOuts, 0)
+        XCTAssertEqual(relief.eBats, 1)
+        XCTAssertEqual(fixture.game.pitchers.count, 2)
+        XCTAssertEqual(presentation.refreshedState?.currentPitcher?.player.identity, reliefPitcher.identifier)
+        XCTAssertEqual(presentation.refreshedState?.pitcherAppearances.map(\.player.identity), [fixture.homePitcher.identifier, reliefPitcher.identifier])
+
+        let refreshed = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: fixture.game.pitchers
+        )
+        XCTAssertEqual(refreshed.disposition, LiveScoringWorkflowCoordinator.PreparedStateDisposition.ready)
+        XCTAssertEqual(refreshed.currentPitcher?.player.identity, reliefPitcher.identifier)
+        XCTAssertEqual(refreshed.pitcherAppearances.count, 2)
+
+        let gameIdentity = fixture.game.ident
+        let reliefIdentity = reliefPitcher.identifier
+        fileContext = nil
+        fileContainer = nil
+
+        let reloadedContainer = try ModelContainer(for: schema, configurations: [configuration])
+        let reloadedContext = ModelContext(reloadedContainer)
+        let reloadedGame = try XCTUnwrap(try reloadedContext.fetch(FetchDescriptor<Game>()).first { $0.ident == gameIdentity })
+        let reloadedPitchers = try reloadedContext.fetch(FetchDescriptor<Pitcher>())
+        let reloadedRelief = try XCTUnwrap(reloadedPitchers.first { $0.player.identifier == reliefIdentity })
+        XCTAssertEqual(reloadedRelief.startInn, 1)
+        XCTAssertEqual(reloadedRelief.sBats, 1)
+
+        let reloadedPrepared = coordinator.prepareLiveGameState(
+            game: reloadedGame,
+            battingTeam: reloadedGame.vteam,
+            displayedAtbats: reloadedGame.atbats.filter { $0.team.ident == reloadedGame.vteam?.ident },
+            pitchers: reloadedPitchers
+        )
+        XCTAssertEqual(reloadedPrepared.disposition, LiveScoringWorkflowCoordinator.PreparedStateDisposition.ready)
+        XCTAssertEqual(reloadedPrepared.currentPitcher?.player.identity, reliefIdentity)
+
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
+    func testReliefPitcherChangeMidInningUsesExactCurrentBoundaryForOutgoingAndIncomingPitchers() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ReliefPitcherBoundaryRegression-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Store.sqlite")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
+        let configuration = ModelConfiguration("LiveScoringWorkflowCoordinatorSubstitutionTests-ReliefPitcherBoundary", url: url)
+        var fileContainer: ModelContainer? = try ModelContainer(for: schema, configurations: [configuration])
+        var fileContext: ModelContext? = ModelContext(fileContainer!)
+
+        let fixture = Fixture.insertGame(into: fileContext!)
+        fixture.visitingFirst.result = "Ground Out"
+        fixture.visitingFirst.inning = 3
+        fixture.visitingFirst.seq = 1
+        fixture.visitingFirst.col = 3
+        fixture.visitingFirst.outs = 1
+        fixture.visitingSecond.result = "Ground Out"
+        fixture.visitingSecond.inning = 3
+        fixture.visitingSecond.seq = 2
+        fixture.visitingSecond.col = 3
+        fixture.visitingSecond.outs = 2
+
+        let starter = Pitcher(
+            player: fixture.homePitcher,
+            team: fixture.homeTeam,
+            game: fixture.game,
+            startInn: 1,
+            sOuts: 0,
+            sBats: 0,
+            endInn: 3,
+            eOuts: 0,
+            eBats: 0
+        )
+        fileContext!.insert(starter)
+        fixture.game.pitchers.append(starter)
+
+        let reliefPitcher = Player(name: "Mid Inning Relief", number: "55", position: "RP", batDir: "R", batOrder: 99)
+        reliefPitcher.team = fixture.homeTeam
+        fileContext!.insert(reliefPitcher)
+        fixture.homeTeam.players.append(reliefPitcher)
+        fixture.game.players.append(reliefPitcher)
+        try fileContext!.save()
+
+        let result = coordinator.submitPitcherChange(
+            gameIdentity: fixture.game.ident,
+            teamIdentity: fixture.homeTeam.ident,
+            incomingPitcherIdentity: reliefPitcher.identifier,
+            startInning: 0,
+            startOuts: 0,
+            startBatters: 0,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [starter],
+            modelContext: fileContext!,
+            save: { try fileContext!.save() }
+        )
+
+        XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+        let relief = try XCTUnwrap(fixture.game.pitchers.first { $0.player.identifier == reliefPitcher.identifier })
+        XCTAssertEqual(starter.endInn, 3)
+        XCTAssertEqual(starter.eOuts, 2)
+        XCTAssertEqual(starter.eBats, 2)
+        XCTAssertEqual(relief.startInn, 3)
+        XCTAssertEqual(relief.sOuts, 2)
+        XCTAssertEqual(relief.sBats, 2)
+        XCTAssertEqual(relief.endInn, 3)
+        XCTAssertEqual(relief.eOuts, 2)
+        XCTAssertEqual(relief.eBats, 2)
+
+        let gameIdentity = fixture.game.ident
+        let starterIdentity = fixture.homePitcher.identifier
+        let reliefIdentity = reliefPitcher.identifier
+        fileContext = nil
+        fileContainer = nil
+
+        let reloadedContainer = try ModelContainer(for: schema, configurations: [configuration])
+        let reloadedContext = ModelContext(reloadedContainer)
+        _ = try XCTUnwrap(try reloadedContext.fetch(FetchDescriptor<Game>()).first { $0.ident == gameIdentity })
+        let reloadedPitchers = try reloadedContext.fetch(FetchDescriptor<Pitcher>())
+        let reloadedStarter = try XCTUnwrap(reloadedPitchers.first { $0.player.identifier == starterIdentity })
+        let reloadedRelief = try XCTUnwrap(reloadedPitchers.first { $0.player.identifier == reliefIdentity })
+        XCTAssertEqual(reloadedStarter.endInn, 3)
+        XCTAssertEqual(reloadedStarter.eOuts, 2)
+        XCTAssertEqual(reloadedStarter.eBats, 2)
+        XCTAssertEqual(reloadedRelief.startInn, 3)
+        XCTAssertEqual(reloadedRelief.sOuts, 2)
+        XCTAssertEqual(reloadedRelief.sBats, 2)
+
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
     func testBatterSubstitution_RollbackOnFailure() throws {
         // Setup using Fixture
         let fixture = Fixture.insertGame(into: modelContext)

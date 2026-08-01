@@ -569,6 +569,209 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
+    @Test("second inning scoring advances prepared column after inning-ending third out before lineup wraps")
+    func secondInningScoringAdvancesPreparedColumnAfterInningEndingThirdOutBeforeLineupWraps() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SecondInningPreparedStateRegression-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Store.sqlite")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+
+        let schema = Schema(versionedSchema: ScoreKeepProposedVersionedSchema.V4.self)
+        let configuration = ModelConfiguration("LiveScoringWorkflowCoordinatorTests-SecondInningPreparedState", url: url)
+        var container: ModelContainer? = try ModelContainer(for: schema, configurations: [configuration])
+        var context: ModelContext? = ModelContext(container!)
+
+        let fixture = Fixture.insertGame(into: context!)
+        var lineupAtbats = fixture.displayedAtbats
+        for order in 3...9 {
+            let player = Player(name: "Visitor \(order)", number: "\(order)", position: "CF", batDir: "R", batOrder: order, team: fixture.visitingTeam)
+            let atbat = Atbat(game: fixture.game, team: fixture.visitingTeam, player: player, result: "Result", maxbase: "No Bases", batOrder: order, outAt: "Safe", inning: 1, seq: order, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+            context!.insert(player)
+            context!.insert(atbat)
+            fixture.visitingTeam.players.append(player)
+            fixture.game.players.append(player)
+            fixture.game.atbats.append(atbat)
+            lineupAtbats.append(atbat)
+        }
+        let pitcher = Fixture.insertPitcher(for: fixture, into: context!)
+        try context!.save()
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let presenter = LiveScoringShellPresentation()
+        let visitingAtbats = { fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident } }
+        let thirdAtbat = try #require(lineupAtbats.first { $0.batOrder == 3 })
+        let fourthAtbat = try #require(lineupAtbats.first { $0.batOrder == 4 })
+
+        let firstOut = coordinator.submitScoringAction(
+            legacyResult: "Ground Out",
+            targetAtbat: fixture.visitingFirst,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: visitingAtbats(),
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Ground Out", "Strikeout"],
+            save: { try context!.save() }
+        )
+        #expect(firstOut.disposition == .accepted)
+        #expect(fixture.visitingFirst.result == "Ground Out")
+        #expect(coordinator.refreshProjections(displayedAtbats: visitingAtbats(), pitchers: [pitcher], game: fixture.game, save: { try context!.save() }).disposition == .success)
+
+        let secondOut = coordinator.submitScoringAction(
+            legacyResult: "Ground Out",
+            targetAtbat: fixture.visitingSecond,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: visitingAtbats(),
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Ground Out", "Strikeout"],
+            save: { try context!.save() }
+        )
+        #expect(secondOut.disposition == .accepted)
+        #expect(fixture.visitingSecond.result == "Ground Out")
+        #expect(coordinator.refreshProjections(displayedAtbats: visitingAtbats(), pitchers: [pitcher], game: fixture.game, save: { try context!.save() }).disposition == .success)
+
+        let thirdOut = coordinator.submitScoringAction(
+            legacyResult: "Strikeout",
+            targetAtbat: thirdAtbat,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: visitingAtbats(),
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Ground Out", "Strikeout"],
+            save: { try context!.save() }
+        )
+        #expect(thirdOut.disposition == .accepted)
+        #expect(thirdAtbat.result == "Strikeout")
+        let firstInningRefresh = coordinator.refreshProjections(displayedAtbats: visitingAtbats(), pitchers: [pitcher], game: fixture.game, save: { try context!.save() })
+        #expect(firstInningRefresh.disposition == .success)
+        #expect(thirdAtbat.outs == 3)
+        #expect(thirdAtbat.endOfInning)
+        #expect(thirdAtbat.batOrder < lineupAtbats.count)
+
+        let selection = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 3,
+            sourceAtbat: fourthAtbat,
+            displayedAtbats: visitingAtbats(),
+            game: fixture.game,
+            modelContext: context!,
+            save: { try context!.save() }
+        )
+        let secondInningAtbat = try #require(selection.atbat)
+        #expect(selection.disposition == .success)
+        #expect(presenter.presentSelectionResult(selection).shouldPresentScoringSheet)
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: visitingAtbats(),
+            pitchers: [pitcher]
+        )
+        #expect(prepared.disposition == .ready)
+        #expect(prepared.inning == 2)
+        #expect(prepared.outs == 0)
+        #expect(prepared.currentScorecardColumn == 2)
+        #expect(prepared.currentOrPendingLegacyAtbat?.identity == secondInningAtbat.ident)
+        #expect(prepared.battingOrderPosition == 4)
+
+        let secondInningSubmit = coordinator.submitScoringAction(
+            legacyResult: "Strikeout",
+            targetAtbat: secondInningAtbat,
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: visitingAtbats(),
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Ground Out", "Strikeout"],
+            save: { try context!.save() }
+        )
+        #expect(secondInningSubmit.disposition == .accepted)
+        #expect(secondInningAtbat.result == "Strikeout")
+        #expect(presenter.presentSubmissionResult(secondInningSubmit, requiresAdditionalChoice: false).shouldDismissScoringSheet)
+
+        let secondInningRefresh = coordinator.refreshProjections(displayedAtbats: visitingAtbats(), pitchers: [pitcher], game: fixture.game, save: { try context!.save() })
+        #expect(secondInningRefresh.disposition == .success)
+        #expect(secondInningAtbat.col == 2)
+        #expect(secondInningAtbat.outs == 1)
+
+        let gameIdentity = fixture.game.ident
+        let secondInningAtbatIdentity = secondInningAtbat.ident
+        context = nil
+        container = nil
+
+        let reloadedContainer = try ModelContainer(for: schema, configurations: [configuration])
+        let reloadedContext = ModelContext(reloadedContainer)
+        let reloadedGame = try #require(try reloadedContext.fetch(FetchDescriptor<Game>()).first { $0.ident == gameIdentity })
+        let reloadedPitcher = try #require(try reloadedContext.fetch(FetchDescriptor<Pitcher>()).first)
+        let reloadedSecondInningAtbat = try #require(reloadedGame.atbats.first { $0.ident == secondInningAtbatIdentity })
+        #expect(reloadedSecondInningAtbat.result == "Strikeout")
+        #expect(reloadedSecondInningAtbat.col == 2)
+        #expect(reloadedSecondInningAtbat.outs == 1)
+
+        let reloadedPrepared = LiveScoringWorkflowCoordinator().prepareLiveGameState(
+            game: reloadedGame,
+            battingTeam: reloadedGame.vteam!,
+            displayedAtbats: reloadedGame.atbats.filter { $0.team.ident == reloadedGame.vteam!.ident },
+            pitchers: [reloadedPitcher]
+        )
+        #expect(reloadedPrepared.disposition == .ready)
+        #expect(reloadedPrepared.inning == 2)
+        #expect(reloadedPrepared.outs == 1)
+
+        try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+    }
+
+    @Test("prepared current column still advances when batting around without ending the inning")
+    func preparedCurrentColumnStillAdvancesWhenBattingAroundWithoutEndingTheInning() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        var lineupAtbats = fixture.displayedAtbats
+        for order in 3...9 {
+            let player = Player(name: "Visitor \(order)", number: "\(order)", position: "CF", batDir: "R", batOrder: order, team: fixture.visitingTeam)
+            let atbat = Atbat(game: fixture.game, team: fixture.visitingTeam, player: player, result: "Result", maxbase: "No Bases", batOrder: order, outAt: "Safe", inning: 1, seq: order, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+            store.context.insert(player)
+            store.context.insert(atbat)
+            fixture.visitingTeam.players.append(player)
+            fixture.game.players.append(player)
+            fixture.game.atbats.append(atbat)
+            lineupAtbats.append(atbat)
+        }
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+
+        for atbat in lineupAtbats.sorted(by: { $0.batOrder < $1.batOrder }) {
+            let result = coordinator.submitScoringAction(
+                legacyResult: "Single",
+                targetAtbat: atbat,
+                game: fixture.game,
+                battingTeam: fixture.visitingTeam,
+                displayedAtbats: fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident },
+                pitchers: [pitcher],
+                supportedLegacyResults: ["Single"],
+                save: { try store.context.save() }
+            )
+            #expect(result.disposition == .accepted)
+            #expect(coordinator.refreshProjections(displayedAtbats: fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident }, pitchers: [pitcher], game: fixture.game, save: { try store.context.save() }).disposition == .success)
+        }
+
+        let lastCompleted = try #require(lineupAtbats.first { $0.batOrder == 9 })
+        #expect(lastCompleted.endOfInning == false)
+        #expect(lastCompleted.batOrder == lineupAtbats.count)
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident },
+            pitchers: [pitcher]
+        )
+
+        #expect(prepared.disposition == .ready)
+        #expect(prepared.inning == 1)
+        #expect(prepared.outs == 0)
+        #expect(prepared.currentScorecardColumn == 2)
+        #expect(prepared.battingOrderPosition == 1)
+    }
+
     @Test("Task 7.7 ordinary exact retry returns persisted outcome without a second mutation")
     func task77OrdinaryExactRetryReturnsPersistedOutcomeWithoutSecondMutation() throws {
         let store = try Store()

@@ -530,7 +530,7 @@ struct drawPitchers: View {
                 let firstTeam = atbats.first?.team
                 let oTHit: [Atbat] = firstTeam != nil ? game.atbats.filter { $0.team == firstTeam } : []
                 let oTHitting = oTHit.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
-                let pitchers: [Pitcher] = firstTeam != nil ? game.pitchers.filter { $0.team != firstTeam } : []
+                let pitchers: [Pitcher] = firstTeam != nil ? game.pitchers.filter { $0.team != firstTeam }.sorted(by: CanonicalPitcherOrdering.canonicalOrder) : []
                 ForEach(Array(pitchers.enumerated()), id: \.offset) { index, pitcher in
                     NavigationLink(value: pitcher) {
                         VStack(spacing:0) {

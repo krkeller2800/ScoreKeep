@@ -523,9 +523,10 @@ struct ShareContentView: View {
     func generateGame() -> Data? {
         if let theGame = game {
             if theGame.vteam != nil && theGame.hteam != nil {
+                let orderedPitchers: [Pitcher] = theGame.pitchers.sorted(by: CanonicalPitcherOrdering.canonicalOrder)
                 let shareGame = ShareGame(date: theGame.date, location: theGame.location, highLights: theGame.highLights, hscore:theGame.hscore, vscore:theGame.vscore, everyOneHits:theGame.everyOneHits,
                                           numInnings:theGame.numInnings, vteam: shareTeam(team: theGame.vteam!), hteam: shareTeam(team: theGame.hteam!), players: getPlayers(players: theGame.players),
-                                          atbats: getAtbats(atbats: theGame.atbats), lineups: getLineups(lineups: theGame.lineups), pitchers: getPitchers(pitchers: theGame.pitchers),
+                                          atbats: getAtbats(atbats: theGame.atbats), lineups: getLineups(lineups: theGame.lineups), pitchers: getPitchers(pitchers: orderedPitchers),
                                           replaced: getPlayers(players: theGame.replaced), incomings: getPlayers(players: theGame.incomings))
                 let encoder = JSONEncoder()
                 // Error handling for encoding

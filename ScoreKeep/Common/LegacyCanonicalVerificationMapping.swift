@@ -617,7 +617,8 @@ enum LegacyCanonicalVerificationMapper {
         let eventResults = game.atbats.enumerated().map { index, atbat in
             mapScoringEvent(LegacyAtbatEvidenceSnapshot(atbat: atbat, fallbackGameIdentity: gameSnapshot.identity, sourceIndex: index, sourceLocation: sourceLocation), source: .importedGame)
         }
-        let pitcherResults = game.pitchers.enumerated().map { index, pitcher in
+        let orderedPitchers: [SharePitcher] = game.pitchers.sorted(by: CanonicalPitcherOrdering.canonicalOrder)
+        let pitcherResults = orderedPitchers.enumerated().map { index, pitcher in
             mapPitcherAppearance(LegacyPitcherEvidenceSnapshot(pitcher: pitcher, fallbackGameIdentity: gameSnapshot.identity, sourceIndex: index, sourceLocation: sourceLocation), homeSide: homeSide, visitingSide: visitingSide, source: .importedGame)
         }
         let substitutionResults = mapSubstitutions(
