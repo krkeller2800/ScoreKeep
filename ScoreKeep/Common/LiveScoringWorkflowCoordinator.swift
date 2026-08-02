@@ -17,6 +17,53 @@ struct LiveScoringWorkflowCoordinator {
         let atbat: Atbat?
         let message: String?
         let targetAction: ScoringActionIdentity?
+        let targetCell: ScorecardCellTarget?
+        let renderedTarget: RenderedScorecardCellTarget?
+
+        init(
+            disposition: Disposition,
+            atbat: Atbat?,
+            message: String?,
+            targetAction: ScoringActionIdentity?,
+            targetCell: ScorecardCellTarget? = nil,
+            renderedTarget: RenderedScorecardCellTarget? = nil
+        ) {
+            self.disposition = disposition
+            self.atbat = atbat
+            self.message = message
+            self.targetAction = targetAction
+            self.targetCell = targetCell
+            self.renderedTarget = renderedTarget
+        }
+    }
+
+    struct ScorecardCellTarget: Hashable {
+        let atbatIdentity: UUID
+        let playerIdentity: UUID
+        let column: Int
+        let battingOrder: Int
+        let sequence: Int
+
+        var uiIdentifier: String {
+            Self.uiIdentifier(atbatIdentity: atbatIdentity, column: column)
+        }
+
+        static func uiIdentifier(atbatIdentity: UUID, column: Int) -> String {
+            "scorecard_cell_\(atbatIdentity.uuidString)_\(column)"
+        }
+    }
+
+    struct RenderedScorecardCellTarget: Hashable {
+        let renderedRowIdentity: UUID
+        let column: Int
+
+        var uiIdentifier: String {
+            Self.uiIdentifier(renderedRowIdentity: renderedRowIdentity, column: column)
+        }
+
+        static func uiIdentifier(renderedRowIdentity: UUID, column: Int) -> String {
+            "scorecard_rendered_cell_\(renderedRowIdentity.uuidString)_\(column)"
+        }
     }
 
     struct ProjectionResult {
@@ -657,24 +704,24 @@ struct LiveScoringWorkflowCoordinator {
         save: SaveAction
     ) -> SelectionResult {
         guard column > 0 else {
-            return SelectionResult(disposition: .validationFailed, atbat: nil, message: "Scorecard column is unavailable.", targetAction: nil)
+            return SelectionResult(disposition: .validationFailed, atbat: nil, message: "Scorecard column is unavailable.", targetAction: nil, targetCell: nil)
         }
 
-        let battingOrder = rowIndex + 1
+        let battingOrder = sourceAtbat?.batOrder ?? rowIndex + 1
         guard battingOrder > 0, let sourceAtbat else {
-            return SelectionResult(disposition: .validationFailed, atbat: nil, message: "Batter selection is unavailable.", targetAction: nil)
+            return SelectionResult(disposition: .validationFailed, atbat: nil, message: "Batter selection is unavailable.", targetAction: nil, targetCell: nil)
         }
 
         if let existingIndex = displayedAtbats.firstIndex(where: {
             $0.game == sourceAtbat.game &&
             $0.team == sourceAtbat.team &&
-            $0.batOrder == battingOrder &&
+            $0.player.identifier == sourceAtbat.player.identifier &&
             $0.col == column
         }) {
             let existing = displayedAtbats[existingIndex]
             if existing.result != "Result" {
                 // Completed at-bat. Editable.
-                return SelectionResult(disposition: .noChange, atbat: existing, message: nil, targetAction: nil)
+                return SelectionResult(disposition: .noChange, atbat: existing, message: nil, targetAction: nil, targetCell: nil)
             }
         }
 
@@ -690,39 +737,54 @@ struct LiveScoringWorkflowCoordinator {
                 disposition: .validationFailed,
                 atbat: nil,
                 message: "Select the starting pitcher before scoring the game.",
-                targetAction: nil
+                targetAction: nil,
+                targetCell: nil
             )
         }
 
         if let existingIndex = displayedAtbats.firstIndex(where: {
             $0.game == sourceAtbat.game &&
             $0.team == sourceAtbat.team &&
-            $0.batOrder == battingOrder &&
+            $0.player.identifier == sourceAtbat.player.identifier &&
             $0.col == column
         }) {
             let existing = displayedAtbats[existingIndex]
             if let pending = preparedState.currentOrPendingLegacyAtbat {
-                if pending.battingOrder != battingOrder || pending.column != column {
-                    return SelectionResult(
-                        disposition: .validationFailed,
-                        atbat: nil,
-                        message: "That is not the current at-bat. You may edit completed at-bats or score the next open at-bat.",
-                        targetAction: .scorecardCell(column: pending.column, battingOrder: pending.battingOrder)
+                if pending.identity != existing.ident || pending.column != column {
+                    return invalidNonCurrentSelectionResult(
+                        preparedState: preparedState,
+                        displayedAtbats: displayedAtbats
                     )
                 }
+            } else if !isComputedCurrentSelection(
+                sourceAtbat: sourceAtbat,
+                column: column,
+                preparedState: preparedState
+            ) {
+                return invalidNonCurrentSelectionResult(
+                    preparedState: preparedState,
+                    displayedAtbats: displayedAtbats
+                )
             }
-            return SelectionResult(disposition: .noChange, atbat: existing, message: nil, targetAction: nil)
+            return SelectionResult(disposition: .noChange, atbat: existing, message: nil, targetAction: nil, targetCell: nil)
         }
 
         if let pending = preparedState.currentOrPendingLegacyAtbat {
-            if pending.battingOrder != battingOrder || pending.column != column {
-                return SelectionResult(
-                    disposition: .validationFailed,
-                    atbat: nil,
-                    message: "That is not the current at-bat. You may edit completed at-bats or score the next open at-bat.",
-                    targetAction: .scorecardCell(column: pending.column, battingOrder: pending.battingOrder)
+            if pending.player.identity != sourceAtbat.player.identifier || pending.column != column {
+                return invalidNonCurrentSelectionResult(
+                    preparedState: preparedState,
+                    displayedAtbats: displayedAtbats
                 )
             }
+        } else if !isComputedCurrentSelection(
+            sourceAtbat: sourceAtbat,
+            column: column,
+            preparedState: preparedState
+        ) {
+            return invalidNonCurrentSelectionResult(
+                preparedState: preparedState,
+                displayedAtbats: displayedAtbats
+            )
         }
 
         let newAtbat = Atbat(
@@ -748,9 +810,9 @@ struct LiveScoringWorkflowCoordinator {
 
         do {
             try save()
-            return SelectionResult(disposition: .success, atbat: newAtbat, message: nil, targetAction: nil)
+            return SelectionResult(disposition: .success, atbat: newAtbat, message: nil, targetAction: nil, targetCell: nil)
         } catch {
-            return SelectionResult(disposition: .persistenceFailed, atbat: newAtbat, message: "Error saving new atbats: \(error)", targetAction: nil)
+            return SelectionResult(disposition: .persistenceFailed, atbat: newAtbat, message: "Error saving new atbats: \(error)", targetAction: nil, targetCell: nil)
         }
     }
 
@@ -3360,6 +3422,100 @@ struct LiveScoringWorkflowCoordinator {
             column: atbat.col,
             battingOrder: atbat.batOrder,
             outs: atbat.outs
+        )
+    }
+
+    private func scorecardCellTarget(for atbat: PreparedAtbatSnapshot) -> ScorecardCellTarget {
+        ScorecardCellTarget(
+            atbatIdentity: atbat.identity,
+            playerIdentity: atbat.player.identity,
+            column: atbat.column,
+            battingOrder: atbat.battingOrder,
+            sequence: atbat.sequence
+        )
+    }
+
+    private func isComputedCurrentSelection(
+        sourceAtbat: Atbat,
+        column: Int,
+        preparedState: PreparedLiveGameState
+    ) -> Bool {
+        guard let currentBatter = preparedState.currentBatter else { return false }
+        return sourceAtbat.player.identifier == currentBatter.identity &&
+            column == preparedState.currentScorecardColumn
+    }
+
+    private func invalidNonCurrentSelectionResult(
+        preparedState: PreparedLiveGameState,
+        displayedAtbats: [Atbat]
+    ) -> SelectionResult {
+        let message = "That is not the current at-bat. You may edit completed at-bats or score the next open at-bat."
+        if let pending = preparedState.currentOrPendingLegacyAtbat {
+            return SelectionResult(
+                disposition: .validationFailed,
+                atbat: nil,
+                message: message,
+                targetAction: .scorecardCell(column: pending.column, battingOrder: pending.battingOrder),
+                targetCell: scorecardCellTarget(for: pending),
+                renderedTarget: renderedScorecardCellTarget(for: pending, displayedAtbats: displayedAtbats)
+            )
+        }
+
+        return SelectionResult(
+            disposition: .validationFailed,
+            atbat: nil,
+            message: message,
+            targetAction: computedCurrentTargetAction(for: preparedState),
+            targetCell: nil,
+            renderedTarget: renderedScorecardCellTarget(forComputedCurrent: preparedState, displayedAtbats: displayedAtbats)
+        )
+    }
+
+    private func renderedScorecardCellTarget(
+        for atbat: PreparedAtbatSnapshot,
+        displayedAtbats: [Atbat]
+    ) -> RenderedScorecardCellTarget? {
+        let renderedRow = displayedAtbats
+            .filter {
+                $0.player.identifier == atbat.player.identity &&
+                $0.col == 1 &&
+                $0.inning <= 1 &&
+                $0.batOrder != 99
+            }
+            .sorted(by: atbatPrecedes)
+            .first
+        guard let renderedRow else { return nil }
+
+        return RenderedScorecardCellTarget(
+            renderedRowIdentity: renderedRow.ident,
+            column: atbat.column
+        )
+    }
+
+    private func computedCurrentTargetAction(for preparedState: PreparedLiveGameState) -> ScoringActionIdentity? {
+        guard let battingOrder = preparedState.battingOrderPosition else { return nil }
+        return .scorecardCell(column: preparedState.currentScorecardColumn, battingOrder: battingOrder)
+    }
+
+    private func renderedScorecardCellTarget(
+        forComputedCurrent preparedState: PreparedLiveGameState,
+        displayedAtbats: [Atbat]
+    ) -> RenderedScorecardCellTarget? {
+        guard let currentBatter = preparedState.currentBatter else { return nil }
+        let renderedRow = displayedAtbats
+            .filter {
+                $0.player.identifier == currentBatter.identity &&
+                $0.col == 1 &&
+                $0.inning <= 1 &&
+                $0.batOrder != 99
+            }
+            .sorted(by: atbatPrecedes)
+            .first
+        guard let renderedRow else { return nil }
+
+        return RenderedScorecardCellTarget(
+            renderedRowIdentity: renderedRow.ident,
+            column: preparedState.currentScorecardColumn
         )
     }
 

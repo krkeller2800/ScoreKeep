@@ -51,6 +51,38 @@ struct LiveScoringShellPresentationTests {
         #expect(failed.message == "Error saving new atbats.")
     }
 
+    @Test("invalid selection presentation preserves concrete scorecard target")
+    func invalidSelectionPresentationPreservesConcreteScorecardTarget() {
+        let atbat = Fixture.atbat()
+        let presenter = LiveScoringShellPresentation()
+        let target = LiveScoringWorkflowCoordinator.ScorecardCellTarget(
+            atbatIdentity: atbat.ident,
+            playerIdentity: atbat.player.identifier,
+            column: 1,
+            battingOrder: 1,
+            sequence: 1
+        )
+        let renderedTarget = LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget(
+            renderedRowIdentity: atbat.ident,
+            column: 1
+        )
+
+        let presentation = presenter.presentSelectionResult(.init(
+            disposition: .validationFailed,
+            atbat: nil,
+            message: "That is not the current at-bat.",
+            targetAction: .scorecardCell(column: 1, battingOrder: 1),
+            targetCell: target,
+            renderedTarget: renderedTarget
+        ))
+
+        #expect(!presentation.shouldPresentScoringSheet)
+        #expect(presentation.targetAction == .scorecardCell(column: 1, battingOrder: 1))
+        #expect(presentation.targetCell == target)
+        #expect(presentation.renderedTarget == renderedTarget)
+        #expect(presentation.renderedTarget?.uiIdentifier == LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget.uiIdentifier(renderedRowIdentity: atbat.ident, column: 1))
+    }
+
     @Test("projection presentation displays only coordinator-provided projection values")
     func projectionPresentationDisplaysOnlyCoordinatorProvidedProjectionValues() {
         var columnBoxes = Array(repeating: BoxScore(), count: 2)
@@ -89,6 +121,14 @@ struct LiveScoringShellPresentationTests {
         #expect(presenter.scorecardCellIsEnabled(column: 1, sourceAtbat: atbat))
         #expect(!presenter.scorecardCellIsEnabled(column: 0, sourceAtbat: atbat))
         #expect(!presenter.scorecardCellIsEnabled(column: 1, sourceAtbat: nil))
+    }
+
+    @Test("invalid scorecard highlight uses separate border and cue vertical offsets")
+    func invalidScorecardHighlightUsesSeparateBorderAndCueVerticalOffsets() {
+        #expect(ScorecardCellView.invalidGuidanceBorderVerticalOffset(for: 50) == 0)
+        #expect(ScorecardCellView.invalidGuidanceBorderVerticalOffset(for: 60) == 0)
+        #expect(ScorecardCellView.invalidGuidanceCueVerticalOffset(for: 50) == 0)
+        #expect(ScorecardCellView.invalidGuidanceCueVerticalOffset(for: 60) == 5)
     }
 
     @Test("semantic score presentation displays coordinator-provided score and line state")

@@ -45,6 +45,7 @@ struct PlayersToScoreView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var highlightedCell: String? = nil
+    @State private var invalidSelectionGuidanceToken: UUID?
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
     let com = Common()
@@ -105,13 +106,17 @@ struct PlayersToScoreView: View {
                                                 if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
                                                     ForEach((1...maxCol), id: \.self) {ind in
                                                         let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
-                                                        let cellId = "scorecard_cell_\(atbat.batOrder)_\(ind)"
+                                                        let cellId = LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget.uiIdentifier(
+                                                            renderedRowIdentity: atbat.ident,
+                                                            column: ind
+                                                        )
                                                         let isHighlighted = highlightedCell == cellId
                                                         let cellPresentation = scorecardCellPresentation(column: ind, atbat: atbat)
                                                         ScorecardCellView(
                                                             atbat: atbat,
                                                             ind: ind,
                                                             bSiz: bSiz,
+                                                            cellId: cellId,
                                                             isHighlighted: isHighlighted,
                                                             cellPresentation: cellPresentation,
                                                             action: {
@@ -180,10 +185,14 @@ struct PlayersToScoreView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
                 .accessibilityIdentifier("live_scoring_root")
-                .alert("Notice", isPresented: $showingAlert) {
-                    Button("OK", role: .cancel) { }
-                } message: {
-                    Text(alertMessage)
+                .overlay(alignment: .top) {
+                    if showingAlert {
+                        InvalidScorecardSelectionBanner(message: alertMessage)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(1)
+                    }
                 }
                 .onAppear() {
                     lAtbats = atbats
@@ -429,6 +438,7 @@ struct PlayersToScoreView: View {
         let presentation = liveScoringShellPresentation.presentSelectionResult(result)
 
         if let selectedAtbat = presentation.selectedAtbat, presentation.shouldPresentScoringSheet {
+            clearInvalidSelectionGuidance()
             theAtbat = selectedAtbat
             isCorrectionEntry = selectedAtbat.result != "Result"
             resetScoringOperationIdentity()
@@ -443,22 +453,41 @@ struct PlayersToScoreView: View {
             if !presentation.shouldPresentScoringSheet {
                 alertMessage = message
                 showingAlert = true
+                let guidanceToken = restartInvalidSelectionGuidanceTimer()
 
-                if let targetAction = presentation.targetAction {
+                if let renderedTarget = presentation.renderedTarget {
+                    let targetId = renderedTarget.uiIdentifier
+                    highlightedCell = targetId
+                } else if let targetAction = presentation.targetAction {
                     if case .scorecardCell(let column, let battingOrder) = targetAction {
                         let targetId = "scorecard_cell_\(battingOrder)_\(column)"
                         highlightedCell = targetId
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                            if highlightedCell == targetId {
-                                highlightedCell = nil
-                            }
-                        }
                     }
                 }
+                hideInvalidSelectionGuidance(after: .now() + 5, token: guidanceToken)
             }
         }
 
         return presentation
+    }
+
+    private func restartInvalidSelectionGuidanceTimer() -> UUID {
+        let token = UUID()
+        invalidSelectionGuidanceToken = token
+        return token
+    }
+
+    private func hideInvalidSelectionGuidance(after deadline: DispatchTime, token: UUID) {
+        DispatchQueue.main.asyncAfter(deadline: deadline) {
+            guard invalidSelectionGuidanceToken == token else { return }
+            clearInvalidSelectionGuidance()
+        }
+    }
+
+    private func clearInvalidSelectionGuidance() {
+        invalidSelectionGuidanceToken = nil
+        showingAlert = false
+        highlightedCell = nil
     }
 
     @discardableResult
@@ -746,16 +775,55 @@ struct ViewOffsetKey: PreferenceKey {
     }
 }
 
+struct InvalidScorecardSelectionBanner: View {
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(message)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .multilineTextAlignment(.leading)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(ScoreKeepVisualStyle.elevatedSurface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.yellow.opacity(0.9), lineWidth: 2)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("invalid_scorecard_selection_banner")
+    }
+}
+
 struct ScorecardCellView: View {
     let atbat: Atbat
     let ind: Int
     let bSiz: CGFloat
+    let cellId: String
     let isHighlighted: Bool
     let cellPresentation: LiveScoringShellPresentation.EnabledActionPresentation
     let action: () -> Void
 
+    static func invalidGuidanceBorderVerticalOffset(for cellSize: CGFloat) -> CGFloat {
+        0
+    }
+
+    static func invalidGuidanceCueVerticalOffset(for cellSize: CGFloat) -> CGFloat {
+        cellSize / 2 - 25
+    }
+
     var body: some View {
-        let cellId = "scorecard_cell_\(atbat.batOrder)_\(ind)"
+        let invalidGuidanceBorderVerticalOffset = Self.invalidGuidanceBorderVerticalOffset(for: bSiz)
+        let invalidGuidanceCueVerticalOffset = Self.invalidGuidanceCueVerticalOffset(for: bSiz)
+
         Button(action: action) {
             Image("field").resizable().scaledToFit()
         }
@@ -771,6 +839,7 @@ struct ScorecardCellView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 4)
                 .stroke(Color.yellow, lineWidth: isHighlighted ? 3 : 0)
+                .offset(y: isHighlighted ? invalidGuidanceBorderVerticalOffset : 0)
         )
         .overlay(
             Group {
@@ -781,7 +850,7 @@ struct ScorecardCellView: View {
                         .background(Color.yellow.opacity(0.9))
                         .foregroundColor(.black)
                         .cornerRadius(4)
-                        .offset(y: -bSiz / 2 - 10)
+                        .offset(y: invalidGuidanceCueVerticalOffset)
                 }
             }
         )

@@ -9,6 +9,8 @@ struct LiveScoringShellPresentation {
         let shouldMarkChanged: Bool
         let message: String?
         let targetAction: LiveScoringWorkflowCoordinator.ScoringActionIdentity?
+        let targetCell: LiveScoringWorkflowCoordinator.ScorecardCellTarget?
+        let renderedTarget: LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget?
     }
 
     struct ProjectionPresentation {
@@ -402,7 +404,9 @@ struct LiveScoringShellPresentation {
             shouldPresentScoringSheet: canPresent,
             shouldMarkChanged: canPresent,
             message: result.message,
-            targetAction: result.targetAction
+            targetAction: result.targetAction,
+            targetCell: result.targetCell,
+            renderedTarget: result.renderedTarget
         )
     }
 

@@ -40,7 +40,7 @@ struct LiveScoringWorkflowCoordinatorTests {
     func blankFirstCurrentCellWithStartingPitcherSelectsExistingLineupPlaceholder() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
-        _ = Fixture.insertPitcher(for: fixture, into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
         try store.context.save()
         let coordinator = LiveScoringWorkflowCoordinator()
 
@@ -125,7 +125,7 @@ struct LiveScoringWorkflowCoordinatorTests {
     func selectingEmptyScorecardCellCreatesOneLegacyPlaceholderAtbatAndNoCanonicalRecords() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
-        _ = Fixture.insertPitcher(for: fixture, into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
         fixture.visitingFirst.result = "Ground Out"
         fixture.visitingFirst.seq = 1
         fixture.visitingFirst.outs = 1
@@ -157,6 +157,145 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(fixture.game.atbats.count == 3)
         #expect(try store.fetchLegacyAtbats().count == 3)
         #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("partially scored game rejects unused non-current cells when current placeholder is absent")
+    func partiallyScoredGameRejectsUnusedNonCurrentCellsWhenCurrentPlaceholderIsAbsent() throws {
+        let presenter = LiveScoringShellPresentation()
+
+        do {
+            let store = try Store()
+            let fixture = Fixture.insertGame(into: store.context)
+            _ = Fixture.insertPitcher(for: fixture, into: store.context)
+            markFirstTwoVisitorsCompleted(fixture)
+            try store.context.save()
+            let coordinator = LiveScoringWorkflowCoordinator()
+            let prepared = coordinator.prepareLiveGameState(
+                game: fixture.game,
+                battingTeam: fixture.visitingTeam,
+                displayedAtbats: fixture.displayedAtbats,
+                pitchers: fixture.game.pitchers
+            )
+
+            let current = coordinator.selectAtbat(
+                column: 2,
+                rowIndex: 0,
+                sourceAtbat: fixture.visitingFirst,
+                displayedAtbats: fixture.displayedAtbats,
+                game: fixture.game,
+                modelContext: store.context,
+                save: { try store.context.save() }
+            )
+            let presentation = presenter.presentSelectionResult(current)
+
+            #expect(prepared.currentBatter?.identity == fixture.visitingFirst.player.identifier)
+            #expect(prepared.currentScorecardColumn == 2)
+            #expect(prepared.currentOrPendingLegacyAtbat == nil)
+            #expect(current.disposition == .success)
+            #expect(current.atbat?.player.identifier == fixture.visitingFirst.player.identifier)
+            #expect(current.atbat?.col == 2)
+            #expect(presentation.shouldPresentScoringSheet)
+            #expect(fixture.game.atbats.count == 3)
+            #expect(try store.fetchLegacyAtbats().count == 3)
+        }
+
+        do {
+            let store = try Store()
+            let fixture = Fixture.insertGame(into: store.context)
+            _ = Fixture.insertPitcher(for: fixture, into: store.context)
+            markFirstTwoVisitorsCompleted(fixture)
+            try store.context.save()
+            let coordinator = LiveScoringWorkflowCoordinator()
+
+            let wrongUnused = coordinator.selectAtbat(
+                column: 2,
+                rowIndex: 1,
+                sourceAtbat: fixture.visitingSecond,
+                displayedAtbats: fixture.displayedAtbats,
+                game: fixture.game,
+                modelContext: store.context,
+                save: { try store.context.save() }
+            )
+            let presentation = presenter.presentSelectionResult(wrongUnused)
+
+            #expect(wrongUnused.disposition == .validationFailed)
+            #expect(wrongUnused.atbat == nil)
+            #expect(!presentation.shouldPresentScoringSheet)
+            #expect(fixture.game.atbats.count == 2)
+            #expect(try store.fetchLegacyAtbats().count == 2)
+        }
+
+        do {
+            let store = try Store()
+            let fixture = Fixture.insertGame(into: store.context)
+            _ = Fixture.insertPitcher(for: fixture, into: store.context)
+            markFirstTwoVisitorsCompleted(fixture)
+            let wrongPlaceholder = Atbat(
+                game: fixture.game,
+                team: fixture.visitingTeam,
+                player: fixture.visitingSecond.player,
+                result: "Result",
+                maxbase: "No Bases",
+                batOrder: fixture.visitingSecond.batOrder,
+                outAt: "Safe",
+                inning: 99,
+                seq: 99,
+                col: 2,
+                rbis: 0,
+                outs: 0,
+                sacFly: 0,
+                sacBunt: 0,
+                stolenBases: 0
+            )
+            store.context.insert(wrongPlaceholder)
+            fixture.game.atbats.append(wrongPlaceholder)
+            try store.context.save()
+            let coordinator = LiveScoringWorkflowCoordinator()
+            let displayedAtbats = fixture.displayedAtbats + [wrongPlaceholder]
+
+            let wrongExistingPlaceholder = coordinator.selectAtbat(
+                column: 2,
+                rowIndex: 1,
+                sourceAtbat: fixture.visitingSecond,
+                displayedAtbats: displayedAtbats,
+                game: fixture.game,
+                modelContext: store.context,
+                save: { try store.context.save() }
+            )
+            let presentation = presenter.presentSelectionResult(wrongExistingPlaceholder)
+
+            #expect(wrongExistingPlaceholder.disposition == .validationFailed)
+            #expect(wrongExistingPlaceholder.atbat == nil)
+            #expect(!presentation.shouldPresentScoringSheet)
+            #expect(fixture.game.atbats.count == 3)
+            #expect(try store.fetchLegacyAtbats().count == 3)
+        }
+
+        do {
+            let store = try Store()
+            let fixture = Fixture.insertGame(into: store.context)
+            _ = Fixture.insertPitcher(for: fixture, into: store.context)
+            markFirstTwoVisitorsCompleted(fixture)
+            try store.context.save()
+            let coordinator = LiveScoringWorkflowCoordinator()
+
+            let completed = coordinator.selectAtbat(
+                column: 1,
+                rowIndex: 0,
+                sourceAtbat: fixture.visitingFirst,
+                displayedAtbats: fixture.displayedAtbats,
+                game: fixture.game,
+                modelContext: store.context,
+                save: { try store.context.save() }
+            )
+            let presentation = presenter.presentSelectionResult(completed)
+
+            #expect(completed.disposition == .noChange)
+            #expect(completed.atbat?.ident == fixture.visitingFirst.ident)
+            #expect(presentation.shouldPresentScoringSheet)
+            #expect(fixture.game.atbats.count == 2)
+            #expect(try store.fetchLegacyAtbats().count == 2)
+        }
     }
 
     @Test("projection refresh preserves legacy scoring outcomes and pitcher marker updates")
@@ -214,6 +353,189 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(result.disposition == .validationFailed)
         #expect(result.atbat == nil)
         #expect(fixture.game.atbats.count == 2)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("invalid open-cell guidance targets the concrete pending at-bat when logical slot is ambiguous")
+    func invalidOpenCellGuidanceTargetsConcretePendingAtbatWhenLogicalSlotIsAmbiguous() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        let duplicateSlotPlayer = Player(
+            name: "Duplicate Slot Visitor",
+            number: "22",
+            position: "RF",
+            batDir: "L",
+            batOrder: 2,
+            team: fixture.visitingTeam
+        )
+        let duplicateSlotAtbat = Atbat(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            player: duplicateSlotPlayer,
+            result: "Result",
+            maxbase: "No Bases",
+            batOrder: 2,
+            outAt: "Safe",
+            inning: 1,
+            seq: 3,
+            col: 1,
+            rbis: 0,
+            outs: 0,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0
+        )
+        store.context.insert(duplicateSlotPlayer)
+        store.context.insert(duplicateSlotAtbat)
+        fixture.visitingTeam.players.append(duplicateSlotPlayer)
+        fixture.game.players.append(duplicateSlotPlayer)
+        fixture.game.atbats.append(duplicateSlotAtbat)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.inning = 0.1
+        fixture.visitingFirst.seq = 1
+        fixture.visitingFirst.outs = 0
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let displayedAtbats = [fixture.visitingFirst, fixture.visitingSecond, duplicateSlotAtbat]
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let invalid = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 2,
+            sourceAtbat: duplicateSlotAtbat,
+            displayedAtbats: displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let current = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 99,
+            sourceAtbat: fixture.visitingSecond,
+            displayedAtbats: displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let completed = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+
+        #expect(prepared.currentOrPendingLegacyAtbat?.identity == fixture.visitingSecond.ident)
+        #expect(invalid.disposition == .validationFailed)
+        #expect(invalid.targetAction == .scorecardCell(column: 1, battingOrder: 2))
+        #expect(invalid.targetCell?.atbatIdentity == fixture.visitingSecond.ident)
+        #expect(invalid.targetCell?.playerIdentity == fixture.visitingSecond.player.identifier)
+        #expect(invalid.targetCell?.column == 1)
+        #expect(invalid.targetCell?.battingOrder == 2)
+        #expect(invalid.targetCell?.sequence == 2)
+        #expect(invalid.renderedTarget?.renderedRowIdentity == fixture.visitingSecond.ident)
+        #expect(invalid.renderedTarget?.column == 1)
+        #expect(invalid.renderedTarget?.uiIdentifier == LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget.uiIdentifier(renderedRowIdentity: fixture.visitingSecond.ident, column: 1))
+        #expect(invalid.renderedTarget?.uiIdentifier != LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget.uiIdentifier(renderedRowIdentity: duplicateSlotAtbat.ident, column: 1))
+        #expect(duplicateSlotAtbat.batOrder == fixture.visitingSecond.batOrder)
+        #expect(current.disposition == .noChange)
+        #expect(current.atbat?.ident == fixture.visitingSecond.ident)
+        #expect(completed.disposition == .noChange)
+        #expect(completed.atbat?.ident == fixture.visitingFirst.ident)
+        #expect(fixture.game.atbats.count == 3)
+        #expect(try store.fetchLegacyAtbats().count == 3)
+        #expect(try store.canonicalScoringRecordCount() == 0)
+    }
+
+    @Test("later-column invalid guidance maps concrete pending at-bat to rendered row target")
+    func laterColumnInvalidGuidanceMapsConcretePendingAtbatToRenderedRowTarget() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        _ = Fixture.insertPitcher(for: fixture, into: store.context)
+        let pendingFirstInSecondColumn = Atbat(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            player: fixture.visitingFirst.player,
+            result: "Result",
+            maxbase: "No Bases",
+            batOrder: fixture.visitingFirst.batOrder,
+            outAt: "Safe",
+            inning: 99,
+            seq: 99,
+            col: 2,
+            rbis: 0,
+            outs: 0,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0
+        )
+        store.context.insert(pendingFirstInSecondColumn)
+        fixture.game.atbats.append(pendingFirstInSecondColumn)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingFirst.maxbase = "First"
+        fixture.visitingFirst.inning = 0.1
+        fixture.visitingFirst.seq = 1
+        fixture.visitingSecond.result = "Ground Out"
+        fixture.visitingSecond.inning = 0.2
+        fixture.visitingSecond.seq = 2
+        fixture.visitingSecond.outs = 1
+        try store.context.save()
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let displayedAtbats = [fixture.visitingFirst, fixture.visitingSecond, pendingFirstInSecondColumn]
+
+        let invalid = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 1,
+            sourceAtbat: fixture.visitingSecond,
+            displayedAtbats: displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let current = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let completed = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: displayedAtbats,
+            game: fixture.game,
+            modelContext: store.context,
+            save: { try store.context.save() }
+        )
+        let expectedRenderedID = LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget.uiIdentifier(
+            renderedRowIdentity: fixture.visitingFirst.ident,
+            column: 2
+        )
+
+        #expect(invalid.disposition == .validationFailed)
+        #expect(invalid.targetCell?.atbatIdentity == pendingFirstInSecondColumn.ident)
+        #expect(invalid.targetCell?.column == 2)
+        #expect(invalid.renderedTarget?.renderedRowIdentity == fixture.visitingFirst.ident)
+        #expect(invalid.renderedTarget?.column == 2)
+        #expect(invalid.renderedTarget?.uiIdentifier == expectedRenderedID)
+        #expect(current.disposition == .noChange)
+        #expect(current.atbat?.ident == pendingFirstInSecondColumn.ident)
+        #expect(completed.disposition == .noChange)
+        #expect(completed.atbat?.ident == fixture.visitingFirst.ident)
+        #expect(fixture.game.atbats.count == 3)
+        #expect(try store.fetchLegacyAtbats().count == 3)
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
@@ -3194,6 +3516,18 @@ private struct Fixture {
         fixture.game.pitchers.append(pitcher)
         return pitcher
     }
+}
+
+private func markFirstTwoVisitorsCompleted(_ fixture: Fixture) {
+    fixture.visitingFirst.result = "Single"
+    fixture.visitingFirst.maxbase = "First"
+    fixture.visitingFirst.inning = 0.1
+    fixture.visitingFirst.seq = 1
+    fixture.visitingFirst.outs = 0
+    fixture.visitingSecond.result = "Ground Out"
+    fixture.visitingSecond.inning = 0.2
+    fixture.visitingSecond.seq = 2
+    fixture.visitingSecond.outs = 1
 }
 
 private struct InjectedSaveError: Error {}
