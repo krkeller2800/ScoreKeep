@@ -366,22 +366,80 @@ struct StartingLineupView: View {
     func deletePlayer(at offsets: IndexSet) {
         for offset in offsets {
             let player = linePlayers[offset]
-            linePlayers.removeAll { $0.name == player.name }
-            modelContext.delete(player)
-            for (index, player) in linePlayers.enumerated() {
-                if index+1 <= numOfHitters || lineup.everyoneHits {
-                    player.batOrder =  index+1
-                } else if !lineup.everyoneHits {
-                    player.batOrder = 99
+            if playedInGame(player: player) {
+                showingAlert = true
+                alertMessage = "\(player.name) is associated with game(s). Cannot delete."
+            } else if pitchedInGame(player: player) {
+                showingAlert = true
+                alertMessage = "\(player.name) has pitched in a game. Cannot delete."
+            } else {
+                linePlayers.removeAll { $0.name == player.name }
+                modelContext.delete(player)
+                for (index, player) in linePlayers.enumerated() {
+                    if index+1 <= numOfHitters || lineup.everyoneHits {
+                        player.batOrder =  index+1
+                    } else if !lineup.everyoneHits {
+                        player.batOrder = 99
+                    }
+                }
+                do {
+                    try self.modelContext.save()
+                }
+                catch {
+                    print("Error saving new atbats: \(error)")
                 }
             }
+        }
+    }
+    func playedInGame(player:Player)->Bool {
+        
+
+        var exist = false
+        let pName = player.name
+
+        if !pName.isEmpty {
+            
+            var fetchDescriptor = FetchDescriptor<Atbat>()
+            
+            fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
+            
             do {
-                try self.modelContext.save()
-            }
-            catch {
-                print("Error saving new atbats: \(error)")
+                let existAtbats = try self.modelContext.fetch(fetchDescriptor)
+                if existAtbats.first != nil {
+                    exist = true
+                } else {
+                    exist = false
+                }
+            } catch {
+                print("SwiftData Error fetching Atbats: \(error)")
             }
         }
+        return exist
+    }
+
+    func pitchedInGame(player:Player)->Bool {
+        
+        var exist = false
+        let pName = player.name
+
+        if !pName.isEmpty {
+            
+            var fetchDescriptor = FetchDescriptor<Pitcher>()
+            
+            fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
+            
+            do {
+                let existPitcher = try self.modelContext.fetch(fetchDescriptor)
+                if existPitcher.first != nil {
+                    exist = true
+                } else {
+                    exist = false
+                }
+            } catch {
+                print("SwiftData Error fetching Games: \(error)")
+            }
+        }
+        return exist
     }
     func checkForDup(pname:String) {
         
