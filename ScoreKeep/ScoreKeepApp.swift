@@ -21,6 +21,7 @@ struct ScoreKeepApp: App {
     @StateObject private var announcements = AnnouncementCenter()
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeededInitialGame") private var hasSeededInitialGame = false
+    @AppStorage("scoreKeepAppearance") private var scoreKeepAppearance = ScoreKeepAppearanceOption.system.rawValue
 
     var body: some Scene {
         WindowGroup {
@@ -45,6 +46,7 @@ struct ScoreKeepApp: App {
                     .environmentObject(purchaseManager)
                     .environmentObject(router)
                     .environmentObject(announcements)
+                    .preferredColorScheme(selectedColorScheme)
                     .task {
                         await purchaseManager.loadProducts()
                         await purchaseManager.refreshEntitlements()
@@ -85,6 +87,10 @@ struct ScoreKeepApp: App {
             }
         }
         .handlesExternalEvents(matching: ["*"])
+    }
+
+    private var selectedColorScheme: ColorScheme? {
+        ScoreKeepAppearanceOption(rawValue: scoreKeepAppearance)?.colorScheme
     }
 }
 

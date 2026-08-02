@@ -17,6 +17,7 @@ struct StartView: View {
     @State private var flags:[Bool] = [true,false,false,false,false,false,false,false,false]
     @State private var navigationPath = NavigationPath()
     @State private var importUrl: URL?
+    @State private var isShowingSettings = false
     @State    var showImport = false
 
     private var sidebarForeground: Color {
@@ -124,6 +125,12 @@ struct StartView: View {
 //                    }
 //                Spacer()
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .bottomTrailing) {
+                ScoreKeepSettingsGearButton(isShowingSettings: $isShowingSettings)
+                    .padding(.trailing, 15)
+                    .padding(.bottom, 15)
+            }
             .ignoresSafeArea(.keyboard, edges: .bottom )
         } detail: {
             if flags[0] {
@@ -147,6 +154,13 @@ struct StartView: View {
             } else if flags[8] {
                 ScreenShotView()
             }
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            ScoreKeepSettingsView(
+                onOpenImportFlow: { openShareDataFromSettings() },
+                onOpenExportFlow: { openShareDataFromSettings() },
+                onOpenHelp: { openHelpFromSettings() }
+            )
         }
         .onOpenURL { url in
             // Route custom deep links to the shared router; do NOT treat as file import
@@ -179,6 +193,17 @@ struct StartView: View {
             print("SQL Dir = \(modelContext.sqliteCommand) \nFolders Dir = \(NSHomeDirectory())")
         }
     }
+
+    private func openShareDataFromSettings() {
+        setFlags(flag: "presentShareLineup")
+        columnVisibility = .doubleColumn
+    }
+
+    private func openHelpFromSettings() {
+        setFlags(flag: "presentHelp")
+        columnVisibility = .doubleColumn
+    }
+
     func setFlags(flag flagName: String) {
         if let nameIndex = flagNames.firstIndex(of: flagName) {
             for (flagIndex, _ ) in flags.enumerated() {

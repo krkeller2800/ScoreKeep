@@ -83,6 +83,11 @@ struct StartPhoneView: View {
 //            .tag(5)
  
        }
+        .scoreKeepPhoneSettingsEntryPoint(
+            onOpenImportFlow: { selectedTab = 4 },
+            onOpenExportFlow: { selectedTab = 4 },
+            onOpenHelp: { selectedTab = 3 }
+        )
         .onOpenURL { url in
             // Route custom deep links (scorekeep://...) via shared router; do NOT treat as file import
             if url.scheme == "scorekeep" {
