@@ -17,7 +17,8 @@ struct ScoreKeepSettingsView: View {
     @State private var didCopyDiagnostics = false
 
     private let privacyURL = URL(string: "https://komakode.com/Privacy%20Policy")!
-    private let supportURL = URL(string: "mailto:comment@KomaKode.com?subject=ScoreKeep%20Support")!
+    private let supportEmailAddress = "comment@KomaKode.com"
+    private let supportEmailSubject = "ScoreKeep Support"
 
     init(
         onOpenImportFlow: @escaping () -> Void = {},
@@ -130,17 +131,16 @@ struct ScoreKeepSettingsView: View {
 
     private var aboutSection: some View {
         Section("About") {
-            LabeledContent("App", value: appName)
-            LabeledContent("Version", value: appVersion)
-            LabeledContent("Build", value: buildNumber)
+            LabeledContent("Version", value: "\(appVersion) (\(buildNumber))")
+            LabeledContent("Developer", value: "KomaKode")
 
             Link("Privacy Policy", destination: privacyURL)
 
             NavigationLink("Acknowledgements") {
                 Form {
                     Section("Acknowledgements") {
-                        LabeledContent("Designers", value: "Karl Keller and ChatGPT")
-                        LabeledContent("Coders", value: "Codex, Gemini, and Claude")
+                        LabeledContent("Designers", value: "Karl Keller")
+                        LabeledContent("Coding Assistants", value: "Codex • Gemini • Claude")
                     }
                 }
                 .navigationTitle("Acknowledgements")
@@ -218,6 +218,60 @@ struct ScoreKeepSettingsView: View {
         }
     }
 
+    private var supportURL: URL {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = supportEmailAddress
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: supportEmailSubject),
+            URLQueryItem(name: "body", value: supportEmailBody)
+        ]
+
+        return components.url ?? URL(string: "mailto:\(supportEmailAddress)")!
+    }
+
+    private var supportEmailBody: String {
+        """
+        Please describe the problem above this line.
+
+        ---
+        Support Information
+        \(supportInformation)
+        """
+    }
+
+    private var supportInformation: String {
+        [
+            "App: \(appName)",
+            "Version: \(appVersion) (\(buildNumber))",
+            "Device Model: \(deviceModel)",
+            "iOS Version: \(operatingSystemVersion)",
+            "Appearance: \(currentAppearanceTitle)",
+            "Season Pass Status: \(entitlementStatusText)",
+            "Store Product Lookup: \(productStatusText)"
+        ].joined(separator: "\n")
+    }
+
+    private var currentAppearanceTitle: String {
+        ScoreKeepAppearanceOption(rawValue: appearanceSelection)?.title ?? ScoreKeepAppearanceOption.system.title
+    }
+
+    private var deviceModel: String {
+        #if canImport(UIKit)
+        UIDevice.current.model
+        #else
+        "Unknown"
+        #endif
+    }
+
+    private var operatingSystemVersion: String {
+        #if canImport(UIKit)
+        "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)"
+        #else
+        "Unknown"
+        #endif
+    }
+
     private var appName: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
             ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
@@ -240,19 +294,8 @@ struct ScoreKeepSettingsView: View {
     }
 
     private func copyDiagnostics() {
-        let diagnostics = [
-            "App: \(appName)",
-            "Version: \(appVersion)",
-            "Build: \(buildNumber)",
-            "Build Configuration: DEBUG",
-            "Season Pass Status: \(entitlementStatusText)",
-            "Raw Entitlement State: \(rawEntitlementStateText)",
-            "Store Product Lookup: \(productStatusText)",
-            "Appearance Preference: \(appearanceSelection)"
-        ].joined(separator: "\n")
-
         #if canImport(UIKit)
-        UIPasteboard.general.string = diagnostics
+        UIPasteboard.general.string = supportEmailBody
         #endif
         didCopyDiagnostics = true
     }

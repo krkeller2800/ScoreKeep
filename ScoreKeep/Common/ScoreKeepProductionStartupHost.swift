@@ -363,6 +363,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
     @Published private(set) var status: ScoreKeepProductionStartupStatus = .loading
     private var didStart = false
     private var retryInProgress = false
+    private var cachedReadyState: (ModelContainer, SimpleTeamCreationRoutingService, Bool)? = nil
 
     func start() {
         guard didStart == false else { return }
@@ -404,6 +405,13 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
     func protectedDataBecameAvailable() {
         guard case .blocked(let presentation) = status,
               presentation.diagnosticCode == .protectedDataUnavailable else { return }
+
+        if let cached = cachedReadyState {
+            status = .ready(cached.0, cached.1, cached.2)
+            cachedReadyState = nil
+            return
+        }
+
         status = .blocked(recoveryPresentation(
             code: .migrationInterruptedRetryable,
             protectedDataState: .becameAvailable,
@@ -417,7 +425,9 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
     }
 
     func protectedDataWillBecomeUnavailable() {
-        guard case .ready = status else { return }
+        guard case .ready(let container, let service, let flag) = status else { return }
+        cachedReadyState = (container, service, flag)
+
         status = .blocked(recoveryPresentation(
             code: .protectedDataUnavailable,
             protectedDataState: .willBecomeUnavailable,
@@ -429,6 +439,12 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
             retryAllowed: false
         ))
     }
+
+    #if DEBUG
+    func injectStatusForTesting(_ status: ScoreKeepProductionStartupStatus) {
+        self.status = status
+    }
+    #endif
 
     #if DEBUG
     func prepareFreshMigrationAttemptForDebug(fileManager: FileManager = .default) -> String {

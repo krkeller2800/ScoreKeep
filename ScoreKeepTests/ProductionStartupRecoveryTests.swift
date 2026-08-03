@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import SwiftData
 @testable import ScoreKeep
 
 @Suite("Production startup recovery")
@@ -316,6 +317,114 @@ struct ProductionStartupRecoveryTests {
         }
 
         #expect(FileManager.default.fileExists(atPath: layout.migrationControlRoot.appendingPathComponent("marker.txt").path))
+    }
+
+    @Test("ready -> lock -> unlock restores ready")
+    @MainActor
+    func readyLockUnlockRestoresReady() throws {
+        let model = ScoreKeepProductionStartupModel()
+        let container = try ModelContainer(for: Game.self)
+        let service = SimpleTeamCreationRoutingService()
+
+        model.injectStatusForTesting(.ready(container, service, false))
+
+        model.protectedDataWillBecomeUnavailable()
+
+        guard case .blocked(let presentation) = model.status else {
+            Issue.record("Expected status to be blocked")
+            return
+        }
+        #expect(presentation.diagnosticCode == .protectedDataUnavailable)
+
+        model.protectedDataBecameAvailable()
+
+        guard case .ready(let restoredContainer, let restoredService, let flag) = model.status else {
+            Issue.record("Expected status to be ready")
+            return
+        }
+        #expect(restoredContainer === container)
+        #expect(restoredService === service)
+        #expect(flag == false)
+    }
+
+    @Test("migration -> lock -> unlock does not restore ready")
+    @MainActor
+    func migrationLockUnlockDoesNotRestoreReady() throws {
+        let model = ScoreKeepProductionStartupModel()
+
+        // Mock a migration/blocked state
+        let migratingPresentation = ScoreKeepProductionStartupRecoveryPresentation.make(
+            diagnosticCode: .migrationInterruptedRetryable,
+            protectedDataState: .available,
+            capacityStatus: "notAssessed",
+            sourceStatus: "notAssessed",
+            backupStatus: "uncertain",
+            migrationPhase: "inProgress",
+            targetVerification: "notRun",
+            retryAllowed: false
+        )
+        model.injectStatusForTesting(.blocked(migratingPresentation))
+
+        model.protectedDataWillBecomeUnavailable()
+        // Wait, protectedDataWillBecomeUnavailable only acts on .ready, so it does nothing here
+        #expect(model.status == .blocked(migratingPresentation))
+
+        // However, if the OS sends unavailable, we could simulate it by injecting .protectedDataUnavailable
+        let unavailablePresentation = ScoreKeepProductionStartupRecoveryPresentation.make(
+            diagnosticCode: .protectedDataUnavailable,
+            protectedDataState: .willBecomeUnavailable,
+            capacityStatus: "notAssessed",
+            sourceStatus: "notAssessed",
+            backupStatus: "uncertain",
+            migrationPhase: "protectedDataUnavailable",
+            targetVerification: "notRun",
+            retryAllowed: false
+        )
+        model.injectStatusForTesting(.blocked(unavailablePresentation))
+
+        model.protectedDataBecameAvailable()
+
+        guard case .blocked(let finalPresentation) = model.status else {
+            Issue.record("Expected status to be blocked")
+            return
+        }
+        #expect(finalPresentation.diagnosticCode == .migrationInterruptedRetryable)
+        #expect(finalPresentation.retryAllowed == true)
+    }
+
+    @Test("termination/relaunch still uses normal migration recovery")
+    @MainActor
+    func terminationRelaunchUsesNormalMigrationRecovery() throws {
+        let model1 = ScoreKeepProductionStartupModel()
+        let container = try ModelContainer(for: Game.self)
+        let service = SimpleTeamCreationRoutingService()
+
+        model1.injectStatusForTesting(.ready(container, service, false))
+        model1.protectedDataWillBecomeUnavailable()
+
+        // Simulate app termination by creating a new model (relaunch)
+        let model2 = ScoreKeepProductionStartupModel()
+
+        let unavailablePresentation = ScoreKeepProductionStartupRecoveryPresentation.make(
+            diagnosticCode: .protectedDataUnavailable,
+            protectedDataState: .willBecomeUnavailable,
+            capacityStatus: "notAssessed",
+            sourceStatus: "notAssessed",
+            backupStatus: "uncertain",
+            migrationPhase: "protectedDataUnavailable",
+            targetVerification: "notRun",
+            retryAllowed: false
+        )
+        model2.injectStatusForTesting(.blocked(unavailablePresentation))
+
+        model2.protectedDataBecameAvailable()
+
+        guard case .blocked(let finalPresentation) = model2.status else {
+            Issue.record("Expected status to be blocked")
+            return
+        }
+        // Because the cache is in-memory per-process, model2 doesn't have it
+        #expect(finalPresentation.diagnosticCode == .migrationInterruptedRetryable)
     }
 
     private func migrationLayout() throws -> ScoreKeepProductionMigrationLayout {
