@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import Foundation
+import UIKit
 @MainActor
 struct GameView: View {
     @Environment(\.modelContext) var modelContext
@@ -17,16 +18,12 @@ struct GameView: View {
     @State private var showingValidationAlert = false
     @State private var alertMessage = ""
     @State private var gamePendingDeletion: Game?
-    @State private var date: Date = Date()
-    @State private var theDate:  String = ""
-    @State private var field: String = ""
-    @State private var everyOneHits = false
-    @State private var vTeam: Team?
-    @State private var hTeam: Team?
+    @State private var showingNewGameSheet = false
+    @State private var measuredGameRowLabelWidth: CGFloat?
 
     // New: closure to delegate creation to parent (ScoreContentView)
     // Updated to include isSeeded flag so parent can skip decrementing free counter for seeded creations.
-    var createGame: (String, String, Bool, Team, Team, Bool) -> Void
+    var createGame: (String, String, Bool, Int, Team, Team, Bool) -> Void
 
     // Seed hint flags
     @AppStorage("hasSeededInitialGame") private var hasSeededInitialGame: Bool = false
@@ -39,19 +36,19 @@ struct GameView: View {
     }
 
     @FocusState private var focusedField: FocusField?
-    
+
     let com = Common()
     let sortMode: GameSort
-    
+
     @Query(sort: [
         SortDescriptor(\Team.name)
     ]) var teams: [Team]
-    
+
     @Query var games: [Game]
     @Query var atbats: [Atbat]
     @Query var pitchers: [Pitcher]
     @Query var lineups: [Lineup]
-    
+
     // In-memory sorted view of games for team-based sorts
     var displayedGames: [Game] {
         switch sortMode {
@@ -63,7 +60,7 @@ struct GameView: View {
             return games
         }
     }
-    
+
     // Hide seed hint if the user has added their own content
     private var hasUserContent: Bool {
         // Heuristics: if there's more than the initial seeded game or more than the initial seeded teams
@@ -72,7 +69,7 @@ struct GameView: View {
         let userHasExtraTeams = teams.count > 2
         return userHasExtraGames || userHasExtraTeams
     }
-    
+
     // If there is exactly one game and it's not the seeded date (Dec 15, 2025), suppress the banner
     private var singleNonSeededGameExists: Bool {
         guard games.count == 1, let only = games.first else { return false }
@@ -92,8 +89,12 @@ struct GameView: View {
         // Compare by just the calendar day in the user's locale/time zone
         return !cal.isDate(gameDate, inSameDayAs: target)
     }
-    
-    private var dateWidth: CGFloat { UIDevice.type == "iPhone" && title.isEmpty ? 100 : 265 }
+
+    private var tableHorizontalInset: CGFloat { 12 }
+    private var measuredGameRowContentWidth: CGFloat? {
+        guard let measuredGameRowLabelWidth, measuredGameRowLabelWidth > 0 else { return nil }
+        return max(0, measuredGameRowLabelWidth - (tableHorizontalInset * 2))
+    }
 
     var body: some View {
         ZStack {
@@ -118,9 +119,6 @@ struct GameView: View {
                         }
                     }
                     headerRow()
-                    if !title.isEmpty {
-                        inputRow()
-                    }
                     ForEach(displayedGames, id: \.ident) { game in
                         NavigationLink(value: game) {
                             gameRow(for: game)
@@ -136,6 +134,10 @@ struct GameView: View {
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     .listRowBackground(gameCardBackground)
                     .listRowSeparatorTint(Color(UIColor.opaqueSeparator))
+                }
+                .onPreferenceChange(GameRowLabelWidthPreferenceKey.self) { width in
+                    guard width > 0 else { return }
+                    measuredGameRowLabelWidth = width
                 }
                 .shadow(color: Color.primary.opacity(0.08), radius: 4, x: 0, y: 2)
                 .scrollContentBackground(.hidden)
@@ -161,11 +163,30 @@ struct GameView: View {
                     Text("If a game is deleted all associated at bats and pitches will also be deleted and removed from the stats")
                 }
                 .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        if !title.isEmpty {
+                            Button {
+                                showingNewGameSheet = true
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                            .accessibilityLabel("New Game")
+                        }
+                    }
                     ToolbarItem(placement: .principal) {
                         Text(self.title)
                             .font(.title2)
                             .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                         }
+                }
+                .sheet(isPresented: $showingNewGameSheet) {
+                    NavigationStack {
+                        EditGameView(navigationPath: $navigationPath) { dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded in
+                            createGame(dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded)
+                            showingNewGameSheet = false
+                        }
+                    }
+                    .modifier(GameEditorSheetPresentationModifier())
                 }
             }
         }
@@ -202,14 +223,14 @@ struct GameView: View {
             }
         }
     }
-    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [], sortMode: GameSort, title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Team, Team, Bool) -> Void) {
-        
+    init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [], sortMode: GameSort, title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Int, Team, Team, Bool) -> Void) {
+
         _title = title
         _navigationPath = navigationPath
         _columnVisibility = columnVisability
         self.sortMode = sortMode
         self.createGame = createGame
-        
+
         let effectiveSort: [SortDescriptor<Game>] = {
             switch sortMode {
             case .homeTeam, .visitorTeam:
@@ -219,7 +240,7 @@ struct GameView: View {
                 return sortOrder
             }
         }()
-        
+
         _games = Query(filter: #Predicate { game in
             if !searchString.isEmpty {
                 return game.hteam?.name.localizedStandardContains(searchString) ?? false ||
@@ -257,34 +278,41 @@ struct GameView: View {
         gamePendingDeletion = nil
     }
 
+    private func gameOverflowHeaderCell(_ title: String) -> some View {
+        scorebookHeaderCell("", semantic: true)
+            .overlay {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .allowsHitTesting(false)
+            }
+    }
+
     @ViewBuilder
     private func headerRow() -> some View {
-        HStack(spacing: 0) {
+        GameTableRowLayout(titleIsEmpty: title.isEmpty, contentWidth: measuredGameRowContentWidth) {
             scorebookHeaderCell("Game Date", semantic: true)
-                .gameFixedColumn(width: dateWidth)
                 .gameTrailingSeparator()
             if !title.isEmpty {
                 scorebookHeaderCell("Field", semantic: true)
-                    .gameFlexibleColumn()
                     .gameTrailingSeparator()
-                scorebookHeaderCell("All Hit", semantic: true)
-                    .gameFixedColumn(width: 58)
+                gameOverflowHeaderCell("All Hit")
                     .gameTrailingSeparator()
             }
 
             scorebookHeaderCell("Visiting", semantic: true)
-                .gameFlexibleColumn()
                 .gameTrailingSeparator()
             scorebookHeaderCell("Home", semantic: true)
-                .gameFlexibleColumn()
                 .gameTrailingSeparator()
             if !title.isEmpty {
-                scorebookHeaderCell("Score", semantic: true)
-                    .gameFlexibleColumn()
+                scorebookHeaderCell("Status", semantic: true)
                     .gameTrailingSeparator()
             }
-            Color.clear.gameFixedColumn(width: title.isEmpty ? 0 : 34)
         }
+        .padding(.horizontal, tableHorizontalInset)
         .fixedSize(horizontal: false, vertical: true)
         .padding(.bottom, 6)
         .background(ScoreKeepVisualStyle.contentSurface)
@@ -293,134 +321,44 @@ struct GameView: View {
     }
 
     @ViewBuilder
-    private func inputRow() -> some View {
-        HStack(spacing: 0) {
-            DatePicker("", selection: $date)
-                .onAppear {
-                    date = ISO8601DateFormatter().date(from: theDate) ?? Date()
-                }
-                .onChange(of: date) {
-                    theDate = date.ISO8601Format()
-                }
-                .labelsHidden()
-                .padding(.horizontal, 4)
-                .gameFixedColumn(width: dateWidth, alignment: .leading)
-                .clipped()
-                .gameTrailingSeparator()
-            TextField("Field", text: $field, prompt: scorebookInputPrompt("Field"))
-                .scorebookInputField()
-                .fontWeight(.semibold)
-                .focused($focusedField, equals: .field)
-                .autocapitalization(.words)
-                .textContentType(.none)
-                .padding(.horizontal, 8)
-                .gameFlexibleColumn(alignment: .leading)
-                .gameTrailingSeparator()
-            Button(action:{everyOneHits.toggle()}){
-                Text(everyOneHits ? "True" : "False")
-                    .frame(height: 30)
-                    .gameFixedColumn(width: 58)
-                    .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                    .fontWeight(.semibold)
-                    .background(everyOneHits ? ScoreKeepVisualStyle.selectedFill : ScoreKeepVisualStyle.disabledFill, in: RoundedRectangle(cornerRadius: 8))
-            }.buttonStyle(PlainButtonStyle())
-                .gameTrailingSeparator()
-            Picker("Visiting Team", selection: $vTeam) {
-                Text("Pick").tag(Optional<Team>.none)
-                if teams.isEmpty == false {
-                    Divider()
-                    ForEach(teams, id: \.ident) { team in
-                        if team.name != "" {
-                            Text(team.name).tag(Optional(team))
-                        }
-                    }
-                }
-            }
-            .labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
-            .gameFlexibleColumn()
-            .gameTrailingSeparator()
-            Picker("Home Team", selection: $hTeam) {
-                Text("Pick").tag(Optional<Team>.none)
-                if teams.isEmpty == false {
-                    Divider()
-                    ForEach(teams, id: \.ident) { team in
-                        if team.name != "" {
-                            Text(team.name).tag(Optional(team))
-                        }
-                    }
-                }
-            }
-            .labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
-            .gameFlexibleColumn()
-            .gameTrailingSeparator()
-            Text("Not Played")
-                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                .fontWeight(.medium)
-                .scorebookMultiLineText()
-                .padding(.horizontal, 8)
-                .gameFlexibleColumn()
-                .gameTrailingSeparator()
-            Button {
-                if let vTeam, let hTeam {
-                    createGame(theDate, field, everyOneHits, vTeam, hTeam, false)
-                    field = ""; self.hTeam = nil; self.vTeam = nil; everyOneHits = false
-                } else {
-                    alertMessage = "You must select a Home and Visiting Team!"
-                    showingValidationAlert = true
-                }
-            } label: {
-                Image(systemName: "plus")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(ScoreKeepVisualStyle.accent)
-                    .frame(height: 44)
-                    .contentShape(Rectangle())
-                    }
-            .buttonStyle(.plain)
-            .gameFixedColumn(width: 34)
-        }
-        .padding(.vertical, 8)
-        .background(ScoreKeepVisualStyle.contentSurface)
-        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-        .listRowBackground(ScoreKeepVisualStyle.contentSurface)
-    }
-
-    @ViewBuilder
     private func gameRow(for game: Game) -> some View {
-        HStack(spacing: 0) {
+        GameTableRowLayout(titleIsEmpty: title.isEmpty, contentWidth: measuredGameRowContentWidth) {
             let dateVal = ISO8601DateFormatter().date(from: game.date) ?? Date()
             Text(dateVal.formatted(date:.abbreviated, time: .shortened))
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 8)
                 .scorebookMultiLineText()
-                .gameFixedColumn(width: dateWidth, alignment: .leading)
+                .gameColumnSlot(alignment: .leading)
                 .gameTrailingSeparator()
             if !title.isEmpty {
                 Text(game.location)
                     .foregroundStyle(game.location.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
                     .fontWeight(.semibold)
                     .padding(.horizontal, 8)
-                    .scorebookMultiLineText()
-                    .gameFlexibleColumn(alignment: .leading)
+                    .scorebookSingleLineText()
+                    .gameColumnSlot(alignment: .leading)
                     .gameTrailingSeparator()
-                Text(game.everyOneHits ? "True" : "False")
+                Text(game.everyOneHits ? "Yes" : "No")
                     .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     .fontWeight(.semibold)
                     .scorebookSingleLineText()
-                    .gameFixedColumn(width: 58)
+                    .gameColumnSlot(alignment: .leading)
                     .gameTrailingSeparator()
             }
             teamCell(name: game.vteam?.name ?? "", logoData: game.vteam?.logo)
-                .gameFlexibleColumn(alignment: .leading)
+                .gameColumnSlot(alignment: .leading)
                 .gameTrailingSeparator()
             teamCell(name: game.hteam?.name ?? "", logoData: game.hteam?.logo)
-                .gameFlexibleColumn(alignment: .leading)
+                .gameColumnSlot(alignment: .leading)
                 .gameTrailingSeparator()
             if !title.isEmpty {
                 gameRowScoreSummary(for: game)
             }
         }
+        .padding(.horizontal, tableHorizontalInset)
         .padding(.vertical, 8)
+        .background(GameRowLabelWidthReader())
     }
 
     @ViewBuilder
@@ -428,33 +366,39 @@ struct GameView: View {
         if let hName = game.hteam?.name, let vName = game.vteam?.name {
             let summary = scoreSummary(for: game, homeTeamName: hName, visitingTeamName: vName)
             let inning = max(1, (summary.outs / 3) + 1)
-            let inningText: String = {
-                if com.innAbr.indices.contains(inning) {
-                    return com.innAbr[inning]
+            let hasWinner = summary.visitingRuns != summary.homeRuns
+            let isFinal = inning >= 9 && hasWinner
+            let gameAtbats = atbats.filter { $0.game == game }
+            let stateText: String = {
+                if gameAtbats.isEmpty {
+                    return "Scheduled"
+                } else if isFinal {
+                    return "Final"
                 } else {
-                    return "Inning \(inning)"
+                    return "Top \(inning)"
                 }
             }()
+            let scoreText = gameAtbats.isEmpty ? "—" : "\(summary.visitingRuns)–\(summary.homeRuns)"
+            let accessibilityLabel = gameAtbats.isEmpty
+                ? "Visiting score unavailable, home score unavailable, game state Scheduled"
+                : "Visiting score \(summary.visitingRuns), home score \(summary.homeRuns), game state \(stateText)"
 
-            let hShort = hName.components(separatedBy: " ").last ?? hName
-            let vShort = vName.components(separatedBy: " ").last ?? vName
-            let winner = summary.visitingRuns > summary.homeRuns ? vShort : (summary.visitingRuns < summary.homeRuns ? hShort : "")
-            let isFinal = inning >= 9 && !winner.isEmpty
-            let suffix = isFinal ? " Final" : " in \(inningText)"
-
-            Text("\(summary.visitingRuns) to \(summary.homeRuns) \(winner)\(suffix)")
+            Text("\(scoreText)\n\(stateText)")
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .fontWeight(.semibold)
                 .padding(.horizontal, 8)
                 .scorebookMultiLineText()
-                .gameFlexibleColumn(alignment: .leading)
+                .gameColumnSlot(alignment: .leading)
                 .gameTrailingSeparator()
+                .accessibilityLabel(accessibilityLabel)
         } else {
-            Text("Game teams not set")
+            Text("—\nScheduled")
                 .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
                 .padding(.horizontal, 8)
-                .gameFlexibleColumn(alignment: .leading)
+                .scorebookMultiLineText()
+                .gameColumnSlot(alignment: .leading)
                 .gameTrailingSeparator()
+                .accessibilityLabel("Visiting score not started, home score not started, game state scheduled")
         }
     }
 
@@ -532,6 +476,7 @@ struct GameView: View {
             tc.userInterfaceStyle == .dark ? UIColor(white: 0.16, alpha: 1.0) : UIColor.white
         })
     }
+
 }
 
 private extension View {
@@ -543,11 +488,180 @@ private extension View {
         self.frame(minWidth: 0, maxWidth: .infinity, alignment: alignment)
     }
 
+    func gameColumnSlot(alignment: Alignment = .center) -> some View {
+        self.frame(maxWidth: .infinity, alignment: alignment)
+    }
+
     func gameTrailingSeparator() -> some View {
         overlay(alignment: .trailing) {
             Rectangle()
                 .fill(Color(UIColor.opaqueSeparator))
                 .frame(width: 1)
+        }
+    }
+
+}
+
+private struct GameRowLabelWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct GameRowLabelWidthReader: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .preference(key: GameRowLabelWidthPreferenceKey.self, value: proxy.size.width)
+        }
+    }
+}
+
+private struct GameColumnWidths {
+    let date: CGFloat
+    let field: CGFloat
+    let allHit: CGFloat
+    let team: CGFloat
+    let status: CGFloat
+
+    static func resolved(for proposedContentWidth: CGFloat?, titleIsEmpty: Bool) -> GameColumnWidths {
+        let fallbackWidth = UIScreen.main.bounds.width
+        let contentWidth = max(0, proposedContentWidth ?? fallbackWidth)
+
+        guard UIDevice.type == "iPhone" else {
+            let fixedWidth = (titleIsEmpty ? 100.0 : 150.0)
+                + 42.0
+                + (135.0 * 2)
+                + 112.0
+            return GameColumnWidths(
+                date: titleIsEmpty ? 100 : 150,
+                field: max(0, contentWidth - fixedWidth),
+                allHit: 42,
+                team: 135,
+                status: 112
+            )
+        }
+
+        let usableWidth = contentWidth
+        if titleIsEmpty {
+            let date = min(100, max(80, usableWidth * 0.35))
+            let team = max(0, (usableWidth - date) / 2)
+            return GameColumnWidths(date: date, field: 0, allHit: 0, team: team, status: 0)
+        }
+
+        let target = GameColumnWidths(date: 145, field: 100, allHit: 42, team: 150, status: 116)
+        let minimum = GameColumnWidths(date: 108, field: 82, allHit: 40, team: 118, status: 108)
+        let targetWidth = target.date + target.field + target.allHit + (target.team * 2) + target.status
+        let minimumWidth = minimum.date + minimum.field + minimum.allHit + (minimum.team * 2) + minimum.status
+
+        if usableWidth >= targetWidth {
+            return GameColumnWidths(
+                date: target.date,
+                field: usableWidth - target.date - target.allHit - (target.team * 2) - target.status,
+                allHit: target.allHit,
+                team: target.team,
+                status: target.status
+            )
+        }
+
+        if usableWidth >= minimumWidth {
+            let deficit = targetWidth - usableWidth
+            let shrinkCapacity = (target.date - minimum.date)
+                + (target.allHit - minimum.allHit)
+                + ((target.team - minimum.team) * 2)
+                + (target.status - minimum.status)
+            let shrinkRatio = shrinkCapacity > 0 ? min(1, deficit / shrinkCapacity) : 1
+            let date = target.date - ((target.date - minimum.date) * shrinkRatio)
+            let allHit = target.allHit - ((target.allHit - minimum.allHit) * shrinkRatio)
+            let team = target.team - ((target.team - minimum.team) * shrinkRatio)
+            let status = target.status - ((target.status - minimum.status) * shrinkRatio)
+            return GameColumnWidths(date: date, field: minimum.field, allHit: allHit, team: team, status: status)
+        }
+
+        let scale = minimumWidth > 0 ? usableWidth / minimumWidth : 1
+        return GameColumnWidths(
+            date: minimum.date * scale,
+            field: minimum.field * scale,
+            allHit: minimum.allHit * scale,
+            team: minimum.team * scale,
+            status: minimum.status * scale
+        )
+    }
+
+    var visibleWidths: [CGFloat] {
+        [date, field, allHit, team, team, status]
+    }
+
+    var compactWidths: [CGFloat] {
+        [date, team, team]
+    }
+}
+
+private struct GameTableRowLayout: Layout {
+    let titleIsEmpty: Bool
+    let contentWidth: CGFloat?
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let proposedWidth = proposal.width ?? UIScreen.main.bounds.width
+        let layoutWidth = resolvedLayoutWidth(for: proposedWidth)
+        let widths = columnWidths(for: layoutWidth, subviewCount: subviews.count)
+        let height = subviews.enumerated().reduce(0) { result, pair in
+            let width = widths[pair.offset]
+            let size = pair.element.sizeThatFits(ProposedViewSize(width: width, height: proposal.height))
+            return max(result, size.height)
+        }
+
+        return CGSize(width: layoutWidth, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let layoutWidth = resolvedLayoutWidth(for: bounds.width)
+        let widths = columnWidths(for: layoutWidth, subviewCount: subviews.count)
+        var x = bounds.minX
+
+        for index in subviews.indices {
+            let width = widths[index]
+            subviews[index].place(
+                at: CGPoint(x: x, y: bounds.midY),
+                anchor: .leading,
+                proposal: ProposedViewSize(width: width, height: bounds.height)
+            )
+            x += width
+        }
+    }
+
+    private func resolvedLayoutWidth(for proposedWidth: CGFloat) -> CGFloat {
+        guard let contentWidth, contentWidth > 0 else { return proposedWidth }
+        return min(contentWidth, proposedWidth)
+    }
+
+    private func columnWidths(for proposedWidth: CGFloat, subviewCount: Int) -> [CGFloat] {
+        let widths = GameColumnWidths.resolved(for: proposedWidth, titleIsEmpty: titleIsEmpty)
+        let orderedWidths = titleIsEmpty ? widths.compactWidths : widths.visibleWidths
+        if subviewCount <= orderedWidths.count {
+            return Array(orderedWidths.prefix(subviewCount))
+        }
+
+        let fallback = orderedWidths.last ?? 0
+        return orderedWidths + Array(repeating: fallback, count: subviewCount - orderedWidths.count)
+    }
+
+}
+
+private struct GameEditorSheetPresentationModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if UIDevice.type == "iPad" {
+            if #available(iOS 18.0, *) {
+                content
+                    .presentationSizing(.page)
+            } else {
+                content
+                    .presentationDetents([.large])
+            }
+        } else {
+            content
         }
     }
 }

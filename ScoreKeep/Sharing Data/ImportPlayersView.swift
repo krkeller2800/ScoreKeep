@@ -12,7 +12,7 @@ struct ImportPlayersView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Binding var showingImport: Bool
-    
+
     @State         var importURL:URL
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     @State private var navigationPath = NavigationPath()
@@ -26,10 +26,10 @@ struct ImportPlayersView: View {
     @State private var fileType = ""
     @State private var title = ""
     @State private var team: Team = Team(name: "", coach: "", details: "")
-    
+
     @Query var teams: [Team]
     @Query var games: [Game]
-    
+
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack {
@@ -39,7 +39,7 @@ struct ImportPlayersView: View {
                     let gameExists = fileType.localizedStandardContains("ScoreKeep_Games") && (shareGames.first.map { sg in
                         games.contains { $0.vteam?.name == sg.vteam.name && $0.hteam?.name == sg.hteam.name && $0.date == sg.date }
                     } ?? false)
-                    
+
                     // Show overwrite-choice prompt only when importing players for an existing team
                     if fileType.localizedStandardContains("ScoreKeep_Players") && teamExists {
                         Text("Which Players shouldn't have non-blank fields overwritten?")
@@ -49,7 +49,7 @@ struct ImportPlayersView: View {
                             .bold()
                             .italic()
                     }
-                    
+
                     if fileType.localizedStandardContains("ScoreKeep_Players") {
                         if teamExists {
                             Button("Imported") {
@@ -63,9 +63,9 @@ struct ImportPlayersView: View {
                             }
                             .foregroundColor(.blue)
                             .buttonStyle(.bordered)
-                            
+
                             Text(" or ")
-                            
+
                             Button("Current") {
                                 if fileType.localizedStandardContains("ScoreKeep_Players") {
                                     currentPlayersBoss(sharedPlayers: sharePlayers, teamName: teamName)
@@ -110,10 +110,10 @@ struct ImportPlayersView: View {
                          coach: "",
                          details: "",
                          logo: sharePlayers.first?.team?.logo ?? Data())
-                    
+
                     VStack {
                         Text(fileType.localizedStandardContains("ScoreKeep_Players") ? "Imported \(teamName) Players" : "Imported Game") .bold().italic()
-                        
+
                         if fileType.localizedStandardContains("ScoreKeep_Players") {
                             showSharedPlayers(sharePlayers: $sharePlayers, searchText: searchText)
                         } else {
@@ -136,11 +136,11 @@ struct ImportPlayersView: View {
                                 title: $title,
                                 navigationPath: $navigationPath,
                                 columnVisability: $columnVisibility,
-                                createGame: { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
+                                createGame: { dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded in
                                     // Treat imports from this UI as non-seeded user creations by default.
                                     // If you want imports to NEVER count against a free counter, set isSeeded to true here
                                     // and ensure the parent that enforces limits respects it.
-                                    let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
+                                    let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, numInnings: numInnings, vteam: vTeam, hteam: hTeam)
                                     modelContext.insert(theGame)
                                     try? modelContext.save()
                                 }
@@ -249,7 +249,7 @@ struct ImportPlayersView: View {
         return []
     }
     func decodeGame() -> [ShareGame] {
-        
+
         let needsAccess = importURL.startAccessingSecurityScopedResource()
         defer {
             if needsAccess {
@@ -258,9 +258,9 @@ struct ImportPlayersView: View {
         }
         do {
             let data = try Data(contentsOf: importURL.absoluteURL)
-            
+
             let decoder = JSONDecoder()
-            
+
             guard let loadedFile = try? decoder.decode(ShareGame.self, from: data) else {
                 throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Invalid user data"))
             }
@@ -303,7 +303,7 @@ struct ImportPlayersView: View {
         }
     }
     func currentPlayersBoss (sharedPlayers: [SharePlayer],teamName: String) {
-        
+
         let players = getCurrentPlayers(teamName: teamName)
         RosterImportReconciler.apply(
             sharedPlayers: sharedPlayers,
@@ -454,7 +454,7 @@ struct ImportPlayersView: View {
                 }
                 return nil
             }()
-            
+
             let theTeam = Team(
                 name: teamName,
                 coach: incomingTeamMeta?.coach ?? "",
@@ -474,10 +474,10 @@ struct ImportPlayersView: View {
         } else {
             team = teams.first(where: { $0.name == teamName })!
         }
-        
+
         var fetchDescriptor = FetchDescriptor<Player>(sortBy: [SortDescriptor(\.batOrder)])
         fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }
-        
+
         do {
             let players = try self.modelContext.fetch(fetchDescriptor)
             if team.logo?.count == 0 {

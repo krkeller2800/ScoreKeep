@@ -19,12 +19,12 @@ struct ContentView: View {
     @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
     @AppStorage("selectedGameCriteria") var selectedGameCriteria: SortCriteria = .dateAsc
-    
+
     enum SortCriteria: String, CaseIterable, Identifiable {
         case dateAsc, dateDec, homeTeam, visitorTeam
         var id: String { self.rawValue }
     }
-    
+
     var sortDescriptor: [SortDescriptor<Game>] {
         switch selectedGameCriteria {
         case .dateAsc:
@@ -35,7 +35,7 @@ struct ContentView: View {
             return []
         }
     }
-    
+
     var body: some View {
         NavigationStack(path: $path) {
             let currentSortMode: GameView.GameSort = {
@@ -53,9 +53,9 @@ struct ContentView: View {
                 title: $title,
                 navigationPath: $path,
                 columnVisability: $columnVisability,
-                createGame: { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
+                createGame: { dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded in
                     // This ContentView path represents normal user creation; treat as non-seeded.
-                    createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+                    createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, numInnings: numInnings, vTeam: vTeam, hTeam: hTeam)
                 }
             )
             .navigationDestination(for: Game.self) { game in
@@ -120,15 +120,15 @@ struct ContentView: View {
             }
         }
     }
-    
-    private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) {
-        let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
+
+    private func createGame(dateISO: String, field: String, everyOneHits: Bool, numInnings: Int, vTeam: Team, hTeam: Team) {
+        let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, numInnings: numInnings, vteam: vTeam, hteam: hTeam)
         modelContext.insert(theGame)
         try? modelContext.save()
         // If you want to navigate to EditGameView after creation, uncomment the next line:
         // path.append(theGame)
     }
-    
+
     func addGame() {
         let game = Game(date: "" ,location: "",highLights: "",hscore: 0, vscore: 0)
         modelContext.insert(game)

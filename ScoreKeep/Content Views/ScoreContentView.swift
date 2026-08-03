@@ -48,6 +48,7 @@ struct ScoreContentView: View {
         let dateISO: String
         let field: String
         let everyOneHits: Bool
+        let numInnings: Int
         let vTeam: Team
         let hTeam: Team
     }
@@ -103,8 +104,8 @@ struct ScoreContentView: View {
             paywallContext = .gameLimit
             showPaywall = true
         }
-        let requestCreateGame: (String, String, Bool, Team, Team, Bool) -> Void = { dateISO, field, everyOneHits, vTeam, hTeam, isSeeded in
-            handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam, isSeeded: isSeeded)
+        let requestCreateGame: (String, String, Bool, Int, Team, Team, Bool) -> Void = { dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded in
+            handleCreateGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, numInnings: numInnings, vTeam: vTeam, hTeam: hTeam, isSeeded: isSeeded)
         }
         let currentSortMode: GameView.GameSort = {
             switch selectedSortCriteria {
@@ -307,15 +308,15 @@ struct ScoreContentView: View {
 
     // MARK: - Creation gating
 
-    private func handleCreateGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team, isSeeded: Bool) {
+    private func handleCreateGame(dateISO: String, field: String, everyOneHits: Bool, numInnings: Int, vTeam: Team, hTeam: Team, isSeeded: Bool) {
         if isPremium {
-            _ = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+            _ = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, numInnings: numInnings, vTeam: vTeam, hTeam: hTeam)
             return
         }
 
         // If this is a seeded creation, do not decrement free counter
         if isSeeded {
-            _ = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam)
+            _ = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, numInnings: numInnings, vTeam: vTeam, hTeam: hTeam)
             return
         }
 
@@ -324,6 +325,7 @@ struct ScoreContentView: View {
                 dateISO: dateISO,
                 field: field,
                 everyOneHits: everyOneHits,
+                numInnings: numInnings,
                 vTeam: vTeam,
                 hTeam: hTeam
             )
@@ -333,7 +335,7 @@ struct ScoreContentView: View {
             return
         }
 
-        guard let game = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, vTeam: vTeam, hTeam: hTeam) else {
+        guard let game = createGame(dateISO: dateISO, field: field, everyOneHits: everyOneHits, numInnings: numInnings, vTeam: vTeam, hTeam: hTeam) else {
             return
         }
 
@@ -378,6 +380,7 @@ struct ScoreContentView: View {
             dateISO: pendingCreation.dateISO,
             field: pendingCreation.field,
             everyOneHits: pendingCreation.everyOneHits,
+            numInnings: pendingCreation.numInnings,
             vTeam: pendingCreation.vTeam,
             hTeam: pendingCreation.hTeam,
             isSeeded: false
@@ -403,8 +406,8 @@ struct ScoreContentView: View {
         }
     }
 
-    private func createGame(dateISO: String, field: String, everyOneHits: Bool, vTeam: Team, hTeam: Team) -> Game? {
-        let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, vteam: vTeam, hteam: hTeam)
+    private func createGame(dateISO: String, field: String, everyOneHits: Bool, numInnings: Int, vTeam: Team, hTeam: Team) -> Game? {
+        let theGame = Game(date: dateISO, location: field, highLights: "", hscore: 0, vscore: 0, everyOneHits: everyOneHits, numInnings: numInnings, vteam: vTeam, hteam: hTeam)
         modelContext.insert(theGame)
         do {
             try self.modelContext.save()
@@ -430,11 +433,12 @@ private struct SegmentedSizingModifier: ViewModifier {
         if #available(iOS 26.0, *) {
             content
                 .pickerStyle(.segmented)
-                .controlSize(.regular)
-                .frame(minWidth: 120) // ensure “Score” and “Edit” fit
+                .controlSize(.small)
+                .frame(width: 108)
         } else {
             content
                 .pickerStyle(SegmentedPickerStyle())
+                .frame(width: 108)
         }
     }
 }
