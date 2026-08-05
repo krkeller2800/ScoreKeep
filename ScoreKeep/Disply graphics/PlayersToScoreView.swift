@@ -253,7 +253,7 @@ struct PlayersToScoreView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-                
+
             // Give a moment for the screen boundaries to change after
             // the device is rotated
             Task { @MainActor in
@@ -265,7 +265,9 @@ struct PlayersToScoreView: View {
                         columnVisability = .detailOnly
                     }
                 } catch {
+                    #if DEBUG
                     print("Error: \(error.localizedDescription)")
+                    #endif
                 }
             }
         }
@@ -286,7 +288,9 @@ struct PlayersToScoreView: View {
         let preparedPresentation = liveScoringShellPresentation.presentPreparedState(preparedResult)
         preparedLiveGameState = preparedPresentation.preparedState
         if let message = preparedPresentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
         let semanticState = liveScoringCoordinator.semanticScoreState(
             preparedState: preparedPresentation.preparedState,
@@ -295,7 +299,9 @@ struct PlayersToScoreView: View {
         let scorePresentation = liveScoringShellPresentation.presentSemanticScoreState(semanticState)
         semanticScorePresentation = scorePresentation
         if let message = scorePresentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
         let enabledActions = liveScoringCoordinator.enabledScoringActions(
             preparedState: preparedPresentation.preparedState,
@@ -320,7 +326,9 @@ struct PlayersToScoreView: View {
         iStat = presentation.inningStatus
 
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
     }
     init(
@@ -449,7 +457,9 @@ struct PlayersToScoreView: View {
         hasChanged = presentation.shouldMarkChanged
 
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
             if !presentation.shouldPresentScoringSheet {
                 alertMessage = message
                 showingAlert = true
@@ -508,7 +518,9 @@ struct PlayersToScoreView: View {
         }
 
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
 
         return presentation
@@ -542,7 +554,9 @@ struct PlayersToScoreView: View {
         announce(presentation.statusAccessibilityLabel)
 
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
 
         return presentation
@@ -590,7 +604,9 @@ struct PlayersToScoreView: View {
         refreshLiveScoringWorkflow()
 
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
 
         return presentation
@@ -613,7 +629,9 @@ struct PlayersToScoreView: View {
 
         hasChanged = presentation.shouldMarkChanged
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
 
         return presentation
@@ -653,7 +671,9 @@ struct PlayersToScoreView: View {
         refreshLiveScoringWorkflow()
 
         if let message = presentation.message {
+            #if DEBUG
             print(message)
+            #endif
         }
 
         return presentation

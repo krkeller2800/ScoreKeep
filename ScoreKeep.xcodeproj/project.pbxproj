@@ -7,10 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B61F01D72ED6367D00BF0531 /* ScoreKeep.storekit in Resources */ = {isa = PBXBuildFile; fileRef = B61F01D62ED6367D00BF0531 /* ScoreKeep.storekit */; };
 		B61F55312ED4E37D00D7BBEB /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B61F55302ED4E37D00D7BBEB /* StoreKit.framework */; };
-		DF5716473009312500F3CCB6 /* MigrationTestLegacy.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF5716463009312500F3CCB6 /* MigrationTestLegacy.xcconfig */; };
-		DF5716493009312A00F3CCB6 /* MigrationTestProposed.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF5716483009312A00F3CCB6 /* MigrationTestProposed.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -254,9 +251,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DF5716473009312500F3CCB6 /* MigrationTestLegacy.xcconfig in Resources */,
-				DF5716493009312A00F3CCB6 /* MigrationTestProposed.xcconfig in Resources */,
-				B61F01D72ED6367D00BF0531 /* ScoreKeep.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -465,7 +459,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.040;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Komakode.ScoreKeep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -506,7 +500,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.040;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_BUNDLE_IDENTIFIER = Komakode.ScoreKeep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -685,7 +679,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.040;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -827,7 +821,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.040;
+				MARKETING_VERSION = 6.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;

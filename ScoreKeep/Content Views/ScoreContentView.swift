@@ -431,7 +431,9 @@ struct ScoreContentView: View {
         modelContext.insert(game)
         path.append(game)
         addAGame = true
+        #if DEBUG
         print(addAGame)
+        #endif
         try? modelContext.save()
     }
 }

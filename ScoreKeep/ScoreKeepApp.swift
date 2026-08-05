@@ -80,7 +80,9 @@ struct ScoreKeepApp: App {
                     .onAppear {
                         let fm = FileManager.default
                         if let documents = fm.urls(for: .documentDirectory, in: .userDomainMask).first {
+                            #if DEBUG
                             print("Documents directory path: \(documents.path)")
+                            #endif
                         }
                     }
                 }
@@ -188,7 +190,9 @@ private struct SeederView: View {
     }
 }
 private func parseDeepLink(_ url: URL) -> AppRouter.Destination? {
+    #if DEBUG
     print("parseDeepLink received:", url.absoluteString)
+    #endif
     guard url.scheme == "scorekeep" else { return nil }
     let host = url.host ?? ""
     guard host == "share" else { return nil }
