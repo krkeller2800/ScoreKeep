@@ -15,6 +15,10 @@ struct ScoreContentView: View {
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Binding var columnVisability: NavigationSplitViewVisibility
 
+    var onOpenImportFlow: () -> Void = {}
+    var onOpenExportFlow: () -> Void = {}
+    var onOpenHelp: () -> Void = {}
+
     @State private var path = NavigationPath()
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
@@ -125,6 +129,11 @@ struct ScoreContentView: View {
                 navigationPath: navBinding,
                 columnVisability: columnBinding,
                 createGame: requestCreateGame
+            )
+            .phoneSettingsGearIfRoot(
+                onOpenImportFlow: onOpenImportFlow,
+                onOpenExportFlow: onOpenExportFlow,
+                onOpenHelp: onOpenHelp
             )
             .navigationDestination(for: Game.self) { game in
                 destinationView(for: game)
@@ -451,6 +460,25 @@ private struct PresentationDragIndicatorHidden: ViewModifier {
             return content.presentationDragIndicator(Visibility.hidden)
         } else {
             return content
+        }
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func phoneSettingsGearIfRoot(
+        onOpenImportFlow: @escaping () -> Void,
+        onOpenExportFlow: @escaping () -> Void,
+        onOpenHelp: @escaping () -> Void
+    ) -> some View {
+        if UIDevice.type == "iPhone" {
+            self.scoreKeepPhoneSettingsEntryPoint(
+                onOpenImportFlow: onOpenImportFlow,
+                onOpenExportFlow: onOpenExportFlow,
+                onOpenHelp: onOpenHelp
+            )
+        } else {
+            self
         }
     }
 }

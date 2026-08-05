@@ -284,9 +284,7 @@ struct GameView: View {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .scorebookSingleLineText()
                     .allowsHitTesting(false)
             }
     }
@@ -332,11 +330,8 @@ struct GameView: View {
                 .gameColumnSlot(alignment: .leading)
                 .gameTrailingSeparator()
             if !title.isEmpty {
-                Text(game.location)
-                    .foregroundStyle(game.location.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
-                    .fontWeight(.semibold)
+                fieldNameText(game.location)
                     .padding(.horizontal, 8)
-                    .scorebookSingleLineText()
                     .gameColumnSlot(alignment: .leading)
                     .gameTrailingSeparator()
                 Text(game.everyOneHits ? "Yes" : "No")
@@ -415,6 +410,25 @@ struct GameView: View {
 
     @ViewBuilder
     private func teamNameText(_ name: String) -> some View {
+        if name.contains(" ") {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(teamNameLines(for: name).enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .scorebookSingleLineText()
+                }
+            }
+            .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
+            .fontWeight(.semibold)
+        } else {
+            Text(name)
+                .scorebookSingleLineText()
+                .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
+                .fontWeight(.semibold)
+        }
+    }
+
+    @ViewBuilder
+    private func fieldNameText(_ name: String) -> some View {
         if name.contains(" ") {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(teamNameLines(for: name).enumerated()), id: \.offset) { _, line in

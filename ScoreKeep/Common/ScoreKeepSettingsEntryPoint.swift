@@ -380,9 +380,10 @@ private struct ScoreKeepPhoneSettingsEntryPointModifier: ViewModifier {
                     ScoreKeepSettingsGearButton(isShowingSettings: $isShowingSettings)
                         .position(
                             x: geometry.size.width - phoneSettingsTrailingPadding(for: geometry.size.width) - 22,
-                            y: geometry.size.height - 24
+                            y: geometry.size.height - 42
                         )
                 }
+                .ignoresSafeArea(edges: .bottom)
             }
             .sheet(isPresented: $isShowingSettings) {
                 ScoreKeepSettingsView(

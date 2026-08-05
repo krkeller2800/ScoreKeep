@@ -19,18 +19,23 @@ struct StartPhoneView: View {
     @State private var importPayload: ImportPayload?
 
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack {
-                ScoreContentView(columnVisability: $columnVisibility)
+                ScoreContentView(
+                    columnVisability: $columnVisibility,
+                    onOpenImportFlow: { selectedTab = 4 },
+                    onOpenExportFlow: { selectedTab = 4 },
+                    onOpenHelp: { selectedTab = 3 }
+                )
             }
             .tabItem {
                 Image("pgame")
                 Text("Games").padding(.horizontal,5)
             }
             .tag(0)
-            
+
             NavigationStack {
                 TeamContentView()
             }
@@ -39,7 +44,7 @@ struct StartPhoneView: View {
                 Text("Teams").padding(.horizontal,5)
             }
             .tag(1)
-            
+
 //            NavigationStack {
 //                ScoreContentView()
 //            }
@@ -81,13 +86,8 @@ struct StartPhoneView: View {
 //
 //            }
 //            .tag(5)
- 
+
        }
-        .scoreKeepPhoneSettingsEntryPoint(
-            onOpenImportFlow: { selectedTab = 4 },
-            onOpenExportFlow: { selectedTab = 4 },
-            onOpenHelp: { selectedTab = 3 }
-        )
         .onOpenURL { url in
             // Route custom deep links (scorekeep://...) via shared router; do NOT treat as file import
             if url.scheme == "scorekeep" {
@@ -128,7 +128,7 @@ struct StartPhoneView: View {
             }
         }
     }
-    
+
     private func isImportFileURL(_ url: URL) -> Bool {
         let ext = url.pathExtension
         return ext == "ScoreKeep_Players" || ext == "ScoreKeep_Games"
