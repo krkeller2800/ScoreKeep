@@ -80,7 +80,7 @@ struct ScoreGameView: View {
     private var scorePlayControlTint: Color {
         colorScheme == .dark ? ScoreKeepVisualStyle.primaryText : .black
     }
-    
+
     var body: some View {
         Section {
             GeometryReader { geometry in
@@ -341,7 +341,7 @@ struct ScoreGameView: View {
                              .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding([.bottom,.trailing], 15)
                         }
                     }
-   
+
                 }
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .background(
@@ -354,7 +354,7 @@ struct ScoreGameView: View {
                 }
                 if let idx = com.battings.firstIndex(where: { $0 == displayedResult }) {
                     let abb = com.batAbbrevs[idx]
-                    drawIt(size: geometry.size, atbat: atbat, abb: abb)
+                    drawIt(size: geometry.size, result: displayedResult, maxbase: maxBaseBinding.wrappedValue, outAt: displayedOutAt, abb: abb)
                 }
                 if UIDevice.type == "iPhone" {
                     Rectangle().fill(Color.gray.opacity(0.5)).frame(width: 15, height: 15).rotationEffect(.degrees(45))
@@ -397,7 +397,7 @@ struct ScoreGameView: View {
         }
     }
     func setEndOfInning () {
-     
+
         var inning = 0
         var outs = 0
         let bats = atbat.game.atbats.filter { $0.team == atbat.team && $0.result != "Result" }.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
@@ -547,6 +547,7 @@ struct ScoreGameView: View {
     private func selectResult(_ result: String) {
         if isCorrectionEntry {
             correctionResult = result
+            normalizeCorrectionDraft(for: result)
             return
         }
         if requiresAdditionalChoice(result), let prepareAdditionalChoiceScoringAction {
@@ -658,7 +659,45 @@ struct ScoreGameView: View {
         correctionPlayRecord = atbat.playRec
     }
 
+    private func normalizeCorrectionDraft(for result: String) {
+        let minimumBase: String
+        let forceSafeOut: Bool
+
+        switch result {
+        case "Home Run":
+            minimumBase = "Home"
+            forceSafeOut = false
+        case "Triple":
+            minimumBase = "Third"
+            forceSafeOut = false
+        case "Double":
+            minimumBase = "Second"
+            forceSafeOut = false
+        case "Single", "Walk", "Hit By Pitch", "Catcher Interference", "Error", "Fielder's Choice", "Dropped 3rd Strike":
+            minimumBase = "First"
+            forceSafeOut = false
+        default:
+            minimumBase = "No Bases"
+            forceSafeOut = true
+        }
+
+        let bases = ["No Bases", "First", "Second", "Third", "Home"]
+        let currentIndex = bases.firstIndex(of: correctionMaxBase) ?? 0
+        let minimumIndex = bases.firstIndex(of: minimumBase) ?? 0
+
+        if currentIndex < minimumIndex {
+            correctionMaxBase = minimumBase
+        } else if minimumIndex == 0 {
+            correctionMaxBase = "No Bases"
+        }
+
+        if forceSafeOut {
+            correctionOutAt = "Safe"
+        }
+    }
+
     private func submitCorrectionDraft() {
+        normalizeCorrectionDraft(for: correctionResult)
         submitCorrectionEntry?(
             LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement(
                 result: correctionResult,

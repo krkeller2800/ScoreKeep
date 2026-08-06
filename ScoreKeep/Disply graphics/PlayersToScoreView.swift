@@ -37,9 +37,6 @@ struct PlayersToScoreView: View {
     @State private var ordinaryScoringOperationIdentity: UUID?
     @State private var ordinaryScoringIntentKey: String?
     @State private var isCorrectionEntry = false
-    @State private var showingCorrectionReview = false
-    @State private var correctionReviewState: LiveScoringShellPresentation.CorrectionReviewState?
-    @State private var correctionReviewMessage: String?
     @State private var pendingPitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
     @State private var scorecardScrollController = ScorecardScrollController()
     @State private var showingAlert = false
@@ -231,25 +228,26 @@ struct PlayersToScoreView: View {
                     submitAdditionalChoiceScoringAction: submitAdditionalChoiceScoringAction,
                     isCorrectionEntry: isCorrectionEntry,
                     submitCorrectionEntry: { replacement in
-                        _ = prepareCorrectionReview(replacement: replacement)
+                        let target = LiveScoringWorkflowCoordinator.LegacyCorrectionTarget(
+                            gameIdentity: game.ident,
+                            atbatIdentity: theAtbat.ident,
+                            expectedOriginal: nil
+                        )
+                        let submission = liveScoringCoordinator.submitCorrection(
+                            target: target,
+                            replacement: replacement,
+                            displayedAtbats: atbats,
+                            pitchers: pitchers,
+                            modelContext: modelContext,
+                            save: { try modelContext.save() }
+                        )
+                        if let refreshedState = submission.refreshedState, submission.disposition == .accepted {
+                            preparedLiveGameState = refreshedState
+                            refreshLiveScoringWorkflow()
+                        }
+                        isCorrectionEntry = false
                     }
                 )
-            }
-            .onChange(of: showingScoring) { _, isPresented in
-                guard !isPresented,
-                      correctionReviewState != nil,
-                      !showingCorrectionReview else { return }
-                showingCorrectionReview = true
-            }
-            .sheet(isPresented: $showingCorrectionReview) {
-                if let review = correctionReviewState {
-                    CorrectionReviewSheet(
-                        review: review,
-                        message: correctionReviewMessage,
-                        confirm: confirmCorrectionReview,
-                        cancel: cancelCorrectionReview
-                    )
-                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -500,76 +498,7 @@ struct PlayersToScoreView: View {
         highlightedCell = nil
     }
 
-    @discardableResult
-    func prepareCorrectionReview(
-        replacement: LiveScoringWorkflowCoordinator.LegacyCorrectionReplacement
-    ) -> LiveScoringShellPresentation.CorrectionEntryPresentation {
-        let presentation = liveScoringShellPresentation.prepareCorrectionEntry(
-            targetAtbat: isCorrectionEntry ? theAtbat : nil,
-            game: game,
-            replacement: replacement,
-            supportedLegacyResults: com.onresults + com.outresults,
-            currentReview: correctionReviewState
-        )
 
-        correctionReviewMessage = presentation.message
-        if let review = presentation.reviewState, presentation.shouldPresentReview {
-            correctionReviewState = review
-        }
-
-        if let message = presentation.message {
-            #if DEBUG
-            print(message)
-            #endif
-        }
-
-        return presentation
-    }
-
-    @discardableResult
-    func confirmCorrectionReview() -> LiveScoringShellPresentation.CorrectionReviewPresentation {
-        let presentation = liveScoringShellPresentation.confirmCorrectionReview(&correctionReviewState) { target, replacement in
-            liveScoringCoordinator.submitCorrection(
-                target: target,
-                replacement: replacement,
-                displayedAtbats: atbats,
-                pitchers: pitchers,
-                modelContext: modelContext,
-                save: { try modelContext.save() }
-            )
-        }
-
-        correctionReviewMessage = presentation.message
-        if presentation.shouldMarkChanged {
-            hasChanged = true
-        }
-        if let refreshedState = presentation.refreshedState, presentation.outcome == .accepted {
-            preparedLiveGameState = refreshedState
-            refreshLiveScoringWorkflow()
-        }
-        if presentation.shouldClearPendingReview {
-            showingCorrectionReview = false
-            isCorrectionEntry = false
-        }
-        announce(presentation.statusAccessibilityLabel)
-
-        if let message = presentation.message {
-            #if DEBUG
-            print(message)
-            #endif
-        }
-
-        return presentation
-    }
-
-    @discardableResult
-    func cancelCorrectionReview() -> LiveScoringShellPresentation.CorrectionReviewPresentation {
-        let presentation = liveScoringShellPresentation.cancelCorrectionReview(&correctionReviewState)
-        correctionReviewMessage = presentation.message
-        showingCorrectionReview = false
-        isCorrectionEntry = false
-        return presentation
-    }
 
     @discardableResult
     func submitScoringAction(_ result: String) -> LiveScoringShellPresentation.SubmissionPresentation {
@@ -729,64 +658,7 @@ struct PlayersToScoreView: View {
     }
 }
 
-private struct CorrectionReviewSheet: View {
-    let review: LiveScoringShellPresentation.CorrectionReviewState
-    let message: String?
-    let confirm: () -> LiveScoringShellPresentation.CorrectionReviewPresentation
-    let cancel: () -> LiveScoringShellPresentation.CorrectionReviewPresentation
 
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("At Bat") {
-                    LabeledContent("Batter", value: review.summary.batter)
-                    LabeledContent("Inning", value: review.summary.inningDescription)
-                }
-                Section("Result") {
-                    LabeledContent("Original", value: review.summary.originalResult)
-                    LabeledContent("Proposed", value: review.summary.proposedResult)
-                }
-                Section("Details") {
-                    LabeledContent("Original RBI", value: "\(review.summary.originalRBI)")
-                    LabeledContent("Proposed RBI", value: "\(review.summary.proposedRBI)")
-                    LabeledContent("Original base path", value: review.summary.originalBasePath)
-                    LabeledContent("Proposed base path", value: review.summary.proposedBasePath)
-                    LabeledContent("Original steals", value: "\(review.summary.originalStolenBases)")
-                    LabeledContent("Proposed steals", value: "\(review.summary.proposedStolenBases)")
-                    LabeledContent("Original earned run", value: review.summary.originalEarnedRun ? "Yes" : "No")
-                    LabeledContent("Proposed earned run", value: review.summary.proposedEarnedRun ? "Yes" : "No")
-                    if !review.summary.originalFielderPlay.isEmpty || !review.summary.proposedFielderPlay.isEmpty {
-                        LabeledContent("Original fielder play", value: review.summary.originalFielderPlay)
-                        LabeledContent("Proposed fielder play", value: review.summary.proposedFielderPlay)
-                    }
-                }
-                if let message {
-                    Section("Status") {
-                        Text(message)
-                            .accessibilityLabel(message)
-                    }
-                }
-            }
-            .navigationTitle("Review Correction")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(review.canConfirm ? "Cancel" : "Dismiss") {
-                        _ = cancel()
-                    }
-                    .accessibilityLabel(review.canConfirm ? "Cancel correction review" : "Dismiss correction review")
-                    .disabled(!review.canCancel)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Confirm") {
-                        _ = confirm()
-                    }
-                    .accessibilityLabel("Confirm correction")
-                    .disabled(!review.canConfirm)
-                }
-            }
-        }
-    }
-}
 struct ViewOffsetKey: PreferenceKey {
     typealias Value = CGFloat
     static var defaultValue = CGFloat.zero

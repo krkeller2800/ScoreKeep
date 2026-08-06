@@ -10,47 +10,51 @@ import Foundation
 
 struct drawIt: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        clearLines(size: size, atbat: atbat, abb: abb)
-        switch atbat.result {
+        clearLines(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
+        switch result {
         case "Dropped 3rd Strike":
-            drawSingle(size: size, atbat: atbat, abb: abb)
+            drawSingle(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Catcher Interference":
-            drawSingle(size: size, atbat: atbat, abb: abb)
+            drawSingle(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Walk":
-            drawSingle(size: size, atbat: atbat, abb: abb)
+            drawSingle(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Error":
-            drawSingle(size: size, atbat: atbat, abb: abb)
+            drawSingle(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Single":
-            drawSingle(size: size, atbat: atbat, abb: abb)
+            drawSingle(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Double":
-            drawDouble(size: size, atbat: atbat, abb: abb)
+            drawDouble(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Triple":
-            drawTriple(size: size, atbat: atbat, abb: abb)
+            drawTriple(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         case "Home Run":
-            drawHomeRun(size: size, atbat: atbat, abb: abb)
+            drawHomeRun(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         default:
-            drawSingle(size: size, atbat: atbat, abb: abb)
+            drawSingle(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         }
-        if atbat.maxbase != "No Bases" {
-            drawRunning(size: size, atbat: atbat, abb: abb)
+        if maxbase != "No Bases" {
+            drawRunning(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         }
-        if atbat.outAt != "Safe" {
-            drawoutAt(size: size, atbat: atbat, abb: abb)
+        if outAt != "Safe" {
+            drawoutAt(size: size, result: result, maxbase: maxbase, outAt: outAt, abb: abb)
         }
     }
 }
 struct drawSingle: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         let com = Common()
         if UIDevice.type == "iPhone" {
-            if com.onresults.contains(atbat.result) {
+            if com.onresults.contains(result) {
                 Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
                 Path() {
                     myPath in
@@ -63,7 +67,7 @@ struct drawSingle: View {
             }
         } else {
             Text(abb).position(x: 0.5 * size.width, y: 0.62 * size.height).font(.system(size: 65))
-            if com.onresults.contains(atbat.result) {
+            if com.onresults.contains(result) {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
@@ -76,10 +80,12 @@ struct drawSingle: View {
 }
 struct drawDouble: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         if UIDevice.type == "iPhone" {
             Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
             Path() {
@@ -103,10 +109,12 @@ struct drawDouble: View {
 }
 struct drawTriple: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         if UIDevice.type == "iPhone" {
             Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
             Path() {
@@ -133,10 +141,12 @@ struct drawTriple: View {
 }
 struct drawHomeRun: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         if UIDevice.type == "iPhone" {
             Path() {
                 myPath in
@@ -164,12 +174,14 @@ struct drawHomeRun: View {
 }
 struct drawRunning: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         if UIDevice.type == "iPhone" {
-            if atbat.maxbase == "Home" {
+            if maxbase == "Home" {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
@@ -185,9 +197,9 @@ struct drawRunning: View {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
                     myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
-                    if atbat.maxbase == "Second" || atbat.maxbase == "Third" {
+                    if maxbase == "Second" || maxbase == "Third" {
                         myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
-                        if atbat.maxbase == "Third" {
+                        if maxbase == "Third" {
                             myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
                         }
                     }
@@ -196,7 +208,7 @@ struct drawRunning: View {
                 Text(abb).position(x: 0.5 * size.width, y: 0.8 * size.height).font(.system(size: 30))
             }
         } else {
-            if atbat.maxbase == "Home" {
+            if maxbase == "Home" {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
@@ -212,9 +224,9 @@ struct drawRunning: View {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
                     myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-                    if atbat.maxbase == "Second" || atbat.maxbase == "Third" {
+                    if maxbase == "Second" || maxbase == "Third" {
                         myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-                        if atbat.maxbase == "Third" {
+                        if maxbase == "Third" {
                             myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
                         }
                     }
@@ -228,10 +240,12 @@ struct drawRunning: View {
 
 struct clearLines: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         if UIDevice.type == "iPhone" {
             Path() {
                 myPath in
@@ -257,12 +271,14 @@ struct clearLines: View {
 }
 struct drawoutAt: View {
     var size: CGSize
-    var atbat:Atbat
-    var abb:String
+    var result: String
+    var maxbase: String
+    var outAt: String
+    var abb: String
     var body: some View {
-        
+
         if UIDevice.type == "iPhone" {
-            if atbat.outAt == "Home" {
+            if outAt == "Home" {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
@@ -273,32 +289,32 @@ struct drawoutAt: View {
                 }
                 .stroke(Color.indigo, lineWidth: 5)
                 Text("X").position(x: 0.50 * size.width, y: 0.92 * size.height).font(.system(size: 25, weight: .regular))
-                
-                
+
+
             } else {
                 Path() {
                     myPath in
-     
+
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.92 * size.height))
                     myPath.addLine(to: CGPoint(x: 0.57 * size.width, y: 0.8 * size.height))
-                    if atbat.outAt == "Second" || atbat.outAt == "Third" {
+                    if outAt == "Second" || outAt == "Third" {
                         myPath.addLine(to: CGPoint(x: size.width/2, y: 0.7 * size.height))
-                        if atbat.outAt == "Third" {
+                        if outAt == "Third" {
                             myPath.addLine(to: CGPoint(x: 0.43 * size.width, y: 0.8 * size.height))
                         }
                     }
                 }
                 .stroke(Color.indigo, lineWidth: 5)
-                if atbat.outAt == "First" {
+                if outAt == "First" {
                     Text("X").position(x: 0.57 * size.width, y: 0.8 * size.height).font(.system(size: 25, weight: .regular))
-                } else if atbat.outAt == "Second" {
+                } else if outAt == "Second" {
                     Text("X").position(x: size.width/2, y: 0.7 * size.height).font(.system(size:25, weight: .regular))
-                } else if atbat.outAt == "Third" {
+                } else if outAt == "Third" {
                     Text("X").position(x: 0.43 * size.width, y: 0.8 * size.height).font(.system(size: 25, weight: .regular))
                 }
             }
         } else {
-            if atbat.outAt == "Home" {
+            if outAt == "Home" {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
@@ -309,26 +325,26 @@ struct drawoutAt: View {
                 }
                 .stroke(Color.indigo, lineWidth: 5)
                 Text("X").position(x: 0.50 * size.width, y: 0.90 * size.height).font(.system(size: 35, weight: .bold))
-                
-                
+
+
             } else {
                 Path() {
                     myPath in
                     myPath.move(to: CGPoint(x: size.width/2, y: 0.90 * size.height))
                     myPath.addLine(to: CGPoint(x: 0.75 * size.width, y: 0.7 * size.height))
-                    if atbat.outAt == "Second" || atbat.outAt == "Third" {
+                    if outAt == "Second" || outAt == "Third" {
                         myPath.addLine(to: CGPoint(x: size.width/2, y: 0.5 * size.height))
-                        if atbat.outAt == "Third" {
+                        if outAt == "Third" {
                             myPath.addLine(to: CGPoint(x: 0.25 * size.width, y: 0.7 * size.height))
                         }
                     }
                 }
                 .stroke(Color.indigo, lineWidth: 5)
-                if atbat.outAt == "First" {
+                if outAt == "First" {
                     Text("X").position(x: 0.75 * size.width, y: 0.70 * size.height).font(.system(size: 35, weight: .regular))
-                } else if atbat.outAt == "Second" {
+                } else if outAt == "Second" {
                     Text("X").position(x: size.width/2, y: 0.5 * size.height).font(.system(size:35, weight: .regular))
-                } else if atbat.outAt == "Third" {
+                } else if outAt == "Third" {
                     Text("X").position(x: 0.25 * size.width, y: 0.7 * size.height).font(.system(size: 35, weight: .regular))
                 }
             }
