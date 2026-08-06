@@ -33,7 +33,7 @@ struct ReplacementView: View {
     @State private var isSearching = false
 
     @Query var players: [Player]
-    
+
     private var replacementPickerBackground: Color {
         Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark
@@ -41,7 +41,7 @@ struct ReplacementView: View {
             : UIColor.systemBlue.withAlphaComponent(0.2)
         })
     }
-    
+
     private var replacementPickerBorder: Color {
         Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark
@@ -49,7 +49,7 @@ struct ReplacementView: View {
             : UIColor.gray
         })
     }
-    
+
     private var replacementPickerForeground: Color {
         Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark
@@ -220,21 +220,21 @@ struct ReplacementView: View {
         self.team = team
         self.game = game
         let tname = team.name
-        
+
         _players = Query(filter: #Predicate { player in
             player.team?.name == tname
         },  sort: sortOrder)
     }
     func getPlayers () {
-        
+
         let teamName = team.name
-        
+
         if !teamName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Player>(sortBy: [SortDescriptor(\.batOrder)])
-            
+
             fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }
-            
+
             do {
                 selectPlayers = try self.modelContext.fetch(fetchDescriptor)
             } catch {
@@ -246,23 +246,25 @@ struct ReplacementView: View {
         }
     }
     func addPlayers() {
+        let maxOrder = players.map { $0.batOrder }.filter { $0 < 99 }.max() ?? 0
+        let nextOrder = maxOrder + 1
 
-        let  player = Player(name: "", number: "", position: "", batDir: "", batOrder: 99, team: team)
+        let player = Player(name: "", number: "", position: "", batDir: "", batOrder: nextOrder, team: team)
         modelContext.insert(player)
         navigationPath.append(player)
         try? modelContext.save()
-        }
+    }
     func getAtbats () {
-        
+
         let gloc = game.location
         let gdate = game.date
         let tname = team.name
 
-        
+
         var fetchDescriptor = FetchDescriptor<Atbat>(sortBy: [SortDescriptor(\.col), SortDescriptor(\.seq)])
-        
+
         fetchDescriptor.predicate = #Predicate { $0.game.location == gloc && $0.game.date == gdate && $0.team.name == tname }
-        
+
         do {
             atbats = try self.modelContext.fetch(fetchDescriptor)
         } catch {

@@ -29,14 +29,14 @@ struct PlayerView: View {
     @State private var isSearching = false
     @Binding private var searchText:String
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
-    
+
     @AppStorage("selectedPlayerTCriteria") var selectedPlayerPCriteria: SortCriteria = .orderAsc
-    
+
     enum SortCriteria: String, CaseIterable, Identifiable {
         case nameAsc, nameDec, orderAsc, numAsc
         var id: String { self.rawValue }
     }
-    
+
     var sortDescriptor: [SortDescriptor<Player>] {
         switch selectedPlayerPCriteria {
         case .nameAsc:
@@ -51,9 +51,9 @@ struct PlayerView: View {
     }
 
     enum FocusField: Hashable {case field}
-    
+
     @FocusState private var focusedField: FocusField?
-    
+
     @Query(sort: [
         SortDescriptor(\Team.name)
     ]) var teams: [Team]
@@ -90,7 +90,7 @@ struct PlayerView: View {
                                     checkForDup(pname:pName)
                                 }})
                             .frame(width: nameWidth)
-                            .textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                            .textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField().bold()
                             .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
                             .accessibilityLabel("Player")
                             .focused($focusedField, equals: .field)
@@ -247,9 +247,9 @@ struct PlayerView: View {
         }
     }
 
-    
+
     init(team: Team, navigationPath:Binding<NavigationPath>, searchString: Binding<String>, sortOrder: [SortDescriptor<Player>] = []) {
-        
+
         _navigationPath = navigationPath
         self.pTeam = team
         _searchText = searchString
@@ -279,17 +279,17 @@ struct PlayerView: View {
         }
     }
     func playedInGame(player:Player)->Bool {
-        
+
 
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Atbat>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-            
+
             do {
                 let existAtbats = try self.modelContext.fetch(fetchDescriptor)
                 if existAtbats.first != nil {
@@ -305,16 +305,16 @@ struct PlayerView: View {
     }
 
     func pitchedInGame(player:Player)->Bool {
-        
+
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Pitcher>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-            
+
             do {
                 let existPitcher = try self.modelContext.fetch(fetchDescriptor)
                 if existPitcher.first != nil {

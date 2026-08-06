@@ -29,6 +29,12 @@ public extension View {
             .tint(ScoreKeepVisualStyle.accent)
     }
 
+    func scorebookNameField() -> some View {
+        self
+            .autocorrectionDisabled(true)
+            .textInputAutocapitalization(.words)
+    }
+
     func scorebookInputPromptOverlay(_ title: String, isVisible: Bool) -> some View {
         overlay(alignment: .leading) {
             if isVisible {

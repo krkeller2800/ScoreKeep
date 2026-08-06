@@ -43,9 +43,9 @@ struct StartingLineupView: View {
 
 
     enum FocusField: Hashable {case field1, field2, field3, field4}
-    
+
     @FocusState private var focusedField: FocusField?
-    
+
     @Query var atbats: [Atbat]
     @Query var lineups: [Lineup]
     @Query var players: [Player]
@@ -85,14 +85,13 @@ struct StartingLineupView: View {
                         }
                         .frame(width:smallWidth).labelsHidden().pickerStyle(.menu).accentColor(ScoreKeepVisualStyle.accent).foregroundStyle(ScoreKeepVisualStyle.accent)
                         TextField("Name", text: $pName, prompt: scorebookInputPrompt("Name"))
-                            .background(ScoreKeepVisualStyle.contentSurface).frame(width:nameWidth).textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                            .background(ScoreKeepVisualStyle.contentSurface).frame(width:nameWidth).textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField().bold()
                             .focused($focusedField, equals: .field1)
                             .onSubmit {
                                 focusedField = .field2 // Move focus to the next field
                             }
 //                            .onChange(of: focusedField) { checkForDup(pname: pName)}
 //                            .onAppear {self.focusedField = .field1}
-                            .autocapitalization(.words)
                             .textContentType(.none)
                             .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                         TextField("00", text: $pNumber, prompt: scorebookInputPrompt("00")).background(ScoreKeepVisualStyle.contentSurface).frame(width:smallWidth)
@@ -286,7 +285,7 @@ struct StartingLineupView: View {
             }
         }
     }
-    
+
     static func resolvedLineupPlayers(savedLineup: Lineup?, atbats: [Atbat], fallbackPlayers: [Player], team: Team, game: Game) -> [Player] {
         if let savedPlayers = savedLineup?.players.sorted(by: { $0.batOrder < $1.batOrder }), !savedPlayers.isEmpty {
             return savedPlayers
@@ -305,7 +304,7 @@ struct StartingLineupView: View {
         }
         return fallbackPlayers.sorted(by: { $0.batOrder < $1.batOrder })
     }
-    
+
     func doLineup() {
         if let oldlineup = lineups.first(where: { $0.team == team && $0.game == game}) {
             lineup = oldlineup
@@ -344,12 +343,12 @@ struct StartingLineupView: View {
             print("Error saving atbat: \(error)")
         }
     }
-    
+
     init(showingDetail: Binding<Bool>, passedGame: Game, passedTeam: Team, theTeam: String = "", searchString: String = "", sortOrder: [SortDescriptor<Player>] = []) {
         team = passedTeam
         game = passedGame
 
-        
+
         lineup = Lineup(everyoneHits: false, game: passedGame, team: passedTeam, inning: 1)
 
         _showingDetail = showingDetail
@@ -392,17 +391,17 @@ struct StartingLineupView: View {
         }
     }
     func playedInGame(player:Player)->Bool {
-        
+
 
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Atbat>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-            
+
             do {
                 let existAtbats = try self.modelContext.fetch(fetchDescriptor)
                 if existAtbats.first != nil {
@@ -418,16 +417,16 @@ struct StartingLineupView: View {
     }
 
     func pitchedInGame(player:Player)->Bool {
-        
+
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Pitcher>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-            
+
             do {
                 let existPitcher = try self.modelContext.fetch(fetchDescriptor)
                 if existPitcher.first != nil {
@@ -442,7 +441,7 @@ struct StartingLineupView: View {
         return exist
     }
     func checkForDup(pname:String) {
-        
+
         if prevPName == pname {
             checkForDups = false
         } else {
@@ -452,16 +451,16 @@ struct StartingLineupView: View {
         let playName = pname
         prevPName = playName
         dups = false
-        
+
         if !teamName.isEmpty && !playName.isEmpty && checkForDups{
-            
+
             var fetchDescriptor = FetchDescriptor<Player>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName && $0.name == playName}
-            
+
             do {
                 let existPlayers = try self.modelContext.fetch(fetchDescriptor)
-                
+
                 if existPlayers.first != nil {
                     dups = true
                     showingAlert = true
@@ -517,10 +516,23 @@ struct StartingLineupView: View {
     }
 
     func createPendingPlayer() {
-        thisPlayer = Player(name: pName, number: pNumber, position: pPosition, batDir: pBatDir, batOrder: pBatOrder, team: team)
+        let maxOrder = linePlayers.map { $0.batOrder }.filter { $0 < 99 }.max() ?? 0
+        let assignedOrder = pBatOrder == 0 ? maxOrder + 1 : pBatOrder
+
+        thisPlayer = Player(name: pName, number: pNumber, position: pPosition, batDir: pBatDir, batOrder: assignedOrder, team: team)
         modelContext.insert(thisPlayer)
         clearPendingPlayer()
-        linePlayers = players.sorted(by: { $0.batOrder < $1.batOrder })
+
+        linePlayers.append(thisPlayer)
+        if assignedOrder != maxOrder + 1 {
+            for player in linePlayers where player.id != thisPlayer.id {
+                if player.batOrder >= assignedOrder && player.batOrder < 99 {
+                    player.batOrder += 1
+                }
+            }
+        }
+
+        linePlayers = linePlayers.sorted(by: { $0.batOrder < $1.batOrder })
         for (index, player) in linePlayers.enumerated() {
             if index+1 <= numOfHitters || lineup.everyoneHits {
                 player.batOrder = index+1
@@ -533,7 +545,28 @@ struct StartingLineupView: View {
 
     func useExistingPlayer(_ player: Player) {
         if !linePlayers.contains(where: { $0 === player }) {
+            let maxOrder = linePlayers.map { $0.batOrder }.filter { $0 < 99 }.max() ?? 0
+            let assignedOrder = pBatOrder == 0 ? maxOrder + 1 : pBatOrder
+
+            player.batOrder = assignedOrder
             linePlayers.append(player)
+
+            if assignedOrder != maxOrder + 1 {
+                for existing in linePlayers where existing.id != player.id {
+                    if existing.batOrder >= assignedOrder && existing.batOrder < 99 {
+                        existing.batOrder += 1
+                    }
+                }
+            }
+
+            linePlayers = linePlayers.sorted(by: { $0.batOrder < $1.batOrder })
+            for (index, p) in linePlayers.enumerated() {
+                if index+1 <= numOfHitters || lineup.everyoneHits {
+                    p.batOrder = index+1
+                } else if !lineup.everyoneHits {
+                    p.batOrder = 99
+                }
+            }
         }
         clearPendingPlayer()
     }
@@ -569,11 +602,11 @@ struct StartingLineupView: View {
     }
 
     func getPlayers () {
-        
+
         let teamName = team.name
-        
+
         if !teamName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Player>(sortBy: sortOrder)
             if searchText.isEmpty {
                 fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }

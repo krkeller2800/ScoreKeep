@@ -33,18 +33,18 @@ struct EditPlayerView: View {
     @State private var removedPlaceholderForExisting = false
 
     enum FocusField: Hashable {case field}
-    
+
     @FocusState private var focusedField: FocusField?
-    
+
     @Query(sort: [
         SortDescriptor(\Team.name)
     ]) var teams: [Team]
-    
+
     var formatter: NumberFormatter {
         let formatter = NumberFormatter ()
         formatter.minimumIntegerDigits = 0
         formatter.maximumFractionDigits = 3
-        
+
         return formatter
     }
     var body: some View {
@@ -72,13 +72,12 @@ struct EditPlayerView: View {
                             checkForDup(pname: playerName)
                         }})
                         .frame(width: 150)
-                        .textFieldStyle(.roundedBorder).scorebookInputField().bold()
+                        .textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField().bold()
                         .scorebookInputPromptOverlay("Player", isVisible: playerName.isEmpty)
                         .accessibilityLabel("Player")
                         .focused($focusedField, equals: .field)
                         .onChange(of: focusedField) { checkForDup(pname: playerName)}
 //                        .onAppear {self.focusedField = .field}
-                        .autocapitalization(.words)
                         .textContentType(.none)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                     TextField("Number", text: $playerNumber, prompt: scorebookInputPrompt("Number")).frame(maxWidth:.infinity)
@@ -220,7 +219,7 @@ struct EditPlayerView: View {
         }
     }
     func checkForDup(pname:String) {
-        
+
         if prevPName == pname {
             checkForDups = false
         } else {
@@ -229,7 +228,7 @@ struct EditPlayerView: View {
         let teamName = team.name
         let playName = pname
         prevPName = playName
-        
+
         if !teamName.isEmpty && !playName.isEmpty && checkForDups{
             if let likelyDuplicate = findLikelyDuplicatePlayer(for: playName) {
                 likelyDuplicatePlayer = likelyDuplicate

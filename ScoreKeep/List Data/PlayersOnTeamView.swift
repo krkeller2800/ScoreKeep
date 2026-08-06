@@ -9,7 +9,7 @@ import SwiftData
 
 struct PlayersOnTeamView: View {
     @Environment(\.modelContext) var modelContext
-    
+
     @State var showHeader: Bool
     @State var pName: String = ""
     @State var pNum: String = ""
@@ -26,20 +26,20 @@ struct PlayersOnTeamView: View {
     @State private var checkForDups = true
     @State private var likelyDuplicatePlayer: Player?
     @State private var showingDuplicatePlayerAlert = false
-    
+
     enum FocusField: Hashable {case field}
-    
+
     @FocusState private var focusedField: FocusField?
-    
+
     @Query var players: [Player]
-    
+
     var body: some View {
         GeometryReader { geometry in
             List {
                 let nameWidth =  geometry.size.width/4
 //                let smallWidth =  geometry.size.width/12
                 let mediumWidth =  geometry.size.width/9
-                
+
                 Section {
                     HStack {
                         scorebookHeaderCell("Order")
@@ -74,12 +74,11 @@ struct PlayersOnTeamView: View {
                                 checkForDup(pname:pName)
                             }})
                         .frame(width: nameWidth)
-                        .textFieldStyle(.roundedBorder).scorebookInputField()
+                        .textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField()
                         .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
                         .accessibilityLabel("Player")
                         .focused($focusedField, equals: .field)
                         //                        .onAppear {self.focusedField = .field}
-                        .autocapitalization(.words)
                         .textContentType(.name)
                         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
                         TextField("(00)", text: $pNum, prompt: scorebookInputPrompt("(00)")).frame(width:mediumWidth)
@@ -154,9 +153,9 @@ struct PlayersOnTeamView: View {
         }
     }
 
-    
+
     init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = []) {
-        
+
         self.showHeader = showHeader
         self.team = team
         let teamName = team.name
@@ -170,7 +169,7 @@ struct PlayersOnTeamView: View {
               }
           },  sort: sortOrder)
       }
-    
+
     func deletePlayer(at offsets: IndexSet) {
         for offset in offsets {
             let player = players[offset]
@@ -195,17 +194,17 @@ struct PlayersOnTeamView: View {
         }
     }
     func playedInGame(player:Player)->Bool {
-        
+
 
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Atbat>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-            
+
             do {
                 let existAtbats = try self.modelContext.fetch(fetchDescriptor)
                 if existAtbats.first != nil {
@@ -221,16 +220,16 @@ struct PlayersOnTeamView: View {
     }
 
     func pitchedInGame(player:Player)->Bool {
-        
+
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-            
+
             var fetchDescriptor = FetchDescriptor<Pitcher>()
-            
+
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-            
+
             do {
                 let existPitcher = try self.modelContext.fetch(fetchDescriptor)
                 if existPitcher.first != nil {
@@ -245,7 +244,7 @@ struct PlayersOnTeamView: View {
         return exist
     }
     func checkForDup(pname:String) {
-        
+
         if prevPName == pname {
             checkForDups = false
         } else {
@@ -254,17 +253,17 @@ struct PlayersOnTeamView: View {
         let teamName = pTeam?.name ?? ""
         let playName = pname
         prevPName = playName
-        
+
         if checkForDups {
             if !teamName.isEmpty && !playName.isEmpty {
-                
+
                 var fetchDescriptor = FetchDescriptor<Player>()
-                
+
                 fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName && $0.name == playName}
-                
+
                 do {
                     let existPlayers = try self.modelContext.fetch(fetchDescriptor)
-                    
+
                     if existPlayers.first != nil {
                         dups = true
                     } else {
@@ -299,10 +298,18 @@ struct PlayersOnTeamView: View {
     }
 
     func createPendingPlayer() {
-        let thisPlayer = Player(name: pName, number: pNum, position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team: team)
+        let maxOrder = players.map { $0.batOrder }.filter { $0 < 99 }.max() ?? 0
+        let orderToAssign = pOrder == 0 ? maxOrder + 1 : pOrder
+        let thisPlayer = Player(name: pName, number: pNum, position: pPos, batDir: pDir, batOrder: orderToAssign, team: team)
         modelContext.insert(thisPlayer)
+
+        var currentPlayers = players
+        if !currentPlayers.contains(where: { $0.id == thisPlayer.id }) {
+            currentPlayers.append(thisPlayer)
+        }
+
         try? self.modelContext.save()
-        renumOrder(players: players.sorted { $0.batOrder < $1.batOrder }, player: thisPlayer, order: thisPlayer.batOrder)
+        renumOrder(players: currentPlayers.sorted { $0.batOrder < $1.batOrder }, player: thisPlayer, order: orderToAssign)
         clearPendingPlayer()
     }
 
@@ -343,7 +350,7 @@ struct PlayersOnTeamView: View {
             } else if index+1 > order && oldPlayer.batOrder < 99 {
                 oldPlayer.batOrder = index+1
             }
-            if oldPlayer.name == player.name {
+            if oldPlayer.id == player.id {
                 oldPlayer.batOrder = order
             }
         }
