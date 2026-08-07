@@ -22,23 +22,19 @@ struct StartPhoneView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack {
-                ScoreContentView(
-                    columnVisability: $columnVisibility,
-                    onOpenImportFlow: { selectedTab = 4 },
-                    onOpenExportFlow: { selectedTab = 4 },
-                    onOpenHelp: { selectedTab = 3 }
-                )
-            }
+            ScoreContentView(
+                columnVisability: $columnVisibility,
+                onOpenImportFlow: { selectedTab = 4 },
+                onOpenExportFlow: { selectedTab = 4 },
+                onOpenHelp: { selectedTab = 3 }
+            )
             .tabItem {
                 Image("pgame")
                 Text("Games").padding(.horizontal,5)
             }
             .tag(0)
 
-            NavigationStack {
-                TeamContentView()
-            }
+            TeamContentView()
             .tabItem {
                 Image("pteam")
                 Text("Teams").padding(.horizontal,5)
@@ -53,9 +49,7 @@ struct StartPhoneView: View {
 //                Text("Score").padding(.horizontal,5)
 //            }
 //            .tag(2)
-            NavigationStack {
-                PasteView()
-            }
+            PasteView()
             .tabItem {
                 Image("pPaste")
                 Text("Paste").padding(.horizontal,5)

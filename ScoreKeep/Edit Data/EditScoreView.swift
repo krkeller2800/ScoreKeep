@@ -23,8 +23,9 @@ struct EditScoreView: View {
     @State private var sortAtbat = [SortDescriptor(\Atbat.col), SortDescriptor(\Atbat.seq)]
     @State var showingDetail = false
     @State var presentRpt = false
+    @SceneStorage("activeScoringTeamName") private var activeScoringTeamName: String?
     enum FocusField: Hashable {case field}
-    
+
     @State private var presentReplacements = false
     @State private var showPitchers:Bool = false
     @State private var pendingPitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
@@ -53,7 +54,7 @@ struct EditScoreView: View {
     private let purchaseDecisionAuthority = PurchaseDecisionAuthority()
 
     @FocusState private var focusedField: FocusField?
-    
+
     @State var date = Date.now
 
     private var scorecardBottomToolbarClearance: CGFloat {
@@ -88,6 +89,7 @@ struct EditScoreView: View {
                                         } else {
                                             isHomeTeam = true
                                         }
+                                        activeScoringTeamName = option
                                     }) {
                                         HStack {
                                             if game.vteam != nil && game.hteam != nil {
@@ -109,14 +111,24 @@ struct EditScoreView: View {
                             .frame(width: 500).lineLimit(1).minimumScaleFactor(0.3).font(.largeTitle).italic(true)
                         }
                         .onAppear {
-                            if !isHomeTeam {
+                            if let savedName = activeScoringTeamName, savedName == game.hteam?.name {
+                                isHomeTeam = true
+                                theTeam = game.hteam?.name ?? ""
+                                team = game.hteam ?? Team(name:"",coach:"",details:"")
+                                selectedOption = theTeam
+                            } else if let savedName = activeScoringTeamName, savedName == game.vteam?.name {
+                                isHomeTeam = false
+                                theTeam = game.vteam?.name ?? ""
+                                team = game.vteam ?? Team(name:"",coach:"",details:"")
+                                selectedOption = theTeam
+                            } else if !isHomeTeam {
                                 team = game.vteam ?? Team(name:"",coach:"",details:"")
                                 theTeam = game.vteam?.name ?? ""
                                 selectedOption = game.vteam?.name ?? ""
                             }
                             print(modelContext.sqliteCommand)
                             print(NSHomeDirectory())
-                            
+
                         }
                         .onChange(of: isHomeTeam, {
                             if isHomeTeam {
@@ -126,6 +138,7 @@ struct EditScoreView: View {
                                 theTeam = game.vteam?.name ?? ""
                                 team = game.vteam ?? Team(name:"",coach:"",details:"")
                             }
+                            activeScoringTeamName = theTeam
                         })
                         .alert(alertText, isPresented: $isError) {
                             Button("OK", role: .cancel) { }
@@ -229,14 +242,14 @@ struct EditScoreView: View {
                             ShowReportView(tName: team.name, isLoading: $isLoading)
                         }
                     }
- 
+
                     ToolbarItem(placement: .principal) {
                         Text("Score the Game")
                             .font(.title2)
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-                    
+
                     // Give a moment for the screen boundaries to change after
                     // the device is rotated
                     Task { @MainActor in
@@ -269,7 +282,7 @@ struct EditScoreView: View {
         .onDisappear {
             cancelPendingGeneratedOutputFlow()
         }
-     
+
     }
     init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String, columnVisability: Binding<NavigationSplitViewVisibility>) {
         game = pgame
@@ -360,7 +373,7 @@ struct EditScoreView: View {
     }
 
     func saveImage(uiimage: UIImage?)-> URL? {
-        
+
         guard let data = uiimage?.jpegData(compressionQuality: 0.8) else {
             print("Could not convert UIImage to Data.")
             alertText = "Could not save image"
@@ -368,11 +381,11 @@ struct EditScoreView: View {
             isLoading = false
                return nil
         }
-        
+
         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let fileURL = url.appendingPathComponent("\(theTeam) on \(date.formatted( date: .abbreviated, time: .omitted)).jpg")
-        
+
         do {
             try data.write(to: fileURL)
             print("Image saved successfully to: \(fileURL.path)")

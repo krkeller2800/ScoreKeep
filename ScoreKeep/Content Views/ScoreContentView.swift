@@ -20,6 +20,7 @@ struct ScoreContentView: View {
     var onOpenHelp: () -> Void = {}
 
     @State private var path = NavigationPath()
+    @SceneStorage("activeScoringGameID") private var activeScoringGameID: String?
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
     @State var doGame = "Score"
@@ -141,6 +142,19 @@ struct ScoreContentView: View {
             .onAppear {
                 addAGame = false
                 applyDebugFreeGameAllowanceResetIfNeeded()
+
+                if path.isEmpty, let gameIDString = activeScoringGameID, let uuid = UUID(uuidString: gameIDString) {
+                    let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.ident == uuid })
+                    if let gameToRestore = try? modelContext.fetch(fetchDescriptor).first {
+                        doGame = "Score"
+                        path.append(gameToRestore)
+                    }
+                }
+            }
+            .onChange(of: path) {
+                if path.isEmpty {
+                    activeScoringGameID = nil
+                }
             }
             .toolbar {
                 // Leading: Sort menu
@@ -268,6 +282,9 @@ struct ScoreContentView: View {
             EditGameView(game: game, navigationPath: $path)
         } else {
             EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: columnVisabilityProxy)
+                .onAppear {
+                    activeScoringGameID = game.ident.uuidString
+                }
         }
     }
 
