@@ -31,6 +31,7 @@ struct ReplacementView: View {
     @State private var incPlayers: [Player] = []
     @State private var searchText = ""
     @State private var isSearching = false
+    @State private var newlyAddedPlayerID: UUID?
 
     @Query var players: [Player]
 
@@ -66,19 +67,25 @@ struct ReplacementView: View {
                     Picker("Replaced", selection: $replacedIdx) {
                         Text("Playing Players").tag(0)
                         ForEach(Array(rplPlayers.enumerated()), id: \.1) { index, rplPlayer in
-                            Text(rplPlayer.name).tag(index+1)
+                            Text(rplPlayer.name)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .tag(index+1)
                         }
                     }
-                    .frame(maxWidth: 200,maxHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(replacementPickerBackground)
+                    .frame(maxWidth: 200, minHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(replacementPickerBackground)
                     .border(replacementPickerBorder).cornerRadius(10).accentColor(replacementPickerForeground).padding(.leading, 15)
                     Text("  Replaced by ").font(.title)
                     Picker("incoming", selection: $incomingIdx) {
                         Text("Incoming Players").tag(0)
                         ForEach(Array(incPlayers.enumerated()), id: \.1) { index, incPlayer in
-                            Text(incPlayer.name).tag(index+1)
+                            Text(incPlayer.name)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .tag(index+1)
                         }
                     }
-                    .frame(maxWidth: 200,maxHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(replacementPickerBackground)
+                    .frame(maxWidth: 200, minHeight: 30, alignment:.center).foregroundStyle(replacementPickerForeground).background(replacementPickerBackground)
                     .border(replacementPickerBorder).cornerRadius(10).accentColor(replacementPickerForeground).padding(.leading, 15)
                     Spacer()
                     Button("Do it!") {
@@ -143,25 +150,11 @@ struct ReplacementView: View {
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
-                .onAppear() {
-                    incPlayers = []
-                    rplPlayers = []
-                    let startAtbats = game.atbats.filter { $0.col == 1 && $0.batOrder < 50 && $0.team.id == team.id}
-                    var foundRPL = false
-                    for player in players {
-                        player.batOrder = 99
-                        for atbat in startAtbats {
-                            if player.id == atbat.player.id {
-                                player.batOrder = atbat.batOrder
-                                rplPlayers.append(player)
-                                foundRPL = true
-                            }
-                        }
-                        if !foundRPL {
-                            incPlayers.append(player)
-                        }
-                        foundRPL = false
-                    }
+                .onAppear {
+                    updateReplacementLists()
+                }
+                .onChange(of: players) {
+                    updateReplacementLists()
                 }
                 Spacer()
             }
@@ -251,8 +244,52 @@ struct ReplacementView: View {
 
         let player = Player(name: "", number: "", position: "", batDir: "", batOrder: nextOrder, team: team)
         modelContext.insert(player)
+        newlyAddedPlayerID = player.identifier
         navigationPath.append(player)
         try? modelContext.save()
+    }
+
+    func updateReplacementLists() {
+        let startAtbats = game.atbats.filter { $0.col == 1 && $0.batOrder < 50 && $0.team.id == team.id}
+        var newRplPlayers: [Player] = []
+        var newIncPlayers: [Player] = []
+
+        for player in players {
+            var isPlaying = false
+            for atbat in startAtbats {
+                if player.id == atbat.player.id {
+                    if player.batOrder != atbat.batOrder {
+                        player.batOrder = atbat.batOrder
+                    }
+                    newRplPlayers.append(player)
+                    isPlaying = true
+                }
+            }
+            if !isPlaying {
+                if player.batOrder != 99 {
+                    player.batOrder = 99
+                }
+                newIncPlayers.append(player)
+            }
+        }
+
+        let rplChanged = rplPlayers.map { $0.id } != newRplPlayers.map { $0.id }
+        let incChanged = incPlayers.map { $0.id } != newIncPlayers.map { $0.id }
+
+        if rplChanged {
+            rplPlayers = newRplPlayers
+        }
+
+        if incChanged {
+            incPlayers = newIncPlayers
+        }
+
+        if let newID = newlyAddedPlayerID {
+            if let newIndex = incPlayers.firstIndex(where: { $0.identifier == newID }) {
+                incomingIdx = newIndex + 1
+            }
+            newlyAddedPlayerID = nil
+        }
     }
     func getAtbats () {
 
