@@ -12,6 +12,7 @@ import UIKit
 struct ScoreGameView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var path = NavigationPath()
     @Binding private var atbat:Atbat
     @Binding private var showingScoring:Bool
@@ -89,14 +90,20 @@ struct ScoreGameView: View {
                         Button("Done", action: {
                             if isCorrectionEntry {
                                 submitCorrectionDraft()
-                                showingScoring.toggle()
+                                Task { @MainActor in
+                                    dismiss()
+                                }
                             } else if let pendingAdditionalChoice {
                                 let presentation = finalizeAdditionalChoice(pendingAdditionalChoice)
                                 if presentation?.shouldDismissScoringSheet == true {
-                                    showingScoring.toggle()
+                                    Task { @MainActor in
+                                        dismiss()
+                                    }
                                 }
                             } else {
-                                showingScoring.toggle()
+                                Task { @MainActor in
+                                    dismiss()
+                                }
                             }
                             if atbat.result == "Result" && pendingAdditionalChoice == nil && !isCorrectionEntry {
                                 if atbat.col != 1 {
@@ -115,7 +122,9 @@ struct ScoreGameView: View {
                         Text("\(atbat.player.team?.name ?? "") Batting").font(.title2)
                         Spacer()
                         Button("Delete At Bat", action: {
-                            showingScoring.toggle()
+                            Task { @MainActor in
+                                dismiss()
+                            }
                             if atbat.col != 1 {
                                 atbat.game.atbats.removeAll() {$0 == atbat}
                                 delAtbat = true
@@ -274,7 +283,9 @@ struct ScoreGameView: View {
                             }
                             recPlay = false
                             if !isCorrectionEntry {
-                                showingScoring.toggle()
+                                Task { @MainActor in
+                                    dismiss()
+                                }
                             }
                         }
                         if !isCorrectionEntry {
