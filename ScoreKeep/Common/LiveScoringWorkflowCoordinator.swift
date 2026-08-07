@@ -981,12 +981,13 @@ struct LiveScoringWorkflowCoordinator {
         let completedHalfInningEnded = lastCompleted?.outs == 3 && lastCompleted?.endOfInning == true
         let inning = completedHalfInningEnded ? completedInning + 1 : completedInning
         let outs = completedHalfInningEnded ? 0 : (lastCompleted?.outs ?? 0)
+        let currentBatterEntry = preparedCurrentBatter(after: lastCompleted, lineup: lineup)
         let currentColumn = preparedCurrentColumn(
             after: lastCompleted,
-            lineupCount: lineup.count,
+            nextBatterSlot: currentBatterEntry?.slot,
+            completedAtbats: completedAtbats,
             completedHalfInningEnded: completedHalfInningEnded
         )
-        let currentBatterEntry = preparedCurrentBatter(after: lastCompleted, lineup: lineup)
         let preparedPitchers = preparedPitcherAppearances(from: pitchers, game: game, defensiveTeam: defensiveTeam)
         let currentPitcher = preparedPitchers.last
         let pendingAtbat = preparedPendingAtbat(
@@ -3009,11 +3010,23 @@ struct LiveScoringWorkflowCoordinator {
         return lineup.first
     }
 
-    private func preparedCurrentColumn(after lastCompleted: Atbat?, lineupCount: Int, completedHalfInningEnded: Bool) -> Int {
+    private func preparedCurrentColumn(
+        after lastCompleted: Atbat?,
+        nextBatterSlot: Int?,
+        completedAtbats: [Atbat],
+        completedHalfInningEnded: Bool
+    ) -> Int {
         guard let lastCompleted else { return 1 }
         if completedHalfInningEnded { return lastCompleted.col + 1 }
-        guard lineupCount > 0 else { return max(1, lastCompleted.col) }
-        return lastCompleted.batOrder >= lineupCount ? lastCompleted.col + 1 : max(1, lastCompleted.col)
+        let currentColumn = max(1, lastCompleted.col)
+
+        guard let nextBatterSlot else { return currentColumn }
+
+        let isSlotOccupiedInCurrentColumn = completedAtbats.contains {
+            $0.col == currentColumn && $0.batOrder == nextBatterSlot
+        }
+
+        return isSlotOccupiedInCurrentColumn ? currentColumn + 1 : currentColumn
     }
 
     private func preparedPendingAtbat(

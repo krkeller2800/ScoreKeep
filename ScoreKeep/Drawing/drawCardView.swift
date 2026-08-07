@@ -18,9 +18,9 @@ struct drawSing: View {
     var sWidth: CGFloat
     @Binding var isLoading: Bool
     let com = Common()
-    
+
     var body: some View {
-        
+
         ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
             if let xx = com.battings.firstIndex(where: { $0 == atbat.result }) {
                 let abb = com.batAbbrevs[xx]
@@ -33,7 +33,7 @@ struct drawSing: View {
                 let x = CGFloat(atbat.col) * space.width + space.minX
 
                 drawTots(space: space, atbat: atbat, atbats: atbats, abb: abb, inning: Int(inning), colbox: colbox, batbox: batbox, totbox: totbox, sWidth: sWidth)
-                
+
                 if abb == "hr" {
                     Path() {
                         myPath in
@@ -232,7 +232,7 @@ struct drawTots: View {
         let placeBox = CGRect(x: x - (0 * space.width), y: 0.1 * space.height + newy, width:space.width, height:space.height)
         let labelBox = CGRect(x: space.minX + 2, y: 0.1 * space.height + newy, width:space.width, height:space.height)
         let summaryHeight = max(0, to.minY - from.minY)
-        
+
 //        if inning < 99 {
 //            Text(com.innAbr[inning] + " Inn")
 //                .font(.system(size: 10)).bold().foregroundColor(.black)
@@ -315,7 +315,7 @@ struct drawTots: View {
         Text("\(box3.hits)")
             .position(x: placeBox.minX + (space.width * 0.75), y:0.25 * space.height + placeBox.minY)
             .font(.headline).foregroundColor(.black).background(.clear)
- 
+
         Text(".").foregroundColor(.black).position(x:from.minX + 500 + (space.width * 2.5), y:0.5 * space.height + y)
 
         if newCol < 13 {
@@ -323,7 +323,7 @@ struct drawTots: View {
                 .font(.headline).foregroundColor(.black).frame(width: 90, alignment: .leading)
                 .position(x: (maxCol + 1) * space.width + space.minX - (space.width * 0.1), y:0.4 * space.height + newy)
         }
-        
+
         drawLines(from: from, to: to, ffacter: (-0.8 * space.width), tfacter: (-0.8 * space.width))
             .stroke(Color.black, lineWidth: 1)
         drawLines(from: from, to: to, ffacter: (-0.2 * space.width), tfacter: (-0.2 * space.width))
@@ -348,7 +348,7 @@ struct drawTots: View {
             .stroke(Color.black, lineWidth: 1)
         drawBox(start:labelBox)
             .stroke(Color.black, lineWidth: 1)
- 
+
         if atbat.col == 1 && atbat.batOrder == 1 {
 //            drawPitchers(space: space, atbats: atbats, abb: "", inning: 1)
         }
@@ -380,7 +380,7 @@ struct drawBoxScore: View {
     var size:CGSize
     let com = Common()
     var body: some View {
-        
+
         let adj:CGFloat = UIDevice.type == "iPhone" ? 5 : 0
         let font:Font = UIDevice.type == "iPhone" ? .caption : .headline
         let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.195 : 0.20) * size.width, y: UIDevice.type == "iPhone" ? -87 : -130, width:150, height:100)
@@ -433,7 +433,7 @@ struct drawBoxScore: View {
         drawBox(start: placeBox, adj:adj)
             .stroke(ScoreKeepVisualStyle.primaryText.opacity(0.72), lineWidth: 1)
 
-        
+
     }
     func doBoxScore(doTeam:String)->BoxScore {
         let com = Common()
@@ -450,7 +450,7 @@ struct drawBoxScore: View {
 
             return BoxScore(type:"",runs: runs, hits: hits, error: errors , strikeouts:0, walks:0, HR:0)
         }
-   
+
      }
     func drawBox(start: CGRect, adj:CGFloat) -> Path {
         Path() {
@@ -484,7 +484,7 @@ struct drawPitchers: View {
     let com = Common()
 
     var body: some View {
-        
+
         GeometryReader { geometry in
 //            let w = geometry.size.width
 //            let width = UIScreen.screenWidth
@@ -618,13 +618,13 @@ struct drawPitchers: View {
             let triples = oAtbats.filter({$0.result == "Triple" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
-            
+
             let ERA = innings == 0 ? 999 : CGFloat(runs) / innings * 9
             return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
-     
+
     }
 
     private func pitchingHeaderCell(_ title: String) -> some View {
@@ -654,9 +654,9 @@ struct drawIndicator: View {
     var size:CGSize
     var colbox:[BoxScore]
     var space:CGRect
-    
+
     var body: some View {
-        
+
         //        let com = Common()
         let placeBox = CGRect(x: (UIDevice.type == "iPhone" ? 0.76 : 0.70) * size.width, y: UIDevice.type == "iPhone" ? -60 : -110, width:150, height:100)
         let indicatorOutline = Color(UIColor { traitCollection in
@@ -691,18 +691,55 @@ struct drawInnings: View {
         let com = Common()
         let bigCol = atbats.filter{$0.result != "Result"}.max { $0.col < $1.col }
         let fix = bigCol?.col ?? 0 > 1 ? 185.0 : 192.0
-        ForEach(Array(atbats.enumerated()), id: \.1) { index, atbat in
-//            let _ = print("Result = \(atbat.result) seq = \(atbat.seq) col = \(atbat.col)")
-            if atbat.result != "Result" && ((atbat.seq == 1 || atbat.outs == 3) || (atbat.seq >= 10 && atbat.outs == 3)) {
-                let x = CGFloat(atbat.col) * space.width + space.minX
-                let outs = atbat.outs
-                let inning = outs != 0 ? atbat.inning.rounded(.up) : atbat.inning + 1
-                let xVal = ((0.5 * space.width + x + 185) - offset)
-                if inning < 99 && xVal > 185 {
-                    Text(com.innAbr[Int(inning)] + " Inn")
-                        .font(.system(size: 10)).bold().foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                        .position(x: (0.5 * space.width + x + fix) - offset, y: space.minY + 10)
+        let completedAtbats = atbats.filter { $0.result != "Result" }.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+        let cols = Array(Set(atbats.map { $0.col })).sorted()
+
+        let columnHeadersRaw = cols.compactMap { col -> [Int]? in
+            let colCompleted = completedAtbats.filter { $0.col == col }
+            let inningVal: Int
+
+            if let first = colCompleted.first {
+                let outs = first.outs
+                inningVal = Int(outs != 0 ? first.inning.rounded(.up) : first.inning + 1)
+            } else {
+                let prevCompleted = completedAtbats.filter { $0.col < col }
+                if let lastPrev = prevCompleted.last {
+                    let prevInning = Int(lastPrev.outs != 0 ? lastPrev.inning.rounded(.up) : lastPrev.inning + 1)
+                    if lastPrev.outs == 3 {
+                        inningVal = prevInning + 1
+                    } else {
+                        inningVal = prevInning
+                    }
+                } else {
+                    inningVal = 1
                 }
+            }
+
+            if inningVal > 0 && inningVal < com.innAbr.count {
+                return [col, inningVal]
+            }
+            return nil
+        }
+
+        let columnHeaders = columnHeadersRaw.enumerated().map { index, header -> [Int] in
+            let prevInning = index > 0 ? columnHeadersRaw[index - 1][1] : -1
+            let nextInning = index < columnHeadersRaw.count - 1 ? columnHeadersRaw[index + 1][1] : -1
+            let isContinuation = (header[1] == prevInning) || (header[1] == nextInning)
+            return [header[0], header[1], isContinuation ? 1 : 0]
+        }
+
+        ForEach(columnHeaders, id: \.self) { header in
+            let col = header[0]
+            let inningVal = header[1]
+            let isContinuation = header[2] == 1
+            let x = CGFloat(col) * space.width + space.minX
+            let xVal = ((0.5 * space.width + x + 185) - offset)
+
+            if xVal > 185 {
+                Text(com.innAbr[inningVal] + " Inn")
+                    .font(.system(size: 10)).bold()
+                    .foregroundStyle(isContinuation ? ScoreKeepVisualStyle.accent : ScoreKeepVisualStyle.primaryText)
+                    .position(x: (0.5 * space.width + x + fix) - offset, y: space.minY + 10)
             }
         }
         if bigCol?.col ?? 0 > 0 {
