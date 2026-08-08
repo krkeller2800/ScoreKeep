@@ -61,11 +61,6 @@ struct EditScoreView: View {
         UIDevice.type == "iPad" ? 1 : 1
     }
 
-    // Maintain a minimum visual clearance between the floating side buttons and the rounded toolbar corners on compact-width devices.
-    private var adaptiveToolbarEdgePadding: CGFloat {
-        max(0, 420 - screenWidth) * 0.1
-    }
-
     var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -151,7 +146,7 @@ struct EditScoreView: View {
                         Spacer ()
                         let date = ISO8601DateFormatter().date(from: game.date) ?? Date()
                         VStack {
-                            Text(date.formatted(date: .complete, time: .omitted)).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
+                            Text(date.formatted(date:.abbreviated, time: .omitted)).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
                                 .lineLimit(1).minimumScaleFactor(0.60)
                             Text(date.formatted(date:.omitted, time: .shortened)).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
                                 .lineLimit(1).minimumScaleFactor(0.60)
@@ -231,7 +226,6 @@ struct EditScoreView: View {
                             Text("Pitch Stats")
                         }
                         .frame(width: 118)
-                        .padding(.leading, adaptiveToolbarEdgePadding)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showPitchRpt) {
                             ShowPitchRptView(tName: team.name, isLoading: $isLoading)
@@ -243,7 +237,6 @@ struct EditScoreView: View {
                             Text("Hit Stats")
                         }
                         .frame(width: UIDevice.type == "iPad" ? 100 : 112)
-                        .padding(.trailing, adaptiveToolbarEdgePadding)
                         .buttonStyle(ToolBarButtonStyle())
                         .fullScreenCover(isPresented: $showReport) {
                             ShowReportView(tName: team.name, isLoading: $isLoading)
