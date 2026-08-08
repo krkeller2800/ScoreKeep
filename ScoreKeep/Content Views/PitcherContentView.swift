@@ -16,8 +16,7 @@ struct PitcherContentView: View {
     @State var game:Game 
     @State private var navigationPath = NavigationPath()
     @State private var searchText = ""
-    @State private var rpText = "RP"
-    @State private var spText = "SP"
+    @State private var showPitchersOnly = true
     @State private var whichPlayers = "Pitchers"
     @State private var isSearching = false
     @State private var sortOrder = [SortDescriptor(\Player.name)]
@@ -55,7 +54,7 @@ struct PitcherContentView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             VStack {
-                PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name, rpText: rpText, spText: spText, pitcherChangeCompleted: pitcherChangeCompleted)
+                PitchersStaffView(searchString: searchText, sortOrder: sortDescriptor, passedGame: game, passedTeam: team, theTeam: team.name, showPitchersOnly: showPitchersOnly, pitcherChangeCompleted: pitcherChangeCompleted)
                     .navigationDestination(for: Player.self) { player in
                         EditPlayerView(player: player, team: team, navigationPath: $navigationPath)
                 }
@@ -113,13 +112,7 @@ struct PitcherContentView: View {
 
             }
             .onChange(of: whichPlayers) {
-                if whichPlayers == "Pitchers" {
-                    rpText = "RP"
-                    spText = "SP"
-                } else {
-                    rpText = ""
-                    spText = ""
-                }
+                showPitchersOnly = whichPlayers == "Pitchers"
             }
             .onChange(of: sortDescriptor) {
                 sortOrder = sortDescriptor

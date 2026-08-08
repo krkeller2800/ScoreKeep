@@ -342,26 +342,36 @@ struct PitchersStaffView: View {
         passedGame: Game,
         passedTeam: Team,
         theTeam: String,
-        rpText: String = "",
-        spText: String = "",
+        showPitchersOnly: Bool = false,
         pitcherChangeCompleted: @escaping (LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Void = { _ in }
     ) {
         team = passedTeam
         game = passedGame
         self.pitcherChangeCompleted = pitcherChangeCompleted
         
-        _players = Query(filter: #Predicate { player in
-            if searchString.isEmpty && rpText.isEmpty && spText.isEmpty
-            {
+        if searchString.isEmpty && showPitchersOnly == false {
+            _players = Query(filter: #Predicate { player in
                 player.team?.name == theTeam
-            } else {
+            }, sort: sortOrder)
+        } else if searchString.isEmpty && showPitchersOnly {
+            _players = Query(filter: #Predicate { player in
+                player.team?.name == theTeam &&
+                (player.position == "P" || player.position == "SP" || player.position == "RP")
+            }, sort: sortOrder)
+        } else if showPitchersOnly == false {
+            _players = Query(filter: #Predicate { player in
                 player.team?.name == theTeam &&
                 (player.name.localizedStandardContains(searchString)
-                || player.position.localizedStandardContains(spText)
-                || player.position.localizedStandardContains(rpText)
                 || player.number.localizedStandardContains(searchString))
-            }
-        },  sort: sortOrder)
+            }, sort: sortOrder)
+        } else {
+            _players = Query(filter: #Predicate { player in
+                player.team?.name == theTeam &&
+                (player.position == "P" || player.position == "SP" || player.position == "RP") &&
+                (player.name.localizedStandardContains(searchString)
+                || player.number.localizedStandardContains(searchString))
+            }, sort: sortOrder)
+        }
         
     }
     func deleteStats() {

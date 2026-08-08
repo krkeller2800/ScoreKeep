@@ -37,8 +37,8 @@ struct Common {
         outAbr:[String] = ["0","1 Out","2 Out","3 out"],
         keySym:[String] = ["`","~","!","@","#","$","%","^","&","*","(",")","( )","-","_","=","+","[]","[","]","{ }","{","}","\\","/","|",";",":",#"'"#,#"""#,",",".","<>","<",">","?"],
         keyWord:[String] = ["Grave","Tilde","Exclamation","At sign","Pound","Dollar sign","Percent","Carat","Ampersand","Asterisk","Open paren","Close paren","Round brackets","Hyphen","Underscore","Equal sign","Plus sign","Square brackets","Open bracket","Close bracket","Curly brackets","Open brace","Close brace","Backslash","Slash","Pipe","Semicolon","Colon","Apostrophe","Double quotes","Comma","Period","Angle brackets","Less than","Greater than","Question mark"],
-        position:[String] = ["Starting Pitcher", "Relief Pitcher", "Catcher", "First Baseman", "Second Baseman", "Shortstop", "Third Baseman", "Left Fielder", "Center Fielder", "Right Fielder","Designated Hitter"],
-        posAbbrev:[String] = ["SP","RP","C","1B","2B","SS","3B","LF","CF","RF","DH","??"]
+        position:[String] = ["Pitcher", "Starting Pitcher", "Relief Pitcher", "Catcher", "First Baseman", "Second Baseman", "Shortstop", "Third Baseman", "Left Fielder", "Center Fielder", "Right Fielder","Designated Hitter"],
+        posAbbrev:[String] = ["P","SP","RP","C","1B","2B","SS","3B","LF","CF","RF","DH","??"]
     ) {
         self.atBats = atBats
         self.hitresults = hitresults
