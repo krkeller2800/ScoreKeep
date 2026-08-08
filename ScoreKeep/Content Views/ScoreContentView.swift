@@ -13,6 +13,7 @@ struct ScoreContentView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var purchaseManager: PurchaseManager
     @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var columnVisability: NavigationSplitViewVisibility
 
     var onOpenImportFlow: () -> Void = {}
@@ -21,6 +22,7 @@ struct ScoreContentView: View {
 
     @State private var path = NavigationPath()
     @SceneStorage("activeScoringGameID") private var activeScoringGameID: String?
+    @SceneStorage("activeScoringSessionNeedsRestore") private var activeScoringSessionNeedsRestore = false
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
     @State var doGame = "Score"
@@ -142,18 +144,11 @@ struct ScoreContentView: View {
             .onAppear {
                 addAGame = false
                 applyDebugFreeGameAllowanceResetIfNeeded()
-
-                if path.isEmpty, let gameIDString = activeScoringGameID, let uuid = UUID(uuidString: gameIDString) {
-                    let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.ident == uuid })
-                    if let gameToRestore = try? modelContext.fetch(fetchDescriptor).first {
-                        doGame = "Score"
-                        path.append(gameToRestore)
-                    }
-                }
             }
             .onChange(of: path) {
                 if path.isEmpty {
                     activeScoringGameID = nil
+                    activeScoringSessionNeedsRestore = false
                 }
             }
             .toolbar {
@@ -273,6 +268,12 @@ struct ScoreContentView: View {
         .onChange(of: freeCreates.value) {
             resumePendingCreationIfAllowed()
         }
+        .onChange(of: scenePhase) {
+            handleScenePhaseChange(scenePhase)
+        }
+        .task {
+            restoreActiveScoringSessionIfNeeded()
+        }
     }
 
     // Extracted to reduce type-checking pressure
@@ -283,7 +284,7 @@ struct ScoreContentView: View {
         } else {
             EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: columnVisabilityProxy)
                 .onAppear {
-                    activeScoringGameID = game.ident.uuidString
+                    rememberActiveScoringSession(for: game)
                 }
         }
     }
@@ -374,6 +375,50 @@ struct ScoreContentView: View {
             freeCreates.set(FreeGameAllowanceState.defaultRemaining)
         }
         #endif
+    }
+
+    private func rememberActiveScoringSession(for game: Game) {
+        guard doGame == "Score" else { return }
+        activeScoringGameID = game.ident.uuidString
+    }
+
+    private func handleScenePhaseChange(_ phase: ScenePhase) {
+        switch phase {
+        case .inactive, .background:
+            if activeScoringGameID != nil, !path.isEmpty {
+                activeScoringSessionNeedsRestore = true
+            }
+        case .active:
+            restoreActiveScoringSessionIfNeeded()
+        @unknown default:
+            break
+        }
+    }
+
+    private func restoreActiveScoringSessionIfNeeded() {
+        guard activeScoringSessionNeedsRestore else { return }
+
+        guard path.isEmpty else {
+            activeScoringSessionNeedsRestore = false
+            return
+        }
+
+        guard let gameIDString = activeScoringGameID, let uuid = UUID(uuidString: gameIDString) else {
+            activeScoringSessionNeedsRestore = false
+            activeScoringGameID = nil
+            return
+        }
+
+        let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.ident == uuid })
+        guard let gameToRestore = try? modelContext.fetch(fetchDescriptor).first else {
+            activeScoringSessionNeedsRestore = false
+            activeScoringGameID = nil
+            return
+        }
+
+        doGame = "Score"
+        path.append(gameToRestore)
+        activeScoringSessionNeedsRestore = false
     }
 
     private func applySuccessfulGameCreationAllowanceTransaction(for gameID: UUID) {
