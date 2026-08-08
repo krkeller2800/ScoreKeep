@@ -59,11 +59,11 @@ private let scorebookInputPromptColor = Color(UIColor { traitCollection in
 
 private let scorebookInputPromptOverlayLeadingInset: CGFloat = 6
 
-public func scorebookHeaderCell(_ title: String, semantic: Bool = true) -> some View {
+public func scorebookHeaderCell(_ title: String, semantic: Bool = true, lineLimit: Int? = 1) -> some View {
     Text(title)
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-        .lineLimit(1)
+        .lineLimit(lineLimit)
         .minimumScaleFactor(0.75)
         .truncationMode(.tail)
         .multilineTextAlignment(.center)
