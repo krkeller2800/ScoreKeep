@@ -490,94 +490,92 @@ struct drawPitchers: View {
 //            let width = UIScreen.screenWidth
             VStack {
                 Spacer()
-                Text("\(team.name) Pitching Stats For This Game").font(.title2).frame(maxWidth:.infinity, alignment: .center).italic()
-                HStack {
+                VStack(spacing: 0) {
+                    Text("\(team.name) Pitching Summary").font(.title2).frame(maxWidth:.infinity, alignment: .center).italic()
+                    HStack {
 //                    Text("Num").frame(maxWidth:.infinity).border(.gray)
 //                        .foregroundColor(.red).background(.yellow.opacity(0.3)).lineLimit(1).minimumScaleFactor(0.8)
-                    pitchingHeaderCell("Pitcher")
-                        .frame(width: UIDevice.type == "iPhone" ? 125 : 150)
-                    pitchingHeaderCell("Inn")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("Outs")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("Bats")
-                        .frame(maxWidth:.infinity)
-                    Spacer(minLength: 30)
-                    pitchingHeaderCell("Inn")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("Outs")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("Bats")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("ERA")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("ER")
-                        .frame(maxWidth:.infinity)
-                    pitchingHeaderCell("UER")
-                        .frame(maxWidth:.infinity)
-                    if width > 1000 {
-                        pitchingHeaderCell("Hit")
+                        pitchingHeaderCell("Pitcher")
+                            .frame(width: UIDevice.type == "iPhone" ? 125 : 150)
+                        pitchingHeaderCell("Inn")
                             .frame(maxWidth:.infinity)
-                        pitchingHeaderCell("Ks")
+                        pitchingHeaderCell("Outs")
                             .frame(maxWidth:.infinity)
-                        pitchingHeaderCell("BB")
+                        pitchingHeaderCell("Bats")
                             .frame(maxWidth:.infinity)
-                        pitchingHeaderCell("HR")
+                        Spacer(minLength: 30)
+                        pitchingHeaderCell("Inn")
                             .frame(maxWidth:.infinity)
+                        pitchingHeaderCell("Outs")
+                            .frame(maxWidth:.infinity)
+                        pitchingHeaderCell("Bats")
+                            .frame(maxWidth:.infinity)
+                        pitchingHeaderCell("ER")
+                            .frame(maxWidth:.infinity)
+                        pitchingHeaderCell("UER")
+                            .frame(maxWidth:.infinity)
+                        if width > 1000 {
+                            pitchingHeaderCell("Hit")
+                                .frame(maxWidth:.infinity)
+                            pitchingHeaderCell("Ks")
+                                .frame(maxWidth:.infinity)
+                            pitchingHeaderCell("BB")
+                                .frame(maxWidth:.infinity)
+                            pitchingHeaderCell("HR")
+                                .frame(maxWidth:.infinity)
+                        }
+                        Text("").frame(width:15)
                     }
-                    Text("").frame(width:15)
-                }
-                let firstTeam = atbats.first?.team
-                let oTHit: [Atbat] = firstTeam != nil ? game.atbats.filter { $0.team == firstTeam } : []
-                let oTHitting = oTHit.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
-                let pitchers: [Pitcher] = firstTeam != nil ? game.pitchers.filter { $0.team != firstTeam }.sorted(by: CanonicalPitcherOrdering.canonicalOrder) : []
-                ForEach(Array(pitchers.enumerated()), id: \.offset) { _, pitcher in
-                    NavigationLink(value: pitcher) {
-                        VStack(spacing:0) {
-                            HStack{
-                                let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
-                                let lName = pitcher.player.name.split(separator: " ").last ?? ""
-                                Text(lName).lineLimit(1).minimumScaleFactor(0.6)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
-                                Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
-                                Text(Double(pitcher.sOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
-                                Text(Double(pitcher.sBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
-                                Text("to").foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                                Text(Double(pitcher.endInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
-                                Text(Double(pitcher.eOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
-                                Text(Double(pitcher.eBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
-                                Text(Double(stats.ERA), format: Int(stats.ERA) > 99 ? .number.rounded(increment: 1.0) :
-                                                                stats.ERA > 9.99 ? .number.rounded(increment: 0.1) : .number.rounded(increment: 0.01)).lineLimit(1).minimumScaleFactor(0.8)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.8)
-                                Text(Double(stats.runs), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
-                                Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
-                                if width > 1000 {
-                                    Text(Double(stats.hits), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                    let firstTeam = atbats.first?.team
+                    let oTHit: [Atbat] = firstTeam != nil ? game.atbats.filter { $0.team == firstTeam } : []
+                    let oTHitting = oTHit.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
+                    let pitchers: [Pitcher] = firstTeam != nil ? game.pitchers.filter { $0.team != firstTeam }.sorted(by: CanonicalPitcherOrdering.canonicalOrder) : []
+                    ForEach(Array(pitchers.enumerated()), id: \.offset) { _, pitcher in
+                        NavigationLink(value: pitcher) {
+                            VStack(spacing:0) {
+                                HStack{
+                                    let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
+                                    let lName = pitcher.player.name.split(separator: " ").last ?? ""
+                                    Text(lName).lineLimit(1).minimumScaleFactor(0.6)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
+                                    Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                    Text(Double(pitcher.sOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                    Text(Double(pitcher.sBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                    Text("to").foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                    Text(Double(pitcher.endInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                    Text(Double(pitcher.eOuts), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                    Text(Double(pitcher.eBats), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
+                                    Text(Double(stats.runs), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
-                                    Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                    Text(Double(stats.uruns), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
-                                    Text(Double(stats.BB), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
-                                    Text(Double(stats.HR), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
-                                        .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
+                                    if width > 1000 {
+                                        Text(Double(stats.hits), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
+                                        Text(Double(stats.Ks), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
+                                        Text(Double(stats.BB), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
+                                        Text(Double(stats.HR), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
+                                            .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity)
+                                    }
+                                    Image(systemName: "chevron.right").padding(.horizontal,0)
                                 }
-                                Image(systemName: "chevron.right").padding(.horizontal,0)
+    //                            Divider()
                             }
-//                            Divider()
                         }
                     }
+                    .navigationDestination(for: Pitcher.self) { pitcher in
+                        EditPitcherView(pitcher: pitcher, game: atbats[0].game)
+                    }
                 }
-                .navigationDestination(for: Pitcher.self) { pitcher in
-                    EditPitcherView(pitcher: pitcher, game: atbats[0].game)
-                }
+                .anchorPreference(key: PitcherInningsTrackingTableBoundsPreferenceKey.self, value: .bounds) { $0 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
@@ -646,6 +644,14 @@ struct drawPitchers: View {
                     .strokeBorder(Color.primary.opacity(0.25), lineWidth: 1)
             )
             .frame(height: 24)
+    }
+}
+
+struct PitcherInningsTrackingTableBoundsPreferenceKey: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? = nil
+
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) {
+        value = nextValue() ?? value
     }
 }
 

@@ -11,6 +11,7 @@ import AVFoundation
 struct EditScoreView: View {
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject var purchaseManager: PurchaseManager
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State var game: Game
     @Binding var navigationPath: NavigationPath
     @Binding var columnVisibility:NavigationSplitViewVisibility
@@ -58,7 +59,62 @@ struct EditScoreView: View {
     @State var date = Date.now
 
     private var scorecardBottomToolbarClearance: CGFloat {
-        UIDevice.type == "iPad" ? 1 : 1
+        12
+    }
+
+    private var pitchStatsButton: some View {
+        Button(action: {
+            requestGeneratedOutput(.pitchingStatistics)
+        }) {
+            Text("Pitch Stats")
+        }
+        .frame(width: 118)
+        .buttonStyle(ToolBarButtonStyle())
+        .fullScreenCover(isPresented: $showPitchRpt) {
+            ShowPitchRptView(tName: team.name, isLoading: $isLoading)
+        }
+    }
+
+    private var hitStatsButton: some View {
+        Button(action: {
+            requestGeneratedOutput(.hittingStatistics)
+        }) {
+            Text("Hit Stats")
+        }
+        .frame(width: UIDevice.type == "iPad" ? 100 : 112)
+        .buttonStyle(ToolBarButtonStyle())
+        .fullScreenCover(isPresented: $showReport) {
+            ShowReportView(tName: team.name, isLoading: $isLoading)
+        }
+    }
+
+    @ViewBuilder
+    private var bottomStatsControls: some View {
+        if UIDevice.type == "iPhone" {
+            HStack {
+                pitchStatsButton
+                Spacer(minLength: 16)
+                hitStatsButton
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 2)
+        } else {
+            iPadStatsControls
+                .padding(.leading, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var iPadStatsControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            hitStatsButton
+            pitchStatsButton
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var bottomStatsOverlayBottomPadding: CGFloat {
+        UIDevice.type == "iPhone" && verticalSizeClass == .compact ? -32 : 4
     }
 
     var body: some View {
@@ -154,7 +210,17 @@ struct EditScoreView: View {
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
                     Spacer()
-                    PlayersToScoreView(passedGame: $game, teamName: theTeam, searchString: "", sortOrder: sortAtbat, theAtbats: $latbats, isLoading: $isLoading, hasChanged: $hasChanged,columnVisability: $columnVisibility, pitcherSectionScrollRequest: $pitcherSectionScrollRequest)
+                    PlayersToScoreView(
+                        passedGame: $game,
+                        teamName: theTeam,
+                        searchString: "",
+                        sortOrder: sortAtbat,
+                        theAtbats: $latbats,
+                        isLoading: $isLoading,
+                        hasChanged: $hasChanged,
+                        columnVisability: $columnVisibility,
+                        pitcherSectionScrollRequest: $pitcherSectionScrollRequest
+                    )
                         .padding(.bottom, scorecardBottomToolbarClearance)
                 }
                 .onChange(of: showingDetail, {
@@ -219,30 +285,6 @@ struct EditScoreView: View {
                         }
                         .buttonStyle(ToolBarButtonStyle())
                     }
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        Button(action: {
-                            requestGeneratedOutput(.pitchingStatistics)
-                        }) {
-                            Text("Pitch Stats")
-                        }
-                        .frame(width: 118)
-                        .buttonStyle(ToolBarButtonStyle())
-                        .fullScreenCover(isPresented: $showPitchRpt) {
-                            ShowPitchRptView(tName: team.name, isLoading: $isLoading)
-                        }
-                        Spacer()
-                        Button(action: {
-                            requestGeneratedOutput(.hittingStatistics)
-                        }) {
-                            Text("Hit Stats")
-                        }
-                        .frame(width: UIDevice.type == "iPad" ? 100 : 112)
-                        .buttonStyle(ToolBarButtonStyle())
-                        .fullScreenCover(isPresented: $showReport) {
-                            ShowReportView(tName: team.name, isLoading: $isLoading)
-                        }
-                    }
-
                     ToolbarItem(placement: .principal) {
                         Text("Score the Game")
                             .font(.title2)
@@ -269,6 +311,21 @@ struct EditScoreView: View {
             .screenshotMaker { screenshotMaker in
                      self.screenshotMaker = screenshotMaker
                  }
+        }
+        .overlay(alignment: .bottom) {
+            if UIDevice.type == "iPhone" {
+                bottomStatsControls
+                    .padding(.bottom, bottomStatsOverlayBottomPadding)
+            }
+        }
+        .overlayPreferenceValue(PitcherInningsTrackingTableBoundsPreferenceKey.self) { tableBounds in
+            GeometryReader { proxy in
+                if UIDevice.type != "iPhone", let tableBounds {
+                    let tableFrame = proxy[tableBounds]
+                    iPadStatsControls
+                        .position(x: 75, y: tableFrame.midY)
+                }
+            }
         }
         .sheet(isPresented: $showPaywall, onDismiss: cancelPendingGeneratedOutputFlow) {
             PaywallView(context: .reports)
