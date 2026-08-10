@@ -73,7 +73,7 @@ struct PlayersToScoreView: View {
                                 VStack (spacing: 0){
                                     ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
                                         HStack(spacing: 2) {
-                                            if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
+                                            if ScorecardRenderedRows.isRenderedBattingRow(atbat) {
                                                 let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
                                                 let player = atbat.player
                                                 let strikeIt = containsPlayer(player, in: game.replaced)
@@ -100,7 +100,7 @@ struct PlayersToScoreView: View {
                                     VStack (spacing: 0) {
                                         ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
                                             HStack(spacing: 0) {
-                                                if atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99 {
+                                                if ScorecardRenderedRows.isRenderedBattingRow(atbat) {
                                                     ForEach((1...maxCol), id: \.self) {ind in
                                                         let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
                                                         let cellId = LiveScoringWorkflowCoordinator.RenderedScorecardCellTarget.uiIdentifier(

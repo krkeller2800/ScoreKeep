@@ -731,6 +731,26 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
+    @Test("summary row boundaries include rendered pitch hitter replacement rows")
+    func summaryRowBoundariesIncludeRenderedPitchHitterReplacementRows() throws {
+        let store = try Store()
+        let fixture = Fixture.insertGame(into: store.context)
+        let incoming = Player(name: "Incoming Visitor", number: "12", position: "RF", batDir: "R", batOrder: 2, team: fixture.visitingTeam)
+        let pitchHitter = Atbat(game: fixture.game, team: fixture.visitingTeam, player: incoming, result: "Pitch Hitter", maxbase: "No Bases", batOrder: 2, outAt: "Safe", inning: 1, seq: 2, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        let laterHistoricalAtbat = Atbat(game: fixture.game, team: fixture.visitingTeam, player: incoming, result: "Single", maxbase: "First", batOrder: 2, outAt: "Safe", inning: 2, seq: 4, col: 2, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+        store.context.insert(incoming)
+        store.context.insert(pitchHitter)
+        store.context.insert(laterHistoricalAtbat)
+        fixture.game.atbats.append(pitchHitter)
+        fixture.game.atbats.append(laterHistoricalAtbat)
+
+        let renderedRows = ScorecardRenderedRows.renderedBattingRows(from: [fixture.visitingFirst, pitchHitter, fixture.visitingSecond, laterHistoricalAtbat])
+        let boundaryOffsets = ScorecardRenderedRows.rowBoundaryOffsets(rowCount: renderedRows.count, rowHeight: 50)
+
+        #expect(renderedRows.map(\.ident) == [fixture.visitingFirst.ident, pitchHitter.ident, fixture.visitingSecond.ident])
+        #expect(boundaryOffsets == [50, 100, 150])
+    }
+
     @Test("prepared live game state fails closed for missing pitcher and inconsistent legacy input")
     func preparedLiveGameStateFailsClosedForMissingPitcherAndInconsistentLegacyInput() throws {
         let store = try Store()

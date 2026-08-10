@@ -9,6 +9,21 @@ import SwiftUI
 import SwiftData
 import Foundation
 
+enum ScorecardRenderedRows {
+    static func isRenderedBattingRow(_ atbat: Atbat) -> Bool {
+        atbat.inning <= 1 && atbat.col == 1 && atbat.batOrder != 99
+    }
+
+    static func renderedBattingRows(from atbats: [Atbat]) -> [Atbat] {
+        atbats.filter(isRenderedBattingRow)
+    }
+
+    static func rowBoundaryOffsets(rowCount: Int, rowHeight: CGFloat) -> [CGFloat] {
+        guard rowCount > 0 else { return [] }
+        return (1...rowCount).map { CGFloat($0) * rowHeight }
+    }
+}
+
 struct drawSing: View {
     var space: CGRect
     var atbats:[Atbat]
@@ -109,8 +124,37 @@ struct drawSing: View {
                 }
             }
         }
+
+        drawSummaryRowSeparators(space: space, atbats: atbats, sWidth: sWidth)
     }
 }
+
+struct drawSummaryRowSeparators: View {
+    var space: CGRect
+    var atbats: [Atbat]
+    var sWidth: CGFloat
+
+    var body: some View {
+        let renderedRowCount = ScorecardRenderedRows.renderedBattingRows(from: atbats).count
+        let boundaryOffsets = ScorecardRenderedRows.rowBoundaryOffsets(rowCount: renderedRowCount, rowHeight: space.height)
+        let bigCol = atbats.filter { $0.result != "Result" }.max { $0.col < $1.col }
+        let gridSz = CGFloat(sWidth > 1100 ? 60 : 50)
+        let bSize = Int(((sWidth - (sWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
+        let newCol = (bigCol?.col ?? 0) + 1
+        let maxCol = CGFloat(newCol < bSize ? bSize : newCol)
+        let summaryX = ((maxCol + 2) * space.width) + space.minX
+
+        ForEach(boundaryOffsets, id: \.self) { boundaryOffset in
+            Path { path in
+                let y = space.minY + boundaryOffset
+                path.move(to: CGPoint(x: summaryX - (0.8 * space.width), y: y))
+                path.addLine(to: CGPoint(x: summaryX + (2.8 * space.width), y: y))
+            }
+            .stroke(Color.black, lineWidth: 1)
+        }
+    }
+}
+
 struct drawout: View {
     var space: CGRect
     var atbat:Atbat
