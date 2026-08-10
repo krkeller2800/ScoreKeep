@@ -312,6 +312,7 @@ struct EditScoreView: View {
                      self.screenshotMaker = screenshotMaker
                  }
         }
+        .navigationBarTitleDisplayMode(.inline)
         .overlay(alignment: .bottom) {
             if UIDevice.type == "iPhone" {
                 bottomStatsControls

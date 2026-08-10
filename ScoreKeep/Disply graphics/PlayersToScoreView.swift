@@ -159,9 +159,9 @@ struct PlayersToScoreView: View {
                                         }
                                     }
                                 }
-                                .coordinateSpace(name: "scroll")
                                     }
                                 }
+                                .coordinateSpace(name: "scroll")
                             }
                             .background(
                                 ScorecardScrollViewObserver(controller: scorecardScrollController)
