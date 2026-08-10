@@ -81,6 +81,172 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertEqual(previousAtbat.seq, prevSeq)
     }
 
+    func testReplacementRowReceivesNextAtBatAndOutgoingRowRemainsHistoricalOnly() throws {
+        let fixture = Fixture.insertGame(into: modelContext)
+        let game = fixture.game
+        let outgoing = fixture.visitingFirst.player
+        let incoming = insertBenchPlayer(name: "Jack Dreyer", number: "86", team: fixture.visitingTeam, game: game)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: modelContext)
+        completeFirstTurnForTwoBatters(fixture)
+        try modelContext.save()
+
+        let substitution = coordinator.submitSubstitution(
+            gameIdentity: game.ident,
+            outgoingParticipant: outgoing.identifier,
+            incomingParticipant: incoming.identifier,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher],
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(substitution.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+
+        let replacementRow = try XCTUnwrap(game.atbats.first { $0.player.identifier == incoming.identifier && $0.col == 1 })
+        let prepared = coordinator.prepareLiveGameState(
+            game: game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher]
+        )
+        XCTAssertEqual(prepared.currentBatter?.identity, incoming.identifier)
+        XCTAssertEqual(prepared.currentScorecardColumn, 2)
+        XCTAssertNil(prepared.currentOrPendingLegacyAtbat)
+        XCTAssertTrue(game.replaced.contains { $0.identifier == outgoing.identifier })
+        XCTAssertTrue(game.incomings.contains { $0.identifier == incoming.identifier })
+
+        let rejectedOutgoing = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(rejectedOutgoing.disposition, LiveScoringWorkflowCoordinator.Disposition.validationFailed)
+        XCTAssertEqual(rejectedOutgoing.renderedTarget?.renderedRowIdentity, replacementRow.ident)
+        XCTAssertEqual(rejectedOutgoing.renderedTarget?.column, 2)
+
+        let historicalOutgoing = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(historicalOutgoing.disposition, LiveScoringWorkflowCoordinator.Disposition.noChange)
+        XCTAssertEqual(historicalOutgoing.atbat?.ident, fixture.visitingFirst.ident)
+
+        let selectedReplacement = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 1,
+            sourceAtbat: replacementRow,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(selectedReplacement.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        let replacementAtbat = try XCTUnwrap(selectedReplacement.atbat)
+        XCTAssertEqual(replacementAtbat.player.identifier, incoming.identifier)
+        XCTAssertEqual(replacementAtbat.col, 2)
+
+        let submission = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: replacementAtbat,
+            game: game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(submission.disposition, LiveScoringWorkflowCoordinator.SubmissionDisposition.accepted)
+        XCTAssertEqual(replacementAtbat.result, "Single")
+        XCTAssertEqual(fixture.visitingFirst.player.identifier, outgoing.identifier)
+        XCTAssertEqual(fixture.visitingFirst.result, "Ground Out")
+    }
+
+    func testReplacementRemainsActiveThroughTurnoverAndSecondReplacement() throws {
+        let fixture = Fixture.insertGame(into: modelContext)
+        let game = fixture.game
+        let outgoing = fixture.visitingFirst.player
+        let firstIncoming = insertBenchPlayer(name: "First Replacement", number: "86", team: fixture.visitingTeam, game: game)
+        let secondIncoming = insertBenchPlayer(name: "Second Replacement", number: "87", team: fixture.visitingTeam, game: game)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: modelContext)
+        completeFirstTurnForTwoBatters(fixture)
+        try modelContext.save()
+
+        let firstSubstitution = coordinator.submitSubstitution(
+            gameIdentity: game.ident,
+            outgoingParticipant: outgoing.identifier,
+            incomingParticipant: firstIncoming.identifier,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher],
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(firstSubstitution.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+        let firstReplacementRow = try XCTUnwrap(game.atbats.first { $0.player.identifier == firstIncoming.identifier && $0.col == 1 })
+        let firstReplacementSelection = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 1,
+            sourceAtbat: firstReplacementRow,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        let firstReplacementAtbat = try XCTUnwrap(firstReplacementSelection.atbat)
+        XCTAssertEqual(firstReplacementSelection.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        XCTAssertEqual(coordinator.submitScoringAction(legacyResult: "Single", targetAtbat: firstReplacementAtbat, game: game, battingTeam: fixture.visitingTeam, displayedAtbats: teamAtbats(fixture), pitchers: [pitcher], supportedLegacyResults: ["Single", "Ground Out"], save: { try modelContext.save() }).disposition, LiveScoringWorkflowCoordinator.SubmissionDisposition.accepted)
+
+        let secondRowSelection = coordinator.selectAtbat(
+            column: 2,
+            rowIndex: 2,
+            sourceAtbat: fixture.visitingSecond,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        let secondAtbat = try XCTUnwrap(secondRowSelection.atbat)
+        XCTAssertEqual(secondRowSelection.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        XCTAssertEqual(coordinator.submitScoringAction(legacyResult: "Ground Out", targetAtbat: secondAtbat, game: game, battingTeam: fixture.visitingTeam, displayedAtbats: teamAtbats(fixture), pitchers: [pitcher], supportedLegacyResults: ["Single", "Ground Out"], save: { try modelContext.save() }).disposition, LiveScoringWorkflowCoordinator.SubmissionDisposition.accepted)
+
+        let turnover = coordinator.prepareLiveGameState(
+            game: game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher]
+        )
+        XCTAssertEqual(turnover.currentBatter?.identity, firstIncoming.identifier)
+        XCTAssertEqual(turnover.currentScorecardColumn, 3)
+
+        let secondSubstitution = coordinator.submitSubstitution(
+            gameIdentity: game.ident,
+            outgoingParticipant: firstIncoming.identifier,
+            incomingParticipant: secondIncoming.identifier,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher],
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(secondSubstitution.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+
+        let afterSecondSubstitution = coordinator.prepareLiveGameState(
+            game: game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher]
+        )
+        XCTAssertEqual(afterSecondSubstitution.currentBatter?.identity, secondIncoming.identifier)
+        XCTAssertNotEqual(afterSecondSubstitution.currentBatter?.identity, outgoing.identifier)
+        XCTAssertNotEqual(afterSecondSubstitution.currentBatter?.identity, firstIncoming.identifier)
+    }
+
     func testPitcherChange_Accepted() throws {
         // Setup using Fixture
         let fixture = Fixture.insertGame(into: modelContext)
@@ -480,6 +646,32 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         // Verify unrelated players and at-bats remain unchanged
         XCTAssertEqual(fixture.visitingFirst.result, "Result")
         XCTAssertEqual(fixture.visitingSecond.result, "Result")
+    }
+
+    private func insertBenchPlayer(name: String, number: String, team: Team, game: Game) -> Player {
+        let player = Player(name: name, number: number, position: "PH", batDir: "L", batOrder: 99)
+        player.team = team
+        modelContext.insert(player)
+        team.players.append(player)
+        game.players.append(player)
+        return player
+    }
+
+    private func completeFirstTurnForTwoBatters(_ fixture: Fixture) {
+        fixture.visitingFirst.result = "Ground Out"
+        fixture.visitingFirst.inning = 1
+        fixture.visitingFirst.seq = 1
+        fixture.visitingFirst.col = 1
+        fixture.visitingFirst.outs = 1
+        fixture.visitingSecond.result = "Ground Out"
+        fixture.visitingSecond.inning = 1
+        fixture.visitingSecond.seq = 2
+        fixture.visitingSecond.col = 1
+        fixture.visitingSecond.outs = 2
+    }
+
+    private func teamAtbats(_ fixture: Fixture) -> [Atbat] {
+        fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident }
     }
 }
 

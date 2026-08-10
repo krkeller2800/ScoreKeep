@@ -170,7 +170,8 @@ enum CanonicalBatterProjector {
             return result(.incomplete, input, nil, nil, nil, nil, false, diagnostics, used, ignored)
         }
 
-        applySupportedSubstitutions(input.substitutions, slots: &slots, diagnostics: &diagnostics, used: &used, sourceLocation: input.sourceLocation)
+        var battingSlotByParticipant = participantSlotMap(from: slots)
+        applySupportedSubstitutions(input.substitutions, slots: &slots, participantSlots: &battingSlotByParticipant, diagnostics: &diagnostics, used: &used, sourceLocation: input.sourceLocation)
         slots.sort { $0.slot < $1.slot }
 
         let sideEvents = input.recordedEvents.filter { $0.teamSide == input.battingSide }
@@ -202,7 +203,7 @@ enum CanonicalBatterProjector {
             return result(.unresolved, input, nil, nil, nil, nil, false, diagnostics, used, ignored)
         }
 
-        guard let lastSlotIndex = slots.firstIndex(where: { $0.entry.participant.playerIdentity == lastBatter.playerIdentity }) else {
+        guard let lastSlotIndex = lastKnownSlotIndex(for: lastBatter, in: slots, participantSlots: battingSlotByParticipant) else {
             diagnostics.append(diagnostic("batterProjection.lastBatterNotInLineup", .unresolved, .battingOrder, .unresolved, .unresolved, "The latest batter does not resolve to a supplied lineup slot.", input.sourceLocation))
             return result(.unresolved, input, nil, nil, nil, nil, false, diagnostics, used, ignored)
         }
@@ -278,9 +279,18 @@ enum CanonicalBatterProjector {
         return sorted.map { ($0.0, $0.1) }
     }
 
+    private static func participantSlotMap(
+        from slots: [(slot: Int, entry: CanonicalBattingOrderEntry)]
+    ) -> [UUID: Int] {
+        Dictionary(uniqueKeysWithValues: slots.compactMap { slot, entry in
+            entry.participant.playerIdentity.validIdentifier.map { ($0, slot) }
+        })
+    }
+
     private static func applySupportedSubstitutions(
         _ substitutions: [CanonicalSubstitutionEvidence],
         slots: inout [(slot: Int, entry: CanonicalBattingOrderEntry)],
+        participantSlots: inout [UUID: Int],
         diagnostics: inout [CanonicalProjectionDiagnostic],
         used: inout Set<String>,
         sourceLocation: String?
@@ -329,9 +339,30 @@ enum CanonicalBatterProjector {
                     source: previous.source
                 )
             )
+            if let outgoingIdentity = outgoing.playerIdentity.validIdentifier {
+                participantSlots[outgoingIdentity] = slot
+            }
+            if let incomingIdentity = incoming.playerIdentity.validIdentifier {
+                participantSlots[incomingIdentity] = slot
+            }
             used.insert("substitution.knownBattingSlot")
             diagnostics.append(diagnostic("batterProjection.substitutionApplied", .resolvedWithWarnings, .substitution, .warning, .validWithWarnings, "A known substitution changed a future batting-slot occupant.", sourceLocation))
         }
+    }
+
+    private static func lastKnownSlotIndex(
+        for batter: LineupParticipantEvidence,
+        in slots: [(slot: Int, entry: CanonicalBattingOrderEntry)],
+        participantSlots: [UUID: Int]
+    ) -> Int? {
+        if let activeIndex = slots.firstIndex(where: { $0.entry.participant.playerIdentity == batter.playerIdentity }) {
+            return activeIndex
+        }
+        guard let identity = batter.playerIdentity.validIdentifier,
+              let historicalSlot = participantSlots[identity] else {
+            return nil
+        }
+        return slots.firstIndex(where: { $0.slot == historicalSlot })
     }
 
     private static func substitutionOrder(_ lhs: CanonicalSubstitutionEvidence, _ rhs: CanonicalSubstitutionEvidence) -> Bool {

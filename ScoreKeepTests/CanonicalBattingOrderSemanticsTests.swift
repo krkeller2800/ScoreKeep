@@ -339,6 +339,94 @@ struct CanonicalBatterProjectionTests {
         #expect(notApplied.disposition == .unresolved)
     }
 
+    @Test func replacementBeforeUnscoredSlotReceivesNextScoringCell() {
+        let lineup = battingLineup(count: 3)
+        let replacement = participant(id: "51000000-0000-0000-0000-000000000101", name: "Replacement One", side: .home)
+        let projection = CanonicalBatterProjector.project(input(
+            lineup: lineup,
+            substitutions: [substitution(incoming: replacement, outgoing: lineup.entries[0].participant, slot: 1, order: 1)]
+        ))
+
+        #expect(projection.currentSlot == 1)
+        #expect(projection.currentBatter?.participant.playerIdentity == replacement.playerIdentity)
+        #expect(projection.currentBatter?.participant.playerIdentity != lineup.entries[0].participant.playerIdentity)
+    }
+
+    @Test func replacementAfterHistoricalAtBatsPreservesPastAndReceivesTurnoverSlot() {
+        let lineup = battingLineup(count: 3)
+        let replacement = participant(id: "51000000-0000-0000-0000-000000000102", name: "Replacement Two", side: .home)
+        let historicalFirst = event(sequence: 1, batter: lineup.entries[0].participant)
+        let projection = CanonicalBatterProjector.project(input(
+            lineup: lineup,
+            events: [
+                historicalFirst,
+                event(sequence: 2, batter: lineup.entries[1].participant),
+                event(sequence: 3, batter: lineup.entries[2].participant)
+            ],
+            substitutions: [substitution(incoming: replacement, outgoing: lineup.entries[0].participant, slot: 1, order: 1)]
+        ))
+
+        #expect(historicalFirst.participants.batter?.playerIdentity == lineup.entries[0].participant.playerIdentity)
+        #expect(projection.currentSlot == 1)
+        #expect(projection.currentBatter?.participant.playerIdentity == replacement.playerIdentity)
+    }
+
+    @Test func battingOrderTurnoverAfterReplacementKeepsReplacementInSlot() {
+        let lineup = battingLineup(count: 3)
+        let replacement = participant(id: "51000000-0000-0000-0000-000000000103", name: "Replacement Three", side: .home)
+        let projection = CanonicalBatterProjector.project(input(
+            lineup: lineup,
+            events: [
+                event(sequence: 1, batter: lineup.entries[0].participant),
+                event(sequence: 2, batter: lineup.entries[1].participant),
+                event(sequence: 3, batter: lineup.entries[2].participant),
+                event(sequence: 4, batter: replacement),
+                event(sequence: 5, batter: lineup.entries[1].participant),
+                event(sequence: 6, batter: lineup.entries[2].participant)
+            ],
+            substitutions: [substitution(incoming: replacement, outgoing: lineup.entries[0].participant, slot: 1, order: 1)]
+        ))
+
+        #expect(projection.currentSlot == 1)
+        #expect(projection.currentBatter?.participant.playerIdentity == replacement.playerIdentity)
+        #expect(projection.currentBatter?.participant.playerIdentity != lineup.entries[0].participant.playerIdentity)
+    }
+
+    @Test func multipleReplacementsLeaveOnlyCurrentSlotOccupantEligible() {
+        let lineup = battingLineup(count: 3)
+        let firstReplacement = participant(id: "51000000-0000-0000-0000-000000000104", name: "First Replacement", side: .home)
+        let secondReplacement = participant(id: "51000000-0000-0000-0000-000000000105", name: "Second Replacement", side: .home)
+        let projection = CanonicalBatterProjector.project(input(
+            lineup: lineup,
+            events: [
+                event(sequence: 1, batter: lineup.entries[0].participant),
+                event(sequence: 2, batter: lineup.entries[1].participant),
+                event(sequence: 3, batter: lineup.entries[2].participant)
+            ],
+            substitutions: [
+                substitution(incoming: firstReplacement, outgoing: lineup.entries[0].participant, slot: 1, order: 1),
+                substitution(incoming: secondReplacement, outgoing: firstReplacement, slot: 1, order: 2)
+            ]
+        ))
+
+        #expect(projection.currentSlot == 1)
+        #expect(projection.currentBatter?.participant.playerIdentity == secondReplacement.playerIdentity)
+        #expect(projection.currentBatter?.participant.playerIdentity != firstReplacement.playerIdentity)
+        #expect(projection.currentBatter?.participant.playerIdentity != lineup.entries[0].participant.playerIdentity)
+    }
+
+    @Test func normalProgressionWithoutReplacementStillUsesLineupOrder() {
+        let lineup = battingLineup(count: 3)
+        let projection = CanonicalBatterProjector.project(input(
+            lineup: lineup,
+            events: [event(sequence: 1, batter: lineup.entries[0].participant)]
+        ))
+
+        #expect(projection.currentSlot == 2)
+        #expect(projection.currentBatter?.participant.playerIdentity == lineup.entries[1].participant.playerIdentity)
+        #expect(projection.nextSlot == 3)
+    }
+
     @Test func projectionInputsRemainUnchangedAndReplayPrepared() throws {
         let fixture = try CanonicalTeamMeaningTestSupport.decodeGameFixture("LineupGame.ScoreKeep_Games")
         let importedLineup = try #require(fixture.lineups.first.map { CanonicalLineupMeaningTestSupport.importedLineup(from: $0, gameID: fixture.id) })

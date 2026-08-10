@@ -962,6 +962,8 @@ struct LiveScoringWorkflowCoordinator {
         let completedAtbats = gameAtbats
             .filter { $0.result != "Result" }
             .sorted(by: atbatPrecedes)
+        let completedScoringAtbats = completedAtbats
+            .filter { $0.result != "Pitch Hitter" }
         guard completedAtbats.allSatisfy({ (0...3).contains($0.outs) }) else {
             return unavailablePreparedState(
                 .inconsistentLegacyState,
@@ -975,8 +977,8 @@ struct LiveScoringWorkflowCoordinator {
             )
         }
 
-        let baseState = preparedBaseOccupancy(from: completedAtbats)
-        let lastCompleted = completedAtbats.last
+        let baseState = preparedBaseOccupancy(from: completedScoringAtbats)
+        let lastCompleted = completedScoringAtbats.last
         let completedInning = max(1, Int((lastCompleted?.inning ?? 1).rounded(.up)))
         let completedHalfInningEnded = lastCompleted?.outs == 3 && lastCompleted?.endOfInning == true
         let inning = completedHalfInningEnded ? completedInning + 1 : completedInning
@@ -3001,13 +3003,14 @@ struct LiveScoringWorkflowCoordinator {
         after lastCompleted: Atbat?,
         lineup: [PreparedLineupEntry]
     ) -> PreparedLineupEntry? {
-        guard lineup.isEmpty == false else { return nil }
-        guard let lastCompleted else { return lineup.first }
+        let activeLineup = lineup.filter { $0.isReplaced == false }
+        guard activeLineup.isEmpty == false else { return nil }
+        guard let lastCompleted else { return activeLineup.first }
 
-        if let next = lineup.first(where: { $0.slot > lastCompleted.batOrder }) {
+        if let next = activeLineup.first(where: { $0.slot > lastCompleted.batOrder }) {
             return next
         }
-        return lineup.first
+        return activeLineup.first
     }
 
     private func preparedCurrentColumn(
