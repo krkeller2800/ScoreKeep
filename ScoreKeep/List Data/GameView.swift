@@ -12,6 +12,7 @@ import UIKit
 @MainActor
 struct GameView: View {
     @Environment(\.modelContext) var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Binding var navigationPath: NavigationPath
     @Binding private var title: String
     @Binding var columnVisibility: NavigationSplitViewVisibility
@@ -19,7 +20,6 @@ struct GameView: View {
     @State private var alertMessage = ""
     @State private var gamePendingDeletion: Game?
     @State private var showingNewGameSheet = false
-    @State private var measuredGameRowLabelWidth: CGFloat?
 
     // New: closure to delegate creation to parent (ScoreContentView)
     // Updated to include isSeeded flag so parent can skip decrementing free counter for seeded creations.
@@ -91,137 +91,169 @@ struct GameView: View {
     }
 
     private var tableHorizontalInset: CGFloat { 12 }
-    private var measuredGameRowContentWidth: CGFloat? {
-        guard let measuredGameRowLabelWidth, measuredGameRowLabelWidth > 0 else { return nil }
-        return max(0, measuredGameRowLabelWidth - (tableHorizontalInset * 2))
-    }
-
     var body: some View {
         ZStack {
             ScoreKeepVisualStyle.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 8) {
-                // NOTE: Hint removed from layout — now shown via overlay below.
+            GeometryReader { proxy in
+                let isGamesTableAvailable = shouldShowGamesTable(for: proxy.size.width)
 
-                Form {
-                    if games.count > 0 {
-                        if self.title == "Edit a Game" && UIDevice.type == "iPad" {
-                            Text("Select a Game to edit or swipe to delete")
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                                .font(.title3.bold())
-                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                        } else if self.title == "Score a Game" && UIDevice.type == "iPad" {
-                            Text("Select a Game to score or swipe to delete")
-                                .frame(maxWidth:.infinity, alignment:.leading)
-                                .font(.title3.bold())
-                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                        }
+                VStack(spacing: 8) {
+                    if isGamesTableAvailable {
+                        gamesTable
+                    } else {
+                        narrowRegularWidthMessage
                     }
-                    headerRow()
-                    ForEach(displayedGames, id: \.ident) { game in
-                        NavigationLink(value: game) {
-                            gameRow(for: game)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                gamePendingDeletion = game
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    .listRowBackground(gameCardBackground)
-                    .listRowSeparatorTint(Color(UIColor.opaqueSeparator))
                 }
-                .onPreferenceChange(GameRowLabelWidthPreferenceKey.self) { width in
-                    guard width > 0 else { return }
-                    measuredGameRowLabelWidth = width
-                }
-                .shadow(color: Color.primary.opacity(0.08), radius: 4, x: 0, y: 2)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .alert(alertMessage, isPresented: $showingValidationAlert) {
-                    Button("OK", role: .cancel) { }
-                }
-                .alert(
-                    "Deleting a Game",
-                    isPresented: Binding(
-                        get: { gamePendingDeletion != nil },
-                        set: { if !$0 { gamePendingDeletion = nil } }
-                    ),
-                    presenting: gamePendingDeletion
-                ) { game in
-                    Button("Delete", role: .destructive) {
-                        delete(game)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topTrailing) {
+                    if isGamesTableAvailable && shouldShowSampleGameBanner {
+                        sampleGameBanner
                     }
-                    Button("Cancel", role: .cancel) {
-                        gamePendingDeletion = nil
-                    }
-                } message: { _ in
-                    Text("If a game is deleted all associated at bats and pitches will also be deleted and removed from the stats")
-                }
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        if !title.isEmpty {
-                            Button {
-                                showingNewGameSheet = true
-                            } label: {
-                                Image(systemName: "plus")
-                            }
-                            .accessibilityLabel("New Game")
-                        }
-                    }
-                    ToolbarItem(placement: .principal) {
-                        Text(self.title)
-                            .font(.title2)
-                            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                        }
-                }
-                .sheet(isPresented: $showingNewGameSheet) {
-                    NavigationStack {
-                        EditGameView(navigationPath: $navigationPath) { dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded in
-                            createGame(dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded)
-                            showingNewGameSheet = false
-                        }
-                    }
-                    .modifier(GameEditorSheetPresentationModifier())
                 }
             }
-        }
-        // Top overlay banner (no layout space taken)
-        .overlay(alignment: .topTrailing) {
-//            let _ = print(" \(hasSeededInitialGame) \(!hasDismissedSeedHint_Game) \(!hasUserContent) \(!singleNonSeededGameExists)")
-            if hasSeededInitialGame && !hasDismissedSeedHint_Game && !hasUserContent && !singleNonSeededGameExists {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .imageScale(.small)
-                    Text("Sample game added — try scoring it and check out the stats.")
-                        .font(.caption)
-                        .scorebookMultiLineText()
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            hasDismissedSeedHint_Game = true
+            .alert(alertMessage, isPresented: $showingValidationAlert) {
+                Button("OK", role: .cancel) { }
+            }
+            .alert(
+                "Deleting a Game",
+                isPresented: Binding(
+                    get: { gamePendingDeletion != nil },
+                    set: { if !$0 { gamePendingDeletion = nil } }
+                ),
+                presenting: gamePendingDeletion
+            ) { game in
+                Button("Delete", role: .destructive) {
+                    delete(game)
+                }
+                Button("Cancel", role: .cancel) {
+                    gamePendingDeletion = nil
+                }
+            } message: { _ in
+                Text("If a game is deleted all associated at bats and pitches will also be deleted and removed from the stats")
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !title.isEmpty {
+                        Button {
+                            showingNewGameSheet = true
+                        } label: {
+                            Image(systemName: "plus")
                         }
+                        .accessibilityLabel("New Game")
+                    }
+                }
+                ToolbarItem(placement: .principal) {
+                    Text(self.title)
+                        .font(.title2)
+                        .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                }
+            }
+            .sheet(isPresented: $showingNewGameSheet) {
+                NavigationStack {
+                    EditGameView(navigationPath: $navigationPath) { dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded in
+                        createGame(dateISO, field, everyOneHits, numInnings, vTeam, hTeam, isSeeded)
+                        showingNewGameSheet = false
+                    }
+                }
+                .modifier(GameEditorSheetPresentationModifier())
+            }
+        }
+    }
+
+    private func shouldShowGamesTable(for availableWidth: CGFloat) -> Bool {
+        let tableContentWidth = max(0, availableWidth - (tableHorizontalInset * 2))
+        return GameColumnWidths.isTableAvailable(
+            for: tableContentWidth,
+            titleIsEmpty: title.isEmpty,
+            isPhone: UIDevice.type == "iPhone",
+            isCompact: horizontalSizeClass == .compact
+        )
+    }
+
+    private var shouldShowSampleGameBanner: Bool {
+        hasSeededInitialGame && !hasDismissedSeedHint_Game && !hasUserContent && !singleNonSeededGameExists
+    }
+
+    private var gamesTable: some View {
+        Form {
+            if games.count > 0 {
+                if self.title == "Edit a Game" && UIDevice.type == "iPad" {
+                    Text("Select a Game to edit or swipe to delete")
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                        .font(.title3.bold())
+                        .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                } else if self.title == "Score a Game" && UIDevice.type == "iPad" {
+                    Text("Select a Game to score or swipe to delete")
+                        .frame(maxWidth:.infinity, alignment:.leading)
+                        .font(.title3.bold())
+                        .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                }
+            }
+            headerRow()
+            ForEach(displayedGames, id: \.ident) { game in
+                NavigationLink(value: game) {
+                    gameRow(for: game)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button(role: .destructive) {
+                        gamePendingDeletion = game
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.caption2)
-                            .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
-                            .padding(4)
+                        Label("Delete", systemImage: "trash")
                     }
-                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(ScoreKeepVisualStyle.infoBannerBackground, in: Capsule())
-                .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
-                .padding(.top, -4)
-                .padding(.trailing, 20)
-                .transition(.move(edge: .top).combined(with: .opacity))
-                .animation(.easeInOut(duration: 0.25), value: hasDismissedSeedHint_Game)
             }
+            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowBackground(gameCardBackground)
+            .listRowSeparatorTint(Color(UIColor.opaqueSeparator))
         }
+        .shadow(color: Color.primary.opacity(0.08), radius: 4, x: 0, y: 2)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+    }
+
+    private var narrowRegularWidthMessage: some View {
+        VStack(spacing: 8) {
+            Text("More room needed")
+                .font(.title3.bold())
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+            Text("Hide the sidebar or rotate your iPad to landscape to view games.")
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var sampleGameBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "info.circle")
+                .imageScale(.small)
+            Text("Sample game added — try scoring it and check out the stats.")
+                .font(.caption)
+                .scorebookMultiLineText()
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    hasDismissedSeedHint_Game = true
+                }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
+                    .padding(4)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(ScoreKeepVisualStyle.infoBannerBackground, in: Capsule())
+        .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
+        .padding(.top, -4)
+        .padding(.trailing, 20)
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .animation(.easeInOut(duration: 0.25), value: hasDismissedSeedHint_Game)
     }
     init(searchString: String = "", sortOrder: [SortDescriptor<Game>] = [], sortMode: GameSort, title:Binding<String>, navigationPath: Binding<NavigationPath>, columnVisability: Binding<NavigationSplitViewVisibility>, createGame: @escaping (String, String, Bool, Int, Team, Team, Bool) -> Void) {
 
@@ -291,7 +323,7 @@ struct GameView: View {
 
     @ViewBuilder
     private func headerRow() -> some View {
-        GameTableRowLayout(titleIsEmpty: title.isEmpty, contentWidth: measuredGameRowContentWidth) {
+        GameTableRowLayout(titleIsEmpty: title.isEmpty) {
             scorebookHeaderCell("Game Date", semantic: true)
                 .gameTrailingSeparator()
             if !title.isEmpty {
@@ -320,7 +352,7 @@ struct GameView: View {
 
     @ViewBuilder
     private func gameRow(for game: Game) -> some View {
-        GameTableRowLayout(titleIsEmpty: title.isEmpty, contentWidth: measuredGameRowContentWidth) {
+        GameTableRowLayout(titleIsEmpty: title.isEmpty) {
             let dateVal = ISO8601DateFormatter().date(from: game.date) ?? Date()
             Text(dateVal.formatted(date:.abbreviated, time: .shortened))
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
@@ -353,7 +385,6 @@ struct GameView: View {
         }
         .padding(.horizontal, tableHorizontalInset)
         .padding(.vertical, 8)
-        .background(GameRowLabelWidthReader())
     }
 
     @ViewBuilder
@@ -516,45 +547,93 @@ private extension View {
 
 }
 
-private struct GameRowLabelWidthPreferenceKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-private struct GameRowLabelWidthReader: View {
-    var body: some View {
-        GeometryReader { proxy in
-            Color.clear
-                .preference(key: GameRowLabelWidthPreferenceKey.self, value: proxy.size.width)
-        }
-    }
-}
-
-private struct GameColumnWidths {
+struct GameColumnWidths: Equatable {
     let date: CGFloat
     let field: CGFloat
     let allHit: CGFloat
     let team: CGFloat
     let status: CGFloat
 
+    static let regularDateWidth: CGFloat = 150
+    static let regularAllHitWidth: CGFloat = 42
+    static let regularStatusWidth: CGFloat = 112
+    static let minimumRegularFieldWidth: CGFloat = 120
+    static let minimumRegularTeamWidth: CGFloat = 165
+    static let compactRegularDateWidth: CGFloat = 100
+    static let compactRegularTeamWidth: CGFloat = 135
+
+    static let minimumRegularGameTableContentWidth: CGFloat = 675
+
+    static var minimumRegularCompactTableContentWidth: CGFloat {
+        compactRegularDateWidth + (compactRegularTeamWidth * 2)
+    }
+
     static func resolved(for proposedContentWidth: CGFloat?, titleIsEmpty: Bool) -> GameColumnWidths {
+        resolved(for: proposedContentWidth, titleIsEmpty: titleIsEmpty, isPhone: UIDevice.type == "iPhone")
+    }
+
+    static func isTableAvailable(for proposedContentWidth: CGFloat?, titleIsEmpty: Bool, isPhone: Bool, isCompact: Bool) -> Bool {
+        guard !isPhone, !isCompact else { return true }
+
+        let fallbackWidth = UIScreen.main.bounds.width
+        let contentWidth = max(0, proposedContentWidth ?? fallbackWidth)
+        let minimumWidth = titleIsEmpty ? minimumRegularCompactTableContentWidth : minimumRegularGameTableContentWidth
+        return contentWidth >= minimumWidth
+    }
+
+    static func resolved(for proposedContentWidth: CGFloat?, titleIsEmpty: Bool, isPhone: Bool) -> GameColumnWidths {
         let fallbackWidth = UIScreen.main.bounds.width
         let contentWidth = max(0, proposedContentWidth ?? fallbackWidth)
 
-        guard UIDevice.type == "iPhone" else {
-            let fixedWidth = (titleIsEmpty ? 100.0 : 150.0)
-                + 42.0
-                + (135.0 * 2)
-                + 112.0
+        guard isPhone else {
+            if !titleIsEmpty {
+                let date = regularDateWidth
+                let allHit = regularAllHitWidth
+                let status = regularStatusWidth
+                let fixedUtilityWidth = date + allHit + status
+                let flexibleWidth = max(0, contentWidth - fixedUtilityWidth)
+                let minimumField = minimumRegularFieldWidth
+                let minimumTeam = minimumRegularTeamWidth
+                let minimumFlexibleWidth = minimumField + (minimumTeam * 2)
+
+                if flexibleWidth < minimumFlexibleWidth {
+                    let scale = minimumFlexibleWidth > 0 ? flexibleWidth / minimumFlexibleWidth : 1
+                    return GameColumnWidths(
+                        date: date,
+                        field: minimumField * scale,
+                        allHit: allHit,
+                        team: minimumTeam * scale,
+                        status: status
+                    )
+                }
+
+                let proportionalTeam = flexibleWidth * 0.25
+                if proportionalTeam < minimumTeam {
+                    return GameColumnWidths(
+                        date: date,
+                        field: flexibleWidth - (minimumTeam * 2),
+                        allHit: allHit,
+                        team: minimumTeam,
+                        status: status
+                    )
+                }
+
+                return GameColumnWidths(
+                    date: date,
+                    field: flexibleWidth * 0.5,
+                    allHit: allHit,
+                    team: flexibleWidth * 0.25,
+                    status: status
+                )
+            }
+
+            let fixedWidth = compactRegularDateWidth + (compactRegularTeamWidth * 2)
             return GameColumnWidths(
-                date: titleIsEmpty ? 100 : 150,
+                date: compactRegularDateWidth,
                 field: max(0, contentWidth - fixedWidth),
-                allHit: 42,
-                team: 135,
-                status: 112
+                allHit: 0,
+                team: compactRegularTeamWidth,
+                status: 0
             )
         }
 
@@ -615,24 +694,21 @@ private struct GameColumnWidths {
 
 private struct GameTableRowLayout: Layout {
     let titleIsEmpty: Bool
-    let contentWidth: CGFloat?
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let proposedWidth = proposal.width ?? UIScreen.main.bounds.width
-        let layoutWidth = resolvedLayoutWidth(for: proposedWidth)
-        let widths = columnWidths(for: layoutWidth, subviewCount: subviews.count)
+        let widths = columnWidths(for: proposedWidth, subviewCount: subviews.count)
         let height = subviews.enumerated().reduce(0) { result, pair in
             let width = widths[pair.offset]
             let size = pair.element.sizeThatFits(ProposedViewSize(width: width, height: proposal.height))
             return max(result, size.height)
         }
 
-        return CGSize(width: layoutWidth, height: height)
+        return CGSize(width: proposedWidth, height: height)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let layoutWidth = resolvedLayoutWidth(for: bounds.width)
-        let widths = columnWidths(for: layoutWidth, subviewCount: subviews.count)
+        let widths = columnWidths(for: bounds.width, subviewCount: subviews.count)
         var x = bounds.minX
 
         for index in subviews.indices {
@@ -644,11 +720,6 @@ private struct GameTableRowLayout: Layout {
             )
             x += width
         }
-    }
-
-    private func resolvedLayoutWidth(for proposedWidth: CGFloat) -> CGFloat {
-        guard let contentWidth, contentWidth > 0 else { return proposedWidth }
-        return min(contentWidth, proposedWidth)
     }
 
     private func columnWidths(for proposedWidth: CGFloat, subviewCount: Int) -> [CGFloat] {
