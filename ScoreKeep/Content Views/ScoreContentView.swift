@@ -231,22 +231,12 @@ struct ScoreContentView: View {
             .onAppear {
                 UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.2)
                 title = "\(doGame) a Game"
-                if doGame == "Score" {
-                    columnVisability = .detailOnly
-                } else {
-                    columnVisability = .doubleColumn
-                }
             }
             .onChange(of: sortDescriptor) {
                 sortOrder = sortDescriptor
             }
             .onChange(of: doGame) {
                 title = "\(doGame) a Game"
-                if doGame == "Score" {
-                    columnVisability = .detailOnly
-                } else {
-                    columnVisability = .doubleColumn
-                }
             }
             .navigationDestination(for: TeamNavigationDestination.self) { destination in
                 TeamNavigationDestinationView(destination: destination, navigationPath: $path)

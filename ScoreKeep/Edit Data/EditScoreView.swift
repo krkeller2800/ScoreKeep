@@ -304,7 +304,6 @@ struct EditScoreView: View {
                         withAnimation {
                             screenHeight = UIScreen.main.bounds.height
                             screenWidth = UIScreen.main.bounds.width
-                            columnVisibility = .detailOnly
                         }
                     }
                 }

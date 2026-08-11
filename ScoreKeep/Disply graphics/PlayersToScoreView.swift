@@ -260,7 +260,6 @@ struct PlayersToScoreView: View {
                     withAnimation {
                         screenHeight = UIScreen.main.bounds.height
                         screenWidth = UIScreen.main.bounds.width
-                        columnVisability = .detailOnly
                     }
                 } catch {
                     #if DEBUG
