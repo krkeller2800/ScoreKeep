@@ -22,6 +22,13 @@ enum ScorecardRenderedRows {
         guard rowCount > 0 else { return [] }
         return (1...rowCount).map { CGFloat($0) * rowHeight }
     }
+
+    static func replacementSummaryRowBoundaryOffsets(from atbats: [Atbat], rowHeight: CGFloat) -> [CGFloat] {
+        renderedBattingRows(from: atbats).enumerated().compactMap { index, atbat in
+            guard atbat.result == "Pitch Hitter" else { return nil }
+            return CGFloat(index + 1) * rowHeight
+        }
+    }
 }
 
 struct drawSing: View {
@@ -135,8 +142,7 @@ struct drawSummaryRowSeparators: View {
     var sWidth: CGFloat
 
     var body: some View {
-        let renderedRowCount = ScorecardRenderedRows.renderedBattingRows(from: atbats).count
-        let boundaryOffsets = ScorecardRenderedRows.rowBoundaryOffsets(rowCount: renderedRowCount, rowHeight: space.height)
+        let boundaryOffsets = ScorecardRenderedRows.replacementSummaryRowBoundaryOffsets(from: atbats, rowHeight: space.height)
         let bigCol = atbats.filter { $0.result != "Result" }.max { $0.col < $1.col }
         let gridSz = CGFloat(sWidth > 1100 ? 60 : 50)
         let bSize = Int(((sWidth - (sWidth > 1100 ? 425 : 325)) / gridSz).rounded(.down))
