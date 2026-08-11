@@ -62,6 +62,10 @@ struct EditScoreView: View {
         12
     }
 
+    private var scoringContentTopSpacing: CGFloat {
+        52
+    }
+
     private var pitchStatsButton: some View {
         Button(action: {
             requestGeneratedOutput(.pitchingStatistics)
@@ -223,6 +227,7 @@ struct EditScoreView: View {
                     )
                         .padding(.bottom, scorecardBottomToolbarClearance)
                 }
+                .padding(.top, scoringContentTopSpacing)
                 .onChange(of: showingDetail, {
                     if isHomeTeam {
                         team = game.hteam ?? Team(name:"",coach:"",details:"")
