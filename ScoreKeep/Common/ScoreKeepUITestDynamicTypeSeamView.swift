@@ -37,14 +37,22 @@ struct ScoreKeepUITestDynamicTypeSeamView: View {
             
             let p1 = Player(name: "Alice", number: "1", position: "SS", batDir: "R", batOrder: 1)
             p1.team = vTeam
+            let pitcherPlayer = Player(name: "Casey", number: "12", position: "P", batDir: "R", batOrder: 99)
+            pitcherPlayer.team = hTeam
             
             let atbat = Atbat(game: game, team: vTeam, player: p1, result: "Result", maxbase: "No Bases", batOrder: 1, outAt: "Safe", inning: 1, seq: 1, col: 1, rbis: 0, outs: 0, sacFly: 0, sacBunt: 0, stolenBases: 0)
+            let pitcher = Pitcher(player: pitcherPlayer, team: hTeam, game: game, startInn: 1, sOuts: 0, sBats: 1, endInn: 1, eOuts: 0, eBats: 1)
+            game.players = [p1, pitcherPlayer]
+            game.atbats = [atbat]
+            game.pitchers = [pitcher]
             
             context.insert(vTeam)
             context.insert(hTeam)
             context.insert(p1)
+            context.insert(pitcherPlayer)
             context.insert(game)
             context.insert(atbat)
+            context.insert(pitcher)
             
             try context.save()
             

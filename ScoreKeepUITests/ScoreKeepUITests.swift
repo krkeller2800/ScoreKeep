@@ -42,7 +42,7 @@ final class ScoreKeepUITests: XCTestCase {
         let root = app.descendants(matching: .any).matching(identifier: "live_scoring_root").firstMatch
         XCTAssertTrue(root.waitForExistence(timeout: 5.0), "Live scoring root should exist")
 
-        let cell = app.buttons["scorecard_cell_1_1"]
+        let cell = firstRenderedScorecardCell(in: app)
         XCTAssertTrue(cell.waitForExistence(timeout: 2.0), "Scorecard cell should exist")
         XCTAssertTrue(cell.isHittable, "Scorecard cell should be hittable")
 
@@ -80,12 +80,12 @@ final class ScoreKeepUITests: XCTestCase {
         let root = app.descendants(matching: .any).matching(identifier: "live_scoring_root").firstMatch
         XCTAssertTrue(root.waitForExistence(timeout: 5.0), "Live scoring root should exist")
 
-        let cell = app.buttons["scorecard_cell_1_1"]
+        let cell = firstRenderedScorecardCell(in: app)
         XCTAssertTrue(cell.waitForExistence(timeout: 2.0), "Scorecard cell should exist")
         XCTAssertTrue(cell.isHittable, "Scorecard cell should be hittable in portrait")
 
         // Check for multiple cells with the same ID, should be exactly 1
-        XCTAssertEqual(app.buttons.matching(identifier: "scorecard_cell_1_1").count, 1, "Should not have duplicate scoring activations")
+        XCTAssertEqual(renderedColumnOneScorecardCells(in: app).count, 1, "Should not have duplicate scoring activations")
 
         // Tap cell to bring up scoring sheet
         cell.tap()
@@ -123,12 +123,12 @@ final class ScoreKeepUITests: XCTestCase {
         let root = app.descendants(matching: .any).matching(identifier: "live_scoring_root").firstMatch
         XCTAssertTrue(root.waitForExistence(timeout: 5.0), "Live scoring root should exist")
 
-        let cell = app.buttons["scorecard_cell_1_1"]
+        let cell = firstRenderedScorecardCell(in: app)
         XCTAssertTrue(cell.waitForExistence(timeout: 2.0), "Scorecard cell should exist")
         XCTAssertTrue(cell.isHittable, "Scorecard cell should be hittable in portrait")
 
         // Check for multiple cells with the same ID, should be exactly 1
-        XCTAssertEqual(app.buttons.matching(identifier: "scorecard_cell_1_1").count, 1, "Should not have duplicate scoring activations")
+        XCTAssertEqual(renderedColumnOneScorecardCells(in: app).count, 1, "Should not have duplicate scoring activations")
 
         // Tap cell to bring up scoring sheet
         cell.tap()
@@ -162,6 +162,25 @@ final class ScoreKeepUITests: XCTestCase {
             measure(metrics: [XCTApplicationLaunchMetric()]) {
                 XCUIApplication().launch()
             }
+        }
+    }
+
+    private func firstRenderedScorecardCell(in app: XCUIApplication) -> XCUIElement {
+        let deadline = Date().addingTimeInterval(2.0)
+        repeat {
+            if let cell = renderedColumnOneScorecardCells(in: app).first {
+                return cell
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+
+        return app.buttons["scorecard_rendered_cell_unavailable_1"]
+    }
+
+    private func renderedColumnOneScorecardCells(in app: XCUIApplication) -> [XCUIElement] {
+        app.buttons.allElementsBoundByIndex.filter { element in
+            element.identifier.hasPrefix("scorecard_rendered_cell_") &&
+            element.identifier.hasSuffix("_1")
         }
     }
 }
