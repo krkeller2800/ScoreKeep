@@ -167,6 +167,7 @@ struct PlayersToScoreView: View {
                                 ScorecardScrollViewObserver(controller: scorecardScrollController)
                             )
                         }
+                        .contentMargins(.top, 0, for: .scrollContent)
                         .coordinateSpace(name: "pitcher_vertical_scroll")
                         .onChange(of: pitcherSectionScrollRequest) { _, request in
                             guard let request else { return }
