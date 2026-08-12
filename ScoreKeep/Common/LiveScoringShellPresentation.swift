@@ -55,6 +55,59 @@ struct LiveScoringShellPresentation {
         func state(for identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity) -> EnabledActionPresentation? {
             actions.first { $0.identity == identity }
         }
+
+        func scorecardCellState(
+            column: Int,
+            sourceAtbat: Atbat?,
+            displayedAtbats: [Atbat]
+        ) -> EnabledActionPresentation {
+            let identity = LiveScoringWorkflowCoordinator.ScoringActionIdentity.scorecardCell(
+                column: column,
+                battingOrder: sourceAtbat?.batOrder ?? 0
+            )
+            guard column > 0, sourceAtbat != nil else {
+                return unavailableScorecardCell(identity: identity)
+            }
+
+            return state(for: identity) ?? enabledScorecardCell(identity: identity)
+        }
+
+        private func enabledScorecardCell(
+            identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity
+        ) -> EnabledActionPresentation {
+            EnabledActionPresentation(
+                identity: identity,
+                isEnabled: true,
+                accessibilityLabel: "Scorecard cell",
+                accessibilityValue: scorecardAccessibilityValue(for: identity, isEnabled: true),
+                accessibilityHint: nil,
+                warningMessage: nil
+            )
+        }
+
+        private func unavailableScorecardCell(
+            identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity
+        ) -> EnabledActionPresentation {
+            EnabledActionPresentation(
+                identity: identity,
+                isEnabled: false,
+                accessibilityLabel: "Scorecard cell",
+                accessibilityValue: scorecardAccessibilityValue(for: identity, isEnabled: false),
+                accessibilityHint: "Scorecard selection is unavailable.",
+                warningMessage: nil
+            )
+        }
+
+        private func scorecardAccessibilityValue(
+            for identity: LiveScoringWorkflowCoordinator.ScoringActionIdentity,
+            isEnabled: Bool
+        ) -> String? {
+            guard case let .scorecardCell(column, battingOrder) = identity else {
+                return nil
+            }
+            let availability = isEnabled ? "available" : "unavailable"
+            return "Batter \(battingOrder), scorecard column \(column), \(availability)"
+        }
     }
 
     struct SubmissionPresentation {

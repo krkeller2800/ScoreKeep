@@ -169,7 +169,173 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertEqual(fixture.visitingFirst.result, "Ground Out")
     }
 
-    func testReplacementRemainsActiveThroughTurnoverAndSecondReplacement() throws {
+    func testStarterScorecardCellEligibilityRemainsCurrentOrCompletedOnly() throws {
+        let fixture = Fixture.insertGame(into: modelContext)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: modelContext)
+        try modelContext.save()
+
+        let initialPresentation = enabledPresentation(
+            fixture: fixture,
+            pitcher: pitcher,
+            displayedAtbats: teamAtbats(fixture)
+        )
+        XCTAssertTrue(initialPresentation.scorecardCellState(column: 1, sourceAtbat: fixture.visitingFirst, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(initialPresentation.scorecardCellState(column: 1, sourceAtbat: fixture.visitingSecond, displayedAtbats: teamAtbats(fixture)).isEnabled)
+
+        let nonCurrentSelection = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 1,
+            sourceAtbat: fixture.visitingSecond,
+            displayedAtbats: teamAtbats(fixture),
+            game: fixture.game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(nonCurrentSelection.disposition, LiveScoringWorkflowCoordinator.Disposition.validationFailed)
+        XCTAssertEqual(nonCurrentSelection.message, "That is not the current at-bat. You may edit completed at-bats or score the next open at-bat.")
+
+        fixture.visitingFirst.result = "Ground Out"
+        fixture.visitingFirst.outs = 1
+        try modelContext.save()
+
+        let afterCompletedPresentation = enabledPresentation(
+            fixture: fixture,
+            pitcher: pitcher,
+            displayedAtbats: teamAtbats(fixture)
+        )
+        XCTAssertTrue(afterCompletedPresentation.scorecardCellState(column: 1, sourceAtbat: fixture.visitingFirst, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(afterCompletedPresentation.scorecardCellState(column: 1, sourceAtbat: fixture.visitingSecond, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(afterCompletedPresentation.scorecardCellState(column: 2, sourceAtbat: fixture.visitingFirst, displayedAtbats: teamAtbats(fixture)).isEnabled)
+    }
+
+    func testMissingPitcherValidationRemainsReachableFromScorecardSelection() throws {
+        let fixture = Fixture.insertGame(into: modelContext)
+        try modelContext.save()
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: []
+        )
+        let semantic = coordinator.semanticScoreState(
+            preparedState: prepared,
+            displayedAtbats: teamAtbats(fixture)
+        )
+        let actionSet = coordinator.enabledScoringActions(
+            preparedState: prepared,
+            semanticScoreState: semantic,
+            displayedAtbats: teamAtbats(fixture),
+            supportedLegacyResults: ["Single", "Ground Out"]
+        )
+        let presentation = LiveScoringShellPresentation().presentEnabledActionSet(actionSet)
+
+        XCTAssertEqual(prepared.disposition, LiveScoringWorkflowCoordinator.PreparedStateDisposition.unavailablePitcher)
+        XCTAssertTrue(presentation.scorecardCellState(column: 1, sourceAtbat: fixture.visitingFirst, displayedAtbats: teamAtbats(fixture)).isEnabled)
+
+        let selection = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
+            displayedAtbats: teamAtbats(fixture),
+            game: fixture.game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(selection.disposition, LiveScoringWorkflowCoordinator.Disposition.validationFailed)
+        XCTAssertEqual(selection.message, "Select the starting pitcher before scoring the game.")
+    }
+
+    func testReplacementEnteringFourthInningKeepsEarlierMarkersTappableButRejectedAndAllowsCurrentEntryCell() throws {
+        let fixture = Fixture.insertGame(into: modelContext)
+        let game = fixture.game
+        let outgoing = fixture.visitingFirst.player
+        let incoming = insertBenchPlayer(name: "Fourth Inning Replacement", number: "86", team: fixture.visitingTeam, game: game)
+        let pitcher = Fixture.insertPitcher(for: fixture, into: modelContext)
+        completeThreeInningsForTwoBatters(fixture)
+        try modelContext.save()
+
+        let substitution = coordinator.submitSubstitution(
+            gameIdentity: game.ident,
+            outgoingParticipant: outgoing.identifier,
+            incomingParticipant: incoming.identifier,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher],
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(substitution.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
+
+        let replacementRow = try XCTUnwrap(game.atbats.first { $0.player.identifier == incoming.identifier && $0.col == 1 })
+        let presentation = enabledPresentation(
+            fixture: fixture,
+            pitcher: pitcher,
+            displayedAtbats: teamAtbats(fixture)
+        )
+
+        XCTAssertTrue(presentation.scorecardCellState(column: 1, sourceAtbat: replacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(presentation.scorecardCellState(column: 2, sourceAtbat: replacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(presentation.scorecardCellState(column: 3, sourceAtbat: replacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(presentation.scorecardCellState(column: 4, sourceAtbat: replacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+
+        let rejectedMarker = coordinator.selectAtbat(
+            column: 1,
+            rowIndex: 1,
+            sourceAtbat: replacementRow,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(rejectedMarker.disposition, LiveScoringWorkflowCoordinator.Disposition.validationFailed)
+        XCTAssertEqual(rejectedMarker.message, "That is not the current at-bat. You may edit completed at-bats or score the next open at-bat.")
+
+        let selectedReplacement = coordinator.selectAtbat(
+            column: 4,
+            rowIndex: 1,
+            sourceAtbat: replacementRow,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(selectedReplacement.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        let replacementAtbat = try XCTUnwrap(selectedReplacement.atbat)
+
+        let submission = coordinator.submitScoringAction(
+            legacyResult: "Single",
+            targetAtbat: replacementAtbat,
+            game: game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [pitcher],
+            supportedLegacyResults: ["Single", "Ground Out"],
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(submission.disposition, LiveScoringWorkflowCoordinator.SubmissionDisposition.accepted)
+
+        let completedSelection = coordinator.selectAtbat(
+            column: 4,
+            rowIndex: 1,
+            sourceAtbat: replacementRow,
+            displayedAtbats: teamAtbats(fixture),
+            game: game,
+            modelContext: modelContext,
+            save: { try modelContext.save() }
+        )
+        XCTAssertEqual(completedSelection.disposition, LiveScoringWorkflowCoordinator.Disposition.noChange)
+        XCTAssertEqual(completedSelection.atbat?.ident, replacementAtbat.ident)
+
+        let afterCompletedPresentation = enabledPresentation(
+            fixture: fixture,
+            pitcher: pitcher,
+            displayedAtbats: teamAtbats(fixture)
+        )
+        XCTAssertTrue(afterCompletedPresentation.scorecardCellState(column: 2, sourceAtbat: replacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(afterCompletedPresentation.scorecardCellState(column: 5, sourceAtbat: replacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+    }
+
+    func testReplacementRemainsActiveThroughTurnoverAndSecondReplacementMarkersStayTappable() throws {
         let fixture = Fixture.insertGame(into: modelContext)
         let game = fixture.game
         let outgoing = fixture.visitingFirst.player
@@ -245,6 +411,16 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertEqual(afterSecondSubstitution.currentBatter?.identity, secondIncoming.identifier)
         XCTAssertNotEqual(afterSecondSubstitution.currentBatter?.identity, outgoing.identifier)
         XCTAssertNotEqual(afterSecondSubstitution.currentBatter?.identity, firstIncoming.identifier)
+
+        let secondReplacementRow = try XCTUnwrap(game.atbats.first { $0.player.identifier == secondIncoming.identifier && $0.col == 1 })
+        let presentation = enabledPresentation(
+            fixture: fixture,
+            pitcher: pitcher,
+            displayedAtbats: teamAtbats(fixture)
+        )
+        XCTAssertTrue(presentation.scorecardCellState(column: 1, sourceAtbat: secondReplacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(presentation.scorecardCellState(column: 2, sourceAtbat: secondReplacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
+        XCTAssertTrue(presentation.scorecardCellState(column: 3, sourceAtbat: secondReplacementRow, displayedAtbats: teamAtbats(fixture)).isEnabled)
     }
 
     func testPitcherChange_Accepted() throws {
@@ -668,6 +844,70 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         fixture.visitingSecond.seq = 2
         fixture.visitingSecond.col = 1
         fixture.visitingSecond.outs = 2
+    }
+
+    private func completeThreeInningsForTwoBatters(_ fixture: Fixture) {
+        completeFirstTurnForTwoBatters(fixture)
+        _ = insertScoredAtbat(fixture, source: fixture.visitingFirst, column: 2, inning: 2, sequence: 3, outs: 1)
+        _ = insertScoredAtbat(fixture, source: fixture.visitingSecond, column: 2, inning: 2, sequence: 4, outs: 2)
+        _ = insertScoredAtbat(fixture, source: fixture.visitingFirst, column: 3, inning: 3, sequence: 5, outs: 1)
+        _ = insertScoredAtbat(fixture, source: fixture.visitingSecond, column: 3, inning: 3, sequence: 6, outs: 3, endOfInning: true)
+    }
+
+    private func insertScoredAtbat(
+        _ fixture: Fixture,
+        source: Atbat,
+        column: Int,
+        inning: CGFloat,
+        sequence: Int,
+        outs: Int,
+        endOfInning: Bool = false
+    ) -> Atbat {
+        let atbat = Atbat(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            player: source.player,
+            result: "Ground Out",
+            maxbase: "No Bases",
+            batOrder: source.player.batOrder,
+            outAt: "Safe",
+            inning: inning,
+            seq: sequence,
+            col: column,
+            rbis: 0,
+            outs: outs,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0,
+            endOfInning: endOfInning
+        )
+        modelContext.insert(atbat)
+        fixture.game.atbats.append(atbat)
+        return atbat
+    }
+
+    private func enabledPresentation(
+        fixture: Fixture,
+        pitcher: Pitcher,
+        displayedAtbats: [Atbat]
+    ) -> LiveScoringShellPresentation.EnabledActionSetPresentation {
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: displayedAtbats,
+            pitchers: [pitcher]
+        )
+        let semantic = coordinator.semanticScoreState(
+            preparedState: prepared,
+            displayedAtbats: displayedAtbats
+        )
+        let actionSet = coordinator.enabledScoringActions(
+            preparedState: prepared,
+            semanticScoreState: semantic,
+            displayedAtbats: displayedAtbats,
+            supportedLegacyResults: ["Single", "Ground Out"]
+        )
+        return LiveScoringShellPresentation().presentEnabledActionSet(actionSet)
     }
 
     private func teamAtbats(_ fixture: Fixture) -> [Atbat] {

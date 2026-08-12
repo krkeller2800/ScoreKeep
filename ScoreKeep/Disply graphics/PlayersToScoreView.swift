@@ -405,8 +405,12 @@ struct PlayersToScoreView: View {
             column: column,
             battingOrder: atbat.batOrder
         )
-        if let presentation = enabledActionPresentation?.state(for: identity) {
-            return presentation
+        if let enabledActionPresentation {
+            return enabledActionPresentation.scorecardCellState(
+                column: column,
+                sourceAtbat: atbat,
+                displayedAtbats: atbats
+            )
         }
         let enabled = liveScoringShellPresentation.scorecardCellIsEnabled(column: column, sourceAtbat: atbat)
         return LiveScoringShellPresentation.EnabledActionPresentation(

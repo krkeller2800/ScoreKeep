@@ -719,7 +719,7 @@ struct LiveScoringWorkflowCoordinator {
             $0.col == column
         }) {
             let existing = displayedAtbats[existingIndex]
-            if existing.result != "Result" {
+            if existing.result != "Result" && existing.result != "Pitch Hitter" {
                 // Completed at-bat. Editable.
                 return SelectionResult(disposition: .noChange, atbat: existing, message: nil, targetAction: nil, targetCell: nil)
             }
@@ -761,6 +761,12 @@ struct LiveScoringWorkflowCoordinator {
                 column: column,
                 preparedState: preparedState
             ) {
+                return invalidNonCurrentSelectionResult(
+                    preparedState: preparedState,
+                    displayedAtbats: displayedAtbats
+                )
+            }
+            guard existing.result != "Pitch Hitter" else {
                 return invalidNonCurrentSelectionResult(
                     preparedState: preparedState,
                     displayedAtbats: displayedAtbats
