@@ -576,7 +576,18 @@ struct ScoreGameView: View {
     }
 
     private func requiresAdditionalChoice(_ result: String) -> Bool {
-        com.onresults.contains(result) || com.recOuts.contains(result)
+        let immediateDismiss = [
+            "Walk",
+            "Intentional Walk",
+            "Hit By Pitch",
+            "Strikeout",
+            "Strikeout Looking",
+            "Catcher Interference"
+        ]
+        if immediateDismiss.contains(result) {
+            return false
+        }
+        return com.onresults.contains(result) || com.recOuts.contains(result)
     }
 
     private func beginAdditionalChoice(_ pending: LiveScoringWorkflowCoordinator.PendingAdditionalScoringChoice) {

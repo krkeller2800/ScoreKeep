@@ -3313,7 +3313,18 @@ struct LiveScoringWorkflowCoordinator {
     }
 
     private func requiresAdditionalChoice(for legacyResult: String) -> Bool {
-        common.onresults.contains(legacyResult) || common.recOuts.contains(legacyResult)
+        let immediateDismiss = [
+            "Walk",
+            "Intentional Walk",
+            "Hit By Pitch",
+            "Strikeout",
+            "Strikeout Looking",
+            "Catcher Interference"
+        ]
+        if immediateDismiss.contains(legacyResult) {
+            return false
+        }
+        return common.onresults.contains(legacyResult) || common.recOuts.contains(legacyResult)
     }
 
     private func additionalChoiceCategory(for legacyResult: String) -> String {
