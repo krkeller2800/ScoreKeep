@@ -193,16 +193,20 @@ struct GameView: View {
             }
             headerRow()
             ForEach(displayedGames, id: \.ident) { game in
-                NavigationLink(value: game) {
-                    gameRow(for: game)
-                }
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) {
-                        gamePendingDeletion = game
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+                gameRow(for: game)
+                    .background(
+                        NavigationLink(value: game) {
+                            EmptyView()
+                        }
+                        .opacity(0)
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            gamePendingDeletion = game
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
-                }
             }
             .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
             .listRowBackground(gameCardBackground)
@@ -322,24 +326,32 @@ struct GameView: View {
 
     @ViewBuilder
     private func headerRow() -> some View {
-        GameTableRowLayout(titleIsEmpty: title.isEmpty) {
-            scorebookHeaderCell("Game Date", semantic: true)
-                .gameTrailingSeparator()
-            if !title.isEmpty {
-                scorebookHeaderCell("Field", semantic: true)
+        HStack(spacing: 0) {
+            GameTableRowLayout(titleIsEmpty: title.isEmpty) {
+                scorebookHeaderCell("Game Date", semantic: true)
                     .gameTrailingSeparator()
-                gameOverflowHeaderCell("All Hit")
-                    .gameTrailingSeparator()
-            }
+                if !title.isEmpty {
+                    scorebookHeaderCell("Field", semantic: true)
+                        .gameTrailingSeparator()
+                    gameOverflowHeaderCell("All Hit")
+                        .gameTrailingSeparator()
+                }
 
-            scorebookHeaderCell("Visiting", semantic: true)
-                .gameTrailingSeparator()
-            scorebookHeaderCell("Home", semantic: true)
-                .gameTrailingSeparator()
-            if !title.isEmpty {
-                scorebookHeaderCell("Status", semantic: true)
+                scorebookHeaderCell("Visiting", semantic: true)
                     .gameTrailingSeparator()
+                scorebookHeaderCell("Home", semantic: true)
+                    .gameTrailingSeparator()
+                if !title.isEmpty {
+                    scorebookHeaderCell("Status", semantic: true)
+                        .gameTrailingSeparator()
+                }
             }
+            
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .opacity(0)
+                .padding(.leading, 8)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, tableHorizontalInset)
         .fixedSize(horizontal: false, vertical: true)
@@ -351,36 +363,44 @@ struct GameView: View {
 
     @ViewBuilder
     private func gameRow(for game: Game) -> some View {
-        GameTableRowLayout(titleIsEmpty: title.isEmpty) {
-            let dateVal = ISO8601DateFormatter().date(from: game.date) ?? Date()
-            Text(dateVal.formatted(date:.abbreviated, time: .shortened))
-                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                .fontWeight(.semibold)
-                .padding(.horizontal, 8)
-                .scorebookMultiLineText()
-                .gameColumnSlot(alignment: .leading)
-                .gameTrailingSeparator()
-            if !title.isEmpty {
-                fieldNameText(game.location)
-                    .padding(.horizontal, 8)
-                    .gameColumnSlot(alignment: .leading)
-                    .gameTrailingSeparator()
-                Text(game.everyOneHits ? "Yes" : "No")
+        HStack(spacing: 0) {
+            GameTableRowLayout(titleIsEmpty: title.isEmpty) {
+                let dateVal = ISO8601DateFormatter().date(from: game.date) ?? Date()
+                Text(dateVal.formatted(date:.abbreviated, time: .shortened))
                     .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     .fontWeight(.semibold)
-                    .scorebookSingleLineText()
+                    .padding(.horizontal, 8)
+                    .scorebookMultiLineText()
                     .gameColumnSlot(alignment: .leading)
                     .gameTrailingSeparator()
+                if !title.isEmpty {
+                    fieldNameText(game.location)
+                        .padding(.horizontal, 8)
+                        .gameColumnSlot(alignment: .leading)
+                        .gameTrailingSeparator()
+                    Text(game.everyOneHits ? "Yes" : "No")
+                        .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .scorebookSingleLineText()
+                        .gameColumnSlot(alignment: .leading)
+                        .gameTrailingSeparator()
+                }
+                teamCell(name: game.vteam?.name ?? "", logoData: game.vteam?.logo)
+                    .gameColumnSlot(alignment: .leading)
+                    .gameTrailingSeparator()
+                teamCell(name: game.hteam?.name ?? "", logoData: game.hteam?.logo)
+                    .gameColumnSlot(alignment: .leading)
+                    .gameTrailingSeparator()
+                if !title.isEmpty {
+                    gameRowScoreSummary(for: game)
+                }
             }
-            teamCell(name: game.vteam?.name ?? "", logoData: game.vteam?.logo)
-                .gameColumnSlot(alignment: .leading)
-                .gameTrailingSeparator()
-            teamCell(name: game.hteam?.name ?? "", logoData: game.hteam?.logo)
-                .gameColumnSlot(alignment: .leading)
-                .gameTrailingSeparator()
-            if !title.isEmpty {
-                gameRowScoreSummary(for: game)
-            }
+            
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(Color(UIColor.tertiaryLabel))
+                .padding(.leading, 8)
         }
         .padding(.horizontal, tableHorizontalInset)
         .padding(.vertical, 8)
