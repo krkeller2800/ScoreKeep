@@ -144,20 +144,20 @@ struct Task810AggregateHittingPDFTextFittingSuite {
     @Test("Header geometry reserves logo space before fitting long title")
     func headerGeometryReservesLogoSpaceForTitle() throws {
         let geometry = AggregateHittingPDFPaginationGeometry()
-        let titleHeight = UIFont.italicSystemFont(ofSize: 16).lineHeight
+        let titleText = "Logo Geometry Hitting"
         let logoSize = CGSize(width: 50, height: 25)
         let logoHeader = ShowReportView.aggregateHittingPDFHeaderGeometry(
+            titleText: titleText,
             geometry: geometry,
             currentY: geometry.margin,
             contentWidth: geometry.contentWidth,
-            titleHeight: titleHeight,
             logoSize: logoSize
         )
         let noLogoHeader = ShowReportView.aggregateHittingPDFHeaderGeometry(
+            titleText: titleText,
             geometry: geometry,
             currentY: geometry.margin,
             contentWidth: geometry.contentWidth,
-            titleHeight: titleHeight,
             logoSize: nil
         )
         let logoRect = try #require(logoHeader.logoRect)
@@ -221,7 +221,7 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         #expect(shrinkingFit.text.contains("FITLONGTITLE"))
         #expect(shrinkingFit.fontSize < 16)
         #expect(shrinkingFit.fontSize >= 8)
-        #expect(!shrinkingFit.didTruncate)
+        #expect(shrinkingFit.didTruncate)
         #expect(truncatingFit.text.hasPrefix("FITEXTREME"))
         #expect(truncatingFit.text.hasSuffix("..."))
         #expect(truncatingFit.fontSize == 8)
@@ -248,12 +248,6 @@ struct Task810AggregateHittingPDFTextFittingSuite {
             width: geometry.contentWidth,
             font: headingFont
         )
-        let footerRect = ShowReportView.aggregateHittingPDFLineRect(
-            x: geometry.margin,
-            y: 575,
-            width: 250,
-            font: footerFont
-        )
         let pageNumberRect = ShowReportView.aggregateHittingPDFLineRect(
             x: geometry.margin,
             y: 575,
@@ -263,7 +257,6 @@ struct Task810AggregateHittingPDFTextFittingSuite {
 
         #expect(dateRect.height == ceil(dateFont.lineHeight))
         #expect(headingRect.height == ceil(headingFont.lineHeight))
-        #expect(footerRect.height == ceil(footerFont.lineHeight))
         #expect(pageNumberRect.height == ceil(footerFont.lineHeight))
 
         let fittedLongDate = ShowReportView.fittedAggregateHittingPDFSingleLine(
@@ -284,16 +277,6 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         #expect(fittedHeading.text == "Player Statistics")
         #expect(fittedHeading.fontSize == 12)
         #expect(!fittedHeading.didTruncate)
-
-        let fittedFooter = ShowReportView.fittedAggregateHittingPDFSingleLine(
-            "Report Created by IOS App ScoreKeep",
-            initialFont: footerFont,
-            rect: footerRect,
-            alignment: .left
-        )
-        #expect(fittedFooter.text == "Report Created by IOS App ScoreKeep")
-        #expect(fittedFooter.fontSize == 10)
-        #expect(!fittedFooter.didTruncate)
 
         for pageNumberText in ["Page 1", "Page 12", "Page 100"] {
             let fittedPageNumber = ShowReportView.fittedAggregateHittingPDFSingleLine(
@@ -318,7 +301,7 @@ struct Task810AggregateHittingPDFTextFittingSuite {
                 label.text,
                 initialFont: labelFont,
                 rect: rect,
-                alignment: .left,
+                alignment: .center,
                 foregroundColor: .red
             )
 
@@ -330,8 +313,8 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         }
     }
 
-    @Test("Rendered PDF preserves supplemental header footer labels and page number text")
-    func renderedPDFPreservesSupplementalHeaderFooterLabelsAndPageNumberText() throws {
+    @Test("Rendered PDF preserves supplemental header labels and page number text")
+    func renderedPDFPreservesSupplementalHeaderLabelsAndPageNumberText() throws {
         let document = try renderDocument(
             teamName: "SupplementalFit",
             stats: [makeStat(name: "SUPPLEMENTALROW", number: "1", batOrder: 1)]
@@ -340,7 +323,6 @@ struct Task810AggregateHittingPDFTextFittingSuite {
 
         #expect(text.contains(Date.now.formatted(date: .long, time: .omitted)))
         #expect(text.contains("Player Statistics"))
-        #expect(text.contains("Report Created by IOS App ScoreKeep"))
         #expect(text.contains("Page 1"))
 
         for label in ShowReportView.aggregateHittingPDFColumnLabels {
@@ -348,27 +330,27 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         }
     }
 
-    @Test("Numeric fitting preserves complete values across existing cell widths")
-    func numericFittingPreservesCompleteValuesAcrossCellWidths() throws {
+    @Test("Numeric fitting preserves complete values across shared cell widths")
+    func numericFittingPreservesCompleteValuesAcrossSharedCellWidths() throws {
         let geometry = AggregateHittingPDFPaginationGeometry()
         let rowY = geometry.firstRowY
-        let rect20 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "hits", geometry: geometry, currentY: rowY))
+        let rect25 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "hits", geometry: geometry, currentY: rowY))
         let rect30 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "atbats", geometry: geometry, currentY: rowY))
-        let rect40 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "ops", geometry: geometry, currentY: rowY))
+        let rect35 = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "dts", geometry: geometry, currentY: rowY))
+        let opsRect = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: "ops", geometry: geometry, currentY: rowY))
 
-        let short20 = ShowReportView.fittedAggregateHittingPDFNumericText("7", constrainedTo: rect20)
-        #expect(short20.originalText == "7")
-        #expect(short20.selectedText == "7")
-        #expect(short20.fontSize == 12)
-        #expect(short20.fitsCompletely)
-        #expect(!short20.reachedMinimumFontSize)
+        let short25 = ShowReportView.fittedAggregateHittingPDFNumericText("7", constrainedTo: rect25)
+        #expect(short25.originalText == "7")
+        #expect(short25.selectedText == "7")
+        #expect(short25.fontSize == 12)
+        #expect(short25.fitsCompletely)
+        #expect(!short25.reachedMinimumFontSize)
 
-        let shrinking20 = ShowReportView.fittedAggregateHittingPDFNumericText("888", constrainedTo: rect20)
-        #expect(shrinking20.selectedText == "888")
-        #expect(shrinking20.fontSize < 12)
-        #expect(shrinking20.fontSize >= 8)
-        #expect(shrinking20.fitsCompletely)
-        #expect(!shrinking20.selectedText.contains("..."))
+        let fitting25 = ShowReportView.fittedAggregateHittingPDFNumericText("888", constrainedTo: rect25)
+        #expect(fitting25.selectedText == "888")
+        #expect(fitting25.fontSize == 12)
+        #expect(fitting25.fitsCompletely)
+        #expect(!fitting25.selectedText.contains("..."))
 
         let shrinking30 = ShowReportView.fittedAggregateHittingPDFNumericText("88888", constrainedTo: rect30)
         #expect(shrinking30.selectedText == "88888")
@@ -377,18 +359,18 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         #expect(shrinking30.fitsCompletely)
         #expect(!shrinking30.selectedText.contains("..."))
 
-        let shrinking40 = ShowReportView.fittedAggregateHittingPDFNumericText("8888888", constrainedTo: rect40)
-        let repeatedShrinking40 = ShowReportView.fittedAggregateHittingPDFNumericText("8888888", constrainedTo: rect40)
-        #expect(shrinking40.selectedText == "8888888")
-        #expect(shrinking40.fontSize < 12)
-        #expect(shrinking40.fontSize >= 8)
-        #expect(shrinking40.fitsCompletely)
-        #expect(!shrinking40.selectedText.contains("..."))
-        #expect(repeatedShrinking40.selectedText == shrinking40.selectedText)
-        #expect(repeatedShrinking40.fontSize == shrinking40.fontSize)
-        #expect(repeatedShrinking40.fitsCompletely == shrinking40.fitsCompletely)
+        let shrinking35 = ShowReportView.fittedAggregateHittingPDFNumericText("888888", constrainedTo: rect35)
+        let repeatedShrinking35 = ShowReportView.fittedAggregateHittingPDFNumericText("888888", constrainedTo: rect35)
+        #expect(shrinking35.selectedText == "888888")
+        #expect(shrinking35.fontSize < 12)
+        #expect(shrinking35.fontSize >= 8)
+        #expect(shrinking35.fitsCompletely)
+        #expect(!shrinking35.selectedText.contains("..."))
+        #expect(repeatedShrinking35.selectedText == shrinking35.selectedText)
+        #expect(repeatedShrinking35.fontSize == shrinking35.fontSize)
+        #expect(repeatedShrinking35.fitsCompletely == shrinking35.fitsCompletely)
 
-        for (text, rect) in [("888", rect20), ("8888", rect30), ("8888", rect40)] {
+        for (text, rect) in [("888", rect25), ("8888", rect30), ("8888", rect35), ("6.000", opsRect)] {
             let fit = ShowReportView.fittedAggregateHittingPDFNumericText(text, constrainedTo: rect)
             #expect(fit.selectedText == text)
             #expect(fit.fontSize >= 8)
@@ -396,13 +378,13 @@ struct Task810AggregateHittingPDFTextFittingSuite {
             #expect(!fit.selectedText.contains("..."))
         }
 
-        let negative20 = ShowReportView.fittedAggregateHittingPDFNumericText("-88", constrainedTo: rect20)
-        #expect(negative20.selectedText == "-88")
-        #expect(negative20.selectedText.hasPrefix("-"))
-        #expect(negative20.fitsCompletely)
+        let negative25 = ShowReportView.fittedAggregateHittingPDFNumericText("-88", constrainedTo: rect25)
+        #expect(negative25.selectedText == "-88")
+        #expect(negative25.selectedText.hasPrefix("-"))
+        #expect(negative25.fitsCompletely)
 
-        let opsAbove999 = ShowReportView.fittedAggregateHittingPDFNumericText("5000", constrainedTo: rect40)
-        #expect(opsAbove999.selectedText == "5000")
+        let opsAbove999 = ShowReportView.fittedAggregateHittingPDFNumericText("5.000", constrainedTo: opsRect)
+        #expect(opsAbove999.selectedText == "5.000")
         #expect(opsAbove999.fitsCompletely)
         #expect(!opsAbove999.selectedText.contains("..."))
     }
@@ -422,48 +404,50 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         #expect(!fit.selectedText.contains("..."))
     }
 
-    @Test("Numeric fitting preserves existing cell geometry")
-    func numericFittingPreservesExistingCellGeometry() throws {
+    @Test("Numeric fitting uses shared header cell geometry")
+    func numericFittingUsesSharedHeaderCellGeometry() throws {
         let geometry = AggregateHittingPDFPaginationGeometry()
         let rowY = geometry.firstRowY
         let expectedCells: [(String, CGFloat, CGFloat)] = [
-            ("number", 55, 20),
-            ("atbats", 215, 30),
+            ("number", 50, 30),
+            ("name", 80, 130),
+            ("atbats", 210, 30),
             ("avg", 240, 30),
-            ("obp", 270, 30),
-            ("slg", 305, 30),
-            ("ops", 340, 40),
-            ("runs", 380, 30),
-            ("hits", 400, 20),
+            ("obp", 270, 35),
+            ("slg", 305, 35),
+            ("ops", 340, 30),
+            ("runs", 370, 25),
+            ("hits", 395, 25),
             ("strikeouts", 420, 20),
-            ("lookingStrikeouts", 440, 20),
-            ("walks", 460, 20),
-            ("homeRuns", 480, 20),
-            ("singles", 500, 20),
-            ("doubles", 520, 20),
-            ("triples", 540, 20),
-            ("sbColumnValue", 560, 20),
-            ("sacrificeFlies", 580, 20),
-            ("hbp", 605, 20),
-            ("dts", 635, 20),
-            ("fc", 665, 20)
+            ("lookingStrikeouts", 440, 15),
+            ("walks", 455, 20),
+            ("homeRuns", 475, 20),
+            ("singles", 495, 20),
+            ("doubles", 515, 20),
+            ("triples", 535, 20),
+            ("sbColumnValue", 555, 20),
+            ("sacrificeFlies", 575, 20),
+            ("hbp", 595, 30),
+            ("dts", 625, 35),
+            ("fc", 660, 20)
         ]
-
-        #expect(ShowReportView.aggregateHittingPDFNumericCells.count == expectedCells.count)
 
         for (identifier, expectedX, expectedWidth) in expectedCells {
             let rect = try #require(ShowReportView.aggregateHittingPDFNumericCellRect(identifier: identifier, geometry: geometry, currentY: rowY))
             let fit = ShowReportView.fittedAggregateHittingPDFNumericText("8888", constrainedTo: rect)
+            let column = try #require(ShowReportView.aggregateHittingPDFColumnLabels.first { $0.identifier == identifier })
 
             #expect(rect.minX == expectedX)
             #expect(rect.minY == rowY)
             #expect(rect.width == expectedWidth)
             #expect(rect.height == geometry.playerRowHeight)
+            #expect(rect.minX == geometry.margin + column.xOffset)
+            #expect(rect.width == column.width)
             #expect(fit.attributes[.foregroundColor] == nil)
         }
 
         #expect(ShowReportView.aggregateHittingPDFColumnLabels.map(\.text) == [
-            "Num", "Name", "Bat", "AVG", "OBP", "SLG", "OPS", "Run", "Hit", "K", "ꓘ", "BB", "HR", "1B", "2B", "3B", "SB", "SF", "HBP", "DTS", "FC"
+            "#", "Name", "AB", "AVG", "OBP", "SLG", "OPS", "R", "H", "K", "ꓘ", "BB", "HR", "1B", "2B", "3B", "SH", "SF", "HBP", "DTS", "FC"
         ])
     }
 

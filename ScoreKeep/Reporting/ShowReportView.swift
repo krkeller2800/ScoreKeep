@@ -143,7 +143,8 @@ struct ShowReportView: View {
         let titleRect: CGRect
     }
 
-    struct AggregateHittingPDFColumnLabel {
+    struct AggregateHittingPDFColumn {
+        let identifier: String?
         let text: String
         let xOffset: CGFloat
         let width: CGFloat
@@ -179,58 +180,51 @@ struct ShowReportView: View {
         }
     }
 
-    struct AggregateHittingPDFNumericCell {
+    private struct AggregateHittingPDFColumnDefinition {
         let identifier: String
+        let text: String
         let xOffset: CGFloat
-        let width: CGFloat
     }
 
-    static let aggregateHittingPDFColumnLabels: [AggregateHittingPDFColumnLabel] = [
-        AggregateHittingPDFColumnLabel(text: "Num", xOffset: 0, width: 30),
-        AggregateHittingPDFColumnLabel(text: "Name", xOffset: 30, width: 125),
-        AggregateHittingPDFColumnLabel(text: "Bat", xOffset: 160, width: 20),
-        AggregateHittingPDFColumnLabel(text: "AVG", xOffset: 190, width: 30),
-        AggregateHittingPDFColumnLabel(text: "OBP", xOffset: 220, width: 30),
-        AggregateHittingPDFColumnLabel(text: "SLG", xOffset: 255, width: 30),
-        AggregateHittingPDFColumnLabel(text: "OPS", xOffset: 290, width: 40),
-        AggregateHittingPDFColumnLabel(text: "Run", xOffset: 320, width: 30),
-        AggregateHittingPDFColumnLabel(text: "Hit", xOffset: 345, width: 20),
-        AggregateHittingPDFColumnLabel(text: "K", xOffset: 370, width: 20),
-        AggregateHittingPDFColumnLabel(text: "ꓘ", xOffset: 390, width: 20),
-        AggregateHittingPDFColumnLabel(text: "BB", xOffset: 405, width: 20),
-        AggregateHittingPDFColumnLabel(text: "HR", xOffset: 425, width: 20),
-        AggregateHittingPDFColumnLabel(text: "1B", xOffset: 445, width: 20),
-        AggregateHittingPDFColumnLabel(text: "2B", xOffset: 465, width: 20),
-        AggregateHittingPDFColumnLabel(text: "3B", xOffset: 485, width: 20),
-        AggregateHittingPDFColumnLabel(text: "SB", xOffset: 505, width: 20),
-        AggregateHittingPDFColumnLabel(text: "SF", xOffset: 525, width: 20),
-        AggregateHittingPDFColumnLabel(text: "HBP", xOffset: 545, width: 30),
-        AggregateHittingPDFColumnLabel(text: "DTS", xOffset: 575, width: 30),
-        AggregateHittingPDFColumnLabel(text: "FC", xOffset: 610, width: 20)
+    private static let aggregateHittingPDFTrailingColumnWidth: CGFloat = 20
+
+    private static let aggregateHittingPDFColumnDefinitions: [AggregateHittingPDFColumnDefinition] = [
+        AggregateHittingPDFColumnDefinition(identifier: "number", text: "#", xOffset: 0),
+        AggregateHittingPDFColumnDefinition(identifier: "name", text: "Name", xOffset: 30),
+        AggregateHittingPDFColumnDefinition(identifier: "atbats", text: "AB", xOffset: 160),
+        AggregateHittingPDFColumnDefinition(identifier: "avg", text: "AVG", xOffset: 190),
+        AggregateHittingPDFColumnDefinition(identifier: "obp", text: "OBP", xOffset: 220),
+        AggregateHittingPDFColumnDefinition(identifier: "slg", text: "SLG", xOffset: 255),
+        AggregateHittingPDFColumnDefinition(identifier: "ops", text: "OPS", xOffset: 290),
+        AggregateHittingPDFColumnDefinition(identifier: "runs", text: "R", xOffset: 320),
+        AggregateHittingPDFColumnDefinition(identifier: "hits", text: "H", xOffset: 345),
+        AggregateHittingPDFColumnDefinition(identifier: "strikeouts", text: "K", xOffset: 370),
+        AggregateHittingPDFColumnDefinition(identifier: "lookingStrikeouts", text: "ꓘ", xOffset: 390),
+        AggregateHittingPDFColumnDefinition(identifier: "walks", text: "BB", xOffset: 405),
+        AggregateHittingPDFColumnDefinition(identifier: "homeRuns", text: "HR", xOffset: 425),
+        AggregateHittingPDFColumnDefinition(identifier: "singles", text: "1B", xOffset: 445),
+        AggregateHittingPDFColumnDefinition(identifier: "doubles", text: "2B", xOffset: 465),
+        AggregateHittingPDFColumnDefinition(identifier: "triples", text: "3B", xOffset: 485),
+        AggregateHittingPDFColumnDefinition(identifier: "sbColumnValue", text: "SH", xOffset: 505),
+        AggregateHittingPDFColumnDefinition(identifier: "sacrificeFlies", text: "SF", xOffset: 525),
+        AggregateHittingPDFColumnDefinition(identifier: "hbp", text: "HBP", xOffset: 545),
+        AggregateHittingPDFColumnDefinition(identifier: "dts", text: "DTS", xOffset: 575),
+        AggregateHittingPDFColumnDefinition(identifier: "fc", text: "FC", xOffset: 610)
     ]
 
-    static let aggregateHittingPDFNumericCells: [AggregateHittingPDFNumericCell] = [
-        AggregateHittingPDFNumericCell(identifier: "number", xOffset: 5, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "atbats", xOffset: 165, width: 30),
-        AggregateHittingPDFNumericCell(identifier: "avg", xOffset: 190, width: 30),
-        AggregateHittingPDFNumericCell(identifier: "obp", xOffset: 220, width: 30),
-        AggregateHittingPDFNumericCell(identifier: "slg", xOffset: 255, width: 30),
-        AggregateHittingPDFNumericCell(identifier: "ops", xOffset: 290, width: 40),
-        AggregateHittingPDFNumericCell(identifier: "runs", xOffset: 330, width: 30),
-        AggregateHittingPDFNumericCell(identifier: "hits", xOffset: 350, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "strikeouts", xOffset: 370, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "lookingStrikeouts", xOffset: 390, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "walks", xOffset: 410, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "homeRuns", xOffset: 430, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "singles", xOffset: 450, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "doubles", xOffset: 470, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "triples", xOffset: 490, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "sbColumnValue", xOffset: 510, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "sacrificeFlies", xOffset: 530, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "hbp", xOffset: 555, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "dts", xOffset: 585, width: 20),
-        AggregateHittingPDFNumericCell(identifier: "fc", xOffset: 615, width: 20)
-    ]
+    static let aggregateHittingPDFColumnLabels: [AggregateHittingPDFColumn] = {
+        aggregateHittingPDFColumnDefinitions.enumerated().map { index, column in
+            let nextXOffset = aggregateHittingPDFColumnDefinitions.dropFirst(index + 1).first?.xOffset
+            let width = (nextXOffset ?? column.xOffset + aggregateHittingPDFTrailingColumnWidth) - column.xOffset
+
+            return AggregateHittingPDFColumn(
+                identifier: column.identifier,
+                text: column.text,
+                xOffset: column.xOffset,
+                width: width
+            )
+        }
+    }()
 
     static var aggregateHittingPDFTableWidth: CGFloat {
         aggregateHittingPDFColumnLabels
@@ -327,38 +321,46 @@ struct ShowReportView: View {
     }
 
     static func aggregateHittingPDFHeaderGeometry(
+        titleText: String,
         geometry: AggregateHittingPDFPaginationGeometry,
         currentY: CGFloat,
         contentWidth: CGFloat,
-        titleHeight: CGFloat,
         logoSize: CGSize?
     ) -> AggregateHittingPDFHeaderGeometry {
-        let titleLineHeight = UIFont.italicSystemFont(ofSize: 16).lineHeight
+        let font = UIFont.italicSystemFont(ofSize: 16)
+        let titleHeight = font.lineHeight
+        let titleWidth = ceil((titleText as NSString).size(withAttributes: [.font: font]).width)
+
         let fullTitleRect = CGRect(
             x: geometry.margin,
             y: currentY + 30,
             width: contentWidth,
-            height: max(titleHeight, titleLineHeight)
+            height: titleHeight
         )
         guard let logoSize else {
             return AggregateHittingPDFHeaderGeometry(logoRect: nil, titleRect: fullTitleRect)
         }
 
         let spacing: CGFloat = 8
-        let logoWidth = min(max(logoSize.width, 1), fullTitleRect.width)
+        let logoWidth = min(max(logoSize.width, 1), contentWidth)
         let logoHeight = max(logoSize.height, 1)
+
+        let combinedWidth = logoWidth + spacing + titleWidth
+        let startX = max(geometry.margin, geometry.margin + (contentWidth - combinedWidth) / 2)
+
         let logoRect = CGRect(
-            x: geometry.margin,
+            x: startX,
             y: currentY + 25,
             width: logoWidth,
             height: logoHeight
         )
-        let titleX = min(fullTitleRect.maxX, logoRect.maxX + spacing)
-        let titleWidth = max(1, fullTitleRect.maxX - titleX)
+
+        let titleX = logoRect.maxX + spacing
+        let availableTitleWidth = max(1, fullTitleRect.maxX - titleX)
         let titleRect = CGRect(
             x: titleX,
             y: fullTitleRect.minY,
-            width: titleWidth,
+            width: availableTitleWidth,
             height: fullTitleRect.height
         )
 
@@ -443,7 +445,7 @@ struct ShowReportView: View {
         geometry: AggregateHittingPDFPaginationGeometry,
         currentY: CGFloat
     ) -> CGRect? {
-        guard let cell = aggregateHittingPDFNumericCells.first(where: { $0.identifier == identifier }) else {
+        guard let cell = aggregateHittingPDFColumnLabels.first(where: { $0.identifier == identifier }) else {
             return nil
         }
 
@@ -513,7 +515,7 @@ struct ShowReportView: View {
             return
         }
 
-        let fitResult = fittedAggregateHittingPDFNumericText(text, constrainedTo: rect)
+        let fitResult = fittedAggregateHittingPDFNumericText(text, constrainedTo: rect, alignment: .center)
         drawAggregateHittingPDFNumericText(fitResult, in: rect)
     }
 
@@ -586,7 +588,9 @@ struct ShowReportView: View {
                     )
 
                     let playerName = String(stats.player?.name ?? "")
-                    let playerNameRect = CGRect(x: geometry.margin + 30, y: currentY, width: 125, height: geometry.playerRowHeight)
+                    guard let playerNameRect = aggregateHittingPDFNumericCellRect(identifier: "name", geometry: geometry, currentY: currentY) else {
+                        continue
+                    }
                     let fittedPlayerName = fittedAggregateHittingPDFText(
                         fullText: playerName,
                         fallbackText: firstInitialPDFNameFallback(for: playerName),
@@ -698,9 +702,7 @@ struct ShowReportView: View {
         let dateFont = UIFont.systemFont(ofSize: 8)
         let headingFont = UIFont.systemFont(ofSize: 12)
         let columnLabelFont = UIFont.systemFont(ofSize: 12)
-        let footerFont = UIFont.systemFont(ofSize: 10)
         let pageNumberFont = UIFont.systemFont(ofSize: 10)
-        let titleHeight = UIFont.italicSystemFont(ofSize: 16).lineHeight
 
         let logoSize: CGSize?
         if let imageData = atbats.first?.team.logo, let uiImage = UIImage(data: imageData) {
@@ -708,19 +710,20 @@ struct ShowReportView: View {
         } else {
             logoSize = nil
         }
+        let titleText = "\(teamName) Hitting"
         let headerGeometry = aggregateHittingPDFHeaderGeometry(
+            titleText: titleText,
             geometry: geometry,
             currentY: currentY,
             contentWidth: contentWidth,
-            titleHeight: titleHeight,
             logoSize: logoSize
         )
         let fittedTitle = fittedAggregateHittingPDFText(
-            fullText: "\(teamName) Hitting",
+            fullText: titleText,
             initialFont: UIFont.italicSystemFont(ofSize: 16),
             minimumFontSize: 8,
             constrainedTo: headerGeometry.titleRect,
-            alignment: .center
+            alignment: logoSize == nil ? .center : .left
         )
 
         if let logoRect = headerGeometry.logoRect,
@@ -746,20 +749,6 @@ struct ShowReportView: View {
             alignment: .center
         )
         drawAggregateHittingPDFText(fittedPageNumber, in: pageNumberRect)
-
-        let footerRect = aggregateHittingPDFLineRect(
-            x: geometry.margin,
-            y: 575,
-            width: 250,
-            font: footerFont
-        )
-        let fittedFooter = fittedAggregateHittingPDFSingleLine(
-            "Report Created by IOS App ScoreKeep",
-            initialFont: footerFont,
-            rect: footerRect,
-            alignment: .left
-        )
-        drawAggregateHittingPDFText(fittedFooter, in: footerRect)
 
         let dateRect = aggregateHittingPDFLineRect(
             x: geometry.margin,
@@ -814,7 +803,7 @@ struct ShowReportView: View {
                 label.text,
                 initialFont: columnLabelFont,
                 rect: labelRect,
-                alignment: .left,
+                alignment: .center,
                 foregroundColor: .black
             )
             drawAggregateHittingPDFText(fittedLabel, in: labelRect)
