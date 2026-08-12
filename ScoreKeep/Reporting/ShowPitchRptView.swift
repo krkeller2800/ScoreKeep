@@ -31,15 +31,15 @@ struct ShowPitchRptView: View {
     }
 
     private static let pitchingPDFColumns: [PitchingPDFColumn] = [
-        PitchingPDFColumn(title: "Num", xOffset: 0, width: 30),
+        PitchingPDFColumn(title: "#", xOffset: 0, width: 30),
         PitchingPDFColumn(title: "Name", xOffset: 30, width: 125),
         PitchingPDFColumn(title: "ERA", xOffset: 160, width: 30),
-        PitchingPDFColumn(title: "INN", xOffset: 195, width: 30),
+        PitchingPDFColumn(title: "IP", xOffset: 195, width: 30),
         PitchingPDFColumn(title: "ER", xOffset: 230, width: 30),
         PitchingPDFColumn(title: "UER", xOffset: 250, width: 30),
-        PitchingPDFColumn(title: "Hit", xOffset: 280, width: 30),
-        PitchingPDFColumn(title: "Ks", xOffset: 310, width: 30),
-        PitchingPDFColumn(title: "ꓘs", xOffset: 340, width: 30),
+        PitchingPDFColumn(title: "H", xOffset: 280, width: 30),
+        PitchingPDFColumn(title: "K", xOffset: 310, width: 30),
+        PitchingPDFColumn(title: "ꓘ", xOffset: 340, width: 30),
         PitchingPDFColumn(title: "BB", xOffset: 375, width: 30),
         PitchingPDFColumn(title: "HBP", xOffset: 400, width: 30),
         PitchingPDFColumn(title: "HR", xOffset: 430, width: 20),
@@ -345,21 +345,28 @@ struct ShowPitchRptView: View {
         ]
         
         var attributedString = NSAttributedString(string: "\(tName) Pitching Stats", attributes: titleAttributes)
-        let titleSize: CGSize = "\(tName) Pitching Stats".size(withAttributes: [.font: UIFont.systemFont(ofSize: 16)])
+        let titleSize: CGSize = "\(tName) Pitching Stats".size(withAttributes: [.font: UIFont.italicSystemFont(ofSize: 16)])
         
-        if let imageData = pitchers[0].team.logo, let uiImage = UIImage(data: imageData) {
-            let width = 25 * uiImage.size.width / uiImage.size.height
-            let thumbnail = uiImage.preparingThumbnail(of: CGSize(width: width, height: 25))
-            thumbnail?.draw(at: CGPoint(x: ((800 - titleSize.width) / 2) - (width + 3), y: currentY+25))
+        var logoWidth: CGFloat = 0
+        let spacing: CGFloat = 8
+        if let imageData = pitchers.first?.team.logo, let uiImage = UIImage(data: imageData) {
+            logoWidth = 25 * uiImage.size.width / uiImage.size.height
+        }
+
+        let combinedWidth = (logoWidth > 0 ? logoWidth + spacing : 0) + titleSize.width
+        let startX = (800 - combinedWidth) / 2
+
+        if logoWidth > 0, let imageData = pitchers.first?.team.logo, let uiImage = UIImage(data: imageData) {
+            let thumbnail = uiImage.preparingThumbnail(of: CGSize(width: logoWidth, height: 25))
+            thumbnail?.draw(at: CGPoint(x: startX, y: currentY+25))
         }
         
         let headingSize: CGSize = "Pitching Statistics".size(withAttributes: [.font: UIFont.systemFont(ofSize: 12)])
-        attributedString.draw(in: CGRect(x: (800 - titleSize.width) / 2, y: currentY+30, width: contentWidth, height: titleHeight))
+        let titleX = logoWidth > 0 ? startX + logoWidth + spacing : startX
+        attributedString.draw(in: CGRect(x: titleX, y: currentY+30, width: contentWidth - titleX, height: titleHeight))
         let pNumSize: CGSize = "Page \(pagenum)".size(withAttributes: [.font: UIFont.systemFont(ofSize: 10)])
         attributedString = NSAttributedString(string: String("Page \(pagenum)"), attributes: detailAttributes)
         attributedString.draw(in: CGRect(x: (800 - pNumSize.width) / 2, y: 575, width: 40, height: headHeight))
-        attributedString = NSAttributedString(string: String("Report Created by IOS App ScoreKeep"), attributes: detailAttributes)
-        attributedString.draw(in: CGRect(x: 50, y: 575, width: 250, height: headHeight))
         
         attributedString = NSAttributedString(string: "Through", attributes: topAttributes)
         attributedString.draw(in: CGRect(x: 50, y: currentY, width: 35, height: headHeight))
@@ -372,6 +379,11 @@ struct ShowPitchRptView: View {
         Self.drawPitchingPDFTableFill(headerRect, fillColor: UIColor(white: 0.94, alpha: 1))
         Self.strokePitchingPDFTableRect(headerRect)
 
+        let centerParagraphStyle = NSMutableParagraphStyle()
+        centerParagraphStyle.alignment = .center
+        var centerHeadAttributes = headAttributes
+        centerHeadAttributes[.paragraphStyle] = centerParagraphStyle
+
         for column in Self.pitchingPDFColumns {
             let dividerX = 50 + column.xOffset
             Self.strokePitchingPDFTableLine(
@@ -380,7 +392,7 @@ struct ShowPitchRptView: View {
                 lineColor: UIColor(white: 0.65, alpha: 1)
             )
 
-            attributedString = NSAttributedString(string: column.title, attributes: headAttributes)
+            attributedString = NSAttributedString(string: column.title, attributes: centerHeadAttributes)
             attributedString.draw(in: CGRect(x: 50 + column.xOffset, y: currentY + 61, width: column.width, height: headHeight))
         }
 
