@@ -43,6 +43,84 @@ struct ScoreKeepActiveTransitionPreparationBoundaryTests {
         #expect(CanonicalTeamCreationCutoverReview.current.adapterRouted == false)
     }
 
+    @Test("active scoring restore token survives transient parent recreation")
+    func activeScoringRestoreTokenSurvivesTransientParentRecreation() {
+        #expect(
+            ActiveScoringWakeRestorationPolicy.resolution(
+                hasPersistentRestoreIntent: false,
+                isCurrentProcessWakeRestore: true,
+                pathIsEmpty: true,
+                hasValidGameID: true
+            ) == .noRestoreNeeded
+        )
+
+        #expect(
+            ActiveScoringWakeRestorationPolicy.resolution(
+                hasPersistentRestoreIntent: true,
+                isCurrentProcessWakeRestore: false,
+                pathIsEmpty: true,
+                hasValidGameID: true
+            ) == .clearStalePersistentRestore
+        )
+
+        #expect(
+            ActiveScoringWakeRestorationPolicy.resolution(
+                hasPersistentRestoreIntent: true,
+                isCurrentProcessWakeRestore: true,
+                pathIsEmpty: false,
+                hasValidGameID: true
+            ) == .preserveExistingPath
+        )
+
+        #expect(
+            ActiveScoringWakeRestorationPolicy.resolution(
+                hasPersistentRestoreIntent: true,
+                isCurrentProcessWakeRestore: true,
+                pathIsEmpty: true,
+                hasValidGameID: false
+            ) == .clearFailedRestore
+        )
+
+        #expect(
+            ActiveScoringWakeRestorationPolicy.resolution(
+                hasPersistentRestoreIntent: true,
+                isCurrentProcessWakeRestore: true,
+                pathIsEmpty: true,
+                hasValidGameID: true
+            ) == .rebuildPath
+        )
+
+        #expect(
+            ActiveScoringWakeRestorationPolicy.shouldShowRestoreProgress(
+                hasPersistentRestoreIntent: true,
+                isCurrentProcessWakeRestore: true,
+                pathIsEmpty: true,
+                hasValidGameID: true
+            )
+        )
+
+        #expect(
+            ActiveScoringWakeRestorationPolicy.shouldShowRestoreProgress(
+                hasPersistentRestoreIntent: true,
+                isCurrentProcessWakeRestore: false,
+                pathIsEmpty: true,
+                hasValidGameID: true
+            ) == false
+        )
+    }
+
+    @MainActor
+    @Test("current-process wake coordinator starts cold and clears")
+    func currentProcessWakeCoordinatorStartsColdAndClears() {
+        let coordinator = ActiveScoringWakeRestorationCoordinator()
+
+        #expect(coordinator.isRestoringFromCurrentProcessWake == false)
+        coordinator.markCurrentProcessWakeRestoreNeeded()
+        #expect(coordinator.isRestoringFromCurrentProcessWake)
+        coordinator.clearCurrentProcessWakeRestore()
+        #expect(coordinator.isRestoringFromCurrentProcessWake == false)
+    }
+
     @Test("preparation defaults retain legacy authority and absent production authorization")
     func preparationDefaultsRetainLegacyAuthority() {
         #expect(ScoreKeepContainerStartupSelection.currentDefault == .legacyActive)

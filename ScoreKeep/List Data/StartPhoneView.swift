@@ -80,7 +80,6 @@ struct StartPhoneView: View {
 //
 //            }
 //            .tag(5)
-
        }
         .onOpenURL { url in
             // Route custom deep links (scorekeep://...) via shared router; do NOT treat as file import

@@ -344,7 +344,6 @@ struct EditScoreView: View {
         .onDisappear {
             cancelPendingGeneratedOutputFlow()
         }
-
     }
     init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String, columnVisability: Binding<NavigationSplitViewVisibility>) {
         game = pgame

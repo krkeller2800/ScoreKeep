@@ -2549,6 +2549,7 @@ final class ScoreKeepProductionStartupModel: ObservableObject {
 
 struct ScoreKeepProductionStartupHost<Content: View>: View {
     @StateObject private var startup = ScoreKeepProductionStartupModel()
+    @StateObject private var wakeRestoration = ActiveScoringWakeRestorationCoordinator()
     let content: () -> Content
 
     var body: some View {
@@ -2561,6 +2562,7 @@ struct ScoreKeepProductionStartupHost<Content: View>: View {
                     content()
                         .modelContainer(container)
                         .environmentObject(service)
+                        .environmentObject(wakeRestoration)
                     if disposableIndicator {
                         DisposableRehearsalSummaryBanner(container: container, service: service)
                     }

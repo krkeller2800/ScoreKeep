@@ -262,7 +262,6 @@ struct GameView: View {
         _columnVisibility = columnVisability
         self.sortMode = sortMode
         self.createGame = createGame
-
         let effectiveSort: [SortDescriptor<Game>] = {
             switch sortMode {
             case .homeTeam, .visitorTeam:

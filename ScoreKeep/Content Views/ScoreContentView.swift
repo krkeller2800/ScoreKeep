@@ -12,6 +12,7 @@ struct ScoreContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var purchaseManager: PurchaseManager
+    @EnvironmentObject private var wakeRestoration: ActiveScoringWakeRestorationCoordinator
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.scenePhase) private var scenePhase
     @Binding var columnVisability: NavigationSplitViewVisibility
@@ -84,6 +85,18 @@ struct ScoreContentView: View {
         )
     }
 
+    init(
+        columnVisability: Binding<NavigationSplitViewVisibility>,
+        onOpenImportFlow: @escaping () -> Void = {},
+        onOpenExportFlow: @escaping () -> Void = {},
+        onOpenHelp: @escaping () -> Void = {}
+    ) {
+        _columnVisability = columnVisability
+        self.onOpenImportFlow = onOpenImportFlow
+        self.onOpenExportFlow = onOpenExportFlow
+        self.onOpenHelp = onOpenHelp
+    }
+
     // Small extracted pieces to reduce type-checking pressure
     private var scoreEditOptions: [String] { ["Score", "Edit"] }
 
@@ -124,20 +137,26 @@ struct ScoreContentView: View {
         }()
 
         NavigationStack(path: $path) {
-            GameView(
-                searchString: currentSearchText,
-                sortOrder: currentSortOrder,
-                sortMode: currentSortMode,
-                title: titleBinding,
-                navigationPath: navBinding,
-                columnVisability: columnBinding,
-                createGame: requestCreateGame
-            )
-            .phoneSettingsGearIfRoot(
-                onOpenImportFlow: onOpenImportFlow,
-                onOpenExportFlow: onOpenExportFlow,
-                onOpenHelp: onOpenHelp
-            )
+            Group {
+                if isResolvingPendingActiveScoringRestore {
+                    activeScoringRestorePlaceholder
+                } else {
+                    GameView(
+                        searchString: currentSearchText,
+                        sortOrder: currentSortOrder,
+                        sortMode: currentSortMode,
+                        title: titleBinding,
+                        navigationPath: navBinding,
+                        columnVisability: columnBinding,
+                        createGame: requestCreateGame
+                    )
+                    .phoneSettingsGearIfRoot(
+                        onOpenImportFlow: onOpenImportFlow,
+                        onOpenExportFlow: onOpenExportFlow,
+                        onOpenHelp: onOpenHelp
+                    )
+                }
+            }
             .navigationDestination(for: Game.self) { game in
                 destinationView(for: game)
             }
@@ -149,22 +168,25 @@ struct ScoreContentView: View {
                 if path.isEmpty {
                     activeScoringGameID = nil
                     activeScoringSessionNeedsRestore = false
+                    wakeRestoration.clearCurrentProcessWakeRestore()
                 }
             }
             .toolbar {
                 // Leading: Sort menu
                 ToolbarItemGroup(placement: .topBarLeading) {
-                    Menu("Sort", systemImage: "arrow.up.arrow.down") {
-                        Picker("Sort", selection: $selectedSortCriteria) {
-                            ForEach(SortCriteria.allCases) { criteria in
-                                if criteria == .dateAsc {
-                                    Text("Date (A-Z)").tag(criteria)
-                                } else if criteria == .dateDec {
-                                    Text("Date (Z-A)").tag(criteria)
-                                } else if criteria == .homeTeam {
-                                    Text("Home Team (A-Z)").tag(criteria)
-                                } else if criteria == .visitorTeam {
-                                    Text("Visitor Team (A-Z)").tag(criteria)
+                    if !isResolvingPendingActiveScoringRestore {
+                        Menu("Sort", systemImage: "arrow.up.arrow.down") {
+                            Picker("Sort", selection: $selectedSortCriteria) {
+                                ForEach(SortCriteria.allCases) { criteria in
+                                    if criteria == .dateAsc {
+                                        Text("Date (A-Z)").tag(criteria)
+                                    } else if criteria == .dateDec {
+                                        Text("Date (Z-A)").tag(criteria)
+                                    } else if criteria == .homeTeam {
+                                        Text("Home Team (A-Z)").tag(criteria)
+                                    } else if criteria == .visitorTeam {
+                                        Text("Visitor Team (A-Z)").tag(criteria)
+                                    }
                                 }
                             }
                         }
@@ -173,22 +195,26 @@ struct ScoreContentView: View {
 
                 // Leading: Add Team
                 ToolbarItem(placement: .topBarLeading) {
-                    addTeamToolbarButton()
+                    if !isResolvingPendingActiveScoringRestore {
+                        addTeamToolbarButton()
+                    }
                 }
 
                 // Leading: Score/Edit segmented control placed immediately to the right of Add Team
                 ToolbarItem(placement: .topBarLeading) {
-                    Picker("Select Option", selection: $doGame) {
-                        ForEach(scoreEditOptions, id: \.self) { option in
-                            Text(option)
+                    if !isResolvingPendingActiveScoringRestore {
+                        Picker("Select Option", selection: $doGame) {
+                            ForEach(scoreEditOptions, id: \.self) { option in
+                                Text(option)
+                            }
                         }
+                        .modifier(SegmentedSizingModifier())
                     }
-                    .modifier(SegmentedSizingModifier())
                 }
 
                 // Trailing: search icon on iPhone only
                 ToolbarItem(placement: .topBarTrailing) {
-                    if UIDevice.type == "iPhone" {
+                    if !isResolvingPendingActiveScoringRestore && UIDevice.type == "iPhone" {
                         Button(action: {
                             withAnimation {
                                 isSearching.toggle()
@@ -202,18 +228,20 @@ struct ScoreContentView: View {
 
                 // Trailing: Always-visible premium counter (compact-aware)
                 ToolbarItem(placement: .topBarTrailing) {
-                    Group {
-                        if isPremium {
-                            PremiumBadgeView(isCompact: hSizeClass == .compact)
-                        } else {
-                            freeCounterView
+                    if !isResolvingPendingActiveScoringRestore {
+                        Group {
+                            if isPremium {
+                                PremiumBadgeView(isCompact: hSizeClass == .compact)
+                            } else {
+                                freeCounterView
+                            }
                         }
                     }
                 }
 
                 // Trailing: Upgrade button (only show when not premium)
                 ToolbarItem(placement: .topBarTrailing) {
-                    if !isPremium {
+                    if !isResolvingPendingActiveScoringRestore && !isPremium {
                         Button {
                             requestUpgrade()
                         } label: {
@@ -227,7 +255,7 @@ struct ScoreContentView: View {
                     }
                 }
             }
-            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
+            .searchable(if: isSearching && !isResolvingPendingActiveScoringRestore, text: $searchText, placement: .toolbar, prompt: "YYYY-MM-DD or any text")
             .onAppear {
                 UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.2)
                 title = "\(doGame) a Game"
@@ -263,6 +291,31 @@ struct ScoreContentView: View {
         }
         .task {
             restoreActiveScoringSessionIfNeeded()
+        }
+    }
+
+    private var isResolvingPendingActiveScoringRestore: Bool {
+        ActiveScoringWakeRestorationPolicy.shouldShowRestoreProgress(
+            hasPersistentRestoreIntent: activeScoringSessionNeedsRestore,
+            isCurrentProcessWakeRestore: wakeRestoration.isRestoringFromCurrentProcessWake,
+            pathIsEmpty: path.isEmpty,
+            hasValidGameID: activeScoringGameID.flatMap(UUID.init(uuidString:)) != nil
+        )
+    }
+
+    private var activeScoringRestorePlaceholder: some View {
+        ZStack {
+            ScoreKeepVisualStyle.background
+                .ignoresSafeArea()
+
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Restoring game...")
+                    .font(.callout)
+                    .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Restoring game")
         }
     }
 
@@ -376,6 +429,7 @@ struct ScoreContentView: View {
         switch phase {
         case .inactive, .background:
             if activeScoringGameID != nil, !path.isEmpty {
+                wakeRestoration.markCurrentProcessWakeRestoreNeeded()
                 activeScoringSessionNeedsRestore = true
             }
         case .active:
@@ -386,29 +440,40 @@ struct ScoreContentView: View {
     }
 
     private func restoreActiveScoringSessionIfNeeded() {
-        guard activeScoringSessionNeedsRestore else { return }
-
-        guard path.isEmpty else {
+        switch ActiveScoringWakeRestorationPolicy.resolution(
+            hasPersistentRestoreIntent: activeScoringSessionNeedsRestore,
+            isCurrentProcessWakeRestore: wakeRestoration.isRestoringFromCurrentProcessWake,
+            pathIsEmpty: path.isEmpty,
+            hasValidGameID: activeScoringGameID.flatMap(UUID.init(uuidString:)) != nil
+        ) {
+        case .noRestoreNeeded:
+            return
+        case .clearStalePersistentRestore:
             activeScoringSessionNeedsRestore = false
             return
-        }
-
-        guard let gameIDString = activeScoringGameID, let uuid = UUID(uuidString: gameIDString) else {
+        case .preserveExistingPath:
+            return
+        case .clearFailedRestore:
             activeScoringSessionNeedsRestore = false
             activeScoringGameID = nil
+            wakeRestoration.clearCurrentProcessWakeRestore()
             return
+        case .rebuildPath:
+            break
         }
 
+        guard let gameIDString = activeScoringGameID, let uuid = UUID(uuidString: gameIDString) else { return }
         let fetchDescriptor = FetchDescriptor<Game>(predicate: #Predicate { $0.ident == uuid })
         guard let gameToRestore = try? modelContext.fetch(fetchDescriptor).first else {
             activeScoringSessionNeedsRestore = false
             activeScoringGameID = nil
+            wakeRestoration.clearCurrentProcessWakeRestore()
             return
         }
 
         doGame = "Score"
         path.append(gameToRestore)
-        activeScoringSessionNeedsRestore = false
+        wakeRestoration.clearCurrentProcessWakeRestore()
     }
 
     private func applySuccessfulGameCreationAllowanceTransaction(for gameID: UUID) {
