@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 import Testing
 @testable import ScoreKeep
 
@@ -487,6 +488,216 @@ struct RosterImportReconciliationTests {
         #expect(sourceOffsets == IndexSet(integer: 3))
     }
 
+    @Test("game import preserves legacy pitcher boundary evidence while aggregate report counts at-bat outs")
+    func gameImportPreservesLegacyPitcherBoundaryEvidenceWhileAggregateReportCountsAtbatOuts() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let visitors = ShareTeam(name: "Marlins", players: [
+            sharePlayer(name: "Visitor Batter", number: "1", position: "CF", batDir: "R", batOrder: 1)
+        ])
+        let home = ShareTeam(name: "Tigers", players: [
+            sharePlayer(name: "Drew Anderson", number: "38", position: "RP", batDir: "R", batOrder: 99)
+        ])
+        let pitcherPlayer = sharePlayer(name: "Drew Anderson", number: "38", position: "RP", batDir: "R", batOrder: 99)
+        let shareGame = ShareGame(
+            date: "2026-04-11T16:50:46Z",
+            location: "Comerica",
+            highLights: "",
+            hscore: 6,
+            vscore: 1,
+            everyOneHits: false,
+            numInnings: 9,
+            vteam: visitors,
+            hteam: home,
+            players: [],
+            atbats: [
+                shareAtbat(team: visitors, inning: 1.1, seq: 1, col: 1, outs: 1, result: "Ground Out"),
+                shareAtbat(team: visitors, inning: 1.2, seq: 2, col: 1, outs: 2, result: "Fly Out"),
+                shareAtbat(team: visitors, inning: 1.3, seq: 3, col: 1, outs: 3, result: "Strikeout", endOfInning: true)
+            ],
+            lineups: [],
+            pitchers: [
+                SharePitcher(
+                    player: pitcherPlayer,
+                    team: home,
+                    startInn: 1,
+                    sOuts: 0,
+                    sBats: 0,
+                    endInn: 10,
+                    eOuts: 0,
+                    eBats: 0,
+                    strikeOuts: 0,
+                    walks: 0,
+                    hits: 0,
+                    runs: 0,
+                    won: false
+                )
+            ],
+            replaced: [],
+            incomings: []
+        )
+
+        try ImportService(modelContext: environment.context).importShareGames([shareGame])
+        let importedPitcher = try #require(try environment.fetch(FetchDescriptor<Pitcher>()).first)
+        let importedGame = try #require(try environment.fetch(FetchDescriptor<Game>()).first)
+        let reportAtbats = importedGame.atbats.filter { $0.team.name == "Marlins" }
+        let reportInnings = pitcherRptViewInningsUsingCurrentFormula(atbats: reportAtbats, pitcher: importedPitcher)
+        let scorecardBoundaryOuts = ((importedPitcher.endInn - importedPitcher.startInn) * 3) + (importedPitcher.eOuts - importedPitcher.sOuts)
+
+        #expect(importedGame.atbats.count == 3)
+        #expect(reportAtbats.count == 3)
+        #expect(importedPitcher.team.name == "Tigers")
+        #expect(importedPitcher.startInn == 1)
+        #expect(importedPitcher.endInn == 10)
+        #expect(scorecardBoundaryOuts == 27)
+        #expect(reportInnings == 1)
+    }
+
+    @Test("passive historical refresh preserves imported pitcher boundaries")
+    func passiveHistoricalRefreshPreservesImportedPitcherBoundaries() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let marlins = Team(name: "Marlins", coach: "", details: "")
+        let tigers = Team(name: "Tigers", coach: "", details: "")
+        let game = Game(
+            date: "2026-04-11T16:50:46Z",
+            location: "Comerica",
+            highLights: "",
+            hscore: 6,
+            vscore: 1,
+            numInnings: 9,
+            vteam: marlins,
+            hteam: tigers
+        )
+        let mize = pitcher(name: "Casey Mize", team: tigers, game: game, startInn: 1, sOuts: 0, sBats: 0, endInn: 6, eOuts: 2, eBats: 4)
+        let anderson = pitcher(name: "Drew Anderson", team: tigers, game: game, startInn: 6, sOuts: 2, sBats: 4, endInn: 10, eOuts: 0, eBats: 0)
+        let hurter = pitcher(name: "Brant Hurter", team: tigers, game: game, startInn: 10, sOuts: 0, sBats: 0, endInn: 10, eOuts: 0, eBats: 0)
+        let historicalAtbats = [
+            modelAtbat(game: game, team: marlins, batterName: "Visitor One", batOrder: 1, result: "Ground Out", inning: 9, seq: 1, col: 9, outs: 1),
+            modelAtbat(game: game, team: marlins, batterName: "Visitor Two", batOrder: 2, result: "Fly Out", inning: 9, seq: 2, col: 9, outs: 2),
+            modelAtbat(game: game, team: marlins, batterName: "Visitor Three", batOrder: 3, result: "Strikeout", inning: 9, seq: 3, col: 9, outs: 3, endOfInning: true)
+        ]
+        game.atbats = historicalAtbats
+        game.pitchers = [anderson, hurter, mize]
+        [marlins, tigers].forEach(environment.context.insert)
+        environment.context.insert(game)
+        [mize, anderson, hurter].forEach(environment.context.insert)
+        historicalAtbats.forEach(environment.context.insert)
+        try environment.save()
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let prepared = coordinator.prepareLiveGameState(
+            game: game,
+            battingTeam: marlins,
+            displayedAtbats: historicalAtbats,
+            pitchers: game.pitchers
+        )
+        let result = coordinator.refreshProjections(
+            displayedAtbats: historicalAtbats,
+            pitchers: game.pitchers,
+            game: game,
+            maintainPitcherMarkers: prepared.canScore && prepared.currentOrPendingLegacyAtbat != nil,
+            save: { try environment.save() }
+        )
+
+        #expect(prepared.currentOrPendingLegacyAtbat == nil)
+        #expect(result.disposition == .success)
+        #expect(mize.startInn == 1)
+        #expect(mize.sOuts == 0)
+        #expect(mize.sBats == 0)
+        #expect(mize.endInn == 6)
+        #expect(mize.eOuts == 2)
+        #expect(mize.eBats == 4)
+
+        let reloadContext = ModelContext(environment.container)
+        let reloadedMize = try #require(try reloadContext.fetch(FetchDescriptor<Pitcher>()).first { $0.player.name == "Casey Mize" })
+        #expect(reloadedMize.startInn == 1)
+        #expect(reloadedMize.sOuts == 0)
+        #expect(reloadedMize.sBats == 0)
+        #expect(reloadedMize.endInn == 6)
+        #expect(reloadedMize.eOuts == 2)
+        #expect(reloadedMize.eBats == 4)
+    }
+
+    @Test("live refresh still closes previous pitcher and maintains current pitcher")
+    func liveRefreshStillClosesPreviousPitcherAndMaintainsCurrentPitcher() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let dodgers = Team(name: "Dodgers", coach: "", details: "")
+        let blueJays = Team(name: "Blue Jays", coach: "", details: "")
+        let game = Game(
+            date: "2025-11-01T22:00:00Z",
+            location: "Rogers Stadium",
+            highLights: "",
+            hscore: 0,
+            vscore: 0,
+            numInnings: 9,
+            vteam: dodgers,
+            hteam: blueJays
+        )
+        let scherzer = pitcher(name: "Max Scherzer", team: blueJays, game: game, startInn: 1, sOuts: 0, sBats: 0, endInn: 2, eOuts: 0, eBats: 0)
+        let green = pitcher(name: "Chad Green", team: blueJays, game: game, startInn: 2, sOuts: 0, sBats: 0, endInn: 0, eOuts: 0, eBats: 0)
+        let hoffman = pitcher(name: "Jeff Hoffman", team: blueJays, game: game, startInn: 2, sOuts: 1, sBats: 1, endInn: 0, eOuts: 0, eBats: 0)
+        let batterOne = Player(name: "Batter One", number: "", position: "", batDir: "R", batOrder: 1, team: dodgers)
+        let batterTwo = Player(name: "Batter Two", number: "", position: "", batDir: "R", batOrder: 2, team: dodgers)
+        let batterThree = Player(name: "Batter Three", number: "", position: "", batDir: "R", batOrder: 3, team: dodgers)
+        dodgers.players.append(contentsOf: [batterOne, batterTwo, batterThree])
+        let liveAtbats = [
+            modelAtbat(game: game, team: dodgers, player: batterOne, result: "Strikeout", inning: 1, seq: 1, col: 1, outs: 1),
+            modelAtbat(game: game, team: dodgers, player: batterTwo, result: "Fly Out", inning: 1, seq: 2, col: 1, outs: 2),
+            modelAtbat(game: game, team: dodgers, player: batterThree, result: "Ground Out", inning: 1, seq: 3, col: 1, outs: 3, endOfInning: true),
+            modelAtbat(game: game, team: dodgers, player: batterTwo, result: "Strikeout", inning: 4, seq: 4, col: 4, outs: 2),
+            modelAtbat(game: game, team: dodgers, player: batterThree, result: "Result", inning: 4, seq: 5, col: 4, outs: 2)
+        ]
+        game.atbats = liveAtbats
+        game.pitchers = [scherzer, green, hoffman]
+        [dodgers, blueJays].forEach(environment.context.insert)
+        [batterOne, batterTwo, batterThree].forEach(environment.context.insert)
+        environment.context.insert(game)
+        [scherzer, green, hoffman].forEach(environment.context.insert)
+        liveAtbats.forEach(environment.context.insert)
+        try environment.save()
+
+        let coordinator = LiveScoringWorkflowCoordinator()
+        let livePitcherOrder = [scherzer, green, hoffman]
+        let prepared = coordinator.prepareLiveGameState(
+            game: game,
+            battingTeam: dodgers,
+            displayedAtbats: liveAtbats,
+            pitchers: livePitcherOrder
+        )
+        let result = coordinator.refreshProjections(
+            displayedAtbats: liveAtbats,
+            pitchers: livePitcherOrder,
+            game: game,
+            maintainPitcherMarkers: prepared.canScore && prepared.currentOrPendingLegacyAtbat != nil,
+            save: { try environment.save() }
+        )
+
+        #expect(prepared.currentOrPendingLegacyAtbat != nil)
+        #expect(result.disposition == .success)
+        #expect(scherzer.endInn == 2)
+        #expect(scherzer.eOuts == 0)
+        #expect(scherzer.eBats == 0)
+        #expect(green.endInn == hoffman.startInn)
+        #expect(green.eOuts == hoffman.sOuts)
+        #expect(green.eBats == hoffman.sBats)
+        #expect(hoffman.startInn == 2)
+        #expect(hoffman.sOuts == 1)
+        #expect(hoffman.sBats == 1)
+        #expect(hoffman.endInn == 2)
+        #expect(hoffman.eOuts == 1)
+        #expect(hoffman.eBats == 1)
+
+        let reloadContext = ModelContext(environment.container)
+        let reloadedPitchers = try reloadContext.fetch(FetchDescriptor<Pitcher>())
+        let reloadedGreen = try #require(reloadedPitchers.first { $0.player.name == "Chad Green" })
+        let reloadedHoffman = try #require(reloadedPitchers.first { $0.player.name == "Jeff Hoffman" })
+        #expect(reloadedGreen.endInn == reloadedHoffman.startInn)
+        #expect(reloadedGreen.eOuts == reloadedHoffman.sOuts)
+        #expect(reloadedGreen.eBats == reloadedHoffman.sBats)
+        #expect(reloadedHoffman.endInn == 2)
+        #expect(reloadedHoffman.eOuts == 1)
+        #expect(reloadedHoffman.eBats == 1)
+    }
+
     private func sharePlayer(
         name: String,
         number: String,
@@ -497,10 +708,154 @@ struct RosterImportReconciliationTests {
         SharePlayer(name: name, number: number, position: position, batDir: batDir, batOrder: batOrder)
     }
 
+    private func shareAtbat(
+        team: ShareTeam,
+        inning: CGFloat,
+        seq: Int,
+        col: Int,
+        outs: Int,
+        result: String,
+        endOfInning: Bool = false
+    ) -> ShareAtbat {
+        ShareAtbat(
+            game: nil,
+            team: team,
+            player: team.players[0],
+            result: result,
+            maxbase: "No Bases",
+            batOrder: 1,
+            outAt: "Safe",
+            inning: inning,
+            seq: seq,
+            col: col,
+            rbis: 0,
+            outs: outs,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0,
+            earnedRun: true,
+            playRec: "",
+            endOfInning: endOfInning
+        )
+    }
+
+    private func pitcherRptViewInningsUsingCurrentFormula(atbats: [Atbat], pitcher: Pitcher) -> Int {
+        guard atbats.isEmpty == false else { return 0 }
+
+        let common = Common()
+        let endInning = pitcher.endInn > 0 ? pitcher.endInn : Int(atbats[atbats.count - 1].inning) + 1
+        let outCount = atbats.filter {
+            common.outresults.contains($0.result) &&
+            (10 * Int($0.inning + 1)) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts &&
+            (
+                (10 * Int($0.inning + 1)) + $0.outs <= (10 * endInning) + pitcher.eOuts ||
+                (Int($0.inning) == endInning - 1 && $0.outs == 3)
+            )
+        }.count
+
+        return Int(CGFloat(outCount) / 3)
+    }
+
     private func fetchPlayers(_ environment: IsolatedPersistenceEnvironment, teamName: String) throws -> [Player] {
         var descriptor = FetchDescriptor<Player>(sortBy: [SortDescriptor(\.batOrder), SortDescriptor(\.name)])
         descriptor.predicate = #Predicate { $0.team?.name == teamName }
         return try environment.fetch(descriptor)
+    }
+
+    private func pitcher(
+        name: String,
+        team: Team,
+        game: Game,
+        startInn: Int,
+        sOuts: Int,
+        sBats: Int,
+        endInn: Int,
+        eOuts: Int,
+        eBats: Int
+    ) -> Pitcher {
+        let player = Player(name: name, number: "", position: "P", batDir: "R", batOrder: 99, team: team)
+        team.players.append(player)
+        return Pitcher(
+            player: player,
+            team: team,
+            game: game,
+            startInn: startInn,
+            sOuts: sOuts,
+            sBats: sBats,
+            endInn: endInn,
+            eOuts: eOuts,
+            eBats: eBats,
+            strikeOuts: 0,
+            walks: 0,
+            hits: 0,
+            runs: 0,
+            won: false
+        )
+    }
+
+    private func modelAtbat(
+        game: Game,
+        team: Team,
+        batterName: String,
+        batOrder: Int,
+        result: String,
+        inning: CGFloat,
+        seq: Int,
+        col: Int,
+        outs: Int,
+        endOfInning: Bool = false
+    ) -> Atbat {
+        let player = Player(name: batterName, number: "", position: "", batDir: "R", batOrder: batOrder, team: team)
+        team.players.append(player)
+        return Atbat(
+            game: game,
+            team: team,
+            player: player,
+            result: result,
+            maxbase: "No Bases",
+            batOrder: batOrder,
+            outAt: "Safe",
+            inning: inning,
+            seq: seq,
+            col: col,
+            rbis: 0,
+            outs: outs,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0,
+            endOfInning: endOfInning
+        )
+    }
+
+    private func modelAtbat(
+        game: Game,
+        team: Team,
+        player: Player,
+        result: String,
+        inning: CGFloat,
+        seq: Int,
+        col: Int,
+        outs: Int,
+        endOfInning: Bool = false
+    ) -> Atbat {
+        Atbat(
+            game: game,
+            team: team,
+            player: player,
+            result: result,
+            maxbase: "No Bases",
+            batOrder: player.batOrder,
+            outAt: "Safe",
+            inning: inning,
+            seq: seq,
+            col: col,
+            rbis: 0,
+            outs: outs,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0,
+            endOfInning: endOfInning
+        )
     }
 
     private func assertManualUpdateExistingPersists(entryPath: String) throws {

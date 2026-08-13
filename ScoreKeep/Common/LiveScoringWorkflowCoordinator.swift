@@ -826,6 +826,7 @@ struct LiveScoringWorkflowCoordinator {
         displayedAtbats: [Atbat],
         pitchers: [Pitcher],
         game: Game,
+        maintainPitcherMarkers: Bool = true,
         save: SaveAction
     ) -> ProjectionResult {
         var columnBoxes = Array(repeating: BoxScore(), count: 20)
@@ -852,7 +853,12 @@ struct LiveScoringWorkflowCoordinator {
         }
 
         let inningStatus = updateMaxBases(displayedAtbats: displayedAtbats)
-        let pitcherDisposition = updatePitcherMarkers(displayedAtbats: displayedAtbats, pitchers: pitchers, game: game, save: save)
+        let pitcherDisposition: (disposition: Disposition, message: String?)
+        if maintainPitcherMarkers {
+            pitcherDisposition = updatePitcherMarkers(displayedAtbats: displayedAtbats, pitchers: pitchers, game: game, save: save)
+        } else {
+            pitcherDisposition = (.noChange, nil)
+        }
 
         guard pitcherDisposition.disposition != .persistenceFailed else {
             return ProjectionResult(

@@ -312,6 +312,7 @@ struct PlayersToScoreView: View {
             displayedAtbats: atbats,
             pitchers: pitchers,
             game: game,
+            maintainPitcherMarkers: preparedPresentation.preparedState.canScore && preparedPresentation.preparedState.currentOrPendingLegacyAtbat != nil,
             save: { try modelContext.save() }
         )
 
