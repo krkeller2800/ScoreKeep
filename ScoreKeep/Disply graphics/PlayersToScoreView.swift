@@ -43,6 +43,7 @@ struct PlayersToScoreView: View {
     @State private var alertMessage = ""
     @State private var highlightedCell: String? = nil
     @State private var invalidSelectionGuidanceToken: UUID?
+    private let inningHeaderPitcherSummaryClearance: CGFloat = 24
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
     let com = Common()
@@ -61,7 +62,6 @@ struct PlayersToScoreView: View {
                 if let semanticScorePresentation {
                     semanticScoreLine(presentation: semanticScorePresentation, size: geometry.size)
                 }
-                drawInnings(game: game, atbats: atbats, space: calcSpace(gWidth: gWidth),offset: offset,gWidth: gWidth)
                 VStack ( spacing: 0) {
                     HStack(alignment: .top) {
                         Text("Num").frame(width:30, height: 15, alignment:.center).font(.caption).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().padding(.leading, 3)
@@ -179,6 +179,21 @@ struct PlayersToScoreView: View {
                             refreshLiveScoringWorkflow()
                             scrollToPendingPitcherSectionIfAvailable()
                         }
+                }
+                .overlayPreferenceValue(PitcherInningsTrackingTableBoundsPreferenceKey.self) { tableBounds in
+                    GeometryReader { proxy in
+                        let visibleHeight = tableBounds.map { max(0, proxy[$0].minY - inningHeaderPitcherSummaryClearance) } ?? proxy.size.height
+                        drawInnings(game: game, atbats: atbats, space: calcSpace(gWidth: gWidth), offset: offset, gWidth: gWidth)
+                            .allowsHitTesting(false)
+                            .mask(
+                                VStack(spacing: 0) {
+                                    Rectangle()
+                                        .frame(height: visibleHeight)
+                                    Spacer(minLength: 0)
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            )
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
                 .accessibilityIdentifier("live_scoring_root")
