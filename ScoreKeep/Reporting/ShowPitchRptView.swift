@@ -24,34 +24,79 @@ struct ShowPitchRptView: View {
 
     var com:Common = Common()
 
-    private struct PitchingPDFColumn {
+    struct PitchingPDFColumn {
+        let identifier: String
         let title: String
         let xOffset: CGFloat
         let width: CGFloat
     }
 
-    private static let pitchingPDFColumns: [PitchingPDFColumn] = [
-        PitchingPDFColumn(title: "#", xOffset: 0, width: 30),
-        PitchingPDFColumn(title: "Name", xOffset: 30, width: 125),
-        PitchingPDFColumn(title: "ERA", xOffset: 160, width: 30),
-        PitchingPDFColumn(title: "IP", xOffset: 195, width: 30),
-        PitchingPDFColumn(title: "ER", xOffset: 230, width: 30),
-        PitchingPDFColumn(title: "UER", xOffset: 250, width: 30),
-        PitchingPDFColumn(title: "H", xOffset: 280, width: 30),
-        PitchingPDFColumn(title: "K", xOffset: 310, width: 30),
-        PitchingPDFColumn(title: "ꓘ", xOffset: 340, width: 30),
-        PitchingPDFColumn(title: "BB", xOffset: 375, width: 30),
-        PitchingPDFColumn(title: "HBP", xOffset: 400, width: 30),
-        PitchingPDFColumn(title: "HR", xOffset: 430, width: 20),
-        PitchingPDFColumn(title: "1B", xOffset: 460, width: 20),
-        PitchingPDFColumn(title: "2B", xOffset: 490, width: 20),
-        PitchingPDFColumn(title: "3B", xOffset: 520, width: 20)
+    private struct PitchingPDFColumnDefinition {
+        let identifier: String
+        let title: String
+        let xOffset: CGFloat
+    }
+
+    private static let pitchingPDFTrailingColumnWidth: CGFloat = 20
+
+    private static let pitchingPDFColumnDefinitions: [PitchingPDFColumnDefinition] = [
+        PitchingPDFColumnDefinition(identifier: "number", title: "#", xOffset: 0),
+        PitchingPDFColumnDefinition(identifier: "name", title: "Name", xOffset: 30),
+        PitchingPDFColumnDefinition(identifier: "era", title: "ERA", xOffset: 160),
+        PitchingPDFColumnDefinition(identifier: "innings", title: "IP", xOffset: 195),
+        PitchingPDFColumnDefinition(identifier: "earnedRuns", title: "ER", xOffset: 230),
+        PitchingPDFColumnDefinition(identifier: "unearnedRuns", title: "UER", xOffset: 250),
+        PitchingPDFColumnDefinition(identifier: "hits", title: "H", xOffset: 280),
+        PitchingPDFColumnDefinition(identifier: "strikeouts", title: "K", xOffset: 310),
+        PitchingPDFColumnDefinition(identifier: "lookingStrikeouts", title: "ꓘ", xOffset: 340),
+        PitchingPDFColumnDefinition(identifier: "walks", title: "BB", xOffset: 375),
+        PitchingPDFColumnDefinition(identifier: "hbp", title: "HBP", xOffset: 400),
+        PitchingPDFColumnDefinition(identifier: "homeRuns", title: "HR", xOffset: 430),
+        PitchingPDFColumnDefinition(identifier: "singles", title: "1B", xOffset: 460),
+        PitchingPDFColumnDefinition(identifier: "doubles", title: "2B", xOffset: 490),
+        PitchingPDFColumnDefinition(identifier: "triples", title: "3B", xOffset: 520)
     ]
 
-    private static var pitchingPDFTableWidth: CGFloat {
+    static let pitchingPDFColumns: [PitchingPDFColumn] = {
+        pitchingPDFColumnDefinitions.enumerated().map { index, column in
+            let nextXOffset = pitchingPDFColumnDefinitions.dropFirst(index + 1).first?.xOffset
+            let width = (nextXOffset ?? column.xOffset + pitchingPDFTrailingColumnWidth) - column.xOffset
+
+            return PitchingPDFColumn(
+                identifier: column.identifier,
+                title: column.title,
+                xOffset: column.xOffset,
+                width: width
+            )
+        }
+    }()
+
+    static var pitchingPDFTableWidth: CGFloat {
         pitchingPDFColumns
             .map { $0.xOffset + $0.width }
             .max() ?? 0
+    }
+
+    static func pitchingPDFTableOriginX(margin: CGFloat, contentWidth: CGFloat) -> CGFloat {
+        margin + max(0, (contentWidth - pitchingPDFTableWidth) / 2)
+    }
+
+    static func pitchingPDFCellRect(
+        identifier: String,
+        tableOriginX: CGFloat,
+        currentY: CGFloat,
+        height: CGFloat
+    ) -> CGRect? {
+        guard let column = pitchingPDFColumns.first(where: { $0.identifier == identifier }) else {
+            return nil
+        }
+
+        return CGRect(
+            x: tableOriginX + column.xOffset,
+            y: currentY,
+            width: column.width,
+            height: height
+        )
     }
 
     var body: some View {
@@ -118,13 +163,19 @@ struct ShowPitchRptView: View {
             .paragraphStyle: NSMutableParagraphStyle()
         ]
 
-        var attributedString = NSAttributedString(string: "", attributes: titleAttributes)
         let data = pdfRenderer.pdfData { context in
             context.beginPage()
             
             let textHeight = NSAttributedString(string: "", attributes: textAttributes).boundingRect(with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, context: nil).height + 5
 
-            doHeader(headAttributes: headAttributes, titleAttributes: titleAttributes, textAttributes: textAttributes, currentY: currentY, contentWidth: contentWidth)
+            doHeader(
+                headAttributes: headAttributes,
+                titleAttributes: titleAttributes,
+                textAttributes: textAttributes,
+                currentY: currentY,
+                margin: margin,
+                contentWidth: contentWidth
+            )
              currentY += 80
             
             sumedStats.sort { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
@@ -135,11 +186,19 @@ struct ShowPitchRptView: View {
                     context.beginPage()
                     currentY = margin
                     pagenum += 1
-                    doHeader(headAttributes: headAttributes, titleAttributes: titleAttributes, textAttributes: textAttributes, currentY: currentY, contentWidth: contentWidth)
+                    doHeader(
+                        headAttributes: headAttributes,
+                        titleAttributes: titleAttributes,
+                        textAttributes: textAttributes,
+                        currentY: currentY,
+                        margin: margin,
+                        contentWidth: contentWidth
+                    )
                     currentY += 80
                  }
+                let tableOriginX = Self.pitchingPDFTableOriginX(margin: margin, contentWidth: contentWidth)
                 let rowRect = CGRect(
-                    x: margin,
+                    x: tableOriginX,
                     y: currentY,
                     width: Self.pitchingPDFTableWidth,
                     height: textHeight
@@ -150,50 +209,39 @@ struct ShowPitchRptView: View {
                     to: CGPoint(x: rowRect.maxX, y: rowRect.maxY)
                 )
 
-                attributedString = NSAttributedString(string: String(stats.pitcher?.player.number ?? ""), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 5, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String(stats.pitcher?.player.name ?? ""), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 30, y: currentY, width: 125, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String(String(format: "%.2f", stats.ERA)), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 160, y: currentY, width: 30, height: textHeight))
-                                
-                attributedString = NSAttributedString(string: String("\(stats.innings)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 200, y: currentY, width: 30, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.runs)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 230, y: currentY, width: 30, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.uruns)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 260, y: currentY, width: 30, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.hits)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 285, y: currentY, width: 30, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.Ks)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 315, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.Ksl)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 347, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.BB)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 380, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.hbp)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 407, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.HR)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 437, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.singles)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 467, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.doubles)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 497, y: currentY, width: 20, height: textHeight))
-                
-                attributedString = NSAttributedString(string: String("\(stats.triples)"), attributes: textAttributes)
-                attributedString.draw(in: CGRect(x: margin + 527, y: currentY, width: 20, height: textHeight))
+                Self.drawPitchingPDFCellText(
+                    String(stats.pitcher?.player.number ?? ""),
+                    identifier: "number",
+                    tableOriginX: tableOriginX,
+                    currentY: currentY,
+                    height: textHeight,
+                    attributes: textAttributes,
+                    alignment: .center
+                )
+
+                Self.drawPitchingPDFCellText(
+                    String(stats.pitcher?.player.name ?? ""),
+                    identifier: "name",
+                    tableOriginX: tableOriginX,
+                    currentY: currentY,
+                    height: textHeight,
+                    attributes: textAttributes,
+                    alignment: .left
+                )
+
+                Self.drawPitchingPDFCellText(String(format: "%.2f", stats.ERA), identifier: "era", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText(PitchingInningsCalculator.displayString(fromOuts: stats.pitchingOuts), identifier: "innings", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.runs)", identifier: "earnedRuns", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.uruns)", identifier: "unearnedRuns", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.hits)", identifier: "hits", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.Ks)", identifier: "strikeouts", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.Ksl)", identifier: "lookingStrikeouts", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.BB)", identifier: "walks", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.hbp)", identifier: "hbp", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.HR)", identifier: "homeRuns", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.singles)", identifier: "singles", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.doubles)", identifier: "doubles", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
+                Self.drawPitchingPDFCellText("\(stats.triples)", identifier: "triples", tableOriginX: tableOriginX, currentY: currentY, height: textHeight, attributes: textAttributes)
                 
                 currentY += textHeight
             }
@@ -238,6 +286,34 @@ struct ShowPitchRptView: View {
         context.strokePath()
         context.restoreGState()
     }
+
+    private static func drawPitchingPDFCellText(
+        _ text: String,
+        identifier: String,
+        tableOriginX: CGFloat,
+        currentY: CGFloat,
+        height: CGFloat,
+        attributes: [NSAttributedString.Key: Any],
+        alignment: NSTextAlignment = .center
+    ) {
+        guard let rect = pitchingPDFCellRect(
+            identifier: identifier,
+            tableOriginX: tableOriginX,
+            currentY: currentY,
+            height: height
+        ) else {
+            return
+        }
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = alignment
+        paragraphStyle.lineBreakMode = .byClipping
+
+        var alignedAttributes = attributes
+        alignedAttributes[.paragraphStyle] = paragraphStyle
+
+        NSAttributedString(string: text, attributes: alignedAttributes).draw(in: rect)
+    }
     
     func savePDF(data: Data, fileName: String) -> URL? {
         let fileManager = FileManager.default
@@ -257,9 +333,9 @@ struct ShowPitchRptView: View {
     func doPitchers(pitcher: Pitcher)->PitchStats {
         if atbats.count > 0 {
             let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(atbats[(atbats.count - 1)].inning) + 1
-            let innings = CGFloat(atbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning + 1)) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
-                (10 * (Int($0.inning + 1)) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
-                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
+            let pitchingOuts = PitchingInningsCalculator.recordedOuts(for: pitcher)
+            let innings = PitchingInningsCalculator.baseballNotation(fromOuts: pitchingOuts)
+            let decimalInnings = PitchingInningsCalculator.decimalInnings(fromOuts: pitchingOuts)
             let runs = atbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
                 (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
@@ -294,8 +370,8 @@ struct ShowPitchRptView: View {
                 (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
             
-            let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
-            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, Ksl: Ksl, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), hbp: hbp, ERA: ERA)
+            let ERA = pitchingOuts == 0 ? 0 : CGFloat(runs) / decimalInnings * 9
+            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, Ksl: Ksl, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: innings, pitchingOuts: pitchingOuts, hbp: hbp, ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
@@ -314,9 +390,11 @@ struct ShowPitchRptView: View {
         stats.singles += thisStats.singles
         stats.doubles += thisStats.doubles
         stats.triples += thisStats.triples
-        stats.innings += thisStats.innings
+        stats.pitchingOuts += thisStats.pitchingOuts
+        stats.innings = PitchingInningsCalculator.baseballNotation(fromOuts: stats.pitchingOuts)
         stats.hbp += thisStats.hbp
-        stats.ERA = stats.innings == 0 ? 0.0 : (CGFloat(stats.runs) / CGFloat(stats.innings)) * 9
+        let decimalInnings = PitchingInningsCalculator.decimalInnings(fromOuts: stats.pitchingOuts)
+        stats.ERA = stats.pitchingOuts == 0 ? 0.0 : (CGFloat(stats.runs) / decimalInnings) * 9
     }
     func getPitchers() {
             
@@ -331,7 +409,14 @@ struct ShowPitchRptView: View {
                 print("SwiftData Error getting atbats: \(error)")
             }
     }
-    func doHeader (headAttributes: [NSAttributedString.Key : Any], titleAttributes: [NSAttributedString.Key : Any], textAttributes: [NSAttributedString.Key : Any],currentY: CGFloat, contentWidth: CGFloat) {
+    func doHeader (
+        headAttributes: [NSAttributedString.Key : Any],
+        titleAttributes: [NSAttributedString.Key : Any],
+        textAttributes: [NSAttributedString.Key : Any],
+        currentY: CGFloat,
+        margin: CGFloat,
+        contentWidth: CGFloat
+    ) {
         
         let detailAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.systemFont(ofSize: 10),
@@ -375,7 +460,8 @@ struct ShowPitchRptView: View {
         attributedString = NSAttributedString(string:"Pitching Statistics", attributes: textAttributes)
         attributedString.draw(in: CGRect(x: (800 - headingSize.width) / 2, y: currentY, width: headingSize.width, height: headHeight))
         
-        let headerRect = CGRect(x: 50, y: currentY + 58, width: Self.pitchingPDFTableWidth, height: 19)
+        let tableOriginX = Self.pitchingPDFTableOriginX(margin: margin, contentWidth: contentWidth)
+        let headerRect = CGRect(x: tableOriginX, y: currentY + 58, width: Self.pitchingPDFTableWidth, height: 19)
         Self.drawPitchingPDFTableFill(headerRect, fillColor: UIColor(white: 0.94, alpha: 1))
         Self.strokePitchingPDFTableRect(headerRect)
 
@@ -385,7 +471,7 @@ struct ShowPitchRptView: View {
         centerHeadAttributes[.paragraphStyle] = centerParagraphStyle
 
         for column in Self.pitchingPDFColumns {
-            let dividerX = 50 + column.xOffset
+            let dividerX = tableOriginX + column.xOffset
             Self.strokePitchingPDFTableLine(
                 from: CGPoint(x: dividerX, y: headerRect.minY),
                 to: CGPoint(x: dividerX, y: headerRect.maxY),
@@ -393,7 +479,7 @@ struct ShowPitchRptView: View {
             )
 
             attributedString = NSAttributedString(string: column.title, attributes: centerHeadAttributes)
-            attributedString.draw(in: CGRect(x: 50 + column.xOffset, y: currentY + 61, width: column.width, height: headHeight))
+            attributedString.draw(in: CGRect(x: tableOriginX + column.xOffset, y: currentY + 61, width: column.width, height: headHeight))
         }
 
         Self.strokePitchingPDFTableLine(

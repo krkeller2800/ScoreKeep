@@ -202,7 +202,7 @@ struct PitcherRptView: View {
                             .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.5)
                         Text(Double(stats.ERA), format: .number.rounded(increment: 0.01))
                             .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
-                        Text(Double(stats.innings), format: .number.rounded(increment: 1.0))
+                        Text(PitchingInningsCalculator.displayString(fromOuts: stats.pitchingOuts))
                             .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
                         Text(Double(stats.runs), format: .number.rounded(increment: 1.0))
                             .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth:.infinity).lineLimit(1).minimumScaleFactor(0.5)
@@ -245,9 +245,9 @@ struct PitcherRptView: View {
     func doPitchers(pitcher: Pitcher)->PitchStats {
         if atbats.count > 0 {
             let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(atbats[(atbats.count - 1)].inning) + 1
-            let innings = CGFloat(atbats.filter({com.outresults.contains($0.result) && (10 * (Int($0.inning + 1)) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
-                (10 * (Int($0.inning + 1)) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
-                 (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
+            let pitchingOuts = PitchingInningsCalculator.recordedOuts(for: pitcher)
+            let innings = PitchingInningsCalculator.baseballNotation(fromOuts: pitchingOuts)
+            let decimalInnings = PitchingInningsCalculator.decimalInnings(fromOuts: pitchingOuts)
             let runs = atbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning + 1)) + $0.seq >= (10 * pitcher.startInn) + pitcher.sBats) &&
                 (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
@@ -282,8 +282,8 @@ struct PitcherRptView: View {
                 (10 * (Int($0.inning + 1)) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
             
-            let ERA = innings == 0 ? 0 : CGFloat(runs) / innings * 9
-            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, Ksl: Ksl, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), hbp: hbp, ERA: ERA)
+            let ERA = pitchingOuts == 0 ? 0 : CGFloat(runs) / decimalInnings * 9
+            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, Ksl: Ksl, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: innings, pitchingOuts: pitchingOuts, hbp: hbp, ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
@@ -303,9 +303,11 @@ struct PitcherRptView: View {
             stats.singles += thisStats.singles
             stats.doubles += thisStats.doubles
             stats.triples += thisStats.triples
-            stats.innings += thisStats.innings
+            stats.pitchingOuts += thisStats.pitchingOuts
+            stats.innings = PitchingInningsCalculator.baseballNotation(fromOuts: stats.pitchingOuts)
             stats.hbp += thisStats.hbp
-            stats.ERA = stats.innings == 0 ? 0.0 : (CGFloat(stats.runs) / CGFloat(stats.innings)) * 9
+            let decimalInnings = PitchingInningsCalculator.decimalInnings(fromOuts: stats.pitchingOuts)
+            stats.ERA = stats.pitchingOuts == 0 ? 0.0 : (CGFloat(stats.runs) / decimalInnings) * 9
         }
     }
     func saveImage(uiimage: UIImage?)-> URL? {

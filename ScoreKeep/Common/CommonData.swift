@@ -81,10 +81,11 @@ struct PitchStats: Identifiable {
     var singles:Int = 0
     var doubles:Int = 0
     var triples:Int = 0
-    var innings:Int = 0
+    var innings:CGFloat = 0
+    var pitchingOuts:Int = 0
     var hbp:Int = 0
     var ERA:CGFloat = 0
-    init(pitcher: Pitcher? = nil, runs: Int = 0,uruns: Int = 0, hits: Int = 0, HR: Int = 0, Ks: Int = 0, Ksl: Int = 0, BB: Int = 0, singles: Int = 0, doubles: Int = 0, triples: Int = 0, innings: Int = 0, hbp: Int = 0, ERA: CGFloat) {
+    init(pitcher: Pitcher? = nil, runs: Int = 0,uruns: Int = 0, hits: Int = 0, HR: Int = 0, Ks: Int = 0, Ksl: Int = 0, BB: Int = 0, singles: Int = 0, doubles: Int = 0, triples: Int = 0, innings: CGFloat = 0, pitchingOuts: Int = 0, hbp: Int = 0, ERA: CGFloat) {
         self.pitcher = pitcher
         self.runs = runs
         self.uruns = uruns
@@ -97,8 +98,51 @@ struct PitchStats: Identifiable {
         self.doubles = doubles
         self.triples = triples
         self.innings = innings
+        self.pitchingOuts = pitchingOuts
         self.hbp = hbp
         self.ERA = ERA
+    }
+}
+
+public enum PitchingInningsCalculator {
+    public static func recordedOuts(startInn: Int, sOuts: Int, endInn: Int, eOuts: Int) -> Int {
+        max(0, ((endInn - startInn) * 3) + (eOuts - sOuts))
+    }
+
+    static func recordedOuts(for pitcher: Pitcher) -> Int {
+        recordedOuts(
+            startInn: pitcher.startInn,
+            sOuts: pitcher.sOuts,
+            endInn: pitcher.endInn,
+            eOuts: pitcher.eOuts
+        )
+    }
+
+    public static func decimalInnings(fromOuts outs: Int) -> CGFloat {
+        CGFloat(max(0, outs)) / 3.0
+    }
+
+    public static func baseballNotation(fromOuts outs: Int) -> CGFloat {
+        let safeOuts = max(0, outs)
+        return CGFloat(safeOuts / 3) + (CGFloat(safeOuts % 3) / 10.0)
+    }
+
+    public static func displayString(fromOuts outs: Int) -> String {
+        let safeOuts = max(0, outs)
+        let wholeInnings = safeOuts / 3
+        let remainingOuts = safeOuts % 3
+        switch (wholeInnings, remainingOuts) {
+        case (_, 0):
+            return "\(wholeInnings)"
+        case (0, 1):
+            return "⅓"
+        case (0, 2):
+            return "⅔"
+        case (_, 1):
+            return "\(wholeInnings)⅓"
+        default:
+            return "\(wholeInnings)⅔"
+        }
     }
 }
 struct PlayerStats: Identifiable {

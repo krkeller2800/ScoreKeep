@@ -488,8 +488,8 @@ struct RosterImportReconciliationTests {
         #expect(sourceOffsets == IndexSet(integer: 3))
     }
 
-    @Test("game import preserves legacy pitcher boundary evidence while aggregate report counts at-bat outs")
-    func gameImportPreservesLegacyPitcherBoundaryEvidenceWhileAggregateReportCountsAtbatOuts() throws {
+    @Test("game import preserves legacy pitcher boundary evidence while aggregate report uses boundary outs")
+    func gameImportPreservesLegacyPitcherBoundaryEvidenceWhileAggregateReportUsesBoundaryOuts() throws {
         let environment = try IsolatedPersistenceEnvironment()
         let visitors = ShareTeam(name: "Marlins", players: [
             sharePlayer(name: "Visitor Batter", number: "1", position: "CF", batDir: "R", batOrder: 1)
@@ -540,8 +540,13 @@ struct RosterImportReconciliationTests {
         let importedPitcher = try #require(try environment.fetch(FetchDescriptor<Pitcher>()).first)
         let importedGame = try #require(try environment.fetch(FetchDescriptor<Game>()).first)
         let reportAtbats = importedGame.atbats.filter { $0.team.name == "Marlins" }
-        let reportInnings = pitcherRptViewInningsUsingCurrentFormula(atbats: reportAtbats, pitcher: importedPitcher)
-        let scorecardBoundaryOuts = ((importedPitcher.endInn - importedPitcher.startInn) * 3) + (importedPitcher.eOuts - importedPitcher.sOuts)
+        let reportInnings = pitcherRptViewBoundaryInnings(pitcher: importedPitcher)
+        let scorecardBoundaryOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(
+            startInn: importedPitcher.startInn,
+            sOuts: importedPitcher.sOuts,
+            endInn: importedPitcher.endInn,
+            eOuts: importedPitcher.eOuts
+        )
 
         #expect(importedGame.atbats.count == 3)
         #expect(reportAtbats.count == 3)
@@ -549,7 +554,55 @@ struct RosterImportReconciliationTests {
         #expect(importedPitcher.startInn == 1)
         #expect(importedPitcher.endInn == 10)
         #expect(scorecardBoundaryOuts == 27)
-        #expect(reportInnings == 1)
+        #expect(reportInnings == 9)
+    }
+
+    @Test("pitching innings use compact fraction display from stored boundary outs")
+    func pitchingInningsUseCompactFractionDisplayFromStoredBoundaryOuts() throws {
+        #expect(ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 1, sOuts: 0, endInn: 4, eOuts: 0) == 9)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: 9) == "3")
+        #expect(ScoreKeep.PitchingInningsCalculator.baseballNotation(fromOuts: 9) == 3.0)
+
+        #expect(ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 4, sOuts: 1, endInn: 4, eOuts: 2) == 1)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: 1) == "⅓")
+        #expect(ScoreKeep.PitchingInningsCalculator.baseballNotation(fromOuts: 1) == 0.1)
+
+        #expect(ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 6, sOuts: 0, endInn: 6, eOuts: 2) == 2)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: 2) == "⅔")
+        #expect(ScoreKeep.PitchingInningsCalculator.baseballNotation(fromOuts: 2) == 0.2)
+    }
+
+    @Test("imported legacy Mize and Anderson boundaries produce expected pitching innings")
+    func importedLegacyMizeAndAndersonBoundariesProduceExpectedPitchingInnings() throws {
+        let mizeOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 1, sOuts: 0, endInn: 6, eOuts: 2)
+        let andersonOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 6, sOuts: 2, endInn: 10, eOuts: 0)
+
+        #expect(mizeOuts == 17)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: mizeOuts) == "5⅔")
+        #expect(ScoreKeep.PitchingInningsCalculator.baseballNotation(fromOuts: mizeOuts) == 5.2)
+
+        #expect(andersonOuts == 10)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: andersonOuts) == "3⅓")
+        #expect(ScoreKeep.PitchingInningsCalculator.baseballNotation(fromOuts: andersonOuts) == 3.1)
+
+        let combinedOuts = mizeOuts + andersonOuts
+        #expect(combinedOuts == 27)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: combinedOuts) == "9")
+        #expect(ScoreKeep.PitchingInningsCalculator.baseballNotation(fromOuts: combinedOuts) == 9.0)
+    }
+
+    @Test("newly scored pitcher boundaries produce expected pitching innings")
+    func newlyScoredPitcherBoundariesProduceExpectedPitchingInnings() throws {
+        let starterOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 1, sOuts: 0, endInn: 4, eOuts: 1)
+        let relieverOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 4, sOuts: 1, endInn: 4, eOuts: 2)
+        let closerOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(startInn: 4, sOuts: 2, endInn: 4, eOuts: 2)
+
+        #expect(starterOuts == 10)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: starterOuts) == "3⅓")
+        #expect(relieverOuts == 1)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: relieverOuts) == "⅓")
+        #expect(closerOuts == 0)
+        #expect(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: closerOuts) == "0")
     }
 
     @Test("passive historical refresh preserves imported pitcher boundaries")
@@ -739,21 +792,15 @@ struct RosterImportReconciliationTests {
         )
     }
 
-    private func pitcherRptViewInningsUsingCurrentFormula(atbats: [Atbat], pitcher: Pitcher) -> Int {
-        guard atbats.isEmpty == false else { return 0 }
-
-        let common = Common()
-        let endInning = pitcher.endInn > 0 ? pitcher.endInn : Int(atbats[atbats.count - 1].inning) + 1
-        let outCount = atbats.filter {
-            common.outresults.contains($0.result) &&
-            (10 * Int($0.inning + 1)) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts &&
-            (
-                (10 * Int($0.inning + 1)) + $0.outs <= (10 * endInning) + pitcher.eOuts ||
-                (Int($0.inning) == endInning - 1 && $0.outs == 3)
+    private func pitcherRptViewBoundaryInnings(pitcher: Pitcher) -> CGFloat {
+        ScoreKeep.PitchingInningsCalculator.baseballNotation(
+            fromOuts: ScoreKeep.PitchingInningsCalculator.recordedOuts(
+                startInn: pitcher.startInn,
+                sOuts: pitcher.sOuts,
+                endInn: pitcher.endInn,
+                eOuts: pitcher.eOuts
             )
-        }.count
-
-        return Int(CGFloat(outCount) / 3)
+        )
     }
 
     private func fetchPlayers(_ environment: IsolatedPersistenceEnvironment, teamName: String) throws -> [Player] {

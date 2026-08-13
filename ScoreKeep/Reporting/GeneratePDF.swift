@@ -665,10 +665,9 @@ class PDFGenerator {
         let com = Common()
         if oAtbats.count > 0 {
             let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1
-            let innings = CGFloat(oAtbats.filter({(com.outresults.contains($0.result) || $0.outAt != "Safe") &&
-                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
-                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
-                                                (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count) / 3
+            let pitchingOuts = PitchingInningsCalculator.recordedOuts(for: pitcher)
+            let innings = PitchingInningsCalculator.baseballNotation(fromOuts: pitchingOuts)
+            let decimalInnings = PitchingInningsCalculator.decimalInnings(fromOuts: pitchingOuts)
             let runs = oAtbats.filter({$0.maxbase == "Home" &&  (10 * (Int($0.inning.rounded(.up))) + $0.seq > (10 * pitcher.startInn) + pitcher.sBats) &&
                                                                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                                                                 (Int($0.inning) == endinn - 1 && $0.outs == 3)) && $0.earnedRun}).count
@@ -697,8 +696,8 @@ class PDFGenerator {
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
 
-            let ERA = innings == 0 ? 999 : CGFloat(runs) / innings * 9
-            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
+            let ERA = pitchingOuts == 0 ? 999 : CGFloat(runs) / decimalInnings * 9
+            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: innings, pitchingOuts: pitchingOuts, ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }

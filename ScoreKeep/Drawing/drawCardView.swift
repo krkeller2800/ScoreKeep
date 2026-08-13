@@ -633,8 +633,9 @@ struct drawPitchers: View {
     func doPitchers(oAtbats:[Atbat],pitcher: Pitcher)->PitchStats {
         if oAtbats.count > 0 {
             let endinn = pitcher.endInn > 0 ? pitcher.endInn : Int(oAtbats[(oAtbats.count - 1)].inning) + 1
-            let pitchOuts = ((pitcher.endInn - pitcher.startInn) * 3) + (pitcher.eOuts - pitcher.sOuts)
-            let innings:CGFloat = CGFloat(pitchOuts) / 3.0
+            let pitchOuts = PitchingInningsCalculator.recordedOuts(for: pitcher)
+            let innings = PitchingInningsCalculator.baseballNotation(fromOuts: pitchOuts)
+            let decimalInnings = PitchingInningsCalculator.decimalInnings(fromOuts: pitchOuts)
 //            let innings = CGFloat(oAtbats.filter({(com.outresults.contains($0.result) || $0.outAt != "Safe") &&
 //                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts) &&
 //                                                (10 * (Int($0.inning.rounded(.up))) + $0.outs <= (10 * endinn) + pitcher.eOuts ||
@@ -667,8 +668,8 @@ struct drawPitchers: View {
                 (10 * (Int($0.inning.rounded(.up))) + $0.seq <= (10 * endinn) + pitcher.eBats ||
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
 
-            let ERA = innings == 0 ? 999 : CGFloat(runs) / innings * 9
-            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: Int(innings), ERA: ERA)
+            let ERA = pitchOuts == 0 ? 999 : CGFloat(runs) / decimalInnings * 9
+            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: innings, pitchingOuts: pitchOuts, ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
