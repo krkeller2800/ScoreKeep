@@ -178,7 +178,7 @@ struct ScoreKeepSettingsView: View {
     private var entitlementStatusText: String {
         switch purchaseManager.entitlementState {
         case .entitled:
-            return "Active"
+            return "Purchased"
         case .notEntitled, .statusUnavailable:
             return "Not Purchased"
         case .priorSeason:
