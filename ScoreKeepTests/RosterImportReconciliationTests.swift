@@ -647,11 +647,12 @@ struct RosterImportReconciliationTests {
             displayedAtbats: historicalAtbats,
             pitchers: game.pitchers,
             game: game,
-            maintainPitcherMarkers: prepared.canScore && prepared.currentOrPendingLegacyAtbat != nil,
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared),
             save: { try environment.save() }
         )
 
         #expect(prepared.currentOrPendingLegacyAtbat == nil)
+        #expect(coordinator.shouldMaintainPitcherMarkers(preparedState: prepared) == false)
         #expect(result.disposition == .success)
         #expect(mize.startInn == 1)
         #expect(mize.sOuts == 0)
@@ -720,7 +721,7 @@ struct RosterImportReconciliationTests {
             displayedAtbats: liveAtbats,
             pitchers: livePitcherOrder,
             game: game,
-            maintainPitcherMarkers: prepared.canScore && prepared.currentOrPendingLegacyAtbat != nil,
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared),
             save: { try environment.save() }
         )
 

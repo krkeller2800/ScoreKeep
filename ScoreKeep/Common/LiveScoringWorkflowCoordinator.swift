@@ -881,6 +881,14 @@ struct LiveScoringWorkflowCoordinator {
         )
     }
 
+    func shouldMaintainPitcherMarkers(
+        preparedState: PreparedLiveGameState,
+        afterScoringSubmission: Bool = false
+    ) -> Bool {
+        afterScoringSubmission ||
+        (preparedState.canScore && preparedState.currentOrPendingLegacyAtbat != nil)
+    }
+
     func prepareLiveGameState(
         game: Game?,
         battingTeam: Team?,
@@ -2120,7 +2128,7 @@ struct LiveScoringWorkflowCoordinator {
             return (inning: 1, outs: 0, batters: 0)
         }
 
-        if currentBatter.outs == 3 {
+        if currentBatter.outs == 3 || currentBatter.endOfInning {
             return (inning: Int(currentBatter.inning.rounded(.up)) + 1, outs: 0, batters: 0)
         }
 

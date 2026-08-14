@@ -37,6 +37,7 @@ struct PlayersToScoreView: View {
     @State private var ordinaryScoringOperationIdentity: UUID?
     @State private var ordinaryScoringIntentKey: String?
     @State private var isCorrectionEntry = false
+    @State private var maintainPitcherMarkersAfterScoringSubmission = false
     @State private var pendingPitcherSectionScrollRequest: LiveScoringShellPresentation.PitcherSectionScrollRequest?
     @State private var scorecardScrollController = ScorecardScrollController()
     @State private var showingAlert = false
@@ -323,11 +324,17 @@ struct PlayersToScoreView: View {
         )
         enabledActionPresentation = liveScoringShellPresentation.presentEnabledActionSet(enabledActions)
 
+        let shouldMaintainPitcherMarkers = liveScoringCoordinator.shouldMaintainPitcherMarkers(
+            preparedState: preparedPresentation.preparedState,
+            afterScoringSubmission: maintainPitcherMarkersAfterScoringSubmission
+        )
+        maintainPitcherMarkersAfterScoringSubmission = false
+
         let result = liveScoringCoordinator.refreshProjections(
             displayedAtbats: atbats,
             pitchers: pitchers,
             game: game,
-            maintainPitcherMarkers: preparedPresentation.preparedState.canScore && preparedPresentation.preparedState.currentOrPendingLegacyAtbat != nil,
+            maintainPitcherMarkers: shouldMaintainPitcherMarkers,
             save: { try modelContext.save() }
         )
 
@@ -549,6 +556,7 @@ struct PlayersToScoreView: View {
             isCorrectionEntry = false
             resetScoringOperationIdentity()
         }
+        maintainPitcherMarkersAfterScoringSubmission = submission.disposition == .accepted
         refreshLiveScoringWorkflow()
 
         if let message = presentation.message {
@@ -616,6 +624,7 @@ struct PlayersToScoreView: View {
             isCorrectionEntry = false
             resetScoringOperationIdentity()
         }
+        maintainPitcherMarkersAfterScoringSubmission = submission.disposition == .accepted
         refreshLiveScoringWorkflow()
 
         if let message = presentation.message {

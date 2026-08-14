@@ -710,6 +710,139 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
     }
 
+    func testLivePitcherBoundaryAdvancesAfterOneMidInningOut() throws {
+        let fixture = insertPitcherBoundaryGame(
+            completedOuts: 2,
+            currentPitcherStartInning: 1,
+            currentPitcherStartOuts: 1,
+            currentPitcherStartBatters: 1
+        )
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.battingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher]
+        )
+        let result = coordinator.refreshProjections(
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher],
+            game: fixture.game,
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared),
+            save: { try modelContext.save() }
+        )
+
+        XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        XCTAssertEqual(fixture.currentPitcher.startInn, 1)
+        XCTAssertEqual(fixture.currentPitcher.sOuts, 1)
+        XCTAssertEqual(fixture.currentPitcher.sBats, 1)
+        XCTAssertEqual(fixture.currentPitcher.endInn, 1)
+        XCTAssertEqual(fixture.currentPitcher.eOuts, 2)
+        XCTAssertEqual(fixture.currentPitcher.eBats, 2)
+        XCTAssertEqual(ScoreKeep.PitchingInningsCalculator.recordedOuts(for: fixture.currentPitcher), 1)
+    }
+
+    func testLivePitcherBoundaryAdvancesWhenMidInningPitcherRecordsInningEndingOut() throws {
+        let fixture = insertPitcherBoundaryGame(
+            completedOuts: 3,
+            currentPitcherStartInning: 1,
+            currentPitcherStartOuts: 2,
+            currentPitcherStartBatters: 2
+        )
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.battingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher]
+        )
+
+        XCTAssertNil(prepared.currentOrPendingLegacyAtbat)
+        XCTAssertFalse(coordinator.shouldMaintainPitcherMarkers(preparedState: prepared))
+        XCTAssertTrue(coordinator.shouldMaintainPitcherMarkers(preparedState: prepared, afterScoringSubmission: true))
+
+        let result = coordinator.refreshProjections(
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher],
+            game: fixture.game,
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared, afterScoringSubmission: true),
+            save: { try modelContext.save() }
+        )
+
+        XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        XCTAssertEqual(fixture.currentPitcher.endInn, 2)
+        XCTAssertEqual(fixture.currentPitcher.eOuts, 0)
+        XCTAssertEqual(fixture.currentPitcher.eBats, 0)
+        XCTAssertEqual(ScoreKeep.PitchingInningsCalculator.recordedOuts(for: fixture.currentPitcher), 1)
+        XCTAssertEqual(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: ScoreKeep.PitchingInningsCalculator.recordedOuts(for: fixture.currentPitcher)), "⅓")
+    }
+
+    func testLivePitcherBoundaryAdvancesWhenPitcherRecordsTwoOutsToFinishInning() throws {
+        let fixture = insertPitcherBoundaryGame(
+            completedOuts: 21,
+            currentPitcherStartInning: 7,
+            currentPitcherStartOuts: 1,
+            currentPitcherStartBatters: 1,
+            initialCurrentPitcherEndInning: 7,
+            initialCurrentPitcherEndOuts: 2,
+            initialCurrentPitcherEndBatters: 2
+        )
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.battingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher]
+        )
+
+        XCTAssertNil(prepared.currentOrPendingLegacyAtbat)
+
+        let result = coordinator.refreshProjections(
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher],
+            game: fixture.game,
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared, afterScoringSubmission: true),
+            save: { try modelContext.save() }
+        )
+
+        XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        XCTAssertEqual(fixture.currentPitcher.startInn, 7)
+        XCTAssertEqual(fixture.currentPitcher.sOuts, 1)
+        XCTAssertEqual(fixture.currentPitcher.sBats, 1)
+        XCTAssertEqual(fixture.currentPitcher.endInn, 8)
+        XCTAssertEqual(fixture.currentPitcher.eOuts, 0)
+        XCTAssertEqual(fixture.currentPitcher.eBats, 0)
+        let recordedOuts = ScoreKeep.PitchingInningsCalculator.recordedOuts(for: fixture.currentPitcher)
+        XCTAssertEqual(recordedOuts, 2)
+        XCTAssertEqual(ScoreKeep.PitchingInningsCalculator.displayString(fromOuts: recordedOuts), "⅔")
+    }
+
+    func testLivePitcherBoundaryAdvancesAfterCompleteFullInning() throws {
+        let fixture = insertPitcherBoundaryGame(
+            completedOuts: 3,
+            currentPitcherStartInning: 1,
+            currentPitcherStartOuts: 0,
+            currentPitcherStartBatters: 0
+        )
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.battingTeam,
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher]
+        )
+        let result = coordinator.refreshProjections(
+            displayedAtbats: fixture.displayedAtbats,
+            pitchers: [fixture.currentPitcher],
+            game: fixture.game,
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared, afterScoringSubmission: true),
+            save: { try modelContext.save() }
+        )
+
+        XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.Disposition.success)
+        XCTAssertEqual(fixture.currentPitcher.endInn, 2)
+        XCTAssertEqual(fixture.currentPitcher.eOuts, 0)
+        XCTAssertEqual(fixture.currentPitcher.eBats, 0)
+        XCTAssertEqual(ScoreKeep.PitchingInningsCalculator.recordedOuts(for: fixture.currentPitcher), 3)
+    }
+
     func testBatterSubstitution_RollbackOnFailure() throws {
         // Setup using Fixture
         let fixture = Fixture.insertGame(into: modelContext)
@@ -912,6 +1045,96 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
 
     private func teamAtbats(_ fixture: Fixture) -> [Atbat] {
         fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident }
+    }
+
+    private struct PitcherBoundaryFixture {
+        let game: Game
+        let battingTeam: Team
+        let currentPitcher: Pitcher
+        let displayedAtbats: [Atbat]
+    }
+
+    private func insertPitcherBoundaryGame(
+        completedOuts: Int,
+        currentPitcherStartInning: Int,
+        currentPitcherStartOuts: Int,
+        currentPitcherStartBatters: Int,
+        initialCurrentPitcherEndInning: Int = 0,
+        initialCurrentPitcherEndOuts: Int = 0,
+        initialCurrentPitcherEndBatters: Int = 0
+    ) -> PitcherBoundaryFixture {
+        let battingTeam = Team(name: "Guardians", coach: "", details: "")
+        let pitchingTeam = Team(name: "Tigers", coach: "", details: "")
+        let batters = [
+            Player(name: "Batter One", number: "1", position: "CF", batDir: "L", batOrder: 1, team: battingTeam),
+            Player(name: "Batter Two", number: "2", position: "SS", batDir: "R", batOrder: 2, team: battingTeam),
+            Player(name: "Batter Three", number: "3", position: "1B", batDir: "L", batOrder: 3, team: battingTeam)
+        ]
+        let pitcherPlayer = Player(name: "Holton", number: "87", position: "P", batDir: "L", batOrder: 99, team: pitchingTeam)
+        let game = Game(
+            date: "2026-08-13T17:05:00Z",
+            location: "Comerica",
+            highLights: "",
+            hscore: 2,
+            vscore: 1,
+            numInnings: 9,
+            vteam: battingTeam,
+            hteam: pitchingTeam
+        )
+        let currentPitcher = Pitcher(
+            player: pitcherPlayer,
+            team: pitchingTeam,
+            game: game,
+            startInn: currentPitcherStartInning,
+            sOuts: currentPitcherStartOuts,
+            sBats: currentPitcherStartBatters,
+            endInn: initialCurrentPitcherEndInning,
+            eOuts: initialCurrentPitcherEndOuts,
+            eBats: initialCurrentPitcherEndBatters
+        )
+        let atbats = (1...completedOuts).map { outNumber in
+            let inning = ((outNumber - 1) / 3) + 1
+            let inningOut = outNumber % 3 == 0 ? 3 : outNumber % 3
+            let batterIndex = (outNumber - 1) % batters.count
+            return Atbat(
+                game: game,
+                team: battingTeam,
+                player: batters[batterIndex],
+                result: "Ground Out",
+                maxbase: "No Bases",
+                batOrder: batters[batterIndex].batOrder,
+                outAt: "Safe",
+                inning: CGFloat(inning),
+                seq: batterIndex + 1,
+                col: inning,
+                rbis: 0,
+                outs: inningOut,
+                sacFly: 0,
+                sacBunt: 0,
+                stolenBases: 0,
+                endOfInning: inningOut == 3
+            )
+        }
+
+        modelContext.insert(battingTeam)
+        modelContext.insert(pitchingTeam)
+        batters.forEach(modelContext.insert)
+        modelContext.insert(pitcherPlayer)
+        modelContext.insert(game)
+        modelContext.insert(currentPitcher)
+        atbats.forEach(modelContext.insert)
+        battingTeam.players = batters
+        pitchingTeam.players = [pitcherPlayer]
+        game.players = batters + [pitcherPlayer]
+        game.atbats = atbats
+        game.pitchers = [currentPitcher]
+
+        return PitcherBoundaryFixture(
+            game: game,
+            battingTeam: battingTeam,
+            currentPitcher: currentPitcher,
+            displayedAtbats: atbats
+        )
     }
 }
 
