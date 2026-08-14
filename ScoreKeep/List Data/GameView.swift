@@ -287,7 +287,7 @@ struct GameView: View {
         .padding(.vertical, 8)
         .background(ScoreKeepVisualStyle.infoBannerBackground, in: Capsule())
         .foregroundStyle(ScoreKeepVisualStyle.infoBannerForeground)
-        .padding(.top, -4)
+        .padding(.top, UIDevice.type == "iPhone" ? -4 : -38)
         .padding(.trailing, 20)
         .transition(.move(edge: .top).combined(with: .opacity))
         .animation(.easeInOut(duration: 0.25), value: hasDismissedSeedHint_Game)
