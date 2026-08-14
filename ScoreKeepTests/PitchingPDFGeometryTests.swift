@@ -61,4 +61,37 @@ struct PitchingPDFGeometryTests {
             #expect(rect.width == column.width)
         }
     }
+
+    @Test("Pitching report stats use ERA with stable statistical tie breakers")
+    func pitchingReportStatsUseStableStatisticalOrdering() {
+        let higherERA = makePitchStats(name: "SKPERA500", number: "1", era: 5.00, pitchingOuts: 18, wins: 4)
+        let lowerERAFewerInnings = makePitchStats(name: "SKPERA200C", number: "2", era: 2.00, pitchingOuts: 9, wins: 3)
+        let lowerERAMoreInningsLowerWins = makePitchStats(name: "SKPERA200B", number: "3", era: 2.00, pitchingOuts: 18, wins: 1)
+        let lowerERAMoreInningsMoreWins = makePitchStats(name: "SKPERA200A", number: "4", era: 2.00, pitchingOuts: 18, wins: 2)
+
+        let ordered = [
+            higherERA,
+            lowerERAFewerInnings,
+            lowerERAMoreInningsLowerWins,
+            lowerERAMoreInningsMoreWins
+        ].sorted(by: PitchStats.statisticsReportSort)
+        let names = ordered.map { $0.pitcher?.player.name ?? "" }
+
+        #expect(names == ["SKPERA200A", "SKPERA200B", "SKPERA200C", "SKPERA500"])
+    }
+
+    private func makePitchStats(name: String, number: String, era: CGFloat, pitchingOuts: Int, wins: Int) -> PitchStats {
+        let team = Team(name: "Pitching Sort", coach: "", details: "")
+        let game = Game(date: "2026-08-14", location: "", highLights: "", hscore: 0, vscore: 0)
+        let player = Player(name: name, number: number, position: "P", batDir: "R", batOrder: 0)
+        let pitcher = Pitcher(player: player, team: team, game: game)
+
+        return PitchStats(
+            pitcher: pitcher,
+            wins: wins,
+            innings: PitchingInningsCalculator.baseballNotation(fromOuts: pitchingOuts),
+            pitchingOuts: pitchingOuts,
+            ERA: era
+        )
+    }
 }

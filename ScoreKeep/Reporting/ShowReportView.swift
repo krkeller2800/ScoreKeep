@@ -96,18 +96,7 @@ struct ShowReportView: View {
     }
 
     static func finalizedPDFStats(from stats: [PlayerStats]) -> [PlayerStats] {
-        stats.enumerated()
-            .sorted { lhs, rhs in
-                let lhsOrder = lhs.element.player?.batOrder ?? 0
-                let rhsOrder = rhs.element.player?.batOrder ?? 0
-
-                if lhsOrder == rhsOrder {
-                    return lhs.offset < rhs.offset
-                }
-
-                return lhsOrder < rhsOrder
-            }
-            .map(\.element)
+        stats.sorted(by: PlayerStats.statisticsReportSort)
     }
 
     struct AggregateHittingPDFTextFitResult {

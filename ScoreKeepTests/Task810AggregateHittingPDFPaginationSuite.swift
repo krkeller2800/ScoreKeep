@@ -68,22 +68,22 @@ struct Task810AggregateHittingPDFPaginationSuite {
         }
     }
 
-    @Test("Finalized PDF stats use batting order and preserve source order for ties")
-    func finalizedStatsUseStableBattingOrder() {
-        let firstTie = makeStat(token: "SKPTIEA", batOrder: 2, index: 0)
-        let earliestOrder = makeStat(token: "SKPORD1", batOrder: 1, index: 1)
-        let secondTie = makeStat(token: "SKPTIEB", batOrder: 2, index: 2)
-        let latestOrder = makeStat(token: "SKPORD3", batOrder: 3, index: 3)
+    @Test("Finalized PDF stats use AVG with stable statistical tie breakers")
+    func finalizedStatsUseStableStatisticalOrdering() {
+        let lowerAverage = makeStat(token: "SKPAVG250", batOrder: 1, index: 0, atbats: 4, hits: 1)
+        let higherAverageFewerHits = makeStat(token: "SKPAVG500A", batOrder: 2, index: 1, atbats: 2, hits: 1)
+        let higherAverageMoreAtBats = makeStat(token: "SKPAVG500B", batOrder: 3, index: 2, atbats: 4, hits: 2)
+        let sameAverageMoreHits = makeStat(token: "SKPAVG500C", batOrder: 4, index: 3, atbats: 4, hits: 2)
 
         let finalized = ShowReportView.finalizedPDFStats(from: [
-            firstTie,
-            earliestOrder,
-            secondTie,
-            latestOrder
+            lowerAverage,
+            higherAverageFewerHits,
+            sameAverageMoreHits,
+            higherAverageMoreAtBats
         ])
         let names = finalized.map { $0.player?.name ?? "" }
 
-        #expect(names == ["SKPORD1", "SKPTIEA", "SKPTIEB", "SKPORD3"])
+        #expect(names == ["SKPAVG500B", "SKPAVG500C", "SKPAVG500A", "SKPAVG250"])
     }
 
     @Test("Rendered PDFs repeat headers and page numbers on every page")
@@ -142,7 +142,7 @@ struct Task810AggregateHittingPDFPaginationSuite {
         }
     }
 
-    private func makeStat(token: String, batOrder: Int, index: Int) -> PlayerStats {
+    private func makeStat(token: String, batOrder: Int, index: Int, atbats: Int = 3, hits: Int = 1) -> PlayerStats {
         let player = Player(
             name: token,
             number: "\(index + 1)",
@@ -153,13 +153,13 @@ struct Task810AggregateHittingPDFPaginationSuite {
 
         return PlayerStats(
             player: player,
-            atbats: 3,
+            atbats: atbats,
             runs: index % 5,
-            hits: 1,
+            hits: hits,
             strikeouts: index % 2,
             strikeoutl: 0,
             HR: 0,
-            single: 1,
+            single: hits,
             double: 0,
             triple: 0,
             BB: 0,

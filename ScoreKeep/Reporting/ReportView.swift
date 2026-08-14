@@ -25,9 +25,7 @@ struct ReportView: View {
     
     var com:Common = Common()
     private var sortedStats: [PlayerStats] {
-        sumedStats.sorted(by: { (lhs: PlayerStats, rhs: PlayerStats) -> Bool in
-            (lhs.player?.batOrder ?? 0) < (rhs.player?.batOrder ?? 0)
-        })
+        sumedStats.sorted(by: PlayerStats.statisticsReportSort)
     }
     private let iPhoneTableWidth: CGFloat = 900
     private let rateColumnWidth: CGFloat = 42

@@ -191,7 +191,7 @@ struct PitcherRptView: View {
 
     private var pitchingStatsRows: some View {
         ScrollView {
-            let summedStats = sumedStats.sorted { $0.pitcher?.player.name ?? "" < $1.pitcher?.player.name ?? "" }
+            let summedStats = sumedStats.sorted(by: PitchStats.statisticsReportSort)
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(summedStats) { stats in
                     HStack {
@@ -283,7 +283,7 @@ struct PitcherRptView: View {
                  (Int($0.inning) == endinn - 1 && $0.outs == 3))}).count
             
             let ERA = pitchingOuts == 0 ? 0 : CGFloat(runs) / decimalInnings * 9
-            return PitchStats(runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, Ksl: Ksl, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: innings, pitchingOuts: pitchingOuts, hbp: hbp, ERA: ERA)
+            return PitchStats(wins: pitcher.won ? 1 : 0, runs: runs, uruns: uruns, hits: hits, HR: HR, Ks: Ks, Ksl: Ksl, BB: BB, singles: singles, doubles: doubles, triples: triples, innings: innings, pitchingOuts: pitchingOuts, hbp: hbp, ERA: ERA)
         } else {
             return PitchStats(ERA: 0.0)
         }
@@ -293,6 +293,7 @@ struct PitcherRptView: View {
             let tm = stats.pitcher!.team
             atbats = stats.pitcher!.game.atbats.filter {$0.team != tm }
             let thisStats = doPitchers(pitcher: stats.pitcher!)
+            stats.wins += thisStats.wins
             stats.runs += thisStats.runs
             stats.uruns += thisStats.uruns
             stats.hits += thisStats.hits

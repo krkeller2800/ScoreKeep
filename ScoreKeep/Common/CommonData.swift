@@ -71,6 +71,7 @@ struct BoxScore: Hashable {
 struct PitchStats: Identifiable {
     var id = UUID()
     var pitcher:Pitcher?
+    var wins:Int = 0
     var runs:Int = 0
     var uruns:Int = 0
     var hits:Int = 0
@@ -85,8 +86,9 @@ struct PitchStats: Identifiable {
     var pitchingOuts:Int = 0
     var hbp:Int = 0
     var ERA:CGFloat = 0
-    init(pitcher: Pitcher? = nil, runs: Int = 0,uruns: Int = 0, hits: Int = 0, HR: Int = 0, Ks: Int = 0, Ksl: Int = 0, BB: Int = 0, singles: Int = 0, doubles: Int = 0, triples: Int = 0, innings: CGFloat = 0, pitchingOuts: Int = 0, hbp: Int = 0, ERA: CGFloat) {
+    init(pitcher: Pitcher? = nil, wins: Int = 0, runs: Int = 0,uruns: Int = 0, hits: Int = 0, HR: Int = 0, Ks: Int = 0, Ksl: Int = 0, BB: Int = 0, singles: Int = 0, doubles: Int = 0, triples: Int = 0, innings: CGFloat = 0, pitchingOuts: Int = 0, hbp: Int = 0, ERA: CGFloat) {
         self.pitcher = pitcher
+        self.wins = wins
         self.runs = runs
         self.uruns = uruns
         self.hits = hits
@@ -183,6 +185,87 @@ struct PlayerStats: Identifiable {
         self.hbp = hbp
         self.dts = dts
         self.fc = fc
+    }
+}
+
+extension PlayerStats {
+    var battingAverageThousandths: Int {
+        atbats == 0 ? 0 : (1000 * hits) / atbats
+    }
+
+    static func statisticsReportSort(_ lhs: PlayerStats, _ rhs: PlayerStats) -> Bool {
+        if lhs.battingAverageThousandths != rhs.battingAverageThousandths {
+            return lhs.battingAverageThousandths > rhs.battingAverageThousandths
+        }
+
+        if lhs.atbats != rhs.atbats {
+            return lhs.atbats > rhs.atbats
+        }
+
+        if lhs.hits != rhs.hits {
+            return lhs.hits > rhs.hits
+        }
+
+        return ReportPlayerIdentitySort.precedes(
+            lhsName: lhs.player?.name ?? "",
+            lhsNumber: lhs.player?.number ?? "",
+            lhsID: lhs.id,
+            rhsName: rhs.player?.name ?? "",
+            rhsNumber: rhs.player?.number ?? "",
+            rhsID: rhs.id
+        )
+    }
+}
+
+extension PitchStats {
+    static func statisticsReportSort(_ lhs: PitchStats, _ rhs: PitchStats) -> Bool {
+        if lhs.ERA != rhs.ERA {
+            return lhs.ERA < rhs.ERA
+        }
+
+        if lhs.pitchingOuts != rhs.pitchingOuts {
+            return lhs.pitchingOuts > rhs.pitchingOuts
+        }
+
+        if lhs.wins != rhs.wins {
+            return lhs.wins > rhs.wins
+        }
+
+        return ReportPlayerIdentitySort.precedes(
+            lhsName: lhs.pitcher?.player.name ?? "",
+            lhsNumber: lhs.pitcher?.player.number ?? "",
+            lhsID: lhs.id,
+            rhsName: rhs.pitcher?.player.name ?? "",
+            rhsNumber: rhs.pitcher?.player.number ?? "",
+            rhsID: rhs.id
+        )
+    }
+}
+
+private enum ReportPlayerIdentitySort {
+    static func precedes(
+        lhsName: String,
+        lhsNumber: String,
+        lhsID: UUID,
+        rhsName: String,
+        rhsNumber: String,
+        rhsID: UUID
+    ) -> Bool {
+        let nameComparison = lhsName.localizedCaseInsensitiveCompare(rhsName)
+        if nameComparison != .orderedSame {
+            return nameComparison == .orderedAscending
+        }
+
+        if lhsName != rhsName {
+            return lhsName < rhsName
+        }
+
+        let numberComparison = lhsNumber.localizedStandardCompare(rhsNumber)
+        if numberComparison != .orderedSame {
+            return numberComparison == .orderedAscending
+        }
+
+        return lhsID.uuidString < rhsID.uuidString
     }
 }
 struct LoadingView: View {
