@@ -24,6 +24,7 @@ struct ScoreContentView: View {
     @State private var path = NavigationPath()
     @SceneStorage("activeScoringGameID") private var activeScoringGameID: String?
     @SceneStorage("activeScoringSessionNeedsRestore") private var activeScoringSessionNeedsRestore = false
+    @SceneStorage("activeScoringColumnVisibility") private var activeScoringColumnVisibility: String?
     @State private var addAGame: Bool = false
     @State private var isSearching: Bool = false
     @State var doGame = "Score"
@@ -168,6 +169,7 @@ struct ScoreContentView: View {
                 if path.isEmpty {
                     activeScoringGameID = nil
                     activeScoringSessionNeedsRestore = false
+                    activeScoringColumnVisibility = nil
                     wakeRestoration.clearCurrentProcessWakeRestore()
                 }
             }
@@ -431,6 +433,7 @@ struct ScoreContentView: View {
             if activeScoringGameID != nil, !path.isEmpty {
                 wakeRestoration.markCurrentProcessWakeRestoreNeeded()
                 activeScoringSessionNeedsRestore = true
+                activeScoringColumnVisibility = ActiveScoringSidebarVisibilityRestoration.token(for: columnVisability)
             }
         case .active:
             restoreActiveScoringSessionIfNeeded()
@@ -450,12 +453,14 @@ struct ScoreContentView: View {
             return
         case .clearStalePersistentRestore:
             activeScoringSessionNeedsRestore = false
+            activeScoringColumnVisibility = nil
             return
         case .preserveExistingPath:
             return
         case .clearFailedRestore:
             activeScoringSessionNeedsRestore = false
             activeScoringGameID = nil
+            activeScoringColumnVisibility = nil
             wakeRestoration.clearCurrentProcessWakeRestore()
             return
         case .rebuildPath:
@@ -473,6 +478,9 @@ struct ScoreContentView: View {
 
         doGame = "Score"
         path.append(gameToRestore)
+        if let restoredColumnVisibility = ActiveScoringSidebarVisibilityRestoration.visibility(for: activeScoringColumnVisibility) {
+            columnVisability = restoredColumnVisibility
+        }
         wakeRestoration.clearCurrentProcessWakeRestore()
     }
 

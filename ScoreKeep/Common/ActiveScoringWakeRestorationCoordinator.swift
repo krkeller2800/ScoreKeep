@@ -47,6 +47,42 @@ enum ActiveScoringWakeRestorationPolicy {
     }
 }
 
+enum ActiveScoringSidebarVisibilityRestoration {
+    private static let allToken = "all"
+    private static let automaticToken = "automatic"
+    private static let detailOnlyToken = "detailOnly"
+    private static let doubleColumnToken = "doubleColumn"
+
+    static func token(for visibility: NavigationSplitViewVisibility) -> String? {
+        if visibility == .all {
+            return allToken
+        } else if visibility == .automatic {
+            return automaticToken
+        } else if visibility == .detailOnly {
+            return detailOnlyToken
+        } else if visibility == .doubleColumn {
+            return doubleColumnToken
+        } else {
+            return nil
+        }
+    }
+
+    static func visibility(for token: String?) -> NavigationSplitViewVisibility? {
+        switch token {
+        case allToken:
+            return .all
+        case automaticToken:
+            return .automatic
+        case detailOnlyToken:
+            return .detailOnly
+        case doubleColumnToken:
+            return .doubleColumn
+        default:
+            return nil
+        }
+    }
+}
+
 @MainActor
 final class ActiveScoringWakeRestorationCoordinator: ObservableObject {
     @Published private(set) var isRestoringFromCurrentProcessWake = false

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import ScoreKeep
 
@@ -119,6 +120,24 @@ struct ScoreKeepActiveTransitionPreparationBoundaryTests {
         #expect(coordinator.isRestoringFromCurrentProcessWake)
         coordinator.clearCurrentProcessWakeRestore()
         #expect(coordinator.isRestoringFromCurrentProcessWake == false)
+    }
+
+    @Test("active scoring sidebar visibility round-trips through scene storage tokens")
+    func activeScoringSidebarVisibilityRoundTripsThroughSceneStorageTokens() {
+        let visibilities: [NavigationSplitViewVisibility] = [
+            .all,
+            .automatic,
+            .detailOnly,
+            .doubleColumn
+        ]
+
+        for visibility in visibilities {
+            let token = ActiveScoringSidebarVisibilityRestoration.token(for: visibility)
+            #expect(ActiveScoringSidebarVisibilityRestoration.visibility(for: token) == visibility)
+        }
+
+        #expect(ActiveScoringSidebarVisibilityRestoration.visibility(for: nil) == nil)
+        #expect(ActiveScoringSidebarVisibilityRestoration.visibility(for: "unexpected") == nil)
     }
 
     @Test("preparation defaults retain legacy authority and absent production authorization")

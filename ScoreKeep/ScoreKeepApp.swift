@@ -88,6 +88,7 @@ struct ScoreKeepApp: App {
                 }
             }
         }
+        .environmentObject(purchaseManager)
         .handlesExternalEvents(matching: ["*"])
     }
 
