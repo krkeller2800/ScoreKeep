@@ -63,7 +63,7 @@ struct EditScoreView: View {
     }
 
     private var scoringContentTopSpacing: CGFloat {
-        52
+        UIDevice.type == "iPhone" && verticalSizeClass == .compact ? 0 : 52
     }
 
     private var pitchStatsButton: some View {
