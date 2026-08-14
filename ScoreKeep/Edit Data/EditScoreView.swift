@@ -210,6 +210,15 @@ struct EditScoreView: View {
                                 .lineLimit(1).minimumScaleFactor(0.60)
                             Text(date.formatted(date:.omitted, time: .shortened)).font(.title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity,alignment: .trailing).padding(.trailing, 5)
                                 .lineLimit(1).minimumScaleFactor(0.60)
+                            TimelineView(.periodic(from: Date(), by: 1.0)) { context in
+                                Text("Now \(context.date.formatted(.dateTime.hour().minute().second()))")
+                                    .font(.caption)
+                                    .foregroundStyle(ScoreKeepVisualStyle.secondaryText)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.trailing, 5)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.60)
+                            }
                         }
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
