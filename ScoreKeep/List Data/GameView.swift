@@ -9,6 +9,39 @@ import SwiftUI
 import SwiftData
 import Foundation
 import UIKit
+
+@MainActor
+enum GameDeletionPersistence {
+    static func deleteGame(
+        _ game: Game,
+        in modelContext: ModelContext,
+        atbats: [Atbat],
+        pitchers: [Pitcher],
+        lineups: [Lineup]
+    ) {
+        let gameID = game.ident
+        let persistentID = game.persistentModelID
+
+        for atbat in atbats where belongsToGame(atbat.game, gameID: gameID, persistentID: persistentID) {
+            modelContext.delete(atbat)
+        }
+
+        for pitcher in pitchers where belongsToGame(pitcher.game, gameID: gameID, persistentID: persistentID) {
+            modelContext.delete(pitcher)
+        }
+
+        for lineup in lineups where belongsToGame(lineup.game, gameID: gameID, persistentID: persistentID) {
+            modelContext.delete(lineup)
+        }
+
+        modelContext.delete(game)
+    }
+
+    private static func belongsToGame(_ candidate: Game, gameID: UUID, persistentID: PersistentIdentifier) -> Bool {
+        candidate.persistentModelID == persistentID || candidate.ident == gameID
+    }
+}
+
 @MainActor
 struct GameView: View {
     @Environment(\.modelContext) var modelContext
@@ -300,16 +333,13 @@ struct GameView: View {
     }
 
     private func delete(_ game: Game) {
-        for atbat in atbats.filter({ $0.game == game }) {
-            modelContext.delete(atbat)
-        }
-        for pitcher in pitchers.filter({ $0.game == game }) {
-            modelContext.delete(pitcher)
-        }
-        for lineup in lineups.filter({ $0.game == game }) {
-            modelContext.delete(lineup)
-        }
-        modelContext.delete(game)
+        GameDeletionPersistence.deleteGame(
+            game,
+            in: modelContext,
+            atbats: atbats,
+            pitchers: pitchers,
+            lineups: lineups
+        )
         gamePendingDeletion = nil
     }
 
@@ -346,7 +376,7 @@ struct GameView: View {
                         .gameTrailingSeparator()
                 }
             }
-            
+
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
                 .opacity(0)
@@ -396,7 +426,7 @@ struct GameView: View {
                     gameRowScoreSummary(for: game)
                 }
             }
-            
+
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
                 .foregroundColor(Color(UIColor.tertiaryLabel))

@@ -49,6 +49,47 @@ struct CanonicalPersistenceDeletionTests {
         #expect(result.allowanceOrEntitlementMustRemainUnchanged)
     }
 
+    @Test("production game delete removes aggregate hitting and pitching report sources")
+    func productionGameDeleteRemovesAggregateHittingAndPitchingReportSources() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let fixture = insertAggregateDeletionFixture(into: environment.context)
+        try environment.save()
+
+        let before = try aggregateDeletionSnapshot(from: environment.container, teamName: fixture.visitingTeamName, pitchingTeamName: fixture.homeTeamName)
+        let gameToDelete = try #require(try environment.fetch(FetchDescriptor<Game>()).first { $0.ident == fixture.deletedGameID })
+        let atbats = try environment.fetch(FetchDescriptor<Atbat>())
+        let pitchers = try environment.fetch(FetchDescriptor<Pitcher>())
+        let lineups = try environment.fetch(FetchDescriptor<Lineup>())
+
+        GameDeletionPersistence.deleteGame(
+            gameToDelete,
+            in: environment.context,
+            atbats: atbats,
+            pitchers: pitchers,
+            lineups: lineups
+        )
+        try environment.save()
+
+        let after = try aggregateDeletionSnapshot(from: environment.container, teamName: fixture.visitingTeamName, pitchingTeamName: fixture.homeTeamName)
+
+        #expect(before.hittingAtbatIDsByGame[fixture.deletedGameID]?.count == 3)
+        #expect(before.hittingAtbatIDsByGame[fixture.survivingGameID]?.count == 6)
+        #expect(before.pitcherIDsByGame[fixture.deletedGameID]?.count == 1)
+        #expect(before.pitcherIDsByGame[fixture.survivingGameID]?.count == 1)
+        #expect(before.reportPitchingInnings == 3)
+
+        #expect(after.gameIDs.contains(fixture.deletedGameID) == false)
+        #expect(after.gameIDs == [fixture.survivingGameID])
+        #expect(after.hittingAtbatIDsByGame[fixture.deletedGameID] == nil)
+        #expect(after.hittingAtbatIDsByGame[fixture.survivingGameID]?.count == 6)
+        #expect(after.pitcherIDsByGame[fixture.deletedGameID] == nil)
+        #expect(after.pitcherIDsByGame[fixture.survivingGameID]?.count == 1)
+        #expect(after.reportPitchingInnings == 2)
+        #expect(after.allAtbatGameIDs == [fixture.survivingGameID])
+        #expect(after.allLineupGameIDs == [fixture.survivingGameID])
+        #expect(after.allPitcherGameIDs == [fixture.survivingGameID])
+    }
+
     @Test("team deletion remains isolated and reloadable")
     func teamDeletionRemainsIsolatedAndReloadable() throws {
         let outcome = try recordInventoryAfter { environment in
@@ -230,5 +271,202 @@ struct CanonicalPersistenceDeletionTests {
             disposition: .repairRequired,
             summary: "Deletion relationship effects require explicit review before repair."
         )
+    }
+
+    private struct AggregateDeletionFixture {
+        let deletedGameID: UUID
+        let survivingGameID: UUID
+        let visitingTeamName: String
+        let homeTeamName: String
+    }
+
+    private struct AggregateDeletionSnapshot {
+        let gameIDs: [UUID]
+        let hittingAtbatIDsByGame: [UUID: [UUID]]
+        let pitcherIDsByGame: [UUID: [UUID]]
+        let reportPitchingInnings: Int
+        let allAtbatGameIDs: [UUID]
+        let allLineupGameIDs: [UUID]
+        let allPitcherGameIDs: [UUID]
+    }
+
+    private func insertAggregateDeletionFixture(into context: ModelContext) -> AggregateDeletionFixture {
+        let visitingTeam = Team(ident: UUID(uuidString: "00000000-0000-0000-0000-000000004101")!, name: "Deletion Visitors", coach: "", details: "")
+        let homeTeam = Team(ident: UUID(uuidString: "00000000-0000-0000-0000-000000004102")!, name: "Deletion Home", coach: "", details: "")
+        let batter = Player(identifier: UUID(uuidString: "00000000-0000-0000-0000-000000004201")!, name: "Deletion Batter", number: "7", position: "SS", batDir: "R", batOrder: 1, team: visitingTeam)
+        let pitcher = Player(identifier: UUID(uuidString: "00000000-0000-0000-0000-000000004202")!, name: "Deletion Pitcher", number: "11", position: "P", batDir: "R", batOrder: 1, team: homeTeam)
+        let deletedGame = Game(
+            ident: UUID(uuidString: "00000000-0000-0000-0000-000000004301")!,
+            date: "2026-08-01T12:00:00Z",
+            location: "Deleted Field",
+            highLights: "",
+            hscore: 0,
+            vscore: 0,
+            vteam: visitingTeam,
+            hteam: homeTeam,
+            players: [batter, pitcher]
+        )
+        let survivingGame = Game(
+            ident: UUID(uuidString: "00000000-0000-0000-0000-000000004302")!,
+            date: "2026-08-02T12:00:00Z",
+            location: "Surviving Field",
+            highLights: "",
+            hscore: 0,
+            vscore: 0,
+            vteam: visitingTeam,
+            hteam: homeTeam,
+            players: [batter, pitcher]
+        )
+        let deletedAtbats = makeOutAtbats(
+            game: deletedGame,
+            team: visitingTeam,
+            player: batter,
+            idPrefix: "00000000-0000-0000-0000-0000000043",
+            innings: [0],
+            startingSequence: 1
+        )
+        let survivingAtbats = makeOutAtbats(
+            game: survivingGame,
+            team: visitingTeam,
+            player: batter,
+            idPrefix: "00000000-0000-0000-0000-0000000044",
+            innings: [0, 1],
+            startingSequence: 1
+        )
+        let deletedPitcher = Pitcher(
+            ident: UUID(uuidString: "00000000-0000-0000-0000-000000004601")!,
+            player: pitcher,
+            team: homeTeam,
+            game: deletedGame,
+            startInn: 1,
+            endInn: 1,
+            eOuts: 3,
+            eBats: 3
+        )
+        let survivingPitcher = Pitcher(
+            ident: UUID(uuidString: "00000000-0000-0000-0000-000000004602")!,
+            player: pitcher,
+            team: homeTeam,
+            game: survivingGame,
+            startInn: 1,
+            endInn: 2,
+            eOuts: 3,
+            eBats: 6
+        )
+        let deletedLineup = Lineup(ident: UUID(uuidString: "00000000-0000-0000-0000-000000004501")!, everyoneHits: false, game: deletedGame, team: visitingTeam, inning: 1, players: [batter])
+        let survivingLineup = Lineup(ident: UUID(uuidString: "00000000-0000-0000-0000-000000004502")!, everyoneHits: false, game: survivingGame, team: visitingTeam, inning: 1, players: [batter])
+
+        visitingTeam.players = [batter]
+        homeTeam.players = [pitcher]
+        visitingTeam.games = [deletedGame, survivingGame]
+        homeTeam.games = [deletedGame, survivingGame]
+        deletedGame.atbats = deletedAtbats
+        deletedGame.pitchers = [deletedPitcher]
+        deletedGame.lineups = [deletedLineup]
+        survivingGame.atbats = survivingAtbats
+        survivingGame.pitchers = [survivingPitcher]
+        survivingGame.lineups = [survivingLineup]
+
+        context.insert(visitingTeam)
+        context.insert(homeTeam)
+        context.insert(batter)
+        context.insert(pitcher)
+        context.insert(deletedGame)
+        context.insert(survivingGame)
+        (deletedAtbats + survivingAtbats).forEach(context.insert)
+        context.insert(deletedPitcher)
+        context.insert(survivingPitcher)
+        context.insert(deletedLineup)
+        context.insert(survivingLineup)
+
+        return AggregateDeletionFixture(
+            deletedGameID: deletedGame.ident,
+            survivingGameID: survivingGame.ident,
+            visitingTeamName: visitingTeam.name,
+            homeTeamName: homeTeam.name
+        )
+    }
+
+    private func makeOutAtbats(
+        game: Game,
+        team: Team,
+        player: Player,
+        idPrefix: String,
+        innings: [Int],
+        startingSequence: Int
+    ) -> [Atbat] {
+        var sequence = startingSequence
+        var atbats: [Atbat] = []
+
+        for inning in innings {
+            for outs in 1...3 {
+                let suffix = String(format: "%02d", sequence)
+                atbats.append(Atbat(
+                    ident: UUID(uuidString: "\(idPrefix)\(suffix)")!,
+                    game: game,
+                    team: team,
+                    player: player,
+                    result: "Strikeout",
+                    maxbase: "Out",
+                    batOrder: 1,
+                    outAt: "",
+                    inning: CGFloat(inning),
+                    seq: sequence,
+                    col: sequence,
+                    rbis: 0,
+                    outs: outs,
+                    sacFly: 0,
+                    sacBunt: 0,
+                    stolenBases: 0
+                ))
+                sequence += 1
+            }
+        }
+
+        return atbats
+    }
+
+    private func aggregateDeletionSnapshot(from container: ModelContainer, teamName: String, pitchingTeamName: String) throws -> AggregateDeletionSnapshot {
+        let context = ModelContext(container)
+        let games = try context.fetch(FetchDescriptor<Game>())
+        let allAtbats = try context.fetch(FetchDescriptor<Atbat>())
+        let allLineups = try context.fetch(FetchDescriptor<Lineup>())
+        let allPitchers = try context.fetch(FetchDescriptor<Pitcher>())
+        var hittingFetch = FetchDescriptor<Atbat>()
+        hittingFetch.predicate = #Predicate { $0.team.name == teamName }
+        var pitchingFetch = FetchDescriptor<Pitcher>()
+        pitchingFetch.predicate = #Predicate { $0.team.name == pitchingTeamName }
+
+        let reportAtbats = try context.fetch(hittingFetch)
+        let reportPitchers = try context.fetch(pitchingFetch)
+
+        return AggregateDeletionSnapshot(
+            gameIDs: games.map(\.ident).sorted { $0.uuidString < $1.uuidString },
+            hittingAtbatIDsByGame: Dictionary(grouping: reportAtbats, by: { $0.game.ident })
+                .mapValues { $0.map(\.ident).sorted { $0.uuidString < $1.uuidString } },
+            pitcherIDsByGame: Dictionary(grouping: reportPitchers, by: { $0.game.ident })
+                .mapValues { $0.map(\.ident).sorted { $0.uuidString < $1.uuidString } },
+            reportPitchingInnings: reportPitchers.reduce(0) { $0 + pitchingInnings(for: $1) },
+            allAtbatGameIDs: Array(Set(allAtbats.map { $0.game.ident })).sorted { $0.uuidString < $1.uuidString },
+            allLineupGameIDs: Array(Set(allLineups.map { $0.game.ident })).sorted { $0.uuidString < $1.uuidString },
+            allPitcherGameIDs: Array(Set(allPitchers.map { $0.game.ident })).sorted { $0.uuidString < $1.uuidString }
+        )
+    }
+
+    private func pitchingInnings(for pitcher: Pitcher) -> Int {
+        let opposingAtbats = pitcher.game.atbats.filter { $0.team != pitcher.team }
+        guard opposingAtbats.isEmpty == false else {
+            return 0
+        }
+
+        let endInning = pitcher.endInn > 0 ? pitcher.endInn : Int(opposingAtbats[opposingAtbats.count - 1].inning) + 1
+        return opposingAtbats.filter {
+            Common().outresults.contains($0.result)
+                && (10 * (Int($0.inning + 1)) + $0.outs >= (10 * pitcher.startInn) + pitcher.sOuts)
+                && (
+                    10 * (Int($0.inning + 1)) + $0.outs <= (10 * endInning) + pitcher.eOuts
+                    || (Int($0.inning) == endInning - 1 && $0.outs == 3)
+                )
+        }.count / 3
     }
 }
