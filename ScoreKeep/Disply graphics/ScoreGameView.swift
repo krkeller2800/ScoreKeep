@@ -151,6 +151,7 @@ struct ScoreGameView: View {
                             }
                         }
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .accessibilityIdentifier("at_bat_rbi_picker")
                         .accessibilityLabel("Runs batted in")
                         .accessibilityValue("\(rbiBinding.wrappedValue)")
                         .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding(.leading, 15)
@@ -164,6 +165,7 @@ struct ScoreGameView: View {
                             }
                         }
                         .frame(maxWidth: 120,maxHeight: 30, alignment:.center).background(.blue.opacity(0.2))
+                        .accessibilityIdentifier("at_bat_steal_picker")
                         .accessibilityLabel("Stolen bases")
                         .accessibilityValue("\(stolenBaseBinding.wrappedValue)")
                         .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint).padding(.trailing, 15)
@@ -201,6 +203,7 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .accessibilityIdentifier("at_bat_on_base_picker")
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                          .onChange(of: onBase) {
                              if onBase != "Result" {
@@ -229,6 +232,7 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .accessibilityIdentifier("at_bat_batting_out_picker")
                          .accessibilityLabel("Maximum base reached")
                          .accessibilityValue(maxBaseBinding.wrappedValue)
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
@@ -247,6 +251,9 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .lineLimit(1)
+                         .minimumScaleFactor(0.75)
+                         .accessibilityIdentifier("at_bat_max_base_picker")
                          .accessibilityLabel("Runner out location")
                          .accessibilityValue(displayedOutAt)
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
@@ -259,6 +266,9 @@ struct ScoreGameView: View {
                             }
                         }
                          .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
+                         .lineLimit(1)
+                         .minimumScaleFactor(0.75)
+                         .accessibilityIdentifier("at_bat_out_at_picker")
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                         Spacer()
                     }
