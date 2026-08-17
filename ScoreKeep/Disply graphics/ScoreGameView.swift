@@ -82,6 +82,22 @@ struct ScoreGameView: View {
         colorScheme == .dark ? ScoreKeepVisualStyle.primaryText : .black
     }
 
+    private var scorePlayCentralPickerWidth: CGFloat {
+        UIDevice.type == "iPhone" ? 130 : 120
+    }
+
+    private var scorePlayCentralPickerHeight: CGFloat {
+        UIDevice.type == "iPhone" ? 60 : 60
+    }
+
+    private var scorePlayCentralLabelHeight: CGFloat {
+        UIDevice.type == "iPhone" ? 34 : 50
+    }
+
+    private var scorePlayCentralLabelFont: Font? {
+        UIDevice.type == "iPhone" ? .body.weight(.semibold) : nil
+    }
+
     var body: some View {
         Section {
             GeometryReader { geometry in
@@ -172,37 +188,44 @@ struct ScoreGameView: View {
                     }
                     HStack(spacing: 0) {
                         Spacer()
-                        Text("On Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 30)
+                        Text("On Base")
+                            .font(scorePlayCentralLabelFont)
+                            .frame(maxWidth: scorePlayCentralPickerWidth, maxHeight: scorePlayCentralLabelHeight, alignment:.bottomLeading)
+                            .padding(.leading, UIDevice.type == "iPhone" ? 0 : 30)
                         Spacer()
-                        Text("Batting Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
+                        Text("Batting Out")
+                            .font(scorePlayCentralLabelFont)
+                            .frame(maxWidth: scorePlayCentralPickerWidth, maxHeight: scorePlayCentralLabelHeight, alignment:.bottomLeading)
+                            .padding(.leading, 0)
                         Spacer()
-                        Text("Max Base").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
+                        Text("Max Base")
+                            .font(scorePlayCentralLabelFont)
+                            .frame(maxWidth: scorePlayCentralPickerWidth, maxHeight: scorePlayCentralLabelHeight, alignment:.bottomLeading)
+                            .padding(.leading, 0)
                         Spacer()
-                        Text("Base path Out").frame(maxWidth: 120, maxHeight: 50 ,alignment:.bottomLeading).padding(.leading, 0)
+                        Text("Base path Out")
+                            .font(scorePlayCentralLabelFont)
+                            .frame(maxWidth: scorePlayCentralPickerWidth, maxHeight: scorePlayCentralLabelHeight, alignment:.bottomLeading)
+                            .padding(.leading, 0)
                         Spacer()
                     }
                     HStack(spacing: 0) {
                         Spacer()
-                        Picker("Batting", selection: $onBase) {
-                            Text("Result").tag("Result")
-                            Divider()
-                            let bats = com.onresults
-                            ForEach (bats, id: \.self) { batting in
-                                if batting != "" {
-                                    let action = resultPresentation(for: batting)
-                                    Text(batting)
-                                        .tag(batting)
-                                        .disabled(!action.isEnabled)
-                                        .accessibilityLabel(action.accessibilityLabel)
-                                        .accessibilityValue(action.accessibilityValue ?? "")
-                                        .accessibilityHint(action.accessibilityHint ?? "")
+                        Group {
+                            if UIDevice.type == "iPhone" {
+                                scorePlayPhoneClosedPickerMenu(selectedTitle: onBase) {
+                                    Picker("Batting", selection: $onBase) {
+                                        scorePlayOnBasePickerOptions()
+                                    }
+                                    .pickerStyle(.inline)
                                 }
-                                if batting == "Dropped 3rd Stike" || batting == "Fielder's Choice" || batting == "Home Run" {
-                                    Divider()
+                            } else {
+                                Picker("Batting", selection: $onBase) {
+                                    scorePlayOnBasePickerOptions()
                                 }
+                                .frame(maxWidth: scorePlayCentralPickerWidth,maxHeight: scorePlayCentralPickerHeight, alignment:.center).background(.blue.opacity(0.2))
                             }
                         }
-                         .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
                          .accessibilityIdentifier("at_bat_on_base_picker")
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                          .onChange(of: onBase) {
@@ -212,26 +235,21 @@ struct ScoreGameView: View {
                              }
                          }
                         Spacer()
-                        Picker("Batting", selection: $batOut) {
-                            Text("Result").tag("Result")
-                            Divider()
-                            let bats = com.outresults
-                            ForEach (bats, id: \.self) { batting in
-                                if batting != "" {
-                                    let action = resultPresentation(for: batting)
-                                    Text(batting)
-                                        .tag(batting)
-                                        .disabled(!action.isEnabled)
-                                        .accessibilityLabel(action.accessibilityLabel)
-                                        .accessibilityValue(action.accessibilityValue ?? "")
-                                        .accessibilityHint(action.accessibilityHint ?? "")
+                        Group {
+                            if UIDevice.type == "iPhone" {
+                                scorePlayPhoneClosedPickerMenu(selectedTitle: batOut) {
+                                    Picker("Batting", selection: $batOut) {
+                                        scorePlayBattingOutPickerOptions()
+                                    }
+                                    .pickerStyle(.inline)
                                 }
-                                if batting == "Strikeout Looking" {
-                                    Divider()
+                            } else {
+                                Picker("Batting", selection: $batOut) {
+                                    scorePlayBattingOutPickerOptions()
                                 }
+                                .frame(maxWidth: scorePlayCentralPickerWidth,maxHeight: scorePlayCentralPickerHeight, alignment:.center).background(.blue.opacity(0.2))
                             }
                         }
-                         .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
                          .accessibilityIdentifier("at_bat_batting_out_picker")
                          .accessibilityLabel("Maximum base reached")
                          .accessibilityValue(maxBaseBinding.wrappedValue)
@@ -243,31 +261,41 @@ struct ScoreGameView: View {
                              }
                          }
                          Spacer()
-                        Picker("Running", selection: maxBaseBinding) {
-                            Text("No Bases").tag("No Bases")
-                            let bases = ["","First","Second","Third","Home"]
-                            ForEach (bases, id: \.self) { base in
-                                (base != "") ? Text(base).tag(base): nil
+                        Group {
+                            if UIDevice.type == "iPhone" {
+                                scorePlayPhoneClosedPickerMenu(selectedTitle: maxBaseBinding.wrappedValue) {
+                                    Picker("Running", selection: maxBaseBinding) {
+                                        scorePlayMaxBasePickerOptions()
+                                    }
+                                    .pickerStyle(.inline)
+                                }
+                            } else {
+                                Picker("Running", selection: maxBaseBinding) {
+                                    scorePlayMaxBasePickerOptions()
+                                }
+                                .frame(maxWidth: scorePlayCentralPickerWidth,maxHeight: scorePlayCentralPickerHeight, alignment:.center).background(.blue.opacity(0.2))
                             }
                         }
-                         .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
-                         .lineLimit(1)
-                         .minimumScaleFactor(0.75)
                          .accessibilityIdentifier("at_bat_max_base_picker")
                          .accessibilityLabel("Runner out location")
                          .accessibilityValue(displayedOutAt)
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                         Spacer()
-                        Picker("Out", selection: outAtBinding) {
-                            Text("Safe").tag("Safe")
-                            let outs = ["","First","Second","Third","Home"]
-                            ForEach (outs, id: \.self) { out in
-                                (out != "") ? Text(out).tag(out): nil
+                        Group {
+                            if UIDevice.type == "iPhone" {
+                                scorePlayPhoneClosedPickerMenu(selectedTitle: displayedOutAt) {
+                                    Picker("Out", selection: outAtBinding) {
+                                        scorePlayOutAtPickerOptions()
+                                    }
+                                    .pickerStyle(.inline)
+                                }
+                            } else {
+                                Picker("Out", selection: outAtBinding) {
+                                    scorePlayOutAtPickerOptions()
+                                }
+                                .frame(maxWidth: scorePlayCentralPickerWidth,maxHeight: scorePlayCentralPickerHeight, alignment:.center).background(.blue.opacity(0.2))
                             }
                         }
-                         .frame(maxWidth: 120,maxHeight: 60, alignment:.center).background(.blue.opacity(0.2))
-                         .lineLimit(1)
-                         .minimumScaleFactor(0.75)
                          .accessibilityIdentifier("at_bat_out_at_picker")
                          .border(scorePlayControlBorder).cornerRadius(10).tint(scorePlayControlTint)
                         Spacer()
@@ -758,8 +786,112 @@ struct ScoreGameView: View {
         )
     }
 
+    private func scorePlayPhoneClosedPickerMenu<Content: View>(
+        selectedTitle: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        Menu {
+            content()
+        } label: {
+            ScorePlayPhoneClosedPickerLabel(
+                title: selectedTitle,
+                width: scorePlayCentralPickerWidth,
+                height: scorePlayCentralPickerHeight
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func scorePlayOnBasePickerOptions() -> some View {
+        Text("Result").tag("Result")
+        Divider()
+        let bats = com.onresults
+        ForEach (bats, id: \.self) { batting in
+            if batting != "" {
+                let action = resultPresentation(for: batting)
+                Text(batting)
+                    .tag(batting)
+                    .disabled(!action.isEnabled)
+                    .accessibilityLabel(action.accessibilityLabel)
+                    .accessibilityValue(action.accessibilityValue ?? "")
+                    .accessibilityHint(action.accessibilityHint ?? "")
+            }
+            if batting == "Dropped 3rd Stike" || batting == "Fielder's Choice" || batting == "Home Run" {
+                Divider()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func scorePlayBattingOutPickerOptions() -> some View {
+        Text("Result").tag("Result")
+        Divider()
+        let bats = com.outresults
+        ForEach (bats, id: \.self) { batting in
+            if batting != "" {
+                let action = resultPresentation(for: batting)
+                Text(batting)
+                    .tag(batting)
+                    .disabled(!action.isEnabled)
+                    .accessibilityLabel(action.accessibilityLabel)
+                    .accessibilityValue(action.accessibilityValue ?? "")
+                    .accessibilityHint(action.accessibilityHint ?? "")
+            }
+            if batting == "Strikeout Looking" {
+                Divider()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func scorePlayMaxBasePickerOptions() -> some View {
+        Text("No Bases").tag("No Bases")
+        let bases = ["","First","Second","Third","Home"]
+        ForEach (bases, id: \.self) { base in
+            (base != "") ? Text(base).tag(base): nil
+        }
+    }
+
+    @ViewBuilder
+    private func scorePlayOutAtPickerOptions() -> some View {
+        Text("Safe").tag("Safe")
+        let outs = ["","First","Second","Third","Home"]
+        ForEach (outs, id: \.self) { out in
+            (out != "") ? Text(out).tag(out): nil
+        }
+    }
+
     private func announce(_ message: String?) {
         guard let message, !message.isEmpty, UIAccessibility.isVoiceOverRunning else { return }
         UIAccessibility.post(notification: .announcement, argument: message)
+    }
+}
+
+private struct ScorePlayPhoneClosedPickerLabel: View {
+    let title: String
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+                .allowsTightening(true)
+                .multilineTextAlignment(.center)
+                .layoutPriority(1)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.callout.weight(.semibold))
+                .frame(width: 14)
+                .accessibilityHidden(true)
+        }
+        .font(.body)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 4)
+        .frame(width: width, height: height)
+        .background(.blue.opacity(0.2))
     }
 }
