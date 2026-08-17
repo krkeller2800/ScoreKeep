@@ -178,9 +178,7 @@ struct GameView: View {
                     }
                 }
                 ToolbarItem(placement: .principal) {
-                    Text(self.title)
-                        .font(.title2)
-                        .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                    gamesToolbarTitle
                 }
             }
             .sheet(isPresented: $showingNewGameSheet) {
@@ -248,6 +246,22 @@ struct GameView: View {
         .shadow(color: Color.primary.opacity(0.08), radius: 4, x: 0, y: 2)
         .scrollContentBackground(.hidden)
         .background(Color.clear)
+    }
+
+    @ViewBuilder
+    private var gamesToolbarTitle: some View {
+        if UIDevice.type == "iPhone" {
+            Text(title)
+                .font(.title2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .fixedSize(horizontal: true, vertical: false)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+        } else {
+            Text(title)
+                .font(.title2)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+        }
     }
 
     private var narrowRegularWidthMessage: some View {
