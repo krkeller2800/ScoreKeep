@@ -301,29 +301,22 @@ struct ScoreGameView: View {
                         Spacer()
                     }
                     .padding(.leading, 0)
-                    .onChange(of: atbat.result) {
+                    .onChange(of: displayedResult) {
                         let result = displayedResult
                         if result == "Dropped 3rd Strike" || result == "Error" {
                             earnedRun = false
                         }
-                        if !com.recOuts.contains(result) || displayedOutAt != "Safe"  {
-                            recPlay = false
-                        } else {
-                            recPlay = true
-                        }
+                        syncFieldingControlVisibility(for: result, outAt: displayedOutAt)
                     }
                     .onChange(of: displayedOutAt) {
-                        if displayedOutAt != "Safe" {
-                            recPlay = true
-                        } else {
-                            if pendingAdditionalChoice == nil {
-                                clearPlayRecord()
-                            }
-                            recPlay = false
-                            if !isCorrectionEntry {
-                                Task { @MainActor in
-                                    dismiss()
-                                }
+                        let outAt = displayedOutAt
+                        if outAt == "Safe" && pendingAdditionalChoice == nil && !com.recOuts.contains(displayedResult) {
+                            clearPlayRecord()
+                        }
+                        syncFieldingControlVisibility(for: displayedResult, outAt: outAt)
+                        if outAt == "Safe" && !recPlay && !isCorrectionEntry {
+                            Task { @MainActor in
+                                dismiss()
                             }
                         }
                         if !isCorrectionEntry {
@@ -332,9 +325,7 @@ struct ScoreGameView: View {
                     }
                     .onAppear {
                         prepareCorrectionDraftIfNeeded()
-                        if currentPlayRecord != "" || com.recOuts.contains(displayedResult) || displayedOutAt != "Safe" {
-                            recPlay = true
-                        }
+                        syncFieldingControlVisibility(for: displayedResult, outAt: displayedOutAt)
                         if com.onresults.contains(displayedResult) {
                             onBase = displayedResult
                             batOut = "Result"
@@ -754,6 +745,16 @@ struct ScoreGameView: View {
         if forceSafeOut {
             correctionOutAt = "Safe"
         }
+
+        if !com.recOuts.contains(result) && correctionOutAt == "Safe" {
+            correctionPlayRecord = ""
+        }
+
+        syncFieldingControlVisibility(for: result, outAt: correctionOutAt)
+    }
+
+    private func syncFieldingControlVisibility(for result: String, outAt: String) {
+        recPlay = com.recOuts.contains(result) || outAt != "Safe"
     }
 
     private func submitCorrectionDraft() {
