@@ -769,6 +769,25 @@ struct LiveScoringShellPresentationTests {
         #expect(controller.hasCompletedScroll(for: second))
     }
 
+    @Test("scorecard scroll controller does not re-anchor after a completed request")
+    func scorecardScrollControllerDoesNotReanchorAfterCompletedRequest() {
+        let controller = ScorecardScrollController()
+        let scrollView = UIScrollView(frame: CGRect(x: 0, y: 0, width: 320, height: 500))
+        scrollView.contentSize = CGSize(width: 320, height: 900)
+        controller.attach(scrollView)
+        let request = UUID(uuidString: "98000000-0000-0000-0000-000000000010")!
+
+        controller.prepareForPitcherSectionScroll(requestID: request)
+        #expect(controller.markPitcherSectionRendered(for: request))
+
+        scrollView.contentSize = CGSize(width: 320, height: 980)
+        scrollView.setContentOffset(CGPoint(x: 0, y: 120), animated: false)
+        controller.recordLayoutChange(scrollView)
+
+        #expect(controller.hasCompletedScroll(for: request))
+        #expect(scrollView.contentOffset == CGPoint(x: 0, y: 120))
+    }
+
     @Test("scorecard bottom offset preserves horizontal position and targets vertical bottom")
     func scorecardBottomOffsetPreservesHorizontalPositionAndTargetsVerticalBottom() {
         let offset = ScorecardScrollController.scorecardBottomOffset(

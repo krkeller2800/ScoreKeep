@@ -849,10 +849,6 @@ final class ScorecardScrollController {
     private var pendingRequestID: UUID?
     private var renderedRequestIDs: Set<UUID> = []
     private var completedRequestIDs: Set<UUID> = []
-    // Stash the most-recently completed request so that if content size grows
-    // (e.g. new pitcher row finishes layout) the next recordLayoutChange can
-    // fire one additional scroll to reach the true new bottom.
-    private var lastCompletedRequestID: UUID?
 
     func attach(_ scrollView: UIScrollView) {
         self.scrollView = scrollView
@@ -861,13 +857,6 @@ final class ScorecardScrollController {
 
     func recordLayoutChange(_ scrollView: UIScrollView) {
         self.scrollView = scrollView
-        // If a request was completed on a previous (stale) content size, give it
-        // one more attempt now that the layout has settled.
-        if let lastID = lastCompletedRequestID {
-            completedRequestIDs.remove(lastID)
-            pendingRequestID = lastID
-            lastCompletedRequestID = nil
-        }
         attemptPendingScroll()
     }
 
@@ -903,10 +892,6 @@ final class ScorecardScrollController {
         )
         guard let targetOffset else { return false }
 
-        // Stash for one content-size re-scroll before fully consuming the request.
-        // This handles the race where SwiftUI re-renders the pitcher spacer *after*
-        // this scroll fires, causing a new KVO → recordLayoutChange → re-scroll.
-        lastCompletedRequestID = requestID
         completedRequestIDs.insert(requestID)
         pendingRequestID = nil
         scrollView.setContentOffset(targetOffset, animated: true)
@@ -927,4 +912,3 @@ final class ScorecardScrollController {
         return CGPoint(x: currentOffset.x, y: maxY)
     }
 }
-
