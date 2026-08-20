@@ -45,8 +45,7 @@ struct PitchersStaffView: View {
     
     var body: some View {
         ScrollView {
-            Text("If this pitcher is being added when you are about to score his first batter, leave \"Start Inning\" at zero and the app will fill in the rest.")
-                .italic().frame(maxWidth:.infinity).multilineTextAlignment(.center).padding(.top,10)
+
             HStack (spacing:0) {
                 scorebookHeaderCell("Num")
                     .frame(width: 50).padding(.leading,10)
@@ -284,6 +283,29 @@ struct PitchersStaffView: View {
             if let review = reviewState {
                 Text("Confirm pitcher change to \(review.summaryIncomingName)?")
             }
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(alignment: .center, spacing: 6) {
+                Image(systemName: "info.circle")
+                    .foregroundColor(ScoreKeepVisualStyle.secondaryText)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Adding before his first batter? Leave Start Inning at 0 — ScoreKeep fills in the rest.")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Text("Start/End Batter define batters faced in the inning.")
+                }
+                .font(.subheadline)
+                .foregroundColor(ScoreKeepVisualStyle.secondaryText)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(ScoreKeepVisualStyle.elevatedSurface)
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
         .onDisappear {
             if game.pitchers.first(where: { $0.player.name == pName }) == nil {

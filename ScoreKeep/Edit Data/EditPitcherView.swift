@@ -21,7 +21,24 @@ struct EditPitcherView: View {
     
     var body: some View {
         Section {
-            VStack() {
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(ScoreKeepVisualStyle.secondaryText)
+                    
+                    Text("Start/End Batter define batters faced in the inning.")
+                        .font(.subheadline)
+                        .foregroundColor(ScoreKeepVisualStyle.secondaryText)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(ScoreKeepVisualStyle.elevatedSurface)
+                )
+                .padding(.horizontal, 16)
+                
                 List {
                     HStack () {
                         scorebookHeaderCell("Num")
@@ -109,6 +126,7 @@ struct EditPitcherView: View {
                     }
                     Spacer()
                 }
+
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         Text("Edit \(pitcher.player.name) Innings Pitched")
