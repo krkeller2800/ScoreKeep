@@ -75,7 +75,7 @@ struct EditPitcherView: View {
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
                         Picker("Starts Outs", selection: $pitcher.sOuts) {
-                            let outs = ["0","1 Out","2 Out","3 Out"]
+                            let outs = ["0","1","2","3"]
                             ForEach(Array(outs.enumerated()), id: \.0) { index, out in
                                 Text(out).tag(index)
                             }
