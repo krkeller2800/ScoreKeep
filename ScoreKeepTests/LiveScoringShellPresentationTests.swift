@@ -131,6 +131,70 @@ struct LiveScoringShellPresentationTests {
         #expect(ScorecardCellView.invalidGuidanceCueVerticalOffset(for: 60) == 5)
     }
 
+    @Test("invalid selection banner anchors near tapped scorecard cell within viewport")
+    func invalidSelectionBannerAnchorsNearTappedCellWithinViewport() {
+        let bannerSize = CGSize(width: 240, height: 72)
+        let viewportSize = CGSize(width: 320, height: 500)
+
+        let left = InvalidScorecardSelectionBanner.placement(
+            for: CGRect(x: 4, y: 180, width: 50, height: 50),
+            bannerSize: bannerSize,
+            viewportSize: viewportSize
+        )
+        let center = InvalidScorecardSelectionBanner.placement(
+            for: CGRect(x: 135, y: 180, width: 50, height: 50),
+            bannerSize: bannerSize,
+            viewportSize: viewportSize
+        )
+        let right = InvalidScorecardSelectionBanner.placement(
+            for: CGRect(x: 280, y: 180, width: 50, height: 50),
+            bannerSize: bannerSize,
+            viewportSize: viewportSize
+        )
+        let top = InvalidScorecardSelectionBanner.placement(
+            for: CGRect(x: 135, y: 20, width: 50, height: 50),
+            bannerSize: bannerSize,
+            viewportSize: viewportSize
+        )
+
+        #expect(left == CGPoint(x: 132, y: 136))
+        #expect(center == CGPoint(x: 160, y: 136))
+        #expect(right == CGPoint(x: 188, y: 136))
+        #expect(top == CGPoint(x: 160, y: 114))
+    }
+
+    @Test("scorecard cell visibility requires the full frame inside viewport")
+    func scorecardCellVisibilityRequiresFullFrameInsideViewport() {
+        let viewportSize = CGSize(width: 320, height: 500)
+
+        #expect(PlayersToScoreView.scorecardCellFrameIsFullyVisible(CGRect(x: 10, y: 20, width: 50, height: 50), in: viewportSize))
+        #expect(!PlayersToScoreView.scorecardCellFrameIsFullyVisible(CGRect(x: -1, y: 20, width: 50, height: 50), in: viewportSize))
+        #expect(!PlayersToScoreView.scorecardCellFrameIsFullyVisible(CGRect(x: 280, y: 20, width: 50, height: 50), in: viewportSize))
+        #expect(!PlayersToScoreView.scorecardCellFrameIsFullyVisible(CGRect(x: 10, y: -1, width: 50, height: 50), in: viewportSize))
+        #expect(!PlayersToScoreView.scorecardCellFrameIsFullyVisible(CGRect(x: 10, y: 470, width: 50, height: 50), in: viewportSize))
+        #expect(!PlayersToScoreView.scorecardCellFrameIsFullyVisible(nil, in: viewportSize))
+    }
+
+    @Test("invalid selection recovery scroll axes are independent")
+    func invalidSelectionRecoveryScrollAxesAreIndependent() {
+        let viewportSize = CGSize(width: 320, height: 500)
+
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: CGRect(x: 10, y: 20, width: 50, height: 50), in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: false, vertical: false))
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: CGRect(x: -1, y: 20, width: 50, height: 50), in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: true, vertical: false))
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: CGRect(x: 280, y: 20, width: 50, height: 50), in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: true, vertical: false))
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: CGRect(x: 10, y: -1, width: 50, height: 50), in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: false, vertical: true))
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: CGRect(x: 10, y: 470, width: 50, height: 50), in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: false, vertical: true))
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: CGRect(x: 300, y: 470, width: 50, height: 50), in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: true, vertical: true))
+        #expect(PlayersToScoreView.invalidSelectionRecoveryScrollAxes(for: nil, in: viewportSize) == ScorecardRecoveryScrollAxes(horizontal: true, vertical: true))
+    }
+
+    @Test("scorecard row scroll target id is stable")
+    func scorecardRowScrollTargetIDIsStable() {
+        let rowID = UUID(uuidString: "98000000-0000-0000-0000-000000000011")!
+
+        #expect(PlayersToScoreView.scorecardRowScrollTargetID(for: rowID) == "scorecard_rendered_row_98000000-0000-0000-0000-000000000011")
+    }
+
     @Test("semantic score presentation displays coordinator-provided score and line state")
     func semanticScorePresentationDisplaysCoordinatorProvidedScoreAndLineState() {
         let presenter = LiveScoringShellPresentation()

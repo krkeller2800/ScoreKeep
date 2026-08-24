@@ -44,6 +44,14 @@ struct PlayersToScoreView: View {
     @State private var alertMessage = ""
     @State private var highlightedCell: String? = nil
     @State private var invalidSelectionGuidanceToken: UUID?
+    @State private var invalidSelectionBannerSize: CGSize = .zero
+    @State private var scorecardCellFrames: [String: CGRect] = [:]
+    @State private var pendingInvalidSelectionHintTargetID: String?
+    @State private var pendingInvalidSelectionVerticalTargetID: String?
+    @State private var pendingInvalidSelectionHintMessage = ""
+    @State private var pendingInvalidSelectionHintToken: UUID?
+    @State private var pendingInvalidSelectionScrollRequested = false
+    @State private var pendingInvalidSelectionScrollRequestID: UUID?
     private let inningHeaderPitcherSummaryClearance: CGFloat = 24
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
@@ -69,7 +77,8 @@ struct PlayersToScoreView: View {
                         Text("Name").frame(width:50, height: 15, alignment:.leading).font(.caption).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                         Spacer()
                     }
-                    ScrollView() {
+                    ScrollViewReader { verticalScrollProxy in
+                        ScrollView() {
                             HStack {
                                 VStack (spacing: 0){
                                     ForEach(Array(atbats.enumerated()), id: \.element.persistentModelID) { index, atbat in
@@ -87,6 +96,7 @@ struct PlayersToScoreView: View {
 
                                             }
                                         }
+                                        .id(Self.scorecardRowScrollTargetID(for: atbat.ident))
                                     }
                                     Spacer()
                                 }
@@ -119,6 +129,14 @@ struct PlayersToScoreView: View {
                                                             cellPresentation: cellPresentation,
                                                             action: {
                                                                 doAtbat(ind: ind, index: index, atbat: atbat)
+                                                            }
+                                                        )
+                                                        .background(
+                                                            GeometryReader { cellProxy in
+                                                                Color.clear.preference(
+                                                                    key: ScorecardCellFramePreferenceKey.self,
+                                                                    value: [cellId: cellProxy.frame(in: .named("live_scoring_root"))]
+                                                                )
                                                             }
                                                         )
                                                     }
@@ -154,11 +172,29 @@ struct PlayersToScoreView: View {
                                     }
                                 }
                                 .onChange(of: highlightedCell) { _, newValue in
-                                    if let target = newValue {
+                                    guard let target = newValue else { return }
+                                    if UIDevice.type == "iPhone" {
+                                        handleInvalidSelectionTargetChange(
+                                            targetID: target,
+                                            viewportSize: geometry.size,
+                                            horizontalScrollProxy: scrollProxy,
+                                            verticalScrollProxy: verticalScrollProxy
+                                        )
+                                    } else {
                                         withAnimation {
                                             scrollProxy.scrollTo(target, anchor: .center)
                                         }
                                     }
+                                }
+                                .onChange(of: pendingInvalidSelectionScrollRequestID) { _, _ in
+                                    guard UIDevice.type == "iPhone",
+                                          let target = pendingInvalidSelectionHintTargetID else { return }
+                                    handleInvalidSelectionTargetChange(
+                                        targetID: target,
+                                        viewportSize: geometry.size,
+                                        horizontalScrollProxy: scrollProxy,
+                                        verticalScrollProxy: verticalScrollProxy
+                                    )
                                 }
                                     }
                                 }
@@ -168,6 +204,7 @@ struct PlayersToScoreView: View {
                                 ScorecardScrollViewObserver(controller: scorecardScrollController)
                             )
                         }
+                    }
                         .coordinateSpace(name: "pitcher_vertical_scroll")
                         .onChange(of: pitcherSectionScrollRequest) { _, request in
                             guard let request else { return }
@@ -197,18 +234,52 @@ struct PlayersToScoreView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
+                .coordinateSpace(name: "live_scoring_root")
                 .accessibilityIdentifier("live_scoring_root")
-                .overlay(alignment: .top) {
-                    if showingAlert {
-                        InvalidScorecardSelectionBanner(message: alertMessage)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .zIndex(1)
+                .onPreferenceChange(ScorecardCellFramePreferenceKey.self) { frames in
+                    scorecardCellFrames = frames
+                    showPendingInvalidSelectionHintIfTargetVisible(
+                        cellFrames: frames,
+                        viewportSize: geometry.size
+                    )
+                }
+                .overlayPreferenceValue(ScorecardCellFramePreferenceKey.self) { cellFrames in
+                    GeometryReader { proxy in
+                        if showingAlert {
+                            let targetFrame = highlightedCell.flatMap { cellFrames[$0] }
+                            let placement = InvalidScorecardSelectionBanner.placement(
+                                for: targetFrame,
+                                bannerSize: invalidSelectionBannerSize,
+                                viewportSize: proxy.size
+                            )
+                            InvalidScorecardSelectionBanner(message: alertMessage)
+                                .background(
+                                    GeometryReader { bannerProxy in
+                                        Color.clear.preference(
+                                            key: InvalidScorecardSelectionBannerSizePreferenceKey.self,
+                                            value: bannerProxy.size
+                                        )
+                                    }
+                                )
+                                .position(placement)
+                                .transition(.opacity)
+                                .zIndex(1)
+                                .onPreferenceChange(InvalidScorecardSelectionBannerSizePreferenceKey.self) { size in
+                                    invalidSelectionBannerSize = size
+                                }
+                        }
                     }
                 }
                 .onAppear() {
+                    screenSize = geometry.size
                     lAtbats = atbats
+                }
+                .onChange(of: geometry.size) { _, newSize in
+                    screenSize = newSize
+                    showPendingInvalidSelectionHintIfTargetVisible(
+                        cellFrames: scorecardCellFrames,
+                        viewportSize: newSize
+                    )
                 }
                 .onChange(of: atbats) {
                     if firstTime {
@@ -485,30 +556,154 @@ struct PlayersToScoreView: View {
             print(message)
             #endif
             if !presentation.shouldPresentScoringSheet {
-                alertMessage = message
-                showingAlert = true
                 let guidanceToken = restartInvalidSelectionGuidanceTimer()
+                let targetId = invalidSelectionGuidanceTargetID(for: presentation)
 
-                if let renderedTarget = presentation.renderedTarget {
-                    let targetId = renderedTarget.uiIdentifier
+                if let targetId {
                     highlightedCell = targetId
-                } else if let targetAction = presentation.targetAction {
-                    if case .scorecardCell(let column, let battingOrder) = targetAction {
-                        let targetId = "scorecard_cell_\(battingOrder)_\(column)"
-                        highlightedCell = targetId
-                    }
                 }
-                hideInvalidSelectionGuidance(after: .now() + 5, token: guidanceToken)
+
+                let canLocateTargetFrame = presentation.renderedTarget != nil || targetId.flatMap { scorecardCellFrames[$0] } != nil
+                if UIDevice.type == "iPhone", let targetId, canLocateTargetFrame {
+                    if Self.scorecardCellFrameIsFullyVisible(scorecardCellFrames[targetId], in: screenSize) {
+                        showInvalidSelectionGuidance(message: message, token: guidanceToken)
+                    } else {
+                        pendingInvalidSelectionHintTargetID = targetId
+                        pendingInvalidSelectionVerticalTargetID = invalidSelectionGuidanceVerticalTargetID(for: presentation)
+                        pendingInvalidSelectionHintMessage = message
+                        pendingInvalidSelectionHintToken = guidanceToken
+                        pendingInvalidSelectionScrollRequested = false
+                        pendingInvalidSelectionScrollRequestID = UUID()
+                        showingAlert = false
+                    }
+                } else {
+                    showInvalidSelectionGuidance(message: message, token: guidanceToken)
+                }
             }
         }
 
         return presentation
     }
 
+    private func invalidSelectionGuidanceTargetID(
+        for presentation: LiveScoringShellPresentation.SelectionPresentation
+    ) -> String? {
+        if let renderedTarget = presentation.renderedTarget {
+            return renderedTarget.uiIdentifier
+        }
+
+        if let targetCell = presentation.targetCell {
+            return targetCell.uiIdentifier
+        }
+
+        if let targetAction = presentation.targetAction,
+           case .scorecardCell(let column, let battingOrder) = targetAction {
+            return "scorecard_cell_\(battingOrder)_\(column)"
+        }
+
+        return nil
+    }
+
+    private func invalidSelectionGuidanceVerticalTargetID(
+        for presentation: LiveScoringShellPresentation.SelectionPresentation
+    ) -> String? {
+        guard let renderedTarget = presentation.renderedTarget else { return nil }
+        return Self.scorecardRowScrollTargetID(for: renderedTarget.renderedRowIdentity)
+    }
+
+    static func scorecardRowScrollTargetID(for rowIdentity: UUID) -> String {
+        "scorecard_rendered_row_\(rowIdentity.uuidString)"
+    }
+
+    private func handleInvalidSelectionTargetChange(
+        targetID: String,
+        viewportSize: CGSize,
+        horizontalScrollProxy: ScrollViewProxy,
+        verticalScrollProxy: ScrollViewProxy
+    ) {
+        guard pendingInvalidSelectionHintTargetID == targetID else { return }
+
+        if Self.scorecardCellFrameIsFullyVisible(scorecardCellFrames[targetID], in: viewportSize) {
+            showPendingInvalidSelectionHintIfTargetVisible(
+                cellFrames: scorecardCellFrames,
+                viewportSize: viewportSize
+            )
+            return
+        }
+
+        guard !pendingInvalidSelectionScrollRequested else { return }
+        pendingInvalidSelectionScrollRequested = true
+        let scrollAxes = Self.invalidSelectionRecoveryScrollAxes(
+            for: scorecardCellFrames[targetID],
+            in: viewportSize
+        )
+        withAnimation {
+            if scrollAxes.horizontal {
+                horizontalScrollProxy.scrollTo(targetID, anchor: .center)
+            }
+            if scrollAxes.vertical {
+                verticalScrollProxy.scrollTo(pendingInvalidSelectionVerticalTargetID ?? targetID, anchor: .center)
+            }
+        }
+    }
+
+    private func showPendingInvalidSelectionHintIfTargetVisible(
+        cellFrames: [String: CGRect],
+        viewportSize: CGSize
+    ) {
+        guard let targetID = pendingInvalidSelectionHintTargetID,
+              let token = pendingInvalidSelectionHintToken,
+              Self.scorecardCellFrameIsFullyVisible(cellFrames[targetID], in: viewportSize) else {
+            return
+        }
+
+        let message = pendingInvalidSelectionHintMessage
+        pendingInvalidSelectionHintTargetID = nil
+        pendingInvalidSelectionVerticalTargetID = nil
+        pendingInvalidSelectionHintMessage = ""
+        pendingInvalidSelectionHintToken = nil
+        pendingInvalidSelectionScrollRequested = false
+        showInvalidSelectionGuidance(message: message, token: token)
+    }
+
+    static func scorecardCellFrameIsFullyVisible(_ frame: CGRect?, in viewportSize: CGSize) -> Bool {
+        guard let frame,
+              viewportSize.width > 0,
+              viewportSize.height > 0 else {
+            return false
+        }
+
+        return CGRect(origin: .zero, size: viewportSize).contains(frame)
+    }
+
+    static func invalidSelectionRecoveryScrollAxes(
+        for frame: CGRect?,
+        in viewportSize: CGSize
+    ) -> ScorecardRecoveryScrollAxes {
+        guard let frame,
+              viewportSize.width > 0,
+              viewportSize.height > 0 else {
+            return ScorecardRecoveryScrollAxes(horizontal: true, vertical: true)
+        }
+
+        let viewport = CGRect(origin: .zero, size: viewportSize)
+        return ScorecardRecoveryScrollAxes(
+            horizontal: frame.minX < viewport.minX || frame.maxX > viewport.maxX,
+            vertical: frame.minY < viewport.minY || frame.maxY > viewport.maxY
+        )
+    }
+
     private func restartInvalidSelectionGuidanceTimer() -> UUID {
         let token = UUID()
         invalidSelectionGuidanceToken = token
         return token
+    }
+
+    private func showInvalidSelectionGuidance(message: String, token: UUID) {
+        guard invalidSelectionGuidanceToken == token else { return }
+        alertMessage = message
+        showingAlert = true
+        hideInvalidSelectionGuidance(after: .now() + 5, token: token)
     }
 
     private func hideInvalidSelectionGuidance(after deadline: DispatchTime, token: UUID) {
@@ -522,6 +717,12 @@ struct PlayersToScoreView: View {
         invalidSelectionGuidanceToken = nil
         showingAlert = false
         highlightedCell = nil
+        pendingInvalidSelectionHintTargetID = nil
+        pendingInvalidSelectionVerticalTargetID = nil
+        pendingInvalidSelectionHintMessage = ""
+        pendingInvalidSelectionHintToken = nil
+        pendingInvalidSelectionScrollRequested = false
+        pendingInvalidSelectionScrollRequestID = nil
     }
 
 
@@ -695,29 +896,84 @@ struct ViewOffsetKey: PreferenceKey {
     }
 }
 
+struct ScorecardCellFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, newValue in newValue })
+    }
+}
+
+struct InvalidScorecardSelectionBannerSizePreferenceKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
+struct ScorecardRecoveryScrollAxes: Equatable {
+    let horizontal: Bool
+    let vertical: Bool
+}
+
 struct InvalidScorecardSelectionBanner: View {
     let message: String
 
+    static func placement(
+        for targetFrame: CGRect?,
+        bannerSize: CGSize,
+        viewportSize: CGSize,
+        margin: CGFloat = 12,
+        cellSpacing: CGFloat = 8
+    ) -> CGPoint {
+        let resolvedBannerSize = CGSize(
+            width: bannerSize.width > 0 ? bannerSize.width : min(320, max(0, viewportSize.width - margin * 2)),
+            height: bannerSize.height > 0 ? bannerSize.height : 72
+        )
+        let halfWidth = resolvedBannerSize.width / 2
+        let halfHeight = resolvedBannerSize.height / 2
+        let minX = margin + halfWidth
+        let maxX = max(minX, viewportSize.width - margin - halfWidth)
+        let minY = margin + halfHeight
+        let maxY = max(minY, viewportSize.height - margin - halfHeight)
+
+        guard let targetFrame else {
+            return CGPoint(
+                x: min(max(viewportSize.width / 2, minX), maxX),
+                y: minY
+            )
+        }
+
+        let preferredY = targetFrame.minY - cellSpacing - halfHeight
+        let fallbackY = targetFrame.maxY + cellSpacing + halfHeight
+        let y = preferredY >= minY ? preferredY : min(max(fallbackY, minY), maxY)
+        let x = min(max(targetFrame.midX, minX), maxX)
+
+        return CGPoint(x: x, y: y)
+    }
+
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "hand.tap.fill")
+                .foregroundColor(.accentColor)
+                .font(.title3)
+
             Text(message)
-                .font(.footnote.weight(.semibold))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                 .multilineTextAlignment(.leading)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: 320, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(ScoreKeepVisualStyle.elevatedSurface)
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.yellow.opacity(0.9), lineWidth: 2)
-        )
-        .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("invalid_scorecard_selection_banner")
     }
