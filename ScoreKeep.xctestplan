@@ -28,7 +28,7 @@
     {
       "target" : {
         "containerPath" : "container:ScoreKeep.xcodeproj",
-        "identifier" : "CB643B662D85E59E00F30B87",
+        "identifier" : "CB643B622D85E59E00F30B87",
         "name" : "ScoreKeepUITests"
       }
     }
