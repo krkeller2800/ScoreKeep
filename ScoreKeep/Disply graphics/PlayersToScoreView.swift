@@ -849,6 +849,7 @@ final class ScorecardScrollController {
     private var pendingRequestID: UUID?
     private var renderedRequestIDs: Set<UUID> = []
     private var completedRequestIDs: Set<UUID> = []
+    private var deferredScrollRequestIDs: Set<UUID> = []
 
     func attach(_ scrollView: UIScrollView) {
         self.scrollView = scrollView
@@ -883,6 +884,14 @@ final class ScorecardScrollController {
               let scrollView else {
             return false
         }
+        guard scrollView.window == nil || deferredScrollRequestIDs.contains(requestID) else {
+            deferredScrollRequestIDs.insert(requestID)
+            DispatchQueue.main.async { [weak self] in
+                _ = self?.attemptPendingScroll()
+            }
+            return true
+        }
+        scrollView.layoutIfNeeded()
 
         let targetOffset = Self.scorecardBottomOffset(
             contentSize: scrollView.contentSize,
@@ -893,8 +902,9 @@ final class ScorecardScrollController {
         guard let targetOffset else { return false }
 
         completedRequestIDs.insert(requestID)
+        deferredScrollRequestIDs.remove(requestID)
         pendingRequestID = nil
-        scrollView.setContentOffset(targetOffset, animated: true)
+        scrollView.setContentOffset(targetOffset, animated: false)
         return true
     }
 

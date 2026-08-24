@@ -68,9 +68,10 @@ struct GameColumnWidthsTests {
         #expect(approximately(widths.visibleWidths.reduce(0, +), 1_000))
         #expect(widths.date == 145)
         #expect(widths.allHit == 42)
-        #expect(widths.team == 150)
+        #expect(widths.team == 132)
         #expect(widths.status == 116)
-        #expect(widths.field == 397)
+        #expect(widths.field == 433)
+        #expect(widths.field > 400)
     }
 
     private func approximately(_ lhs: CGFloat, _ rhs: CGFloat) -> Bool {

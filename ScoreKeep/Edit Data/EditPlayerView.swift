@@ -288,7 +288,7 @@ struct EditPlayerView: View {
             matchedPlayer: matchedPlayer,
             name: playerName,
             number: playerNumber,
-            position: playerPosition,
+            position: CanonicalDefensivePosition.normalizedDisplayValue(for: playerPosition),
             batDir: playerBatDir,
             preserveHistoricalEvidence: false
         )
@@ -312,7 +312,7 @@ struct EditPlayerView: View {
     func applyBufferedFields(to player: Player) {
         player.name = playerName
         player.number = playerNumber
-        player.position = playerPosition
+        player.position = CanonicalDefensivePosition.normalizedDisplayValue(for: playerPosition)
         player.batDir = playerBatDir
     }
 

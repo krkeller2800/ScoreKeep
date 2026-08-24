@@ -300,7 +300,7 @@ struct PlayersOnTeamView: View {
     func createPendingPlayer() {
         let maxOrder = players.map { $0.batOrder }.filter { $0 < 99 }.max() ?? 0
         let orderToAssign = pOrder == 0 ? maxOrder + 1 : pOrder
-        let thisPlayer = Player(name: pName, number: pNum, position: pPos, batDir: pDir, batOrder: orderToAssign, team: team)
+        let thisPlayer = Player(name: pName, number: pNum, position: CanonicalDefensivePosition.normalizedDisplayValue(for: pPos), batDir: pDir, batOrder: orderToAssign, team: team)
         modelContext.insert(thisPlayer)
 
         var currentPlayers = players
@@ -319,7 +319,7 @@ struct PlayersOnTeamView: View {
             matchedPlayer: matchedPlayer,
             name: pName,
             number: pNum,
-            position: pPos,
+            position: CanonicalDefensivePosition.normalizedDisplayValue(for: pPos),
             batDir: pDir,
             preserveHistoricalEvidence: false
         )

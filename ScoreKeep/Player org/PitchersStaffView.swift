@@ -13,6 +13,7 @@ struct PitchersStaffView: View {
     @Environment(\.dismiss) var dismiss
     @State var team: Team
     @State var game: Game
+    let showPitchersOnly: Bool
     @State var numOfHitters = 9
     @State var updDateLineup = false
     @State var updDatePitcher = false
@@ -42,6 +43,11 @@ struct PitchersStaffView: View {
 
 //    @Query var pitchers: [Pitcher]
     @Query var players: [Player]
+    private var displayedPlayers: [Player] {
+        guard showPitchersOnly else { return players }
+
+        return players.filter { CanonicalDefensivePosition.isPitcherRole($0.position) }
+    }
     
     var body: some View {
         ScrollView {
@@ -177,7 +183,7 @@ struct PitchersStaffView: View {
                 Spacer(minLength: 50)
             }
             .minimumScaleFactor(0.8).lineLimit(1)
-            ForEach(players, id: \.self) { player in
+            ForEach(displayedPlayers, id: \.self) { player in
                 HStack(spacing:0) {
                     Spacer(minLength: 10).background(.white)
                     HStack(spacing: 0) {
@@ -369,27 +375,16 @@ struct PitchersStaffView: View {
     ) {
         team = passedTeam
         game = passedGame
+        self.showPitchersOnly = showPitchersOnly
         self.pitcherChangeCompleted = pitcherChangeCompleted
         
-        if searchString.isEmpty && showPitchersOnly == false {
+        if searchString.isEmpty {
             _players = Query(filter: #Predicate { player in
                 player.team?.name == theTeam
-            }, sort: sortOrder)
-        } else if searchString.isEmpty && showPitchersOnly {
-            _players = Query(filter: #Predicate { player in
-                player.team?.name == theTeam &&
-                (player.position == "P" || player.position == "SP" || player.position == "RP")
-            }, sort: sortOrder)
-        } else if showPitchersOnly == false {
-            _players = Query(filter: #Predicate { player in
-                player.team?.name == theTeam &&
-                (player.name.localizedStandardContains(searchString)
-                || player.number.localizedStandardContains(searchString))
             }, sort: sortOrder)
         } else {
             _players = Query(filter: #Predicate { player in
                 player.team?.name == theTeam &&
-                (player.position == "P" || player.position == "SP" || player.position == "RP") &&
                 (player.name.localizedStandardContains(searchString)
                 || player.number.localizedStandardContains(searchString))
             }, sort: sortOrder)

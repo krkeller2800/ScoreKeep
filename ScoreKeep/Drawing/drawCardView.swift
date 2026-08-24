@@ -588,8 +588,7 @@ struct drawPitchers: View {
                             VStack(spacing:0) {
                                 HStack{
                                     let stats = doPitchers(oAtbats: oTHitting, pitcher: pitcher)
-                                    let lName = pitcher.player.name.split(separator: " ").last ?? ""
-                                    Text(lName).lineLimit(1).minimumScaleFactor(0.6)
+                                    Text(PitcherNamePresentation.scorecardDisplayName(for: pitcher.player.name)).lineLimit(1).minimumScaleFactor(0.6)
                                         .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(width: UIDevice.type == "iPhone" ? 125 : 150,alignment: .leading).lineLimit(1).minimumScaleFactor(0.8)
                                     Text(Double(pitcher.startInn), format: .number.rounded(increment: 1.0)).lineLimit(1).minimumScaleFactor(0.8) // 12 (whole number)
                                         .foregroundStyle(ScoreKeepVisualStyle.primaryText).frame(maxWidth: .infinity)
@@ -698,6 +697,26 @@ struct drawPitchers: View {
                     .strokeBorder(Color.primary.opacity(0.25), lineWidth: 1)
             )
             .frame(height: 24)
+    }
+}
+
+enum PitcherNamePresentation {
+    private static let suffixTokens: Set<String> = ["jr", "sr", "ii", "iii", "iv", "v"]
+
+    static func scorecardDisplayName(for fullName: String) -> String {
+        let trimmedName = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let components = trimmedName.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        guard let last = components.last else { return trimmedName }
+
+        if components.count >= 2 && suffixTokens.contains(normalizedSuffixToken(last)) {
+            return components.suffix(2).joined(separator: " ")
+        }
+
+        return last
+    }
+
+    private static func normalizedSuffixToken(_ token: String) -> String {
+        token.trimmingCharacters(in: CharacterSet(charactersIn: ".")).lowercased()
     }
 }
 

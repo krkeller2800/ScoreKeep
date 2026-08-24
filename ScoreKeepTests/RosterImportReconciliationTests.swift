@@ -257,6 +257,26 @@ struct RosterImportReconciliationTests {
         #expect(existingPlayer.batDir == "L")
     }
 
+    @Test("manual update-existing decision normalizes recognized pitcher positions")
+    func manualUpdateExistingDecisionNormalizesRecognizedPitcherPositions() throws {
+        let team = Team(name: "Athletics", coach: "", details: "")
+        let existingPlayer = Player(name: "Sears", number: "38", position: "", batDir: "L", batOrder: 99, team: team)
+
+        let result = RosterImportReconciler.resolveManualDuplicatePlayerChoice(
+            .updateExistingPlayer,
+            matchedPlayer: existingPlayer,
+            name: "Sears",
+            number: "38",
+            position: " p ",
+            batDir: "L",
+            preserveHistoricalEvidence: false
+        )
+
+        #expect(result.didUpdateExistingPlayer)
+        #expect(existingPlayer.position == "P")
+        #expect(CanonicalDefensivePosition.isPitcherRole(existingPlayer.position))
+    }
+
     @Test("manual create-new-anyway decision leaves matched player unchanged")
     func manualCreateNewAnywayDecisionLeavesMatchedPlayerUnchanged() throws {
         let team = Team(name: "Blue Jays", coach: "", details: "")

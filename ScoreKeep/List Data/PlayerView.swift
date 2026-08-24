@@ -361,7 +361,7 @@ struct PlayerView: View {
     }
 
     func createPendingPlayer() {
-        let thisPlayer = Player(name: pName, number: pNum, position: pPos, batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team: pTeam)
+        let thisPlayer = Player(name: pName, number: pNum, position: CanonicalDefensivePosition.normalizedDisplayValue(for: pPos), batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team: pTeam)
         modelContext.insert(thisPlayer)
         try? self.modelContext.save()
         renumOrder(players: players.sorted { $0.batOrder < $1.batOrder }, player: thisPlayer, order: thisPlayer.batOrder)
@@ -374,7 +374,7 @@ struct PlayerView: View {
             matchedPlayer: matchedPlayer,
             name: pName,
             number: pNum,
-            position: pPos,
+            position: CanonicalDefensivePosition.normalizedDisplayValue(for: pPos),
             batDir: pDir,
             preserveHistoricalEvidence: false
         )

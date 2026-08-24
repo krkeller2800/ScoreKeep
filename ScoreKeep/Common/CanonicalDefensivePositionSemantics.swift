@@ -74,12 +74,29 @@ enum CanonicalDefensivePosition: String, CaseIterable, Hashable, Sendable {
         }
     }
 
+    var isPitcherRole: Bool {
+        switch self {
+        case .pitcher, .startingPitcher, .reliefPitcher:
+            return true
+        default:
+            return false
+        }
+    }
+
     static func recognized(rawValue: String) -> CanonicalDefensivePosition? {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let uppercased = trimmed.uppercased()
         return allCases.first { position in
             position.displayValue.caseInsensitiveCompare(trimmed) == .orderedSame || position.abbreviations.contains(uppercased)
         }
+    }
+
+    static func normalizedDisplayValue(for rawValue: String) -> String {
+        recognized(rawValue: rawValue)?.displayValue ?? rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func isPitcherRole(_ rawValue: String) -> Bool {
+        recognized(rawValue: rawValue)?.isPitcherRole == true
     }
 }
 

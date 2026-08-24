@@ -523,21 +523,13 @@ struct GameView: View {
 
     @ViewBuilder
     private func fieldNameText(_ name: String) -> some View {
-        if name.contains(" ") {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(teamNameLines(for: name).enumerated()), id: \.offset) { _, line in
-                    Text(line)
-                        .scorebookSingleLineText()
-                }
-            }
+        Text(name)
+            .lineLimit(2)
+            .minimumScaleFactor(0.68)
+            .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
             .fontWeight(.semibold)
-        } else {
-            Text(name)
-                .scorebookSingleLineText()
-                .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
-                .fontWeight(.semibold)
-        }
     }
 
     private func teamNameLines(for name: String) -> [String] {
@@ -707,8 +699,8 @@ struct GameColumnWidths: Equatable {
             return GameColumnWidths(date: date, field: 0, allHit: 0, team: team, status: 0)
         }
 
-        let target = GameColumnWidths(date: 145, field: 100, allHit: 42, team: 150, status: 116)
-        let minimum = GameColumnWidths(date: 108, field: 82, allHit: 40, team: 118, status: 108)
+        let target = GameColumnWidths(date: 145, field: 148, allHit: 42, team: 132, status: 116)
+        let minimum = GameColumnWidths(date: 130, field: 120, allHit: 40, team: 98, status: 108)
         let targetWidth = target.date + target.field + target.allHit + (target.team * 2) + target.status
         let minimumWidth = minimum.date + minimum.field + minimum.allHit + (minimum.team * 2) + minimum.status
 

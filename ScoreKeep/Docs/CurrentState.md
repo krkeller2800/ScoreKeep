@@ -59,15 +59,17 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
   - File imports are presented as a `fullScreenCover`.
 - Games and scoring are routed through `ScoreKeep/ScoreKeep/Content Views/ScoreContentView.swift`.
   - `ScoreContentView` shows `GameView`.
+  - `GameView` uses explicit column-width math for the games table; on iPhone score/edit rows, the date column preserves the established compact two-line date layout while the field/stadium column receives the largest flexible share and caps venue text at two fitted lines.
   - It navigates to `EditGameView` for blank/incomplete/edit-mode games.
   - It navigates to `EditScoreView` for scoring.
 - Scoring screens:
   - `EditScoreView` owns the game scoring shell and toolbar actions.
   - `PlayersToScoreView` renders the scoring grid and creates/selects `Atbat` records.
+  - The scorecard pitcher section uses compact pitcher display names; suffixes such as Jr., Sr., II, III, and IV remain attached to the family name.
   - `ScoreGameView` is the per-plate-appearance scoring sheet.
   - `StartingLineupView` creates/updates lineup and initial `Atbat` placeholder rows.
   - `ReplacementView` handles substitutions and "Pitch Hitter" rows.
-  - `PitcherContentView` and `PitchersStaffView` handle pitcher entry.
+  - `PitcherContentView` and `PitchersStaffView` handle pitcher entry; the Pitchers filter uses normalized defensive-position semantics for pitcher roles instead of exact-case raw position text.
 
 ### Major screens and workflows
 
@@ -328,7 +330,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Paste roster from clipboard: `PasteView`.
 - Create/update lineup: `StartingLineupView`.
 - Score an at-bat: `PlayersToScoreView` grid opens `ScoreGameView`.
-- Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`.
+- Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; pitcher-only filtering recognizes normalized `P`, `SP`, and `RP` roles case-insensitively.
 - Substitute players: `ReplacementView`.
 - Share rosters/games and download MLB teams: `ShareContentView`.
 - Import received files: `ImportPlayersView`.
@@ -560,4 +562,3 @@ Also enumerated through Xcode project tooling:
 - The seeded game JSON payload was identified as a compatibility input but not fully decoded/listed field by field.
 - Drawing/reporting files outside `GeneratePDF.swift` were inventoried by type/function search but not line-by-line audited to the same depth as model, scoring, import/export, networking, and purchase code.
 - No build or test run was performed because the requested task was an inventory and source-code changes were not made.
-

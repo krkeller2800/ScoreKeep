@@ -236,7 +236,7 @@ enum RosterImportReconciler {
         if applyNonblank(number, to: &player.number) {
             didUpdate = true
         }
-        if applyNonblank(position, to: &player.position) {
+        if applyNonblank(CanonicalDefensivePosition.normalizedDisplayValue(for: position), to: &player.position) {
             didUpdate = true
         }
         if applyNonblank(batDir, to: &player.batDir) {

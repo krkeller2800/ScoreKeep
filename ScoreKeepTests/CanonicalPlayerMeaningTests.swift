@@ -3,6 +3,15 @@ import Testing
 @testable import ScoreKeep
 
 struct CanonicalPlayerMeaningTests {
+    @Test func defensivePositionRecognitionNormalizesPitcherRolesCaseInsensitively() {
+        #expect(CanonicalDefensivePosition.normalizedDisplayValue(for: " p ") == "P")
+        #expect(CanonicalDefensivePosition.normalizedDisplayValue(for: "rp") == "Relief Pitcher")
+        #expect(CanonicalDefensivePosition.isPitcherRole("P"))
+        #expect(CanonicalDefensivePosition.isPitcherRole("sp"))
+        #expect(CanonicalDefensivePosition.isPitcherRole("Relief Pitcher"))
+        #expect(!CanonicalDefensivePosition.isPitcherRole("1B"))
+    }
+
     @Test("reusable player identity is stable across display and media changes")
     func reusablePlayerIdentityIsStableAcrossDisplayAndMediaChanges() {
         let original = CanonicalPlayerMeaningTestSupport.player(
