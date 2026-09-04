@@ -10,6 +10,39 @@ import SwiftData
 import Foundation
 import UIKit
 
+enum GameTeamNamePresentation {
+    static let preferredLineCount = 1
+    static let maximumLineCount = 2
+    static let minimumScaleFactor: CGFloat = 0.75
+    static let allowsTailTruncation = false
+
+    static func preferredLines(for name: String) -> [String] {
+        [name]
+    }
+
+    static func fallbackLines(for name: String) -> [String] {
+        let words = name.split(separator: " ").map(String.init)
+        guard words.count != 2 else { return words }
+        guard words.count > 2 else { return splitSingleWordIfNeeded(name) }
+
+        let splitIndex = Int(ceil(Double(words.count) / 2.0))
+        return [
+            words[..<splitIndex].joined(separator: " "),
+            words[splitIndex...].joined(separator: " ")
+        ]
+    }
+
+    private static func splitSingleWordIfNeeded(_ name: String) -> [String] {
+        guard name.count > 7 else { return [name] }
+
+        let midpoint = name.index(name.startIndex, offsetBy: Int(ceil(Double(name.count) / 2.0)))
+        return [
+            String(name[..<midpoint]),
+            String(name[midpoint...])
+        ]
+    }
+}
+
 @MainActor
 enum GameDeletionPersistence {
     static func deleteGame(
@@ -504,21 +537,7 @@ struct GameView: View {
 
     @ViewBuilder
     private func teamNameText(_ name: String) -> some View {
-        if name.contains(" ") {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(teamNameLines(for: name).enumerated()), id: \.offset) { _, line in
-                    Text(line)
-                        .scorebookSingleLineText()
-                }
-            }
-            .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
-            .fontWeight(.semibold)
-        } else {
-            Text(name)
-                .scorebookSingleLineText()
-                .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
-                .fontWeight(.semibold)
-        }
+        GameTeamNameText(name: name)
     }
 
     @ViewBuilder
@@ -530,17 +549,6 @@ struct GameView: View {
             .fixedSize(horizontal: false, vertical: true)
             .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
             .fontWeight(.semibold)
-    }
-
-    private func teamNameLines(for name: String) -> [String] {
-        let words = name.split(separator: " ").map(String.init)
-        guard words.count > 2 else { return words }
-
-        let splitIndex = Int(ceil(Double(words.count) / 2.0))
-        return [
-            words[..<splitIndex].joined(separator: " "),
-            words[splitIndex...].joined(separator: " ")
-        ]
     }
 
     @ViewBuilder
@@ -577,6 +585,32 @@ struct GameView: View {
         })
     }
 
+}
+
+private struct GameTeamNameText: View {
+    let name: String
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            fittedLine(name)
+
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(GameTeamNamePresentation.fallbackLines(for: name).enumerated()), id: \.offset) { _, line in
+                    fittedLine(line)
+                }
+            }
+        }
+        .foregroundStyle(name.isEmpty ? ScoreKeepVisualStyle.disabledText : ScoreKeepVisualStyle.primaryText)
+        .fontWeight(.semibold)
+    }
+
+    private func fittedLine(_ text: String) -> some View {
+        Text(text)
+            .lineLimit(GameTeamNamePresentation.preferredLineCount)
+            .minimumScaleFactor(GameTeamNamePresentation.minimumScaleFactor)
+            .allowsTightening(true)
+            .fixedSize(horizontal: false, vertical: true)
+    }
 }
 
 private extension View {
