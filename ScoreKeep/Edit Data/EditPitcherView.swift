@@ -64,7 +64,7 @@ struct EditPitcherView: View {
                             .overlay(Divider().background(.black), alignment: .trailing)
                         Text(pitcher.player.name).frame(width:200, alignment: .leading).foregroundColor(.black).bold().minimumScaleFactor(0.5).lineLimit(1).padding(.leading,10)
                             .overlay(Divider().background(.black), alignment: .trailing)
-                        Picker("Start Inning", selection: $pitcher.startInn) {
+                        Picker("", selection: $pitcher.startInn) {
                             let innings = ["0","1st","2nd","3rd","4th",
                                            "5th","6th","7th","8th","9th",
                                            "10th","11th","12th","13th","14th",
@@ -74,21 +74,21 @@ struct EditPitcherView: View {
                             }
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Picker("Starts Outs", selection: $pitcher.sOuts) {
+                        Picker("", selection: $pitcher.sOuts) {
                             let outs = ["0","1","2","3"]
                             ForEach(Array(outs.enumerated()), id: \.0) { index, out in
                                 Text(out).tag(index)
                             }
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Picker("Starts Bats", selection: $pitcher.sBats) {
+                        Picker("", selection: $pitcher.sBats) {
                             let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                             ForEach(Array(bats.enumerated()), id: \.0) { index, out in
                                 Text(out).tag(index)
                             }
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Picker("End Inning", selection: $pitcher.endInn) {
+                        Picker("", selection: $pitcher.endInn) {
                             let innings = ["0","1st","2nd","3rd","4th",
                                            "5th","6th","7th","8th","9th",
                                            "10th","11th","12th","13th","14th",
@@ -98,14 +98,14 @@ struct EditPitcherView: View {
                             }
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Picker("End Outs", selection: $pitcher.eOuts) {
+                        Picker("", selection: $pitcher.eOuts) {
                             let outs = ["0","1","2","3"]
                             ForEach(Array(outs.enumerated()), id: \.0) { index, out in
                                 Text(out).tag(index)
                             }
                         }
                         .frame(maxWidth:.infinity, maxHeight: 35).overlay(Divider().background(.black), alignment: .trailing).labelsHidden()
-                        Picker("End Bats", selection: $pitcher.eBats) {
+                        Picker("", selection: $pitcher.eBats) {
                             let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                             ForEach(Array(bats.enumerated()), id: \.0) { index, out in
                                 Text(out).tag(index)

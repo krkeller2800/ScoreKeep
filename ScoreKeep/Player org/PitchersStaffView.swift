@@ -56,20 +56,20 @@ struct PitchersStaffView: View {
                 scorebookHeaderCell("Num")
                     .frame(width: 50).padding(.leading,10)
                 scorebookHeaderCell("Name")
-                    .frame(width: 150)
+                    .frame(width: 130)
                 scorebookHeaderCell("Pos")
                     .frame(width: 45)
-                scorebookHeaderCell(UIDevice.type == "iPad" ? "Start Inning" : "Strt Inn")
+                scorebookHeaderCell("Start Inn")
                     .frame(maxWidth:.infinity,maxHeight: 50)
-                scorebookHeaderCell(UIDevice.type == "iPad" ? "Start Outs" :"Strt Out")
+                scorebookHeaderCell("Start Out")
                     .frame(maxWidth:.infinity,maxHeight: 50)
-                scorebookHeaderCell("Start Batter")
+                scorebookHeaderCell("Start Bat")
                     .frame(maxWidth:.infinity,maxHeight: 50)
-                scorebookHeaderCell(UIDevice.type == "iPad" ? "End Inning" : "End Inn")
+                scorebookHeaderCell("End Inn")
                     .frame(maxWidth:.infinity,maxHeight: 50)
-                scorebookHeaderCell(UIDevice.type == "iPad" ? "End Outs" : "End Out")
+                scorebookHeaderCell("End Out")
                     .frame(maxWidth:.infinity,maxHeight: 50)
-                scorebookHeaderCell("End Batter")
+                scorebookHeaderCell("End Bat")
                     .frame(maxWidth:.infinity,maxHeight: 50)
                 Spacer(minLength: 50)
             }
@@ -77,46 +77,46 @@ struct PitchersStaffView: View {
             HStack (spacing:0) {
                 Text(pNum).frame(width:50, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
                     .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading,10)
-                Text(pName).frame(width:150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
+                Text(pName).frame(width:130, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
                     .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
                 Text(pPos).frame(width:45, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).minimumScaleFactor(0.5).lineLimit(1)
                     .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
-                Picker("Start Inning", selection: $startInn) {
+                Picker("", selection: $startInn) {
                     let innings = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
                         Text(inning).tag(index)
                     }
                 }
                 .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
-                Picker("Starts Outs", selection: $sOuts) {
+                Picker("", selection: $sOuts) {
                     let outs = ["0","1","2","3"]
                     ForEach(Array(outs.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
                 .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
-                Picker("Starts Bats", selection: $sBats) {
+                Picker("", selection: $sBats) {
                     let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(bats.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
                 .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
-                Picker("End Inning", selection: $endInn) {
+                Picker("", selection: $endInn) {
                     let innings = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(innings.enumerated()), id: \.1) { index, inning in
                         Text(inning).tag(index)
                     }
                 }
                 .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
-                Picker("End Outs", selection: $eOuts) {
+                Picker("", selection: $eOuts) {
                     let outs = ["0","1","2","3"]
                     ForEach(Array(outs.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
                     }
                 }
                 .frame(maxWidth:.infinity, maxHeight: 25).overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).labelsHidden()
-                Picker("End Bats", selection: $eBats) {
+                Picker("", selection: $eBats) {
                     let bats = ["0","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18"]
                     ForEach(Array(bats.enumerated()), id: \.1) { index, out in
                         Text(out).tag(index)
@@ -189,7 +189,7 @@ struct PitchersStaffView: View {
                     HStack(spacing: 0) {
                         Text(player.number).frame(width: 50, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                             .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
-                        Text(player.name).frame(width: 150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                        Text(player.name).frame(width: 130, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                             .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
                         Text(player.position).frame(width: 45, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                             .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).minimumScaleFactor(0.5).lineLimit(1)
