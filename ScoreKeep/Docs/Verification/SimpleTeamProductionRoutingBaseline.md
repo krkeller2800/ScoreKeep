@@ -3,7 +3,7 @@
 <!-- MARK: 1. Authorization And Scope -->
 ## 1. Authorization And Scope
 
-This baseline covers the first bounded production persistence route: simple manual team creation through the canonical team-creation transaction adapter. No scoring, player, game, lineup, pitcher, at-bat, substitution, import, media, purchase, allowance, report, generated-output, deletion, or retirement route is authorized here.
+This baseline covers the first bounded production persistence route: simple manual team creation through the canonical team-creation transaction adapter. The simple Team request now includes the Team display fields and optional Team logo data. No scoring, player, game, lineup, pitcher, at-bat, substitution, import-file reconciliation, purchase, allowance, report, generated-output, deletion, or retirement route is authorized here.
 
 <!-- MARK: 2. Prior Physical Migration Proof -->
 ## 2. Prior Physical Migration Proof
@@ -28,17 +28,17 @@ Route approval is local and deterministic. `simpleTeamCreationProductionEnabled`
 <!-- MARK: 6. TeamView Integration -->
 ## 6. TeamView Integration
 
-TeamView now selects a route before mutation. If the selected route is Proposed, it submits a value-only `SimpleTeamCreationSubmission`. If the selected route is Legacy, or the current compatible empty-name behavior is used, TeamView runs the existing legacy insert and save branch.
+Team creation now starts from `AddTeamDraftView`, opened by Team list, game/score toolbar, edit-game, and paste-lineup entry points. The draft holds name, coach, details, and optional logo data as value state until Save creates a `SimpleTeamCreationSubmission`. Add Team presents Back on the leading side and Save on the trailing side; untouched Back exits immediately, while dirty Back requires Discard New Team or Keep Editing confirmation and performs no SwiftData insert. Standard Team list/game-list Add routes replace the Add destination with normal `EditTeamView` after Save so Players become available only after the Team exists.
 
 <!-- MARK: 7. One Writer Enforcement -->
 ## 7. One Writer Enforcement
 
-The Proposed branch performs no Team insertion and no ModelContext save in TeamView. The adapter owns the dedicated operation context. The legacy branch remains mutually exclusive and available only before a Proposed mutation begins.
+Converted UI entry points perform no Team insertion and no ModelContext save before the user presses Save. The route service and adapter own persistence for successful creation; the old blank-placeholder helpers are no longer reachable from Team list, ContentView, ScoreContentView, EditGameView, or PasteView.
 
 <!-- MARK: 8. Operation Identity Lifecycle -->
 ## 8. Operation Identity Lifecycle
 
-TeamView creates one operation identity and one team identity for the current value submission. Repeated taps are disabled while submission is active. A retry with unchanged values reuses the same pending identity. Editing values before a later attempt creates a new intended submission identity.
+AddTeamDraftView creates one operation identity and one team identity for the current value submission. Repeated taps are disabled while submission is active. A retry with unchanged values reuses the same pending identity. Editing values before a later attempt creates a new intended submission identity.
 
 <!-- MARK: 9. Context Ownership -->
 ## 9. Context Ownership
@@ -48,7 +48,7 @@ The route service creates a coordinator backed by `TeamCreationSwiftDataEvidence
 <!-- MARK: 10. Autosave Exclusion -->
 ## 10. Autosave Exclusion
 
-The adapter disables autosave on the dedicated operation context and on its fresh reload context. TeamView does not depend on autosave in the Proposed branch.
+The adapter disables autosave on the dedicated operation context and on its fresh reload context. AddTeamDraftView does not depend on autosave for creation.
 
 <!-- MARK: 11. Save And Rollback -->
 ## 11. Save And Rollback
@@ -73,7 +73,7 @@ Repeat submissions use the coordinator and evidence store to reconcile prior com
 <!-- MARK: 15. UI Behavior -->
 ## 15. UI Behavior
 
-TeamView clears fields only after a verified success or already-completed result. Failures preserve entered values. Duplicate-name alert behavior and the compatible legacy branch remain present.
+AddTeamDraftView closes after untouched Back dismissal or explicit Discard New Team confirmation. On verified success or an already-completed result, standard Team Add routes transition to `EditTeamView` for the created Team; caller-specific sheet routes such as Edit Game and Paste still receive the created Team and dismiss for assignment/selection. Edit Game re-fetches the created Team by stable identity in its own context and saves the game assignment before continuing. Failures and Keep Editing preserve entered text and selected/pasted logo data. Empty-name and duplicate-name validation use the shared draft validation before submission.
 
 <!-- MARK: 16. Compatibility -->
 ## 16. Compatibility
@@ -92,12 +92,12 @@ The authorized-additive comparison proved that the original migrated baseball da
 <!-- MARK: 18. Production Activation Gate -->
 ## 18. Production Activation Gate
 
-Activation source changes are prepared. Production startup migration is enabled through the fail-closed orchestrator, simple manual Team creation is routed to Proposed V2, and all other workflows retain Legacy-compatible behavior. Commit and push remain blocked until the final focused/manual Xcode gates are green.
+Activation source changes are prepared. Production startup migration is enabled through the fail-closed orchestrator, simple manual Team creation is routed to Proposed V2, and all other workflows retain Legacy-compatible behavior. The final Team-standardization focused tests, build, and manual iPhone/iPad workflow gates are green. Commit and push remain a separate operator action.
 
 <!-- MARK: 19. Focused Tests -->
 ## 19. Focused Tests
 
-Pre-implementation focused baselines passed: team-creation selected suites passed 68 tests, persistence-authority selected suites passed 46 tests, and startup/migration selected suites passed 32 tests. After implementation, the new simple-team routing and adjacent focused suites passed 54 tests. The routing-summary repair added focused coverage proving that the current routing summary and immutable migration baseline are separate data sources. The authorized-additive comparison repair adds focused coverage for exact post-migration baseline match, one authorized additive Team plus evidence, duplicate Team rejection, changed original Team rejection, changed game/lineup/at-bat/pitcher rejection, and unexpected relationship, score, substitution, media, or evidence rejection.
+Pre-implementation focused baselines passed: team-creation selected suites passed 68 tests, persistence-authority selected suites passed 46 tests, and startup/migration selected suites passed 32 tests. After implementation, the new simple-team routing and adjacent focused suites passed 54 tests. The routing-summary repair added focused coverage proving that the current routing summary and immutable migration baseline are separate data sources. The authorized-additive comparison repair adds focused coverage for exact post-migration baseline match, one authorized additive Team plus evidence, duplicate Team rejection, changed original Team rejection, changed game/lineup/at-bat/pitcher rejection, and unexpected relationship, score, substitution, media, or evidence rejection. The final Team-standardization focused Xcode run passed 39 tests, 0 failed, 0 skipped, including Add/Edit draft lifecycle, logo persistence, Edit Game persistence/availability, Paste handoff, and source-route assertions.
 
 After activation, Codex desktop compiled the full app and test bundle with `build-for-testing` successfully, without running simulator tests. Focused test execution stayed in the manual Xcode gate because CoreSimulator access is unavailable in the Codex desktop environment. The final manual Xcode Physical migration test preparation suite passed 19 tests, 0 failed, 0 skipped.
 
@@ -109,7 +109,7 @@ Pre-implementation full normal regression passed: 550 tests, zero failures. Afte
 <!-- MARK: 21. Production Build -->
 ## 21. Production Build
 
-Pre-implementation normal Debug production build passed. A post-implementation Debug build also passed before the manual rehearsal stop. After the authorized-additive comparison repair, the disposable Proposed configuration build passed. After production activation, the normal Debug production build passed and the disposable Proposed configuration build passed again.
+Pre-implementation normal Debug production build passed. A post-implementation Debug build also passed before the manual rehearsal stop. After the authorized-additive comparison repair, the disposable Proposed configuration build passed. After production activation, the normal Debug production build passed and the disposable Proposed configuration build passed again. The final Team-standardization Xcode project build passed.
 
 <!-- MARK: 22. Active Route Status -->
 ## 22. Active Route Status
@@ -119,7 +119,7 @@ Production simple-team routing is active for simple manual Team creation only. D
 <!-- MARK: 23. Operations Remaining Legacy -->
 ## 23. Operations Remaining Legacy
 
-Game creation and editing, team editing, team deletion, player workflows, lineups, pitchers, at-bats, substitutions, scoring, imports, media, reports, generated output, purchases, and allowances retain their current legacy behavior.
+Game creation and editing, team deletion, player workflows, lineups, pitchers, at-bats, substitutions, scoring, imports, player media, reports, generated output, purchases, and allowances retain their current legacy behavior. Existing Team editing now uses the shared Team form and explicit unsaved-changes confirmation instead of disappearance-driven cleanup.
 
 <!-- MARK: 24. Task 3.20 Prohibition -->
 ## 24. Task 3.20 Prohibition
@@ -139,4 +139,4 @@ The local production activation constant remains the pre-mutation disable path. 
 <!-- MARK: 27. Final Verdict -->
 ## 27. Final Verdict
 
-Activation complete for this task. The disposable normal-UI routing behavior passed on physical iPhone, the Copy Summary action targets the current simple-team routing summary, and the migration comparison accepts exact post-migration matches and the authorized additive routed-Team/evidence state while preserving `mismatchRequiresReview` for unexplained differences. Production activation source is enabled for the first authorized simple-Team route. Final focused and full manual Xcode gates are green, with Task 3.20 and Task 2.19 still not started.
+Activation complete for this task. The disposable normal-UI routing behavior passed on physical iPhone, the Copy Summary action targets the current simple-team routing summary, and the migration comparison accepts exact post-migration matches and the authorized additive routed-Team/evidence state while preserving `mismatchRequiresReview` for unexplained differences. Production activation source is enabled for the first authorized simple-Team route. Team-standardization manual verification passed for iPhone Add/Edit Team, logo controls, Add Team to Players, Edit Game Add Team on iPhone and iPad, and Paste Create Team. Final focused and full manual Xcode gates are green, with Task 3.20 and Task 2.19 still not started.

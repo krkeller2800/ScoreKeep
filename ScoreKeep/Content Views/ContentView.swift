@@ -81,12 +81,10 @@ struct ContentView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Add a team") {
-                        let team = Team(name: "", coach: "", details: "")
-                        modelContext.insert(team)
-                        try? modelContext.save()
-                        path.append(TeamNavigationDestination(teamIdentity: team.ident))
+                    Button("Add Team") {
+                        path.append(AddTeamNavigationDestination())
                     }
+                    .accessibilityLabel("Add Team")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if UIDevice.type == "iPhone" {
@@ -110,6 +108,12 @@ struct ContentView: View {
             }
             .navigationDestination(for: TeamNavigationDestination.self) { destination in
                 TeamNavigationDestinationView(destination: destination, navigationPath: $path)
+            }
+            .navigationDestination(for: AddTeamNavigationDestination.self) { _ in
+                AddTeamDraftView(dismissAfterCreation: false) { team in
+                    path.removeLast()
+                    path.append(TeamNavigationDestination(teamIdentity: team.ident))
+                }
             }
             .onAppear {
                 if UIDevice.type == "iPhone" {

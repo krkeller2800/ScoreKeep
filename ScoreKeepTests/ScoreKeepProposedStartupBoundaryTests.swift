@@ -20,16 +20,16 @@ struct ScoreKeepProposedStartupBoundaryTests {
         #expect(startup.contains("disposableProposedNormalUIRehearsalEnabled = true"))
     }
 
-    @Test("TeamView and content routes remain legacy writer routes")
-    func teamViewAndContentRoutesRemainLegacyWriterRoutes() throws {
+    @Test("TeamView and content routes use standard draft route")
+    func teamViewAndContentRoutesUseStandardDraftRoute() throws {
         let teamView = try repositorySource("ScoreKeep/List Data/TeamView.swift")
         let teamContentView = try repositorySource("ScoreKeep/Content Views/TeamContentView.swift")
         let route = CanonicalPersistenceCutoverRouteManifest.route(for: .teamCreationAndEditing)
 
         #expect(teamView.contains("ScoreKeepProposedContainerFactory") == false)
         #expect(teamView.contains("CanonicalTeamCreationTransactionAdapter") == false)
-        #expect(teamView.contains("modelContext.insert(theTeam)"))
-        #expect(teamView.contains("try? self.modelContext.save()"))
+        #expect(teamView.contains("modelContext.insert(theTeam)") == false)
+        #expect(teamContentView.contains("AddTeamDraftView"))
         #expect(teamContentView.contains("ScoreKeepProposedContainerFactory") == false)
         #expect(route.currentAuthority == .legacySwiftData)
         #expect(route.proposedFutureAuthority == .proposedPersistenceAuthority)

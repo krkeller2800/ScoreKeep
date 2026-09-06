@@ -358,18 +358,20 @@ struct CanonicalTeamCreationTransactionTests {
         #expect(productionReferences.map(\.lastPathComponent) == ["SimpleTeamCreationProductionRoute.swift"])
     }
 
-    @Test("legacy team creation references remain active")
-    func legacyTeamCreationReferencesRemainActive() throws {
+    @Test("standard team creation removes blank placeholder inserts from converted routes")
+    func standardTeamCreationRemovesBlankPlaceholderInsertsFromConvertedRoutes() throws {
         let root = try repositoryRoot()
         let teamView = root.appendingPathComponent("ScoreKeep/List Data/TeamView.swift")
         let scoreContentView = root.appendingPathComponent("ScoreKeep/Content Views/ScoreContentView.swift")
+        let draftView = root.appendingPathComponent("ScoreKeep/Common/AddTeamDraftView.swift")
         let teamSource = try String(contentsOf: teamView, encoding: .utf8)
         let scoreSource = try String(contentsOf: scoreContentView, encoding: .utf8)
+        let draftSource = try String(contentsOf: draftView, encoding: .utf8)
 
-        #expect(teamSource.contains("modelContext.insert(theTeam)"))
-        #expect(teamSource.contains("try? self.modelContext.save()"))
-        #expect(scoreSource.contains("modelContext.insert(team)"))
-        #expect(scoreSource.contains("try? modelContext.save()"))
+        #expect(teamSource.contains("modelContext.insert(theTeam)") == false)
+        #expect(scoreSource.contains("modelContext.insert(team)") == false)
+        #expect(scoreSource.contains("addBlankTeam") == false)
+        #expect(draftSource.contains("SimpleTeamCreationSubmission"))
     }
 
     private func repositoryRoot() throws -> URL {

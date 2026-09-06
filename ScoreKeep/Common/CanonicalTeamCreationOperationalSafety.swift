@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 struct CanonicalTeamCreationOperationIdentity: Hashable, Codable, Sendable, CustomStringConvertible {
@@ -20,6 +21,7 @@ struct CanonicalTeamCreationSemanticRequestFingerprint: Hashable, Codable, Senda
             Self.field("teamName", request.approvedComparableTeamName),
             Self.field("coach", request.approvedComparableCoach),
             Self.field("details", request.approvedComparableDetails),
+            Self.field("logo", request.approvedComparableLogo),
             Self.field("source", request.source.rawValue)
         ] + request.options.keys.sorted().map { key in
             Self.field("option.\(key)", request.options[key] ?? "")
@@ -40,6 +42,7 @@ struct CanonicalTeamCreationOperationalRequest: Hashable, Sendable {
     let teamName: String
     let coach: String
     let details: String
+    let logoData: Data?
     let source: CanonicalTeamCreationSourceClassification
     let options: [String: String]
 
@@ -49,6 +52,7 @@ struct CanonicalTeamCreationOperationalRequest: Hashable, Sendable {
         teamName: String,
         coach: String = "",
         details: String = "",
+        logoData: Data? = nil,
         source: CanonicalTeamCreationSourceClassification = .isolatedCandidateAdapter,
         options: [String: String] = [:]
     ) {
@@ -57,6 +61,7 @@ struct CanonicalTeamCreationOperationalRequest: Hashable, Sendable {
         self.teamName = teamName
         self.coach = coach
         self.details = details
+        self.logoData = logoData
         self.source = source
         self.options = options
     }
@@ -64,6 +69,11 @@ struct CanonicalTeamCreationOperationalRequest: Hashable, Sendable {
     var approvedComparableTeamName: String { normalized(teamName) }
     var approvedComparableCoach: String { normalized(coach) }
     var approvedComparableDetails: String { normalized(details) }
+    var approvedComparableLogo: String {
+        guard let logoData else { return "missing" }
+        let digest = SHA256.hash(data: logoData).map { String(format: "%02x", $0) }.joined()
+        return "present:\(logoData.count):\(digest)"
+    }
     var semanticFingerprint: CanonicalTeamCreationSemanticRequestFingerprint { CanonicalTeamCreationSemanticRequestFingerprint(request: self) }
 
     private func normalized(_ value: String) -> String {

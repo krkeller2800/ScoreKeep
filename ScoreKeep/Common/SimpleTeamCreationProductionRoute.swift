@@ -30,6 +30,23 @@ struct SimpleTeamCreationSubmission: Hashable, Sendable {
     let teamName: String
     let coach: String
     let details: String
+    let logoData: Data?
+
+    init(
+        operationIdentity: CanonicalTeamCreationOperationIdentity,
+        teamIdentity: UUID,
+        teamName: String,
+        coach: String,
+        details: String,
+        logoData: Data? = nil
+    ) {
+        self.operationIdentity = operationIdentity
+        self.teamIdentity = teamIdentity
+        self.teamName = teamName
+        self.coach = coach
+        self.details = details
+        self.logoData = logoData
+    }
 }
 
 struct SimpleTeamCreationRouteOutcome: Hashable, Sendable {
@@ -236,6 +253,7 @@ final class SimpleTeamCreationRoutingService: ObservableObject {
             teamName: submission.teamName,
             coach: submission.coach,
             details: submission.details,
+            logoData: submission.logoData,
             source: .productionRoute
         )
         let result = await coordinator.submit(request, readiness: readiness)
@@ -262,6 +280,7 @@ final class SimpleTeamCreationRoutingService: ObservableObject {
                     teamName: request.teamName,
                     coach: request.coach,
                     details: request.details,
+                    logoData: request.logoData,
                     expectedSource: .productionRoute,
                     beforeProbe: probe,
                     afterProbe: probe,

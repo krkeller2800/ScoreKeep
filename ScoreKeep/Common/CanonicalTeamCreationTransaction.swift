@@ -7,6 +7,7 @@ struct CanonicalTeamCreationRequestFingerprint: Hashable, Sendable {
     let teamName: String
     let coach: String
     let details: String
+    let logoData: Data?
     let expectedDuplicatePolicy: CanonicalTeamCreationDuplicatePolicy
     let expectedSource: CanonicalTeamCreationSourceClassification
 
@@ -16,6 +17,7 @@ struct CanonicalTeamCreationRequestFingerprint: Hashable, Sendable {
         teamName = request.teamName.trimmingCharacters(in: .whitespacesAndNewlines)
         coach = request.coach
         details = request.details
+        logoData = request.logoData
         expectedDuplicatePolicy = request.expectedDuplicatePolicy
         expectedSource = request.expectedSource
     }
@@ -110,6 +112,7 @@ struct CanonicalTeamCreationRequest: Hashable, Sendable {
     let teamName: String
     let coach: String
     let details: String
+    let logoData: Data?
     let expectedDuplicatePolicy: CanonicalTeamCreationDuplicatePolicy
     let expectedSource: CanonicalTeamCreationSourceClassification
     let knownInvocationFingerprints: [String: CanonicalTeamCreationRequestFingerprint]
@@ -124,6 +127,7 @@ struct CanonicalTeamCreationRequest: Hashable, Sendable {
         teamName: String,
         coach: String = "",
         details: String = "",
+        logoData: Data? = nil,
         expectedDuplicatePolicy: CanonicalTeamCreationDuplicatePolicy = .rejectConflicts,
         expectedSource: CanonicalTeamCreationSourceClassification = .isolatedCandidateAdapter,
         knownInvocationFingerprints: [String: CanonicalTeamCreationRequestFingerprint] = [:],
@@ -137,6 +141,7 @@ struct CanonicalTeamCreationRequest: Hashable, Sendable {
         self.teamName = teamName
         self.coach = coach
         self.details = details
+        self.logoData = logoData
         self.expectedDuplicatePolicy = expectedDuplicatePolicy
         self.expectedSource = expectedSource
         self.knownInvocationFingerprints = knownInvocationFingerprints
@@ -349,7 +354,7 @@ struct CanonicalTeamCreationTransactionAdapter {
             details: request.details,
             players: [],
             games: [],
-            logo: nil
+            logo: request.logoData
         )
         context.insert(team)
 
@@ -691,7 +696,7 @@ struct CanonicalTeamCreationTransactionAdapter {
                 name: .present(request.teamName.trimmingCharacters(in: .whitespacesAndNewlines)),
                 coach: .present(request.coach),
                 details: .present(request.details),
-                logo: .missing
+                logo: request.logoData.map { .present($0) } ?? .missing
             ),
             rosterEvidence: .notRepresented,
             source: .currentReusableRecord
@@ -703,7 +708,7 @@ struct CanonicalTeamCreationTransactionAdapter {
         && team.name == request.teamName.trimmingCharacters(in: .whitespacesAndNewlines)
         && team.coach == request.coach
         && team.details == request.details
-        && team.logo == nil
+        && team.logo == request.logoData
         && team.players.isEmpty
         && team.games.isEmpty
     }

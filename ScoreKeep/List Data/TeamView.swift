@@ -37,22 +37,9 @@ struct TeamNavigationDestinationView: View {
 @MainActor
 struct TeamView: View {
     @Environment(\.modelContext) var modelContext
-    @EnvironmentObject private var teamCreationRoutes: SimpleTeamCreationRoutingService
     
     @State private var alertMessage = "kk"
     @State private var showingAlert: Bool = false
-    @State private var teamName = ""
-    @State private var prevTName = ""
-    @State private var dups = false
-    @State private var checkForDups = true
-    @State var coachName: String = ""
-    @State var teamInfo: String = ""
-    @State private var pendingSubmission: SimpleTeamCreationSubmission?
-    @State private var submittingSimpleTeam = false
-    
-    enum FocusField: Hashable {case field}
-
-    @FocusState private var focusedField: FocusField?
 
     @Query var teams: [Team]
     var body: some View {
@@ -69,43 +56,6 @@ struct TeamView: View {
                 scorebookHeaderCell("Team Info")
                     .frame(maxWidth: .infinity)
                 Spacer(minLength: 30)
-            }
-
-            HStack {
-                TextField(" ", text: $teamName, onEditingChanged: { (editingChanged) in
-                    if !editingChanged {
-                        checkForDup()
-                    }})
-                    .frame(maxWidth:.infinity).scorebookInputField().bold()
-                    .scorebookInputPromptOverlay("Name", isVisible: teamName.isEmpty)
-                    .accessibilityLabel("Name")
-                    .scorebookTrailingSeparator().padding(.leading, 5)
-                    .focused($focusedField, equals: .field)
-
-                    .onChange(of: focusedField) { checkForDup()}
-//                    .onAppear {self.focusedField = .field}
-                    .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                TextField("Coach", text: $coachName, prompt: scorebookInputPrompt("Coach")).frame(maxWidth:.infinity).scorebookInputField().bold()
-                    .scorebookTrailingSeparator()
-                TextField("Details", text: $teamInfo, prompt: scorebookInputPrompt("Details")).frame(maxWidth:.infinity).scorebookInputField().bold()
-                    .scorebookTrailingSeparator()
-
-                HStack {
-                    Button {
-                        guard submittingSimpleTeam == false else { return }
-                        if dups {
-                            alertMessage = "Team named \(teamName) already exists"
-                            showingAlert = true
-                        } else {
-                            submitSimpleTeamCreation()
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .disabled(submittingSimpleTeam)
-                    .accessibilityLabel("Create team")
-                }
-                .tint(ScoreKeepVisualStyle.primaryText).background(ScoreKeepVisualStyle.selectedFill).cornerRadius(20).padding(.leading,5)
             }
 
             ForEach(teams) { team in
@@ -140,6 +90,7 @@ struct TeamView: View {
         .listRowSeparator(.hidden)
         .scrollContentBackground(.hidden)
         .background(ScoreKeepVisualStyle.background)
+        .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
     }
 
     init(searchString: String = "", sortOrder: [SortDescriptor<Team>] = []) {
@@ -214,89 +165,5 @@ struct TeamView: View {
             }
         }
         return exist
-    }
-    func checkForDup() {
-        
-        if prevTName == teamName {
-            checkForDups = false
-        } else {
-            checkForDups = true
-        }
-        let tName = teamName
-        prevTName = tName
-
-        if !tName.isEmpty && checkForDups {
-            
-            var fetchDescriptor = FetchDescriptor<Team>()
-            
-            fetchDescriptor.predicate = #Predicate { $0.name == tName }
-            
-            do {
-                let existTeams = try self.modelContext.fetch(fetchDescriptor)
-                if existTeams.first != nil {
-                    dups = true
-                    showingAlert = true
-                    alertMessage = "\(teamName) has already been created."
-                } else {
-                    dups = false
-                }
-            } catch {
-                print("SwiftData Error: \(error)")
-            }
-        }
-    }
-
-    func submitSimpleTeamCreation() {
-        guard teamCreationRoutes.selectedRouteBeforeMutation == .proposed,
-              teamName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
-            legacyCreateSimpleTeam()
-            return
-        }
-
-        let submission = submissionForCurrentValues()
-        submittingSimpleTeam = true
-        Task {
-            let outcome = await teamCreationRoutes.submit(submission)
-            await MainActor.run {
-                submittingSimpleTeam = false
-                if outcome.shouldClearFields {
-                    teamName = ""
-                    coachName = ""
-                    teamInfo = ""
-                    pendingSubmission = nil
-                    dups = false
-                } else if let message = outcome.userMessage {
-                    alertMessage = message
-                    showingAlert = true
-                }
-            }
-        }
-    }
-
-    func legacyCreateSimpleTeam() {
-        let theTeam = Team(name:teamName, coach:coachName, details:teamInfo)
-        modelContext.insert(theTeam)
-        teamName = ""; coachName = ""; teamInfo = ""
-        pendingSubmission = nil
-        try? self.modelContext.save()
-    }
-
-    func submissionForCurrentValues() -> SimpleTeamCreationSubmission {
-        if let pendingSubmission,
-           pendingSubmission.teamName == teamName,
-           pendingSubmission.coach == coachName,
-           pendingSubmission.details == teamInfo {
-            return pendingSubmission
-        }
-
-        let submission = SimpleTeamCreationSubmission(
-            operationIdentity: CanonicalTeamCreationOperationIdentity(UUID().uuidString),
-            teamIdentity: UUID(),
-            teamName: teamName,
-            coach: coachName,
-            details: teamInfo
-        )
-        pendingSubmission = submission
-        return submission
     }
 }

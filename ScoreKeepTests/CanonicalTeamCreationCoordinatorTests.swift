@@ -200,16 +200,19 @@ struct CanonicalTeamCreationCoordinatorTests {
         #expect(snapshot.teams[request.teamIdentity]?.name == request.teamName)
     }
 
-    @Test("current route is legacy and production sources do not call coordinator")
-    func currentRouteIsLegacyAndProductionSourcesDoNotCallCoordinator() throws {
+    @Test("standard team creation production sources use draft route")
+    func standardTeamCreationProductionSourcesUseDraftRoute() throws {
         let teamView = try source(named: "ScoreKeep/List Data/TeamView.swift")
         let teamContentView = try source(named: "ScoreKeep/Content Views/TeamContentView.swift")
         let contentView = try source(named: "ScoreKeep/Content Views/ContentView.swift")
-        let productionSources = [teamView, teamContentView, contentView]
+        let draftView = try source(named: "ScoreKeep/Common/AddTeamDraftView.swift")
+        let productionSources = [teamView, teamContentView, contentView, draftView]
 
         #expect(CanonicalTeamCreationRouteChoice.currentNamedTeamCreation == .legacyWriterActive)
-        #expect(teamView.contains("modelContext.insert(theTeam)"))
-        #expect(productionSources.allSatisfy { !$0.contains("CanonicalTeamCreationCoordinator") })
+        #expect(teamView.contains("modelContext.insert(theTeam)") == false)
+        #expect(teamContentView.contains("AddTeamDraftView"))
+        #expect(contentView.contains("AddTeamDraftView"))
+        #expect(draftView.contains("SimpleTeamCreationSubmission"))
         #expect(productionSources.allSatisfy { !$0.contains("CanonicalTeamCreationOperationalRequest") })
     }
 

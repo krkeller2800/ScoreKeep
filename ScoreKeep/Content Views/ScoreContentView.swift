@@ -271,6 +271,12 @@ struct ScoreContentView: View {
             .navigationDestination(for: TeamNavigationDestination.self) { destination in
                 TeamNavigationDestinationView(destination: destination, navigationPath: $path)
             }
+            .navigationDestination(for: AddTeamNavigationDestination.self) { _ in
+                AddTeamDraftView(dismissAfterCreation: false) { team in
+                    path.removeLast()
+                    path.append(TeamNavigationDestination(teamIdentity: team.ident))
+                }
+            }
             .onChange(of: isSearching) {
                 if isSearching == false {
                     searchText = ""
@@ -343,7 +349,7 @@ struct ScoreContentView: View {
     private func addTeamToolbarButton() -> some View {
         if #available(iOS 26.0, *) {
             Button {
-                addBlankTeam()
+                path.append(AddTeamNavigationDestination())
             } label: {
                 Text("Add Team")
                     .frame(maxWidth: .infinity)
@@ -354,17 +360,10 @@ struct ScoreContentView: View {
             .tint(ScoreKeepVisualStyle.selectedFill)
         } else {
             Button("Add Team") {
-                addBlankTeam()
+                path.append(AddTeamNavigationDestination())
             }
             .buttonStyle(ToolBarButtonStyle())
         }
-    }
-
-    private func addBlankTeam() {
-        let team = Team(name: "", coach: "", details: "")
-        modelContext.insert(team)
-        try? modelContext.save()
-        path.append(TeamNavigationDestination(teamIdentity: team.ident))
     }
 
     // MARK: - Paywall sheet content (extracted)

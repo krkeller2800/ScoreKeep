@@ -39,6 +39,12 @@ struct TeamContentView: View {
                 .navigationDestination(for: TeamNavigationDestination.self) { destination in
                     TeamNavigationDestinationView(destination: destination, navigationPath: $path)
                 }
+                .navigationDestination(for: AddTeamNavigationDestination.self) { _ in
+                    AddTeamDraftView(dismissAfterCreation: false) { team in
+                        path.removeLast()
+                        path.append(TeamNavigationDestination(teamIdentity: team.ident))
+                    }
+                }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarLeading) {
                         Menu("Sort", systemImage: "arrow.up.arrow.down") {
@@ -53,7 +59,14 @@ struct TeamContentView: View {
                             }
                         }
                     }
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        Button {
+                            path.append(AddTeamNavigationDestination())
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Add Team")
+
                         if UIDevice.type == "iPhone" {
                             Button(action: {
                                 withAnimation {
@@ -62,6 +75,7 @@ struct TeamContentView: View {
                             }) {
                                 Image(systemName: "magnifyingglass")
                             }
+                            .accessibilityLabel("Search Teams")
                         }
                     }
                 }
@@ -83,11 +97,5 @@ struct TeamContentView: View {
                 }
 
         }
-    }
-    func addTeam() {
-        let team = Team(name: "" ,coach: "",details: "")
-        modelContext.insert(team)
-        path.append(TeamNavigationDestination(teamIdentity: team.ident))
-        try? modelContext.save()
     }
 }

@@ -134,7 +134,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 - SwiftData relationships are represented by direct model references and arrays; no inverse annotations or delete rules are declared in the model files.
 - UUID fields exist (`Game.ident`, `Team.ident`, `Player.identifier`, etc.) but no `@Attribute(.unique)` constraints are declared.
 - Many queries and duplicate checks use names/dates/locations instead of UUIDs:
-  - `TeamView.checkForDup()` uses exact `Team.name`.
+  - `AddTeamDraftValidation` rejects exact duplicate `Team.name` values before ordinary Team creation submits.
   - `PlayerView.checkForDup(pname:)` uses `team.name + player.name`.
   - `PlayersToScoreView` filters `Atbat` by `atbat.team.name`, `atbat.game.date`, and `atbat.game.location`.
   - `ImportService.importShareGames(_:)` treats a duplicate game as same visiting team, home team, and date.
@@ -325,7 +325,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 
 - Create/select/score games: `ScoreContentView` -> `GameView` -> `EditScoreView`.
 - Edit game metadata: `EditGameView`.
-- Create/edit/delete teams: `TeamContentView`, `TeamView`, `EditTeamView`.
+- Create/edit/delete teams: `TeamContentView` opens `AddTeamDraftView` for draft-based creation, then transitions a saved Team into `EditTeamView`; `TeamView` lists/deletes teams, and `EditTeamView` edits existing teams through the shared `TeamFormContent`.
 - Manage team players: `PlayersOnTeamView`, `PlayerView`, `EditPlayerView`, `EditAllPlayerView`.
 - Paste roster from clipboard: `PasteView`.
 - Create/update lineup: `StartingLineupView`.
@@ -340,7 +340,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 
 ### Dialogs, sheets, menus, toolbar actions
 
-- Add Team, Sort, Score/Edit segmented picker, Upgrade, Search: `ScoreContentView`.
+- Add Team draft route, Sort, Score/Edit segmented picker, Upgrade, Search: `ScoreContentView`.
 - Delete Game confirmation: `GameView`.
 - Add Pitcher, PDF, Replace Players, Lineup, Pitch Stats, Hit Stats: `EditScoreView`.
 - Scoring sheet with Done/Delete/RBI/Steal/result/base/out/earned-run/fielder buttons: `ScoreGameView`.
@@ -427,7 +427,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Frequent saves inside loops (`PlayersToScoreView.seqGame()`, import functions, lineup creation) increase partial-update risk.
 - Matching by team/player name can corrupt or merge data when names duplicate or change.
 - `Game.hscore` and `Game.vscore` are persisted but not consistently maintained; current score is inferred from at-bats.
-- Multiple creation paths create blank placeholder `Team`, `Game`, and `Player` records; cleanup depends on view disappearance logic.
+- Multiple creation paths still create blank placeholder `Game` and `Player` records; ordinary Team creation now uses `AddTeamDraftView` value state until explicit Save, and existing Team editing warns before leaving with unsaved changes.
 
 ### Large/tightly coupled files
 

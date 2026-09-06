@@ -23,7 +23,7 @@ struct EditGameView: View {
     @State private var draftHomeTeam: Team?
     @State private var alertMessage = ""
     @State private var showingAlert = false
-    @State private var addingTeam = false
+    @State private var showingAddTeam = false
 
     enum FocusField: Hashable { case field }
 
@@ -169,12 +169,14 @@ struct EditGameView: View {
                     Button("Save", action: saveNewGame)
                         .disabled(!canSaveNewGame)
                 } else {
-                    Button("Add home or visiting team", action: addTeam)
+                    Button("Add home or visiting team") {
+                        showingAddTeam = true
+                    }
                 }
             }
         }
         .onDisappear {
-            guard let game, !addingTeam else { return }
+            guard let game, !showingAddTeam else { return }
             if game.hteam == nil || game.vteam == nil {
                 modelContext.delete(game)
                 alertMessage = "You must select a Home and Visiting Team! Game deleted."
@@ -182,6 +184,13 @@ struct EditGameView: View {
             }
         }
         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
+        .sheet(isPresented: $showingAddTeam) {
+            NavigationStack {
+                AddTeamDraftView { createdTeam in
+                    assignCreatedTeam(createdTeam)
+                }
+            }
+        }
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -323,11 +332,31 @@ struct EditGameView: View {
         dismiss()
     }
 
-    func addTeam() {
-        addingTeam = true
-        let team = Team(name: "", coach: "", details: "")
-        modelContext.insert(team)
-        navigationPath.append(team)
-        try? modelContext.save()
+    private func assignCreatedTeam(_ team: Team) {
+        guard let persistedTeam = fetchTeam(identity: team.ident) else {
+            alertMessage = "ScoreKeep saved this team, but Edit Game could not load it for selection yet."
+            showingAlert = true
+            return
+        }
+
+        if game?.vteam == nil && draftVisitingTeam == nil {
+            visitingTeamBinding.wrappedValue = persistedTeam
+        } else if game?.hteam == nil && draftHomeTeam == nil {
+            homeTeamBinding.wrappedValue = persistedTeam
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            alertMessage = "ScoreKeep saved this team, but could not assign it to this game yet."
+            showingAlert = true
+        }
+    }
+
+    private func fetchTeam(identity: UUID) -> Team? {
+        let descriptor = FetchDescriptor<Team>(predicate: #Predicate { team in
+            team.ident == identity
+        })
+        return try? modelContext.fetch(descriptor).first
     }
 }

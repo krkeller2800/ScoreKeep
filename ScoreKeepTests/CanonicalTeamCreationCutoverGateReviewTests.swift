@@ -71,20 +71,21 @@ struct CanonicalTeamCreationCutoverGateReviewTests {
         #expect(CanonicalTeamCreationCutoverReview.current.boundedScope == ["simple reusable team creation from TeamView named-team form"])
     }
 
-    @Test("legacy team creation remains current writer")
-    func legacyTeamCreationRemainsCurrentWriter() throws {
+    @Test("team view creation uses standard draft route")
+    func teamViewCreationUsesStandardDraftRoute() throws {
         let route = CanonicalPersistenceCutoverRouteManifest.route(for: .teamCreationAndEditing)
         let teamView = try source(named: "ScoreKeep/List Data/TeamView.swift")
+        let teamContentView = try source(named: "ScoreKeep/Content Views/TeamContentView.swift")
 
         #expect(CanonicalTeamCreationCutoverReview.current.legacyWriterReference == "TeamView.teamInsertDelete")
         #expect(route.currentAuthority == .legacySwiftData)
         #expect(route.activeProductionWriterCount == 1)
-        #expect(teamView.contains("modelContext.insert(theTeam)"))
-        #expect(teamView.contains("try? self.modelContext.save()"))
+        #expect(teamView.contains("modelContext.insert(theTeam)") == false)
+        #expect(teamContentView.contains("AddTeamDraftView"))
     }
 
-    @Test("adapter remains non routed")
-    func adapterRemainsNonRouted() throws {
+    @Test("converted production views route through add team draft")
+    func convertedProductionViewsRouteThroughAddTeamDraft() throws {
         let review = CanonicalTeamCreationCutoverReview.current
         let teamView = try source(named: "ScoreKeep/List Data/TeamView.swift")
         let contentView = try source(named: "ScoreKeep/Content Views/ContentView.swift")
@@ -92,9 +93,11 @@ struct CanonicalTeamCreationCutoverGateReviewTests {
         let scoreContentView = try source(named: "ScoreKeep/Content Views/ScoreContentView.swift")
         let editGameView = try source(named: "ScoreKeep/Edit Data/EditGameView.swift")
         let pasteView = try source(named: "ScoreKeep/Player org/PasteView.swift")
-        let productionSources = [teamView, contentView, teamContentView, scoreContentView, editGameView, pasteView]
+        let draftView = try source(named: "ScoreKeep/Common/AddTeamDraftView.swift")
+        let productionSources = [teamView, contentView, teamContentView, scoreContentView, editGameView, pasteView, draftView]
 
         #expect(review.adapterRouted == false)
+        #expect([contentView, teamContentView, scoreContentView, editGameView, pasteView].allSatisfy { $0.contains("AddTeamDraftView") })
         #expect(productionSources.allSatisfy { !$0.contains("CanonicalTeamCreationTransactionAdapter") })
         #expect(productionSources.allSatisfy { !$0.contains("CanonicalTeamCreationRequest(") })
     }

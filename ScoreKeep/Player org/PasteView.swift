@@ -54,7 +54,7 @@ struct PasteView: View {
     @AppStorage("theTags") var theTags: String = "\n\n\t\n \n,\nType in\nReset"
 
     @State private var previousTeam: Team?
-    @State private var createTeamTrigger = Team(name: "CREATE_TEAM_TRIGGER", coach: "", details: "")
+    @State private var showingAddTeam = false
 
     @Query var teams: [Team]
     
@@ -124,7 +124,6 @@ struct PasteView: View {
                 HStack(alignment: .center) {
                     Picker(selection: $team) {
                         Text("Select Team").tag(nil as Team?)
-                        Text("Create Team…").tag(createTeamTrigger as Team?)
                         if teams.isEmpty == false {
                             Divider()
                             ForEach(teams, id: \.self) { t in
@@ -143,25 +142,25 @@ struct PasteView: View {
                     .padding()
                     .tint(ScoreKeepVisualStyle.primaryText)
                     .onChange(of: team) {
-                        if team === createTeamTrigger {
+                        if let t = team, t.name.isEmpty {
                             team = previousTeam
-                            addTeam()
-                            newTeam = true
                         } else {
-                            if let t = team, t.name.isEmpty {
-                                // Keep previousTeam as is
-                            } else {
-                                previousTeam = team
-                            }
-                            if let team, !team.name.isEmpty {
-                                checkForPlayers()
-                                showPlayers = true
-                                newTeam = false
-                            } else {
-                                showPlayers = false
-                            }
+                            previousTeam = team
+                        }
+                        if let team, !team.name.isEmpty {
+                            checkForPlayers()
+                            showPlayers = true
+                            newTeam = false
+                        } else {
+                            showPlayers = false
                         }
                     }
+
+                    Button("Create Team...") {
+                        showingAddTeam = true
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Create Team")
 
                     Spacer()
 
@@ -391,6 +390,13 @@ struct PasteView: View {
                     tgs = theTags.components(separatedBy: "\n")
                 }
             }
+            .sheet(isPresented: $showingAddTeam) {
+                NavigationStack {
+                    AddTeamDraftView { createdTeam in
+                        selectCreatedTeam(createdTeam)
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text("Paste Lineup")
@@ -493,12 +499,12 @@ struct PasteView: View {
             showingAlert = true
         }
     }
-    func addTeam() {
-        let team = Team(name: "", coach: "", details: "")
-        modelContext.insert(team)
-        try? modelContext.save()
-        self.team = team
-        navigationPath.append(TeamNavigationDestination(teamIdentity: team.ident))
+    private func selectCreatedTeam(_ createdTeam: Team) {
+        team = createdTeam
+        previousTeam = createdTeam
+        newTeam = true
+        checkForPlayers()
+        showPlayers = true
     }
     init() {
         _teams = Query(filter: #Predicate { team in

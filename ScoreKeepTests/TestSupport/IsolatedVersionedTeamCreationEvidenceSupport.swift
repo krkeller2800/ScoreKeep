@@ -74,4 +74,9 @@ enum IsolatedVersionedTeamCreationEvidenceSupport {
         let context = ModelContext(container)
         return try context.fetch(FetchDescriptor<Team>()).count
     }
+
+    static func firstTeamLogo(in container: ModelContainer) throws -> Data? {
+        let context = ModelContext(container)
+        return try context.fetch(FetchDescriptor<Team>()).first?.logo
+    }
 }
