@@ -195,14 +195,7 @@ struct ScoreContentView: View {
                     }
                 }
 
-                // Leading: Add Team
-                ToolbarItem(placement: .topBarLeading) {
-                    if !isResolvingPendingActiveScoringRestore {
-                        addTeamToolbarButton()
-                    }
-                }
-
-                // Leading: Score/Edit segmented control placed immediately to the right of Add Team
+                // Leading: Score/Edit segmented control
                 ToolbarItem(placement: .topBarLeading) {
                     if !isResolvingPendingActiveScoringRestore {
                         Picker("Select Option", selection: $doGame) {
@@ -271,12 +264,6 @@ struct ScoreContentView: View {
             .navigationDestination(for: TeamNavigationDestination.self) { destination in
                 TeamNavigationDestinationView(destination: destination, navigationPath: $path)
             }
-            .navigationDestination(for: AddTeamNavigationDestination.self) { _ in
-                AddTeamDraftView(dismissAfterCreation: false) { team in
-                    path.removeLast()
-                    path.append(TeamNavigationDestination(teamIdentity: team.ident))
-                }
-            }
             .onChange(of: isSearching) {
                 if isSearching == false {
                     searchText = ""
@@ -343,27 +330,6 @@ struct ScoreContentView: View {
     // Proxy binding to match EditScoreView’s expected name in init
     private var columnVisabilityProxy: Binding<NavigationSplitViewVisibility> {
         $columnVisability
-    }
-
-    @ViewBuilder
-    private func addTeamToolbarButton() -> some View {
-        if #available(iOS 26.0, *) {
-            Button {
-                path.append(AddTeamNavigationDestination())
-            } label: {
-                Text("Add Team")
-                    .frame(maxWidth: .infinity)
-                    .foregroundStyle(ScoreKeepVisualStyle.accent)
-                    .lineLimit(1)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(ScoreKeepVisualStyle.selectedFill)
-        } else {
-            Button("Add Team") {
-                path.append(AddTeamNavigationDestination())
-            }
-            .buttonStyle(ToolBarButtonStyle())
-        }
     }
 
     // MARK: - Paywall sheet content (extracted)

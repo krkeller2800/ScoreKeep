@@ -32,6 +32,10 @@ struct ScoreKeepApp: App {
                 ScoreKeepSchemaDiagnosticView()
             case .uiTestDynamicTypeSeam:
                 ScoreKeepUITestDynamicTypeSeamView()
+            case .uiTestPlayerRosterSeam:
+                ScoreKeepUITestPlayerRosterSeamView()
+            case .uiTestTeamPresentationSeam:
+                ScoreKeepUITestTeamPresentationSeamView()
             case .production, .internalRouting:
                 ScoreKeepProductionStartupHost {
                     Group {

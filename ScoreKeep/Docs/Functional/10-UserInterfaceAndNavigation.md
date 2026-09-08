@@ -176,7 +176,7 @@ Returning from player detail, roster paste, import, or download review should pr
 
 Creating or editing game details should let the user review the game date, location, teams, notes or highlights where supported, inning count, lineup mode, and other visible game rules before scoring begins.
 
-Selecting teams should clearly distinguish home and visiting teams. ScoreKeep should not silently guess a matchup when the wrong choice could cause the user to score the wrong game.
+Selecting teams should clearly distinguish home and visiting teams. When the user adds a missing team from one game team selector, ScoreKeep should return to the same game draft with that new team selected only for the originating home or visiting role. ScoreKeep should not silently guess a matchup when the wrong choice could cause the user to score the wrong game.
 
 Reviewing rosters should help the user confirm that the selected teams have the needed players. Missing players should lead to roster management, paste, import, or download workflows without losing the draft game.
 
@@ -222,7 +222,7 @@ Live scoring should prioritize speed and clarity over decorative presentation. V
 
 ## 11. Forms and Data Entry
 
-Forms used to edit teams, players, games, lineups, pitchers, substitutions, scoring events, paste mappings, imports, and settings should use clear labels that describe the visible field or choice. Required and optional fields should be distinguishable before the user attempts to save.
+Forms used to edit teams, players, games, lineups, pitchers, substitutions, scoring events, paste mappings, imports, and settings should use clear labels that describe the visible field or choice. Required and optional fields should be distinguishable before the user attempts to save. Ordinary Team and Player text-entry fields should look editable through the shared lightweight ScoreKeep input treatment; pickers and read-only associations should remain visually distinct from text fields.
 
 Validation timing should fit the task. Immediate validation is appropriate for obviously invalid values such as empty required names, invalid numbers, duplicate batting positions, or unsupported file choices. Final validation should also occur before Save, Done, Apply, Import, or Start Scoring.
 

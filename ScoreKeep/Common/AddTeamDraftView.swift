@@ -176,16 +176,22 @@ struct TeamFormContent: View {
     private var fieldsSectionContent: some View {
         Group {
             TextField("Name", text: $draft.name, prompt: scorebookInputPrompt("Name"))
+                .teamEditableTextField()
                 .textInputAutocapitalization(.words)
                 .accessibilityLabel("Team name")
+                .accessibilityIdentifier("team_name_field")
 
             TextField("Coach", text: $draft.coach, prompt: scorebookInputPrompt("Coach"))
+                .teamEditableTextField()
                 .textInputAutocapitalization(.words)
                 .accessibilityLabel("Coach")
+                .accessibilityIdentifier("team_coach_field")
 
             TextField("Details", text: $draft.details, prompt: scorebookInputPrompt("Details"), axis: .vertical)
+                .teamEditableTextField()
                 .lineLimit(4...8)
                 .accessibilityLabel("Team details")
+                .accessibilityIdentifier("team_details_field")
         }
     }
 
@@ -421,3 +427,12 @@ struct AddTeamDraftView: View {
 }
 
 struct AddTeamNavigationDestination: Hashable { }
+
+private extension View {
+    func teamEditableTextField() -> some View {
+        self
+            .textFieldStyle(.roundedBorder)
+            .scorebookInputField()
+            .frame(maxWidth: .infinity)
+    }
+}

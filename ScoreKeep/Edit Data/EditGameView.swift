@@ -24,8 +24,13 @@ struct EditGameView: View {
     @State private var alertMessage = ""
     @State private var showingAlert = false
     @State private var showingAddTeam = false
+    @State private var pendingAddTeamSelectionRole: AddGameTeamSelectionRole?
 
     enum FocusField: Hashable { case field }
+    enum AddGameTeamSelectionRole: Hashable {
+        case visiting
+        case home
+    }
 
     @FocusState private var focusedField: FocusField?
 
@@ -95,38 +100,64 @@ struct EditGameView: View {
 
             Section {
                 HStack(alignment: .top, spacing: 10) {
-                    compactField("Visiting Team", width: 155) {
-                        Picker("Visiting Team", selection: visitingTeamBinding) {
-                            Text("Select Team").tag(Optional<Team>.none)
-                            if !teams.isEmpty {
-                                Divider()
-                                ForEach(teams) { team in
-                                    if !team.name.isEmpty {
-                                        Text(team.name).tag(Optional(team))
+                    compactField("Visiting Team", width: 300) {
+                        HStack(spacing: 6) {
+                            Picker("Visiting Team", selection: visitingTeamBinding) {
+                                Text("Select Team").tag(Optional<Team>.none)
+                                if !teams.isEmpty {
+                                    Divider()
+                                    ForEach(teams) { team in
+                                        if !team.name.isEmpty {
+                                            Text(team.name).tag(Optional(team))
+                                        }
                                     }
                                 }
                             }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .lineLimit(1)
+                            .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+
+                            Button {
+                                presentAddTeam(for: .visiting)
+                            } label: {
+                                Image(systemName: "plus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .fixedSize()
+                            .accessibilityLabel("Add visiting team")
                         }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
                     }
 
                     verticalSeparator()
 
-                    compactField("Home Team", width: 155) {
-                        Picker("Home Team", selection: homeTeamBinding) {
-                            Text("Select Team").tag(Optional<Team>.none)
-                            if !teams.isEmpty {
-                                Divider()
-                                ForEach(teams) { team in
-                                    if !team.name.isEmpty {
-                                        Text(team.name).tag(Optional(team))
+                    compactField("Home Team", width: 300) {
+                        HStack(spacing: 6) {
+                            Picker("Home Team", selection: homeTeamBinding) {
+                                Text("Select Team").tag(Optional<Team>.none)
+                                if !teams.isEmpty {
+                                    Divider()
+                                    ForEach(teams) { team in
+                                        if !team.name.isEmpty {
+                                            Text(team.name).tag(Optional(team))
+                                        }
                                     }
                                 }
                             }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .lineLimit(1)
+                            .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+
+                            Button {
+                                presentAddTeam(for: .home)
+                            } label: {
+                                Image(systemName: "plus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .fixedSize()
+                            .accessibilityLabel("Add home team")
                         }
-                        .pickerStyle(.menu)
-                        .labelsHidden()
                     }
 
                     verticalSeparator()
@@ -170,7 +201,7 @@ struct EditGameView: View {
                         .disabled(!canSaveNewGame)
                 } else {
                     Button("Add home or visiting team") {
-                        showingAddTeam = true
+                        presentAddTeam()
                     }
                 }
             }
@@ -184,13 +215,20 @@ struct EditGameView: View {
             }
         }
         .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-        .sheet(isPresented: $showingAddTeam) {
+        .sheet(isPresented: $showingAddTeam, onDismiss: {
+            pendingAddTeamSelectionRole = nil
+        }) {
             NavigationStack {
                 AddTeamDraftView { createdTeam in
                     assignCreatedTeam(createdTeam)
                 }
             }
         }
+    }
+
+    private func presentAddTeam(for role: AddGameTeamSelectionRole? = nil) {
+        pendingAddTeamSelectionRole = role
+        showingAddTeam = true
     }
 
     private func sectionHeader(_ title: String) -> some View {
@@ -339,10 +377,17 @@ struct EditGameView: View {
             return
         }
 
-        if game?.vteam == nil && draftVisitingTeam == nil {
+        switch pendingAddTeamSelectionRole {
+        case .visiting:
             visitingTeamBinding.wrappedValue = persistedTeam
-        } else if game?.hteam == nil && draftHomeTeam == nil {
+        case .home:
             homeTeamBinding.wrappedValue = persistedTeam
+        case nil:
+            if game?.vteam == nil && draftVisitingTeam == nil {
+                visitingTeamBinding.wrappedValue = persistedTeam
+            } else if game?.hteam == nil && draftHomeTeam == nil {
+                homeTeamBinding.wrappedValue = persistedTeam
+            }
         }
 
         do {

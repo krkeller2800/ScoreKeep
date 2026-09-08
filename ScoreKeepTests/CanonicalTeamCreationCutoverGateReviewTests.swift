@@ -90,14 +90,15 @@ struct CanonicalTeamCreationCutoverGateReviewTests {
         let teamView = try source(named: "ScoreKeep/List Data/TeamView.swift")
         let contentView = try source(named: "ScoreKeep/Content Views/ContentView.swift")
         let teamContentView = try source(named: "ScoreKeep/Content Views/TeamContentView.swift")
-        let scoreContentView = try source(named: "ScoreKeep/Content Views/ScoreContentView.swift")
         let editGameView = try source(named: "ScoreKeep/Edit Data/EditGameView.swift")
         let pasteView = try source(named: "ScoreKeep/Player org/PasteView.swift")
         let draftView = try source(named: "ScoreKeep/Common/AddTeamDraftView.swift")
+        let scoreContentView = try source(named: "ScoreKeep/Content Views/ScoreContentView.swift")
         let productionSources = [teamView, contentView, teamContentView, scoreContentView, editGameView, pasteView, draftView]
 
         #expect(review.adapterRouted == false)
-        #expect([contentView, teamContentView, scoreContentView, editGameView, pasteView].allSatisfy { $0.contains("AddTeamDraftView") })
+        #expect([contentView, teamContentView, editGameView, pasteView].allSatisfy { $0.contains("AddTeamDraftView") })
+        #expect(scoreContentView.contains("AddTeamDraftView") == false)
         #expect(productionSources.allSatisfy { !$0.contains("CanonicalTeamCreationTransactionAdapter") })
         #expect(productionSources.allSatisfy { !$0.contains("CanonicalTeamCreationRequest(") })
     }

@@ -26,6 +26,8 @@ struct PlayersOnTeamView: View {
     @State private var checkForDups = true
     @State private var likelyDuplicatePlayer: Player?
     @State private var showingDuplicatePlayerAlert = false
+    @State private var showingAddPlayerDraft = false
+    let usesStandardPlayerAdd: Bool
 
     enum FocusField: Hashable {case field}
 
@@ -56,66 +58,75 @@ struct PlayersOnTeamView: View {
                             .frame(width:20)
                     }
 
-                    HStack {
-                        Picker("Bat Order", selection: $pOrder) {
-                            let orders = ["?","1st","2nd","3rd","4th",
-                                          "5th","6th","7th","8th","9th",
-                                          "10th","11th","12th","13th","14th",
-                                          "15th","16th","17th","18th","19th"]
-                            ForEach(Array(orders.enumerated()), id: \.1) { index, order in
-                                Text(order).tag(index)
-                            }
-                            Text("Not Hitting").tag(99)
+                    if usesStandardPlayerAdd {
+                        Button {
+                            showingAddPlayerDraft = true
+                        } label: {
+                            Label("Add Player", systemImage: "plus")
                         }
-                        .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent).lineLimit(1)
-                            .minimumScaleFactor(0.5).padding(.leading,10)
-                        TextField(" ", text: $pName, onEditingChanged: { (editingChanged) in
-                            if !editingChanged {
-                                checkForDup(pname:pName)
-                            }})
-                        .frame(width: nameWidth)
-                        .textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField()
-                        .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
-                        .accessibilityLabel("Player")
-                        .focused($focusedField, equals: .field)
-                        //                        .onAppear {self.focusedField = .field}
-                        .textContentType(.name)
-                        .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                        TextField("(00)", text: $pNum, prompt: scorebookInputPrompt("(00)")).frame(width:mediumWidth)
-                            .textFieldStyle(.roundedBorder).scorebookInputField()
-                        TextField("(1B)", text: $pPos, prompt: scorebookInputPrompt("(1B)")).frame(width:mediumWidth)
-                            .textFieldStyle(.roundedBorder).scorebookInputField()
-                            .autocapitalization(.none)
-                            .textContentType(.none)
-                        TextField("(L)", text: $pDir, prompt: scorebookInputPrompt("(L)")).frame(width:mediumWidth)
-                            .textFieldStyle(.roundedBorder).scorebookInputField()
-                            .autocapitalization(.none)
-                            .textContentType(.none)
+                        .accessibilityLabel("Add player")
+                    } else {
                         HStack {
-                            Spacer(minLength: 10)
+                            Picker("Bat Order", selection: $pOrder) {
+                                let orders = ["?","1st","2nd","3rd","4th",
+                                              "5th","6th","7th","8th","9th",
+                                              "10th","11th","12th","13th","14th",
+                                              "15th","16th","17th","18th","19th"]
+                                ForEach(Array(orders.enumerated()), id: \.1) { index, order in
+                                    Text(order).tag(index)
+                                }
+                                Text("Not Hitting").tag(99)
+                            }
+                            .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent).lineLimit(1)
+                                .minimumScaleFactor(0.5).padding(.leading,10)
+                            TextField(" ", text: $pName, onEditingChanged: { (editingChanged) in
+                                if !editingChanged {
+                                    checkForDup(pname:pName)
+                                }})
+                            .frame(width: nameWidth)
+                            .textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField()
+                            .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
+                            .accessibilityLabel("Player")
+                            .focused($focusedField, equals: .field)
+                            //                        .onAppear {self.focusedField = .field}
+                            .textContentType(.name)
+                            .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
+                            TextField("(00)", text: $pNum, prompt: scorebookInputPrompt("(00)")).frame(width:mediumWidth)
+                                .textFieldStyle(.roundedBorder).scorebookInputField()
+                            TextField("(1B)", text: $pPos, prompt: scorebookInputPrompt("(1B)")).frame(width:mediumWidth)
+                                .textFieldStyle(.roundedBorder).scorebookInputField()
+                                .autocapitalization(.none)
+                                .textContentType(.none)
+                            TextField("(L)", text: $pDir, prompt: scorebookInputPrompt("(L)")).frame(width:mediumWidth)
+                                .textFieldStyle(.roundedBorder).scorebookInputField()
+                                .autocapitalization(.none)
+                                .textContentType(.none)
+                            HStack {
+                                Spacer(minLength: 10)
 
-                            Button {
-                                addPlayerCheckingForLikelyDuplicate()
-                            } label: {
-                                Image(systemName: "plus")
+                                Button {
+                                    addPlayerCheckingForLikelyDuplicate()
+                                } label: {
+                                    Image(systemName: "plus")
+                                }
                             }
-                        }
-                        .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                        .alert("Possible Duplicate Player", isPresented: $showingDuplicatePlayerAlert, presenting: likelyDuplicatePlayer) { matchedPlayer in
-                            Button("Use Existing Player") {
-                                clearPendingPlayer()
+                            .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
+                            .alert("Possible Duplicate Player", isPresented: $showingDuplicatePlayerAlert, presenting: likelyDuplicatePlayer) { matchedPlayer in
+                                Button("Use Existing Player") {
+                                    clearPendingPlayer()
+                                }
+                                Button("Update Existing Player") {
+                                    updateExistingPlayer(matchedPlayer)
+                                }
+                                Button("Create New Player Anyway") {
+                                    createPendingPlayer()
+                                }
+                                Button("Cancel", role: .cancel) { }
+                            } message: { player in
+                                Text("A similar player already exists on \(team.name): \(duplicatePlayerSummary(player)).")
                             }
-                            Button("Update Existing Player") {
-                                updateExistingPlayer(matchedPlayer)
-                            }
-                            Button("Create New Player Anyway") {
-                                createPendingPlayer()
-                            }
-                            Button("Cancel", role: .cancel) { }
-                        } message: { player in
-                            Text("A similar player already exists on \(team.name): \(duplicatePlayerSummary(player)).")
-                        }
 
+                        }
                     }
                     ForEach(players) { player in
                         NavigationLink(value: player) {
@@ -150,14 +161,20 @@ struct PlayersOnTeamView: View {
             .listRowSpacing(0)
             .scrollContentBackground(.hidden)
             .background(ScoreKeepVisualStyle.background)
+            .sheet(isPresented: $showingAddPlayerDraft) {
+                NavigationStack {
+                    AddPlayerDraftView(team: team)
+                }
+            }
         }
     }
 
 
-    init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = []) {
+    init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], usesStandardPlayerAdd: Bool = false) {
 
         self.showHeader = showHeader
         self.team = team
+        self.usesStandardPlayerAdd = usesStandardPlayerAdd
         let teamName = team.name
           _players = Query(filter: #Predicate { player in
               if searchString.isEmpty {

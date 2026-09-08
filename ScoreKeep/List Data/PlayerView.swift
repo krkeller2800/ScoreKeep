@@ -5,29 +5,19 @@
 //  Created by Karl Keller on 3/17/25.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct PlayerView: View {
-    @Environment(\.modelContext) var modelContext
-    @Environment(\.dismiss) var dismiss
-    @Binding var navigationPath: NavigationPath
-    @State var pName: String = ""
-    @State var pNum: String = ""
-    @State var pPos: String = ""
-    @State var pDir: String = ""
-    @State var pOrder: Int = 0
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @State var pTeam: Team
+    @State private var playerNavigationPath = NavigationPath()
     @State private var showingAlert = false
     @State private var alertMessage = ""
-    @State private var playerName = ""
-    @State private var prevPName = ""
-    @State private var dups = false
-    @State private var checkForDups = true
-    @State private var likelyDuplicatePlayer: Player?
-    @State private var showingDuplicatePlayerAlert = false
     @State private var isSearching = false
-    @Binding private var searchText:String
+    @State private var showingAddPlayerDraft = false
+    @Binding private var searchText: String
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
 
     @AppStorage("selectedPlayerTCriteria") var selectedPlayerPCriteria: SortCriteria = .orderAsc
@@ -50,101 +40,30 @@ struct PlayerView: View {
         }
     }
 
-    enum FocusField: Hashable {case field}
-
-    @FocusState private var focusedField: FocusField?
-
-    @Query(sort: [
-        SortDescriptor(\Team.name)
-    ]) var teams: [Team]
-
-    @Query var players: [Player]
-//    @State var players: [Player] = []
+    @Query private var players: [Player]
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $playerNavigationPath) {
             GeometryReader { geometry in
                 Form {
-                    let nameWidth = geometry.size.width/4
-                    let smallWidth = geometry.size.width/13
-                    let mediumWidth = geometry.size.width/10
+                    let nameWidth = geometry.size.width / 4
+                    let smallWidth = geometry.size.width / 13
+                    let mediumWidth = geometry.size.width / 10
                     Section {
-                        //            Text("Select a Player to Edit or Swipe to Delete").frame(maxWidth:.infinity, alignment: .center).font(.title)
                         HStack {
                             scorebookHeaderCell("Name")
                                 .frame(width: nameWidth)
                             scorebookHeaderCell("Num")
-                                .frame(width:smallWidth)
+                                .frame(width: smallWidth)
                             scorebookHeaderCell("Pos")
-                                .frame(width:smallWidth)
+                                .frame(width: smallWidth)
                             scorebookHeaderCell("Dir")
-                                .frame(width:smallWidth)
+                                .frame(width: smallWidth)
                             scorebookHeaderCell("Order")
-                                .frame(width:mediumWidth)
-                            Text("").frame(width:45)
+                                .frame(width: mediumWidth)
+                            Text("").frame(width: 45)
                         }
 
-                        HStack {
-                            TextField(" ", text: $pName, onEditingChanged: { (editingChanged) in
-                                if !editingChanged {
-                                    checkForDup(pname:pName)
-                                }})
-                            .frame(width: nameWidth)
-                            .textFieldStyle(.roundedBorder).scorebookInputField().scorebookNameField().bold()
-                            .scorebookInputPromptOverlay("Player", isVisible: pName.isEmpty)
-                            .accessibilityLabel("Player")
-                            .focused($focusedField, equals: .field)
-                            //                        .onAppear {self.focusedField = .field}
-                            .autocapitalization(.words)
-                            .textContentType(.name)
-                            TextField("(00)", text: $pNum, prompt: scorebookInputPrompt("(00)")).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                            TextField("(1B)", text: $pPos, prompt: scorebookInputPrompt("(1B)")).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                                .autocapitalization(.none)
-                                .textContentType(.none)
-                            TextField("(R)", text: $pDir, prompt: scorebookInputPrompt("(R)")).frame(width:smallWidth)
-                                .textFieldStyle(.roundedBorder).scorebookInputField().bold()
-                                .autocapitalization(.none)
-                                .textContentType(.none)
-
-                            Picker("Bat Order", selection: $pOrder) {
-                                let orders = ["Pick","1st","2nd","3rd","4th",
-                                              "5th","6th","7th","8th","9th",
-                                              "10th","11th","12th","13th","14th",
-                                              "15th","16th","17th","18th","19th"]
-                                ForEach(Array(orders.enumerated()), id: \.1) { index, order in
-                                    Text(order).tag(index)
-                                }
-                                Text("Not Hitting").tag(99)
-                            }
-                            .frame(width:mediumWidth).labelsHidden().pickerStyle(.menu).tint(ScoreKeepVisualStyle.accent)
-
-                            HStack {
-                                Spacer(minLength: 75)
-                                Button {
-                                    addPlayerCheckingForLikelyDuplicate()
-                                } label: {
-                                    Image(systemName: "plus")
-                                }
-                            }
-
-                            .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
-                            .alert("Possible Duplicate Player", isPresented: $showingDuplicatePlayerAlert, presenting: likelyDuplicatePlayer) { matchedPlayer in
-                                Button("Use Existing Player") {
-                                    clearPendingPlayer()
-                                }
-                                Button("Update Existing Player") {
-                                    updateExistingPlayer(matchedPlayer)
-                                }
-                                Button("Create New Player Anyway") {
-                                    createPendingPlayer()
-                                }
-                                Button("Cancel", role: .cancel) { }
-                            } message: { player in
-                                Text("A similar player already exists on \(pTeam.name): \(duplicatePlayerSummary(player)).")
-                            }
-                        }
                         ForEach(players) { player in
                             NavigationLink(value: player) {
                                 HStack {
@@ -160,23 +79,16 @@ struct PlayerView: View {
                                         .frame(width: mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                                         .scorebookTrailingSeparator()
                                     Text("")
-                                        .frame(width:25)
+                                        .frame(width: 25)
                                 }
-
-                            }
-                            .onChange(of: player.batOrder) {
-                                renumOrder(players: players.sorted{($0.batOrder < $1.batOrder)}, player: player, order: player.batOrder)
                             }
                         }
                         .onDelete(perform: deletePlayer)
-                    }
-                    header: {
+                    } header: {
                         if players.count > 0 {
-                            Text("Select a Player to edit").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                            Text("Select a Player to edit").frame(maxWidth: .infinity, alignment: .leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                         }
                     }
-
-
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -210,7 +122,14 @@ struct PlayerView: View {
                         Text("\(pTeam.name) Players")
                             .font(.title2)
                     }
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                        Button {
+                            showingAddPlayerDraft = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Add player")
+
                         if UIDevice.type == "iPhone" {
                             Button(action: {
                                 withAnimation {
@@ -232,45 +151,49 @@ struct PlayerView: View {
                 }
                 .onChange(of: isSearching) {
                     if isSearching == false {
-                        searchText = "" // Clear the search text when the search field is dismissed
+                        searchText = ""
                     }
                 }
                 .onChange(of: sortDescriptor) {
                     sortOrder = sortDescriptor
                 }
                 .navigationDestination(for: Player.self) { player in
-                    EditPlayerView( player: player, team: pTeam, navigationPath: $navigationPath)
+                    EditPlayerView(player: player, team: pTeam, navigationPath: $playerNavigationPath)
+                }
+                .sheet(isPresented: $showingAddPlayerDraft) {
+                    NavigationStack {
+                        AddPlayerDraftView(team: pTeam)
+                    }
                 }
             }
+            .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }
             .scrollContentBackground(.hidden)
             .background(ScoreKeepVisualStyle.background)
         }
     }
 
-
-    init(team: Team, navigationPath:Binding<NavigationPath>, searchString: Binding<String>, sortOrder: [SortDescriptor<Player>] = []) {
-
-        _navigationPath = navigationPath
+    init(team: Team, navigationPath: Binding<NavigationPath>, searchString: Binding<String>, sortOrder: [SortDescriptor<Player>] = []) {
         self.pTeam = team
         _searchText = searchString
         let teamName = team.name
-          _players = Query(filter: #Predicate { player in
-              if searchText.isEmpty {
-                  player.team?.name == teamName
-              } else {
-                  player.team?.name == teamName &&
-                  (player.name.localizedStandardContains(searchText)
-                  || player.number.localizedStandardContains(searchText))
-              }
-          },  sort: sortDescriptor)
-      }
+        let search = searchString.wrappedValue
+        _players = Query(filter: #Predicate { player in
+            if search.isEmpty {
+                player.team?.name == teamName
+            } else {
+                player.team?.name == teamName &&
+                (player.name.localizedStandardContains(search) || player.number.localizedStandardContains(search))
+            }
+        }, sort: sortDescriptor)
+    }
+
     func deletePlayer(at offsets: IndexSet) {
         for offset in offsets {
             let player = players[offset]
             if playedInGame(player: player) {
                 showingAlert = true
                 alertMessage = "\(player.name) is associated with game(s). Cannot delete."
-            } else if pitchedInGame(player:player) {
+            } else if pitchedInGame(player: player) {
                 showingAlert = true
                 alertMessage = "\(player.name) has pitched in a game. Cannot delete."
             } else {
@@ -278,25 +201,18 @@ struct PlayerView: View {
             }
         }
     }
-    func playedInGame(player:Player)->Bool {
 
-
+    func playedInGame(player: Player) -> Bool {
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-
             var fetchDescriptor = FetchDescriptor<Atbat>()
-
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
 
             do {
                 let existAtbats = try self.modelContext.fetch(fetchDescriptor)
-                if existAtbats.first != nil {
-                    exist = true
-                } else {
-                    exist = false
-                }
+                exist = existAtbats.first != nil
             } catch {
                 print("SwiftData Error fetching Atbats: \(error)")
             }
@@ -304,110 +220,21 @@ struct PlayerView: View {
         return exist
     }
 
-    func pitchedInGame(player:Player)->Bool {
-
+    func pitchedInGame(player: Player) -> Bool {
         var exist = false
         let pName = player.name
 
         if !pName.isEmpty {
-
             var fetchDescriptor = FetchDescriptor<Pitcher>()
-
             fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
 
             do {
                 let existPitcher = try self.modelContext.fetch(fetchDescriptor)
-                if existPitcher.first != nil {
-                    exist = true
-                } else {
-                    exist = false
-                }
+                exist = existPitcher.first != nil
             } catch {
                 print("SwiftData Error fetching Games: \(error)")
             }
         }
         return exist
-    }
-    func checkForDup(pname:String) {
-
-        if prevPName == pname {
-            checkForDups = false
-        } else {
-            checkForDups = true
-        }
-        prevPName = pname
-        dups = false
-
-        if pTeam.name.isEmpty && !pname.isEmpty {
-            showingAlert = true
-            alertMessage = "Please select a team so we can check if \(pname) is on already on it."
-        }
-    }
-
-    func addPlayerCheckingForLikelyDuplicate() {
-        guard !pName.isEmpty else {
-            alertMessage = "Be sure to input a name and select a team for the new player."
-            showingAlert = true
-            return
-        }
-
-        if let likelyDuplicate = RosterImportReconciler.likelyMatchingPlayer(name: pName, number: pNum, in: players) {
-            likelyDuplicatePlayer = likelyDuplicate
-            showingDuplicatePlayerAlert = true
-            return
-        }
-
-        createPendingPlayer()
-    }
-
-    func createPendingPlayer() {
-        let thisPlayer = Player(name: pName, number: pNum, position: CanonicalDefensivePosition.normalizedDisplayValue(for: pPos), batDir: pDir, batOrder: pOrder == 0 ? 99 : pOrder, team: pTeam)
-        modelContext.insert(thisPlayer)
-        try? self.modelContext.save()
-        renumOrder(players: players.sorted { $0.batOrder < $1.batOrder }, player: thisPlayer, order: thisPlayer.batOrder)
-        clearPendingPlayer()
-    }
-
-    func updateExistingPlayer(_ matchedPlayer: Player) {
-        RosterImportReconciler.resolveManualDuplicatePlayerChoice(
-            .updateExistingPlayer,
-            matchedPlayer: matchedPlayer,
-            name: pName,
-            number: pNum,
-            position: CanonicalDefensivePosition.normalizedDisplayValue(for: pPos),
-            batDir: pDir,
-            preserveHistoricalEvidence: false
-        )
-        try? self.modelContext.save()
-        clearPendingPlayer()
-    }
-
-    func clearPendingPlayer() {
-        pName = ""
-        pOrder = 0
-        pNum = ""
-        pDir = ""
-        pPos = ""
-        dups = false
-        likelyDuplicatePlayer = nil
-    }
-
-    func duplicatePlayerSummary(_ player: Player) -> String {
-        let number = player.number.isEmpty ? "no number" : "#\(player.number)"
-        let position = player.position.isEmpty ? "no position" : player.position
-        return "\(player.name), \(number), \(position)"
-    }
-
-    func renumOrder(players:[Player], player:Player,order:Int) {
-        for (index, oldPlayer) in players.enumerated() {
-            if index+1 == order && oldPlayer.batOrder < 99 {
-                oldPlayer.batOrder = index+2
-            } else if index+1 > order && oldPlayer.batOrder < 99 {
-                oldPlayer.batOrder = index+1
-            }
-            if oldPlayer.name == player.name {
-                oldPlayer.batOrder = order
-            }
-        }
     }
 }

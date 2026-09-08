@@ -14,7 +14,7 @@ The product should preserve established ScoreKeep workflows for creating teams, 
 
 A team begins when the user creates it manually, imports it from a compatible roster file, downloads it from a supported roster source, or accepts it as part of an imported game. The team should have enough identifying information for the user to recognize it in lists, game setup, reports, and sharing workflows. Creation should be lightweight, but the application should warn when the new team appears to duplicate an existing team.
 
-After creation, the user may edit team information such as name, coach, logo, notes, or other descriptive details. Edits should be saved intentionally and should not silently alter unrelated teams. If the team has already appeared in games, the application should make clear when a change affects future display and when historical game records are preserved.
+After creation, the user may edit team information such as name, coach, logo, notes, or other descriptive details. Ordinary Team add and edit forms use explicit Save behavior with visible field affordances for Team Name, Coach, and multiline Details. Standard iPad Add Team routes present the shared form in a sheet-style presentation, while iPhone keeps the pushed compact route. Edits should be saved intentionally and should not silently alter unrelated teams. If the team has already appeared in games, the application should make clear when a change affects future display and when historical game records are preserved.
 
 The team roster is maintained over time. Users can add players, edit player details, remove players from the active roster, mark players inactive when appropriate, and resolve duplicates. Roster maintenance should support pregame preparation as well as mid-season changes. The application should let users add a missing player quickly when discovered shortly before a game without forcing them through unnecessary setup.
 
@@ -32,7 +32,7 @@ Deleting a team is destructive and must require confirmation. If the team is ref
 
 A player begins when the user adds the player manually, imports the player from a compatible roster file, downloads a roster containing the player, accepts the player as part of an imported game, or creates the player during pregame preparation. The player record should represent the person or roster entry that can be reused across games.
 
-The user may edit player information over time, including name, jersey number, position, batting information, photo, and team membership. Edits should be straightforward for routine corrections and seasonal updates. When a player has appeared in games, the application should preserve the meaning of prior game participation even if the player record changes later.
+The user may edit player information over time, including name, jersey number, position, batting information, photo, and team membership. Ordinary roster add and edit screens use draft state and explicit Save before creating or changing the persisted player. Clean Back exits immediately; Back with meaningful unsaved changes requires a discard-or-keep-editing choice for new players and a save, discard, or keep-editing choice for existing players. Edits should be straightforward for routine corrections and seasonal updates. When a player has appeared in games, the application should preserve the meaning of prior game participation even if the player record changes later.
 
 Assigning a player to a team makes the player available for that team's roster, lineup preparation, scorekeeping, pitching selection, substitutions, reports, and sharing. A player may be active on the roster, inactive for current participation, or temporarily available for a specific game depending on product-supported workflow.
 
@@ -68,7 +68,7 @@ Long-term player history should protect scored games, reports, and statistics. R
 
 ## 6. Roster Management
 
-Users should be able to add players from the team roster view, during pregame preparation, and from supported import or paste workflows. Adding a player should require only the information necessary to identify and use the player, with optional details available when the user has time.
+Users should be able to add players from the team roster view, during pregame preparation, and from supported import or paste workflows. Ordinary Team to Players roster add uses the shared player draft form for name, number, position, batting direction, batting order, team association, and photo selection or paste, and it creates no placeholder player before Save. Standard iPad Add Player uses the same sheet-style presentation language as standard iPad Add Team, while iPhone keeps the pushed compact roster route. Adding a player should require only the information necessary to identify and use the player, with optional details available when the user has time.
 
 Removing a player from a roster should be different from deleting the player's historical identity. If a player no longer participates, the user should be able to remove the player from active roster use or mark the player inactive without damaging games where that player appeared.
 

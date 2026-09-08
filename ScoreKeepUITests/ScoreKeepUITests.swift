@@ -6,6 +6,7 @@
 //
 
 import XCTest
+import UIKit
 
 final class ScoreKeepUITests: XCTestCase {
 
@@ -154,6 +155,86 @@ final class ScoreKeepUITests: XCTestCase {
         XCTAssertTrue(windowFrame.contains(cancelFrame), "Cancel button should be completely inside the app window")
     }
 
+    @MainActor
+    func testPlayerRosterAddEditSeam() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ScoreKeepUITestPlayerRosterSeam")
+        app.launch()
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        openRosterIfNeeded(in: app)
+
+        let existingPlayer = app.staticTexts["Existing Player"]
+        XCTAssertTrue(existingPlayer.waitForExistence(timeout: 5.0), "Existing roster player should be visible")
+
+        let addPlayer = app.buttons["Add player"]
+        XCTAssertTrue(addPlayer.waitForExistence(timeout: 5.0), "Add Player route should be visible")
+        addPlayer.tap()
+
+        let addTitle = app.navigationBars["Add Player"]
+        XCTAssertTrue(addTitle.waitForExistence(timeout: 5.0), "Add Player form should open")
+        assertPlayerFormControls(in: app, expectsReadOnlyTeam: true)
+
+        let savePlayer = app.buttons["Save player"]
+        XCTAssertTrue(savePlayer.exists, "Save should be present")
+        XCTAssertFalse(savePlayer.isEnabled, "Save should be disabled before a player name is entered")
+
+        enterText("Added Player", in: app.textFields["player_name_field"])
+        let enabledSavePlayer = app.buttons["Save player"]
+        XCTAssertTrue(enabledSavePlayer.waitForExistence(timeout: 2.0), "Save should remain present")
+        enabledSavePlayer.tap()
+
+        let addedPlayer = app.staticTexts["Added Player"]
+        XCTAssertTrue(addedPlayer.waitForExistence(timeout: 5.0), "Saved player should return to and appear in the roster")
+
+        existingPlayer.tap()
+
+        let editTitle = app.navigationBars["Update a Player"]
+        XCTAssertTrue(editTitle.waitForExistence(timeout: 5.0), "Edit Player form should open")
+        assertPlayerFormControls(in: app, expectsReadOnlyTeam: false)
+
+        XCTAssertEqual(app.textFields["player_name_field"].value as? String, "Existing Player")
+        XCTAssertEqual(app.textFields["player_number_field"].value as? String, "7")
+        XCTAssertEqual(app.textFields["player_position_field"].value as? String, "Shortstop")
+        XCTAssertEqual(app.textFields["player_batting_direction_field"].value as? String, "R")
+
+        enterText(" Edited", in: app.textFields["player_name_field"])
+
+        app.buttons["Back"].tap()
+        let unsavedAlert = app.alerts["Unsaved Changes"]
+        XCTAssertTrue(unsavedAlert.waitForExistence(timeout: 2.0), "Dirty Back should present unsaved changes protection")
+        unsavedAlert.buttons["Keep Editing"].tap()
+
+        app.buttons["Save player"].tap()
+        XCTAssertEqual(app.textFields["player_name_field"].value as? String, "Existing Player Edited")
+    }
+
+    @MainActor
+    func testTeamAddPresentationSeam() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ScoreKeepUITestTeamPresentationSeam")
+        app.launch()
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        let addTeam = app.buttons["Add Team"]
+        XCTAssertTrue(addTeam.waitForExistence(timeout: 5.0), "Standard Add Team route should be visible")
+        addTeam.tap()
+
+        let addTitle = app.navigationBars["Add Team"]
+        XCTAssertTrue(addTitle.waitForExistence(timeout: 5.0), "Add Team form should open")
+        XCTAssertTrue(app.textFields["team_name_field"].waitForExistence(timeout: 3.0), "Team Name should be an editable field")
+        XCTAssertTrue(app.textFields["team_coach_field"].exists, "Coach should be an editable field")
+        XCTAssertTrue(app.textFields["team_details_field"].exists, "Details should be an editable field")
+        XCTAssertTrue(app.buttons["Choose team logo from Photos"].exists, "Photos control should remain available")
+        XCTAssertTrue(app.buttons["Paste team logo"].exists, "Paste logo control should remain available")
+
+        let saveTeam = app.buttons["Save team"]
+        XCTAssertTrue(saveTeam.exists, "Save should be present")
+        XCTAssertFalse(saveTeam.isEnabled, "Save should be disabled before a team name is entered")
+    }
+
 
     @MainActor
     func testLaunchPerformance() throws {
@@ -181,6 +262,46 @@ final class ScoreKeepUITests: XCTestCase {
         app.buttons.allElementsBoundByIndex.filter { element in
             element.identifier.hasPrefix("scorecard_rendered_cell_") &&
             element.identifier.hasSuffix("_1")
+        }
+    }
+
+    private func openRosterIfNeeded(in app: XCUIApplication) {
+        let playersButton = app.buttons["Players"]
+        if playersButton.waitForExistence(timeout: 2.0) {
+            playersButton.tap()
+        }
+
+        let addPlayer = app.buttons["Add player"]
+        XCTAssertTrue(addPlayer.waitForExistence(timeout: 5.0), "Roster should show Add Player")
+    }
+
+    private func assertPlayerFormControls(in app: XCUIApplication, expectsReadOnlyTeam: Bool) {
+        XCTAssertTrue(app.textFields["player_name_field"].waitForExistence(timeout: 3.0), "Name should be an editable field")
+        XCTAssertTrue(app.textFields["player_number_field"].exists, "Number should be an editable field")
+        XCTAssertTrue(app.textFields["player_position_field"].exists, "Position should be an editable field")
+        XCTAssertTrue(app.textFields["player_batting_direction_field"].exists, "Batting Direction should be an editable field")
+        XCTAssertTrue(app.buttons["Choose player photo from Photos"].exists, "Photos control should remain available")
+        XCTAssertTrue(app.buttons["Paste player photo"].exists, "Paste photo control should remain available")
+        XCTAssertTrue(app.descendants(matching: .any)["player_batting_order_picker"].exists, "Batting Order should remain a picker/control")
+
+        if expectsReadOnlyTeam {
+            XCTAssertTrue(app.staticTexts["Team"].exists, "Team label should remain visible")
+            XCTAssertTrue(app.staticTexts["Seam Team"].exists, "Team-scoped Add Player should show the current Team as read-only")
+            XCTAssertFalse(app.buttons["Team"].exists, "Team-scoped Add Player should not expose Team as a picker")
+        }
+    }
+
+    private func enterText(_ text: String, in field: XCUIElement) {
+        XCTAssertTrue(field.waitForExistence(timeout: 3.0), "Expected text field to exist before entering text")
+        UIPasteboard.general.string = text
+        field.tap()
+        field.press(forDuration: 1.0)
+        let paste = XCUIApplication().menuItems["Paste"]
+        if paste.waitForExistence(timeout: 1.0) {
+            paste.tap()
+        } else {
+            field.tap()
+            field.typeText(text)
         }
     }
 }

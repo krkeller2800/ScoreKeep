@@ -59,7 +59,7 @@ struct EditTeamView: View {
 
             if UIDevice.type != "iPhone" {
                 VStack(alignment: .leading, spacing: 6) {
-                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor)
+                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor, usesStandardPlayerAdd: true)
                         .navigationDestination(for: Player.self) { player in
                             EditPlayerView(player: player, team: team, navigationPath: $navigationPath)
                         }

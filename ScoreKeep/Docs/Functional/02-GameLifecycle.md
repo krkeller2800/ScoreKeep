@@ -24,6 +24,7 @@ A game should never depend on Internet access for its core lifecycle. Network-de
 
 - Enter or update basic game details.
 - Select or change home and visiting teams.
+- Add a missing home or visiting team from the originating team selector and return with the new team selected for that same role.
 - Cancel creation before meaningful game data has been entered.
 - Save the game as a draft for later preparation.
 - Import additional compatible game information when applicable.

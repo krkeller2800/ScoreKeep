@@ -233,8 +233,7 @@ struct StandardTeamCreationDraftFlowTests {
     func standardTeamAddRoutesTransitionToEditAfterSave() throws {
         let sources = [
             try repositorySource("ScoreKeep/Content Views/TeamContentView.swift"),
-            try repositorySource("ScoreKeep/Content Views/ContentView.swift"),
-            try repositorySource("ScoreKeep/Content Views/ScoreContentView.swift")
+            try repositorySource("ScoreKeep/Content Views/ContentView.swift")
         ].joined(separator: "\n")
         let editSource = try repositorySource("ScoreKeep/Edit Data/EditTeamView.swift")
 
@@ -343,7 +342,7 @@ struct StandardTeamCreationDraftFlowTests {
     func gameEditAddTeamPreservesCurrentGameWhileDraftIsOpen() throws {
         let editGame = try repositorySource("ScoreKeep/Edit Data/EditGameView.swift")
 
-        #expect(editGame.contains(".sheet(isPresented: $showingAddTeam)"))
+        #expect(editGame.contains(".sheet(isPresented: $showingAddTeam, onDismiss:"))
         #expect(editGame.contains("guard let game, !showingAddTeam else { return }"))
         #expect(editGame.contains("modelContext.insert(team)") == false)
         #expect(editGame.contains("navigationPath.append(team)") == false)
@@ -407,6 +406,56 @@ struct StandardTeamCreationDraftFlowTests {
         #expect(editGame.contains("private func fetchTeam(identity: UUID) -> Team?"))
     }
 
+    @Test("add game add team detour preserves draft state and assigns only originating picker")
+    func addGameAddTeamDetourPreservesDraftStateAndAssignsOnlyOriginatingPicker() throws {
+        let editGame = try repositorySource("ScoreKeep/Edit Data/EditGameView.swift")
+
+        #expect(editGame.contains("@State private var draftField: String"))
+        #expect(editGame.contains("@State private var draftEveryOneHits: Bool"))
+        #expect(editGame.contains("@State private var draftNumInnings: Int"))
+        #expect(editGame.contains("@State private var draftVisitingTeam: Team?"))
+        #expect(editGame.contains("@State private var draftHomeTeam: Team?"))
+        #expect(editGame.contains("@State private var pendingAddTeamSelectionRole: AddGameTeamSelectionRole?"))
+        #expect(editGame.contains("enum AddGameTeamSelectionRole: Hashable"))
+        #expect(editGame.contains("case visiting"))
+        #expect(editGame.contains("case home"))
+        #expect(editGame.contains("presentAddTeam(for: .visiting)"))
+        #expect(editGame.contains("presentAddTeam(for: .home)"))
+        #expect(editGame.contains(".accessibilityLabel(\"Add visiting team\")"))
+        #expect(editGame.contains(".accessibilityLabel(\"Add home team\")"))
+        #expect(editGame.contains("private func presentAddTeam(for role: AddGameTeamSelectionRole? = nil)"))
+        #expect(editGame.contains("pendingAddTeamSelectionRole = role"))
+        #expect(editGame.contains("AddTeamDraftView { createdTeam in"))
+        #expect(editGame.contains("assignCreatedTeam(createdTeam)"))
+        #expect(editGame.contains("case .visiting:\n            visitingTeamBinding.wrappedValue = persistedTeam"))
+        #expect(editGame.contains("case .home:\n            homeTeamBinding.wrappedValue = persistedTeam"))
+        #expect(editGame.contains("case nil:\n            if game?.vteam == nil && draftVisitingTeam == nil"))
+    }
+
+    @Test("new game team pickers use wide one line presentation with role specific add buttons")
+    func newGameTeamPickersUseWideOneLinePresentationWithRoleSpecificAddButtons() throws {
+        let editGame = try repositorySource("ScoreKeep/Edit Data/EditGameView.swift")
+
+        #expect(editGame.contains("compactField(\"Visiting Team\", width: 300)"))
+        #expect(editGame.contains("compactField(\"Home Team\", width: 300)"))
+        #expect(editGame.components(separatedBy: ".lineLimit(1)\n                            .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)").count - 1 == 2)
+        #expect(editGame.contains("presentAddTeam(for: .visiting)"))
+        #expect(editGame.contains("presentAddTeam(for: .home)"))
+        #expect(editGame.contains(".fixedSize()\n                            .accessibilityLabel(\"Add visiting team\")"))
+        #expect(editGame.contains(".fixedSize()\n                            .accessibilityLabel(\"Add home team\")"))
+    }
+
+    @Test("canceling add game add team sheet does not change team selections")
+    func cancelingAddGameAddTeamSheetDoesNotChangeTeamSelections() throws {
+        let editGame = try repositorySource("ScoreKeep/Edit Data/EditGameView.swift")
+
+        #expect(editGame.contains(".sheet(isPresented: $showingAddTeam, onDismiss:"))
+        #expect(editGame.contains("pendingAddTeamSelectionRole = nil"))
+        #expect(editGame.contains("assignCreatedTeam(createdTeam)"))
+        #expect(editGame.contains("visitingTeamBinding.wrappedValue = persistedTeam"))
+        #expect(editGame.contains("homeTeamBinding.wrappedValue = persistedTeam"))
+    }
+
     @Test("paste create team returns and selects without resetting import setup")
     func pasteCreateTeamReturnsAndSelectsWithoutResettingImportSetup() throws {
         let pasteView = try repositorySource("ScoreKeep/Player org/PasteView.swift")
@@ -425,7 +474,6 @@ struct StandardTeamCreationDraftFlowTests {
             try repositorySource("ScoreKeep/List Data/TeamView.swift"),
             try repositorySource("ScoreKeep/Content Views/TeamContentView.swift"),
             try repositorySource("ScoreKeep/Content Views/ContentView.swift"),
-            try repositorySource("ScoreKeep/Content Views/ScoreContentView.swift"),
             try repositorySource("ScoreKeep/Edit Data/EditGameView.swift"),
             try repositorySource("ScoreKeep/Player org/PasteView.swift")
         ]

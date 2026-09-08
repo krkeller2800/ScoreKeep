@@ -17,6 +17,7 @@ struct ContentView: View {
     @State var title = "Games"
     @State private var searchText = ""
     @State private var isSearching = false
+    @State private var showingAddTeamDraft = false
     @State private var sortOrder = [SortDescriptor(\Game.date, order: .reverse)]
     @AppStorage("selectedGameCriteria") var selectedGameCriteria: SortCriteria = .dateAsc
 
@@ -82,7 +83,7 @@ struct ContentView: View {
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Add Team") {
-                        path.append(AddTeamNavigationDestination())
+                        presentAddTeam()
                     }
                     .accessibilityLabel("Add Team")
                 }
@@ -115,6 +116,13 @@ struct ContentView: View {
                     path.append(TeamNavigationDestination(teamIdentity: team.ident))
                 }
             }
+            .sheet(isPresented: $showingAddTeamDraft) {
+                NavigationStack {
+                    AddTeamDraftView { team in
+                        path.append(TeamNavigationDestination(teamIdentity: team.ident))
+                    }
+                }
+            }
             .onAppear {
                 if UIDevice.type == "iPhone" {
                    isSearching = false
@@ -122,6 +130,14 @@ struct ContentView: View {
                     isSearching = true
                 }
             }
+        }
+    }
+
+    private func presentAddTeam() {
+        if UIDevice.type == "iPhone" {
+            path.append(AddTeamNavigationDestination())
+        } else {
+            showingAddTeamDraft = true
         }
     }
 

@@ -28,12 +28,12 @@ Route approval is local and deterministic. `simpleTeamCreationProductionEnabled`
 <!-- MARK: 6. TeamView Integration -->
 ## 6. TeamView Integration
 
-Team creation now starts from `AddTeamDraftView`, opened by Team list, game/score toolbar, edit-game, and paste-lineup entry points. The draft holds name, coach, details, and optional logo data as value state until Save creates a `SimpleTeamCreationSubmission`. Add Team presents Back on the leading side and Save on the trailing side; untouched Back exits immediately, while dirty Back requires Discard New Team or Keep Editing confirmation and performs no SwiftData insert. Standard Team list/game-list Add routes replace the Add destination with normal `EditTeamView` after Save so Players become available only after the Team exists.
+Team creation now starts from `AddTeamDraftView`, opened by Team list, New Game team selectors, edit-game, and paste-lineup entry points. The draft holds name, coach, details, and optional logo data as value state until Save creates a `SimpleTeamCreationSubmission`. Add Team presents Back on the leading side and Save on the trailing side; untouched Back exits immediately, while dirty Back requires Discard New Team or Keep Editing confirmation and performs no SwiftData insert. Standard Team list Add routes replace the Add destination with normal `EditTeamView` after Save so Players become available only after the Team exists. New Game Add Team returns to the draft and selects the created Team only for the originating home or visiting role.
 
 <!-- MARK: 7. One Writer Enforcement -->
 ## 7. One Writer Enforcement
 
-Converted UI entry points perform no Team insertion and no ModelContext save before the user presses Save. The route service and adapter own persistence for successful creation; the old blank-placeholder helpers are no longer reachable from Team list, ContentView, ScoreContentView, EditGameView, or PasteView.
+Converted UI entry points perform no Team insertion and no ModelContext save before the user presses Save. The route service and adapter own persistence for successful creation; the old blank-placeholder helpers are no longer reachable from Team list, ContentView, EditGameView, or PasteView, and `ScoreContentView` no longer exposes a separate general Add Team toolbar route.
 
 <!-- MARK: 8. Operation Identity Lifecycle -->
 ## 8. Operation Identity Lifecycle

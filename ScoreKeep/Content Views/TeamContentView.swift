@@ -16,6 +16,7 @@ struct TeamContentView: View {
 
     @State private var isSearching = false
     @State private var searchText = ""
+    @State private var showingAddTeamDraft = false
     @State private var sortOrder = [SortDescriptor(\Team.name)]
     @AppStorage("selectedTeamCriteria") var selectedTeamCriteria: SortCriteria = .nameAsc
     
@@ -59,9 +60,9 @@ struct TeamContentView: View {
                             }
                         }
                     }
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
                         Button {
-                            path.append(AddTeamNavigationDestination())
+                            presentAddTeam()
                         } label: {
                             Image(systemName: "plus")
                         }
@@ -95,7 +96,22 @@ struct TeamContentView: View {
                 .onChange(of: sortDescriptor) {
                     sortOrder = sortDescriptor
                 }
+                .sheet(isPresented: $showingAddTeamDraft) {
+                    NavigationStack {
+                        AddTeamDraftView { team in
+                            path.append(TeamNavigationDestination(teamIdentity: team.ident))
+                        }
+                    }
+                }
 
+        }
+    }
+
+    private func presentAddTeam() {
+        if UIDevice.type == "iPhone" {
+            path.append(AddTeamNavigationDestination())
+        } else {
+            showingAddTeamDraft = true
         }
     }
 }

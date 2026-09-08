@@ -340,7 +340,8 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 
 ### Dialogs, sheets, menus, toolbar actions
 
-- Add Team draft route, Sort, Score/Edit segmented picker, Upgrade, Search: `ScoreContentView`.
+- Sort, Score/Edit segmented picker, Upgrade, Search: `ScoreContentView`.
+- New Game home/visiting team picker Add Team detours: `EditGameView`.
 - Delete Game confirmation: `GameView`.
 - Add Pitcher, PDF, Replace Players, Lineup, Pitch Stats, Hit Stats: `EditScoreView`.
 - Scoring sheet with Done/Delete/RBI/Steal/result/base/out/earned-run/fielder buttons: `ScoreGameView`.
@@ -515,6 +516,8 @@ Inspected directly:
 - `ScoreKeep/ScoreKeep/Info.plist`
 - `ScoreKeep/ScoreKeep/Debug.xcconfig`
 - `ScoreKeep/ScoreKeep/ScoreKeepApp.swift`
+- `ScoreKeep/ScoreKeep/Common/AddPlayerDraftView.swift`
+- `ScoreKeep/ScoreKeep/Common/PlayerFormDraftView.swift`
 - `ScoreKeep/ScoreKeep/Common/CommonData.swift`
 - `ScoreKeep/ScoreKeep/Common/Extensions.swift`
 - `ScoreKeep/ScoreKeep/Common/PaywallView.swift`
@@ -553,6 +556,7 @@ Inspected directly:
 
 Also enumerated through Xcode project tooling:
 
+- `ScoreKeep/ScoreKeepTests/StandardPlayerRosterDraftFlowTests.swift`
 - Remaining Swift support/reporting/drawing/screenshot/test files, assets, `Manual.pdf`, `Launch Screen.storyboard`, seed game file, and preview content.
 
 ## Parts Not Fully Analyzed

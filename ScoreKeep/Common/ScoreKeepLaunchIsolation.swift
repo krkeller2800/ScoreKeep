@@ -4,6 +4,8 @@ enum ScoreKeepLaunchMode: Hashable {
     case unitTestHostIsolation
     case schemaDiagnostic
     case uiTestDynamicTypeSeam
+    case uiTestPlayerRosterSeam
+    case uiTestTeamPresentationSeam
     case internalRouting
     case production
 }
@@ -11,6 +13,8 @@ enum ScoreKeepLaunchMode: Hashable {
 enum ScoreKeepLaunchIsolation {
     static let schemaDiagnosticArgument = "-ScoreKeepSchemaDiagnostic"
     static let uiTestDynamicTypeSeamArgument = "-ScoreKeepUITestDynamicTypeSeam"
+    static let uiTestPlayerRosterSeamArgument = "-ScoreKeepUITestPlayerRosterSeam"
+    static let uiTestTeamPresentationSeamArgument = "-ScoreKeepUITestTeamPresentationSeam"
     static let internalRoutingArgument = "-ScoreKeepInternalRouting"
 
     static func mode(
@@ -23,6 +27,12 @@ enum ScoreKeepLaunchIsolation {
         }
         if arguments.contains(uiTestDynamicTypeSeamArgument) || commandLineArguments.contains(uiTestDynamicTypeSeamArgument) {
             return .uiTestDynamicTypeSeam
+        }
+        if arguments.contains(uiTestPlayerRosterSeamArgument) || commandLineArguments.contains(uiTestPlayerRosterSeamArgument) {
+            return .uiTestPlayerRosterSeam
+        }
+        if arguments.contains(uiTestTeamPresentationSeamArgument) || commandLineArguments.contains(uiTestTeamPresentationSeamArgument) {
+            return .uiTestTeamPresentationSeam
         }
         if arguments.contains(schemaDiagnosticArgument) || commandLineArguments.contains(schemaDiagnosticArgument) {
             return .schemaDiagnostic
