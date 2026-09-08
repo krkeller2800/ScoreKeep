@@ -356,12 +356,6 @@ struct PitchersStaffView: View {
             }
             cleanupPitchers()
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Select who will pitch")
-                    .font(.title2)
-            }
-        }
         Spacer()
     }
     init(

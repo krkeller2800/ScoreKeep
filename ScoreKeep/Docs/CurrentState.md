@@ -69,7 +69,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
   - `ScoreGameView` is the per-plate-appearance scoring sheet.
   - `StartingLineupView` creates/updates lineup and initial `Atbat` placeholder rows.
   - `ReplacementView` handles substitutions and "Pitch Hitter" rows.
-  - `PitcherContentView` and `PitchersStaffView` handle pitcher entry; the Pitchers filter uses normalized defensive-position semantics for pitcher roles instead of exact-case raw position text.
+  - `PitcherContentView` and `PitchersStaffView` handle pitcher entry; Add Player is available from the trailing toolbar and opens the shared player draft form, while the Pitchers filter uses normalized defensive-position semantics for pitcher roles instead of exact-case raw position text.
 
 ### Major screens and workflows
 
@@ -330,7 +330,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Paste roster from clipboard: `PasteView`.
 - Create/update lineup: `StartingLineupView`.
 - Score an at-bat: `PlayersToScoreView` grid opens `ScoreGameView`.
-- Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; pitcher-only filtering recognizes normalized `P`, `SP`, and `RP` roles case-insensitively.
+- Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; pitcher-only filtering recognizes normalized `P`, `SP`, and `RP` roles case-insensitively, and Add Player opens from the trailing toolbar.
 - Substitute players: `ReplacementView`; Add Player is available from the toolbar and opens the shared player draft form instead of an inline quick-entry row.
 - Share rosters/games and download MLB teams: `ShareContentView`.
 - Import received files: `ImportPlayersView`.
@@ -345,6 +345,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Delete Game confirmation: `GameView`.
 - Add Pitcher, PDF, Replace Players, Lineup, Pitch Stats, Hit Stats: `EditScoreView`.
 - Replacement Add Player toolbar action and Search: `ReplacementView`.
+- Pitcher Add Player toolbar action and Search: `PitcherContentView`.
 - Scoring sheet with Done/Delete/RBI/Steal/result/base/out/earned-run/fielder buttons: `ScoreGameView`.
 - Lineup update destructive alert: `StartingLineupView`.
 - Delete players destructive alert: `PasteView`.

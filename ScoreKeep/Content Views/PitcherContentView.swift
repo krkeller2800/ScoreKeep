@@ -19,6 +19,7 @@ struct PitcherContentView: View {
     @State private var showPitchersOnly = true
     @State private var whichPlayers = "Pitchers"
     @State private var isSearching = false
+    @State private var showingAddPlayerDraft = false
     @State private var sortOrder = [SortDescriptor(\Player.name)]
     let pitcherChangeCompleted: (LiveScoringShellPresentation.PitcherSectionScrollRequest) -> Void
     @AppStorage("selectedPitcherCriteria") var selectedPitcherCriteria: SortCriteria = .nameAsc
@@ -60,6 +61,12 @@ struct PitcherContentView: View {
                 }
             }
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Select who will pitch")
+                        .font(.title2)
+                        .frame(width: UIScreen.main.bounds.width)
+                        .allowsHitTesting(false)
+                }
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: {
                         dismiss()
@@ -86,19 +93,9 @@ struct PitcherContentView: View {
                             }
                         }
                     }
-                    Button("Add Player", systemImage: "plus", action: addPlayers)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    let options = ["Pitchers","All Players"]
-                    Picker("Select Option", selection: $whichPlayers) {
-                        ForEach(options, id: \.self) { option in
-                            Text(option)
-                        }
+                    if UIDevice.type == "iPad" {
+                        pitcherFilterPicker
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .frame(width: UIDevice.type == "iPad" ? 220 : 180)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
                     if UIDevice.type == "iPhone" {
                         Button(action: {
                             withAnimation {
@@ -109,6 +106,27 @@ struct PitcherContentView: View {
                         }
                     }
                 }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    if UIDevice.type == "iPhone" {
+                        pitcherFilterPicker
+                    } else {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            TextField("Player name or number", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .frame(width: 260)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Player name or number")
+                    }
+
+                    Button("Add Player", systemImage: "plus", action: addPlayers)
+                        .accessibilityLabel("Add player")
+                }
 
             }
             .onChange(of: whichPlayers) {
@@ -117,13 +135,18 @@ struct PitcherContentView: View {
             .onChange(of: sortDescriptor) {
                 sortOrder = sortDescriptor
             }
-            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+            .searchable(if: UIDevice.type == "iPhone" && isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+            .sheet(isPresented: $showingAddPlayerDraft) {
+                NavigationStack {
+                    AddPlayerDraftView(team: team)
+                }
+            }
             .onAppear {
                 UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)
                 if UIDevice.type == "iPhone" {
                    isSearching = false
                 } else {
-                    isSearching = true
+                    isSearching = false
                 }
             }
             .onChange(of: isSearching) {
@@ -134,9 +157,19 @@ struct PitcherContentView: View {
         }
     }
     func addPlayers() {
-        let  player = Player(name: "", number: "",  position: "", batDir: "", batOrder: 99,team: team)
-        modelContext.insert(player)
-        navigationPath.append(player)
-        try? modelContext.save()
+        showingAddPlayerDraft = true
+    }
+
+    private var pitcherFilterPicker: some View {
+        let options = ["Pitchers", "All Players"]
+        return Picker("Select Option", selection: $whichPlayers) {
+            ForEach(options, id: \.self) { option in
+                Text(option)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .pickerStyle(SegmentedPickerStyle())
+        .frame(width: UIDevice.type == "iPad" ? 220 : 180)
     }
 }

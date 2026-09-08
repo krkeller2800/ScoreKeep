@@ -365,12 +365,10 @@ struct StandardPlayerRosterDraftFlowTests {
 
     @Test("out of scope player creation paths are not opted into standard ordinary add")
     func outOfScopePlayerCreationPathsAreNotOptedIntoStandardOrdinaryAdd() throws {
-        let pitcherSource = try repositorySource("ScoreKeep/Content Views/PitcherContentView.swift")
         let lineupSource = try repositorySource("ScoreKeep/Player org/StartingLineupView.swift")
         let pasteSource = try repositorySource("ScoreKeep/Player org/PasteView.swift")
         let importSource = try repositorySource("ScoreKeep/Sharing Data/ImportPlayersView.swift")
 
-        #expect(pitcherSource.contains("AddPlayerDraftView") == false)
         #expect(lineupSource.contains("AddPlayerDraftView") == false)
         #expect(pasteSource.contains("AddPlayerDraftView") == false)
         #expect(importSource.contains("AddPlayerDraftView") == false)
@@ -395,6 +393,49 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(replacementSource.contains("modelContext.insert(player)") == false)
         #expect(playersOnTeamSource.contains("let showsQuickAddRow: Bool"))
         #expect(playersOnTeamSource.contains("} else if showsQuickAddRow {"))
+    }
+
+    @Test("pitcher screen uses trailing add player draft after search without forcing pitcher position")
+    func pitcherScreenUsesTrailingAddPlayerDraftAfterSearchWithoutForcingPitcherPosition() throws {
+        let pitcherSource = try repositorySource("ScoreKeep/Content Views/PitcherContentView.swift")
+        let staffSource = try repositorySource("ScoreKeep/Player org/PitchersStaffView.swift")
+
+        #expect(pitcherSource.contains("ToolbarItemGroup(placement: .topBarLeading)"))
+        #expect(pitcherSource.contains("ToolbarItemGroup(placement: .topBarTrailing)"))
+        #expect(pitcherSource.contains("Menu(\"Sort\", systemImage: \"arrow.up.arrow.down\")"))
+        #expect(pitcherSource.contains("if UIDevice.type == \"iPad\" {\n                        pitcherFilterPicker\n                    }"))
+        #expect(pitcherSource.contains("if UIDevice.type == \"iPhone\" {\n                        Button(action: {\n                            withAnimation {\n                                isSearching.toggle()"))
+        #expect(pitcherSource.contains("ToolbarItemGroup(placement: .topBarTrailing) {\n                    if UIDevice.type == \"iPhone\" {\n                        pitcherFilterPicker"))
+        #expect(pitcherSource.contains("private var pitcherFilterControl") == false)
+        #expect(pitcherSource.contains("TextField(\"Player name or number\", text: $searchText)"))
+        #expect(pitcherSource.contains(".minimumScaleFactor(0.8)"))
+        #expect(pitcherSource.contains(".frame(width: UIDevice.type == \"iPad\" ? 220 : 180)"))
+        #expect(pitcherSource.contains(".searchable(if: UIDevice.type == \"iPhone\" && isSearching"))
+        #expect(pitcherSource.contains("Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)"))
+        let searchFieldPosition = try #require(pitcherSource.range(of: "TextField(\"Player name or number\", text: $searchText)")?.lowerBound)
+        let addPlayerButtonPosition = try #require(pitcherSource.range(of: "Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)")?.lowerBound)
+        #expect(searchFieldPosition < addPlayerButtonPosition)
+        #expect(pitcherSource.contains("AddPlayerDraftView(team: team)"))
+        #expect(pitcherSource.contains("func addPlayers() {\n        showingAddPlayerDraft = true\n    }"))
+        #expect(pitcherSource.contains("Player(name: \"\", number: \"\",  position: \"\", batDir: \"\", batOrder: 99,team: team)") == false)
+        #expect(pitcherSource.contains("position: \"P\"") == false)
+        #expect(pitcherSource.contains("position: \"SP\"") == false)
+        #expect(pitcherSource.contains("position: \"RP\"") == false)
+        #expect(staffSource.contains("@State var pName = \"Not Selected Yet\""))
+        #expect(staffSource.contains("Button(\"Delete\")"))
+    }
+
+    @Test("pitcher title is owned by parent toolbar so asymmetric controls do not pull it from screen center")
+    func pitcherTitleIsOwnedByParentToolbarSoAsymmetricControlsDoNotPullItFromScreenCenter() throws {
+        let pitcherSource = try repositorySource("ScoreKeep/Content Views/PitcherContentView.swift")
+        let staffSource = try repositorySource("ScoreKeep/Player org/PitchersStaffView.swift")
+
+        #expect(pitcherSource.contains("ToolbarItem(placement: .principal)"))
+        #expect(pitcherSource.contains("Text(\"Select who will pitch\")"))
+        #expect(pitcherSource.contains(".frame(width: UIScreen.main.bounds.width)"))
+        #expect(pitcherSource.contains(".allowsHitTesting(false)"))
+        #expect(staffSource.contains("ToolbarItem(placement: .principal)") == false)
+        #expect(staffSource.contains("Text(\"Select who will pitch\")") == false)
     }
 
     private func playerCount(in container: ModelContainer) throws -> Int {
