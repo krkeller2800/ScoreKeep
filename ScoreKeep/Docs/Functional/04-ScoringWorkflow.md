@@ -20,6 +20,9 @@ The initial game state should be clear and conventional. The game begins in the 
 
 The user should understand which batter is expected next before opening the scoring controls. If the batting order is wrong, the user should have a visible way to correct lineup or batter selection before recording a play. ScoreKeep should not silently guess a different batter when the saved batting order is ambiguous.
 
+ScoreKeep 6.1 lineup-slot correction allows eligible Player identities to be corrected directly from the live scorecard while the shared lineup-slot coordinator proves the slot remains safe.
+This is a lineup-entry correction, not a substitution, and it should use the same safety and mutation path as Starting Lineup.
+
 Beginning the first inning should not require the user to perform hidden setup. Any required scoring state should be visible through ordinary scoring screens. If the game is resumed later, the user should return to the saved inning, outs, runners, batter, score, and team at bat rather than being forced back to the first batter.
 
 ## 3. Recording a Plate Appearance

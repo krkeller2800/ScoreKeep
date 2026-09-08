@@ -93,6 +93,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 ### Responsibility boundaries
 
 - The app has no centralized domain layer for baseball scoring. Scoring rules and state mutation are distributed across `PlayersToScoreView.seqGame()`, `PlayersToScoreView.updMaxBases()`, `PlayersToScoreView.updatePitcherMarkers()`, `ScoreGameView.setEndOfInning()`, `StartingLineupView.doLineup()`, `ReplacementView.doSubs()`, and reporting functions in `GeneratePDF.swift`.
+- ScoreKeep 6.1 Phase 1 introduces a narrow non-SwiftUI lineup-slot authority in `ScoreKeep/Common/LineupSlotSafetyCoordinator.swift`. That coordinator owns lineup slot resolution, default materialization, persisted-evidence editability, and safe per-slot Player reassignment for future Starting Lineup and live-scorecard integration. Existing UI flows still route through their legacy writers until those integrations are implemented. The durable design record is `ScoreKeep/Docs/LineupAndScoringDesign.md`.
 - Persistence is accessed directly from SwiftUI views through `@Environment(\.modelContext)`, `@Query`, `FetchDescriptor`, and direct mutation of SwiftData model instances.
 - Import/export compatibility uses both older view-local code in `ImportPlayersView` and newer service code in `ImportService`; both should be treated as current behavior until rewritten and regression-tested.
 - StoreKit and entitlement logic is isolated in `PurchaseManager`, but feature gating is implemented in view code (`ScoreContentView`, `EditScoreView`, `ShareContentView`).
@@ -213,6 +214,8 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 - `StartingLineupView.doLineup()`
   - Creates or updates `Lineup` and first-column placeholder `Atbat` rows.
   - Updating an existing lineup deletes at-bats for that team first.
+- `LineupSlotSafetyCoordinator`
+  - Provides the 6.1 non-UI foundation for safe per-slot lineup materialization, editability, and Player reassignment. Future UI should use this instead of destructive whole-lineup correction for ordinary scored-game wrong-Player fixes.
 - `ReplacementView.doSubs()`
   - Inserts "Pitch Hitter" at-bats and shifts sequence/batting order.
 - `GeneratePDF.swift`, `ReportView`, `ShowReportView`, `PitcherRptView`, and `ShowPitchRptView`

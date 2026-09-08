@@ -4,6 +4,11 @@
 
 Lineups define how players from a selected team participate in a specific game. They bridge reusable roster management and live scorekeeping by turning a team roster into the batting order, participation list, and substitution context used during that game.
 
+ScoreKeep 6.1 adds a slot-based lineup direction documented in `ScoreKeep/Docs/LineupAndScoringDesign.md`.
+When no game-specific lineup exists, roster/import `Player.batOrder` is the default lineup source.
+Users do not need to construct a perfect lineup before scoring: they may accept the imported/default lineup, prepare it before the game, or correct individual Player identities on the fly while persisted evidence proves the slot remains safe.
+There is no separate on-the-fly mode and lineup slots should not be represented by fake Unknown Player records.
+
 A lineup determines which players are eligible to bat, the order in which they bat, and how the expected batter advances throughout the game. It also provides the game-specific player context needed for scorecards, batting statistics, pitching records, substitutions, corrections, and reports.
 
 Lineups are separate from rosters. A roster describes players who belong to a team over time. A lineup describes how selected players from that roster, plus any game-specific additions, are used in one game. Changing a lineup should not rewrite the reusable roster unless the user intentionally performs a roster-management action.
@@ -170,7 +175,7 @@ Unsupported rule combinations should be detected when selected lineup mode, re-e
 
 Incomplete lineup should be visible when required batting positions, player identities, or substitution details are missing. Incomplete data may be saved as a draft or unresolved issue, but it should not be presented as complete.
 
-Unknown players should be allowed only when the real game cannot be recorded otherwise. Unknown status should remain visible and correctable, and reports should not present unknown participants as fully identified players.
+Lineup slots should not use fake Unknown Player records. When the correct batter is absent from the roster, the user should add a real Player through the standard Add Player workflow.
 
 ## 11. Data Integrity Requirements
 
