@@ -28,6 +28,7 @@ struct PlayersOnTeamView: View {
     @State private var showingDuplicatePlayerAlert = false
     @State private var showingAddPlayerDraft = false
     let usesStandardPlayerAdd: Bool
+    let showsQuickAddRow: Bool
 
     enum FocusField: Hashable {case field}
 
@@ -65,7 +66,7 @@ struct PlayersOnTeamView: View {
                             Label("Add Player", systemImage: "plus")
                         }
                         .accessibilityLabel("Add player")
-                    } else {
+                    } else if showsQuickAddRow {
                         HStack {
                             Picker("Bat Order", selection: $pOrder) {
                                 let orders = ["?","1st","2nd","3rd","4th",
@@ -170,11 +171,12 @@ struct PlayersOnTeamView: View {
     }
 
 
-    init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], usesStandardPlayerAdd: Bool = false) {
+    init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], usesStandardPlayerAdd: Bool = false, showsQuickAddRow: Bool = true) {
 
         self.showHeader = showHeader
         self.team = team
         self.usesStandardPlayerAdd = usesStandardPlayerAdd
+        self.showsQuickAddRow = showsQuickAddRow
         let teamName = team.name
           _players = Query(filter: #Predicate { player in
               if searchString.isEmpty {

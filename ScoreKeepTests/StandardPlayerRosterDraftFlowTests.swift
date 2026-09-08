@@ -365,17 +365,36 @@ struct StandardPlayerRosterDraftFlowTests {
 
     @Test("out of scope player creation paths are not opted into standard ordinary add")
     func outOfScopePlayerCreationPathsAreNotOptedIntoStandardOrdinaryAdd() throws {
-        let replacementSource = try repositorySource("ScoreKeep/Player org/ReplacementView.swift")
         let pitcherSource = try repositorySource("ScoreKeep/Content Views/PitcherContentView.swift")
         let lineupSource = try repositorySource("ScoreKeep/Player org/StartingLineupView.swift")
         let pasteSource = try repositorySource("ScoreKeep/Player org/PasteView.swift")
         let importSource = try repositorySource("ScoreKeep/Sharing Data/ImportPlayersView.swift")
 
-        #expect(replacementSource.contains("AddPlayerDraftView") == false)
         #expect(pitcherSource.contains("AddPlayerDraftView") == false)
         #expect(lineupSource.contains("AddPlayerDraftView") == false)
         #expect(pasteSource.contains("AddPlayerDraftView") == false)
         #expect(importSource.contains("AddPlayerDraftView") == false)
+    }
+
+    @Test("replacement screen uses toolbar add player draft without quick entry row")
+    func replacementScreenUsesToolbarAddPlayerDraftWithoutQuickEntryRow() throws {
+        let replacementSource = try repositorySource("ScoreKeep/Player org/ReplacementView.swift")
+        let playersOnTeamSource = try repositorySource("ScoreKeep/List Data/PlayersOnTeamView.swift")
+
+        #expect(replacementSource.contains("PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortOrder, showsQuickAddRow: false)"))
+        #expect(replacementSource.contains("ToolbarItemGroup(placement: .topBarLeading)"))
+        #expect(replacementSource.contains("ToolbarItemGroup(placement: .topBarTrailing)"))
+        #expect(replacementSource.contains("Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)"))
+        #expect(replacementSource.contains("TextField(\"Player name or number\", text: $searchText)"))
+        #expect(replacementSource.contains(".searchable(if: UIDevice.type == \"iPhone\" && isSearching"))
+        let searchButtonPosition = try #require(replacementSource.range(of: "Image(systemName: \"magnifyingglass\")")?.lowerBound)
+        let addPlayerButtonPosition = try #require(replacementSource.range(of: "Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)")?.lowerBound)
+        #expect(searchButtonPosition < addPlayerButtonPosition)
+        #expect(replacementSource.contains("AddPlayerDraftView(team: team)"))
+        #expect(replacementSource.contains("func addPlayers() {\n        showingAddPlayerDraft = true\n    }"))
+        #expect(replacementSource.contains("modelContext.insert(player)") == false)
+        #expect(playersOnTeamSource.contains("let showsQuickAddRow: Bool"))
+        #expect(playersOnTeamSource.contains("} else if showsQuickAddRow {"))
     }
 
     private func playerCount(in container: ModelContainer) throws -> Int {

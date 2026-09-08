@@ -31,7 +31,7 @@ struct ReplacementView: View {
     @State private var incPlayers: [Player] = []
     @State private var searchText = ""
     @State private var isSearching = false
-    @State private var newlyAddedPlayerID: UUID?
+    @State private var showingAddPlayerDraft = false
 
     @Query var players: [Player]
 
@@ -142,7 +142,7 @@ struct ReplacementView: View {
                 }
                 HStack {
                     Spacer()
-                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortOrder)
+                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortOrder, showsQuickAddRow: false)
                         .navigationDestination(for: Player.self) { player in
                             EditPlayerView( player: player, team: team, navigationPath: $navigationPath)
                         }
@@ -185,9 +185,8 @@ struct ReplacementView: View {
                                 .tag([SortDescriptor(\Player.team?.name),SortDescriptor(\Player.batOrder)])
                         }
                     }
-                    Button("Add Player", systemImage: "plus", action: addPlayers)
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     if UIDevice.type == "iPhone" {
                         Button(action: {
                             withAnimation {
@@ -196,15 +195,36 @@ struct ReplacementView: View {
                         }) {
                             Image(systemName: "magnifyingglass")
                         }
+                    } else {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                            TextField("Player name or number", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .frame(width: 260)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.regularMaterial, in: Capsule())
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Player name or number")
                     }
+
+                    Button("Add Player", systemImage: "plus", action: addPlayers)
+                        .accessibilityLabel("Add player")
                 }
             }
-            .searchable(if: isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+            .searchable(if: UIDevice.type == "iPhone" && isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
+            .sheet(isPresented: $showingAddPlayerDraft) {
+                NavigationStack {
+                    AddPlayerDraftView(team: team)
+                }
+            }
             .onAppear {
                 if UIDevice.type == "iPhone" {
                     isSearching = false
                 } else {
-                    isSearching = true
+                    isSearching = false
                 }
             }
         }
@@ -239,14 +259,7 @@ struct ReplacementView: View {
         }
     }
     func addPlayers() {
-        let maxOrder = players.map { $0.batOrder }.filter { $0 < 99 }.max() ?? 0
-        let nextOrder = maxOrder + 1
-
-        let player = Player(name: "", number: "", position: "", batDir: "", batOrder: nextOrder, team: team)
-        modelContext.insert(player)
-        newlyAddedPlayerID = player.identifier
-        navigationPath.append(player)
-        try? modelContext.save()
+        showingAddPlayerDraft = true
     }
 
     func updateReplacementLists() {
@@ -284,12 +297,6 @@ struct ReplacementView: View {
             incPlayers = newIncPlayers
         }
 
-        if let newID = newlyAddedPlayerID {
-            if let newIndex = incPlayers.firstIndex(where: { $0.identifier == newID }) {
-                incomingIdx = newIndex + 1
-            }
-            newlyAddedPlayerID = nil
-        }
     }
     func getAtbats () {
 

@@ -331,7 +331,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Create/update lineup: `StartingLineupView`.
 - Score an at-bat: `PlayersToScoreView` grid opens `ScoreGameView`.
 - Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; pitcher-only filtering recognizes normalized `P`, `SP`, and `RP` roles case-insensitively.
-- Substitute players: `ReplacementView`.
+- Substitute players: `ReplacementView`; Add Player is available from the toolbar and opens the shared player draft form instead of an inline quick-entry row.
 - Share rosters/games and download MLB teams: `ShareContentView`.
 - Import received files: `ImportPlayersView`.
 - Generate/share PDFs and stat reports: `EditScoreView`, `PDFGenerator`, `ReportView`, `ShowReportView`, `PitcherRptView`, `ShowPitchRptView`, `PdfView`.
@@ -344,6 +344,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - New Game home/visiting team picker Add Team detours: `EditGameView`.
 - Delete Game confirmation: `GameView`.
 - Add Pitcher, PDF, Replace Players, Lineup, Pitch Stats, Hit Stats: `EditScoreView`.
+- Replacement Add Player toolbar action and Search: `ReplacementView`.
 - Scoring sheet with Done/Delete/RBI/Steal/result/base/out/earned-run/fielder buttons: `ScoreGameView`.
 - Lineup update destructive alert: `StartingLineupView`.
 - Delete players destructive alert: `PasteView`.
