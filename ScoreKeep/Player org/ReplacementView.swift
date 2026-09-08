@@ -219,6 +219,7 @@ struct ReplacementView: View {
                 NavigationStack {
                     AddPlayerDraftView(team: team)
                 }
+                .standardAddPlayerPresentation()
             }
             .onAppear {
                 if UIDevice.type == "iPhone" {

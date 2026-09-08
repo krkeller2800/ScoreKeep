@@ -164,6 +164,7 @@ struct PlayerView: View {
                     NavigationStack {
                         AddPlayerDraftView(team: pTeam)
                     }
+                    .standardAddPlayerPresentation()
                 }
             }
             .alert(alertMessage, isPresented: $showingAlert) { Button("OK", role: .cancel) { } }

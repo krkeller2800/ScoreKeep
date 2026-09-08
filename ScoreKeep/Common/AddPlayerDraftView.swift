@@ -167,3 +167,14 @@ struct AddPlayerDraftView: View {
         return "\(player.name), \(number), \(position)"
     }
 }
+
+extension View {
+    @ViewBuilder
+    func standardAddPlayerPresentation() -> some View {
+        if #available(iOS 18.0, *) {
+            self.presentationSizing(.page)
+        } else {
+            self
+        }
+    }
+}

@@ -140,6 +140,7 @@ struct PitcherContentView: View {
                 NavigationStack {
                     AddPlayerDraftView(team: team)
                 }
+                .standardAddPlayerPresentation()
             }
             .onAppear {
                 UISegmentedControl.appearance().selectedSegmentTintColor = .systemBlue.withAlphaComponent(0.1)

@@ -91,15 +91,27 @@ struct TeamPlayerPresentationConsistencyTests {
         #expect(playerForm.contains(".frame(maxWidth: .infinity)"))
     }
 
-    @Test("Add Player remains sheet style on both ordinary roster hosts")
-    func addPlayerRemainsSheetStyleOnOrdinaryRosterHosts() throws {
+    @Test("Add Player routes share the standardized page-style presentation")
+    func addPlayerRoutesShareTheStandardizedPageStylePresentation() throws {
+        let addPlayerDraftView = try source("ScoreKeep/Common/AddPlayerDraftView.swift")
         let playerView = try source("ScoreKeep/List Data/PlayerView.swift")
         let playersOnTeamView = try source("ScoreKeep/List Data/PlayersOnTeamView.swift")
+        let replacementView = try source("ScoreKeep/Player org/ReplacementView.swift")
+        let pitcherView = try source("ScoreKeep/Content Views/PitcherContentView.swift")
+        let lineupView = try source("ScoreKeep/Player org/StartingLineupView.swift")
+
+        #expect(addPlayerDraftView.contains("func standardAddPlayerPresentation() -> some View"))
+        #expect(addPlayerDraftView.contains("if #available(iOS 18.0, *)"))
+        #expect(addPlayerDraftView.contains(".presentationSizing(.page)"))
 
         #expect(playerView.contains(".sheet(isPresented: $showingAddPlayerDraft)"))
         #expect(playerView.contains("NavigationStack {\n                        AddPlayerDraftView(team: pTeam)"))
         #expect(playersOnTeamView.contains(".sheet(isPresented: $showingAddPlayerDraft)"))
         #expect(playersOnTeamView.contains("NavigationStack {\n                    AddPlayerDraftView(team: team)"))
+        for routeSource in [playerView, playersOnTeamView, replacementView, pitcherView, lineupView] {
+            #expect(routeSource.contains(".standardAddPlayerPresentation()"))
+            #expect(routeSource.contains(".lineupAddPlayerPresentationSizing()") == false)
+        }
     }
 
     private func source(_ relativePath: String) throws -> String {

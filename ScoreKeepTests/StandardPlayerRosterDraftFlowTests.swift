@@ -365,11 +365,9 @@ struct StandardPlayerRosterDraftFlowTests {
 
     @Test("out of scope player creation paths are not opted into standard ordinary add")
     func outOfScopePlayerCreationPathsAreNotOptedIntoStandardOrdinaryAdd() throws {
-        let lineupSource = try repositorySource("ScoreKeep/Player org/StartingLineupView.swift")
         let pasteSource = try repositorySource("ScoreKeep/Player org/PasteView.swift")
         let importSource = try repositorySource("ScoreKeep/Sharing Data/ImportPlayersView.swift")
 
-        #expect(lineupSource.contains("AddPlayerDraftView") == false)
         #expect(pasteSource.contains("AddPlayerDraftView") == false)
         #expect(importSource.contains("AddPlayerDraftView") == false)
     }
@@ -436,6 +434,25 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(pitcherSource.contains(".allowsHitTesting(false)"))
         #expect(staffSource.contains("ToolbarItem(placement: .principal)") == false)
         #expect(staffSource.contains("Text(\"Select who will pitch\")") == false)
+    }
+
+    @Test("lineup screen uses toolbar add player draft without inline quick entry row")
+    func lineupScreenUsesToolbarAddPlayerDraftWithoutInlineQuickEntryRow() throws {
+        let lineupSource = try repositorySource("ScoreKeep/Player org/StartingLineupView.swift")
+
+        #expect(lineupSource.contains("TextField(\"Name\", text: $pName") == false)
+        #expect(lineupSource.contains("TextField(\"00\", text: $pNumber") == false)
+        #expect(lineupSource.contains("TextField(\"1B\", text: $pPosition") == false)
+        #expect(lineupSource.contains("TextField(\"(L)\", text: $pBatDir") == false)
+        #expect(lineupSource.contains("addPlayerCheckingForLikelyDuplicate") == false)
+        #expect(lineupSource.contains("createPendingPlayer") == false)
+        #expect(lineupSource.contains("Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)"))
+        #expect(lineupSource.contains("AddPlayerDraftView(team: team)"))
+        #expect(lineupSource.contains(".standardAddPlayerPresentation()"))
+        #expect(lineupSource.contains(".lineupAddPlayerPresentationSizing()") == false)
+        #expect(lineupSource.contains("func addPlayers() {\n        showingAddPlayerDraft = true\n    }"))
+        #expect(lineupSource.contains(".onChange(of: players) {\n                    syncNewRosterPlayersIntoLineup()\n                }"))
+        #expect(lineupSource.contains("func syncNewRosterPlayersIntoLineup()"))
     }
 
     private func playerCount(in container: ModelContainer) throws -> Int {

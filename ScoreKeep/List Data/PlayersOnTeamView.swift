@@ -166,6 +166,7 @@ struct PlayersOnTeamView: View {
                 NavigationStack {
                     AddPlayerDraftView(team: team)
                 }
+                .standardAddPlayerPresentation()
             }
         }
     }

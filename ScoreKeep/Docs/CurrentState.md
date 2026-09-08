@@ -67,7 +67,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
   - `PlayersToScoreView` renders the scoring grid and creates/selects `Atbat` records.
   - The scorecard pitcher section uses compact pitcher display names; suffixes such as Jr., Sr., II, III, and IV remain attached to the family name.
   - `ScoreGameView` is the per-plate-appearance scoring sheet.
-  - `StartingLineupView` creates/updates lineup and initial `Atbat` placeholder rows.
+  - `StartingLineupView` creates/updates lineup and initial `Atbat` placeholder rows; Add Player is available from the trailing toolbar and opens the shared player draft form instead of an inline quick-entry row.
   - `ReplacementView` handles substitutions and "Pitch Hitter" rows.
   - `PitcherContentView` and `PitchersStaffView` handle pitcher entry; Add Player is available from the trailing toolbar and opens the shared player draft form, while the Pitchers filter uses normalized defensive-position semantics for pitcher roles instead of exact-case raw position text.
 
@@ -231,7 +231,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 ### Duplicated logic
 
 - Score/stat calculations are duplicated in `PlayersToScoreView`, `drawCardView.swift`, `GeneratePDF.swift`, `ReportView`, `ShowReportView`, `PitcherRptView`, and `ShowPitchRptView`.
-- Team/player duplicate logic appears in `TeamView`, `EditTeamView`, `PlayerView`, `PlayersOnTeamView`, `EditPlayerView`, `StartingLineupView`, and `PasteView`.
+- Team/player duplicate logic appears in `TeamView`, `EditTeamView`, `PlayerView`, `PlayersOnTeamView`, `EditPlayerView`, and `PasteView`.
 - Deep-link parsing appears in `ScoreKeepApp`, `StartView`, `StartPhoneView`, and `ShareContentView`.
 - Import game/player logic exists in both `ImportPlayersView` and `ImportService`.
 
@@ -328,9 +328,9 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Create/edit/delete teams: `TeamContentView` opens `AddTeamDraftView` for draft-based creation, then transitions a saved Team into `EditTeamView`; `TeamView` lists/deletes teams, and `EditTeamView` edits existing teams through the shared `TeamFormContent`.
 - Manage team players: `PlayersOnTeamView`, `PlayerView`, `EditPlayerView`, `EditAllPlayerView`.
 - Paste roster from clipboard: `PasteView`.
-- Create/update lineup: `StartingLineupView`.
 - Score an at-bat: `PlayersToScoreView` grid opens `ScoreGameView`.
 - Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; pitcher-only filtering recognizes normalized `P`, `SP`, and `RP` roles case-insensitively, and Add Player opens from the trailing toolbar.
+- Create/update lineup: `StartingLineupView`; Add Player opens from the trailing toolbar and returns saved players to the lineup roster.
 - Substitute players: `ReplacementView`; Add Player is available from the toolbar and opens the shared player draft form instead of an inline quick-entry row.
 - Share rosters/games and download MLB teams: `ShareContentView`.
 - Import received files: `ImportPlayersView`.
@@ -346,6 +346,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Add Pitcher, PDF, Replace Players, Lineup, Pitch Stats, Hit Stats: `EditScoreView`.
 - Replacement Add Player toolbar action and Search: `ReplacementView`.
 - Pitcher Add Player toolbar action and Search: `PitcherContentView`.
+- Lineup Add Player toolbar action and Search: `StartingLineupView`.
 - Scoring sheet with Done/Delete/RBI/Steal/result/base/out/earned-run/fielder buttons: `ScoreGameView`.
 - Lineup update destructive alert: `StartingLineupView`.
 - Delete players destructive alert: `PasteView`.
