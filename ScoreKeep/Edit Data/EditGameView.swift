@@ -118,14 +118,7 @@ struct EditGameView: View {
                             .lineLimit(1)
                             .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
 
-                            Button {
-                                presentAddTeam(for: .visiting)
-                            } label: {
-                                Image(systemName: "plus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                            .fixedSize()
-                            .accessibilityLabel("Add visiting team")
+                            addTeamRoleButton(for: .visiting, accessibilityLabel: "Add visiting team")
                         }
                     }
 
@@ -149,14 +142,7 @@ struct EditGameView: View {
                             .lineLimit(1)
                             .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
 
-                            Button {
-                                presentAddTeam(for: .home)
-                            } label: {
-                                Image(systemName: "plus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                            .fixedSize()
-                            .accessibilityLabel("Add home team")
+                            addTeamRoleButton(for: .home, accessibilityLabel: "Add home team")
                         }
                     }
 
@@ -199,10 +185,6 @@ struct EditGameView: View {
                 if game == nil {
                     Button("Save", action: saveNewGame)
                         .disabled(!canSaveNewGame)
-                } else {
-                    Button("Add home or visiting team") {
-                        presentAddTeam()
-                    }
                 }
             }
         }
@@ -229,6 +211,19 @@ struct EditGameView: View {
     private func presentAddTeam(for role: AddGameTeamSelectionRole? = nil) {
         pendingAddTeamSelectionRole = role
         showingAddTeam = true
+    }
+
+    private func addTeamRoleButton(for role: AddGameTeamSelectionRole, accessibilityLabel: String) -> some View {
+        Button {
+            presentAddTeam(for: role)
+        } label: {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 24, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func sectionHeader(_ title: String) -> some View {

@@ -419,10 +419,8 @@ struct StandardTeamCreationDraftFlowTests {
         #expect(editGame.contains("enum AddGameTeamSelectionRole: Hashable"))
         #expect(editGame.contains("case visiting"))
         #expect(editGame.contains("case home"))
-        #expect(editGame.contains("presentAddTeam(for: .visiting)"))
-        #expect(editGame.contains("presentAddTeam(for: .home)"))
-        #expect(editGame.contains(".accessibilityLabel(\"Add visiting team\")"))
-        #expect(editGame.contains(".accessibilityLabel(\"Add home team\")"))
+        #expect(editGame.contains("addTeamRoleButton(for: .visiting, accessibilityLabel: \"Add visiting team\")"))
+        #expect(editGame.contains("addTeamRoleButton(for: .home, accessibilityLabel: \"Add home team\")"))
         #expect(editGame.contains("private func presentAddTeam(for role: AddGameTeamSelectionRole? = nil)"))
         #expect(editGame.contains("pendingAddTeamSelectionRole = role"))
         #expect(editGame.contains("AddTeamDraftView { createdTeam in"))
@@ -432,17 +430,31 @@ struct StandardTeamCreationDraftFlowTests {
         #expect(editGame.contains("case nil:\n            if game?.vteam == nil && draftVisitingTeam == nil"))
     }
 
-    @Test("new game team pickers use wide one line presentation with role specific add buttons")
-    func newGameTeamPickersUseWideOneLinePresentationWithRoleSpecificAddButtons() throws {
+    @Test("new and edit game team pickers use wide one line presentation with prominent role specific add buttons")
+    func newAndEditGameTeamPickersUseWideOneLinePresentationWithProminentRoleSpecificAddButtons() throws {
         let editGame = try repositorySource("ScoreKeep/Edit Data/EditGameView.swift")
 
         #expect(editGame.contains("compactField(\"Visiting Team\", width: 300)"))
         #expect(editGame.contains("compactField(\"Home Team\", width: 300)"))
         #expect(editGame.components(separatedBy: ".lineLimit(1)\n                            .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)").count - 1 == 2)
-        #expect(editGame.contains("presentAddTeam(for: .visiting)"))
-        #expect(editGame.contains("presentAddTeam(for: .home)"))
-        #expect(editGame.contains(".fixedSize()\n                            .accessibilityLabel(\"Add visiting team\")"))
-        #expect(editGame.contains(".fixedSize()\n                            .accessibilityLabel(\"Add home team\")"))
+        #expect(editGame.contains("addTeamRoleButton(for: .visiting, accessibilityLabel: \"Add visiting team\")"))
+        #expect(editGame.contains("addTeamRoleButton(for: .home, accessibilityLabel: \"Add home team\")"))
+        #expect(editGame.contains("Image(systemName: \"plus.circle.fill\")"))
+        #expect(editGame.contains(".font(.system(size: 24, weight: .semibold))"))
+        #expect(editGame.contains(".frame(width: 44, height: 44)"))
+        #expect(editGame.contains(".contentShape(Rectangle())"))
+        #expect(editGame.contains(".accessibilityLabel(accessibilityLabel)"))
+    }
+
+    @Test("edit game no longer exposes redundant general add team toolbar button")
+    func editGameNoLongerExposesRedundantGeneralAddTeamToolbarButton() throws {
+        let editGame = try repositorySource("ScoreKeep/Edit Data/EditGameView.swift")
+
+        #expect(editGame.contains("Button(\"Add home or visiting team\")") == false)
+        #expect(editGame.contains("presentAddTeam()") == false)
+        #expect(editGame.contains("private func presentAddTeam(for role: AddGameTeamSelectionRole? = nil)"))
+        #expect(editGame.contains("addTeamRoleButton(for: .visiting"))
+        #expect(editGame.contains("addTeamRoleButton(for: .home"))
     }
 
     @Test("canceling add game add team sheet does not change team selections")
