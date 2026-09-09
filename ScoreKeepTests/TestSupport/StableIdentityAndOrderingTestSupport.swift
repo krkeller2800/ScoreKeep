@@ -90,8 +90,10 @@ enum StableIdentityAndOrderingTestSupport {
 
     static func repositoryRoot(callerFilePath: String = #filePath) throws -> URL {
         var candidates: [URL] = []
-        if let sourceRoot = ProcessInfo.processInfo.environment["SRCROOT"] {
-            candidates.append(URL(fileURLWithPath: sourceRoot))
+        for key in ["SRCROOT", "SOURCE_ROOT", "PROJECT_DIR", "PROJECT_FILE_PATH", "PWD"] {
+            if let value = ProcessInfo.processInfo.environment[key], value.isEmpty == false {
+                candidates.append(URL(fileURLWithPath: value))
+            }
         }
         candidates.append(URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
         candidates.append(URL(fileURLWithPath: callerFilePath))
@@ -109,7 +111,10 @@ enum StableIdentityAndOrderingTestSupport {
 
     private static func repositoryRoot(containing candidate: URL) -> URL? {
         let fileManager = FileManager.default
-        var url = candidate
+        var url = candidate.standardizedFileURL
+        if url.pathExtension == "xcodeproj" {
+            url.deleteLastPathComponent()
+        }
         if (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
             url.deleteLastPathComponent()
         }
