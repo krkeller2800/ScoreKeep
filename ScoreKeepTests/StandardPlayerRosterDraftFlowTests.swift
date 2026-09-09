@@ -438,23 +438,16 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(staffSource.contains("Text(\"Select who will pitch\")") == false)
     }
 
-    @Test("lineup screen uses toolbar add player draft without inline quick entry row")
-    func lineupScreenUsesToolbarAddPlayerDraftWithoutInlineQuickEntryRow() throws {
-        let lineupSource = try repositorySource("ScoreKeep/Player org/StartingLineupView.swift")
+    @Test("live scorecard uses add player draft without restoring retired lineup screen")
+    func liveScorecardUsesAddPlayerDraftWithoutRestoringRetiredLineupScreen() throws {
+        let scorecardSource = try repositorySource("ScoreKeep/Disply graphics/PlayersToScoreView.swift")
+        let editScoreSource = try repositorySource("ScoreKeep/Edit Data/EditScoreView.swift")
 
-        #expect(lineupSource.contains("TextField(\"Name\", text: $pName") == false)
-        #expect(lineupSource.contains("TextField(\"00\", text: $pNumber") == false)
-        #expect(lineupSource.contains("TextField(\"1B\", text: $pPosition") == false)
-        #expect(lineupSource.contains("TextField(\"(L)\", text: $pBatDir") == false)
-        #expect(lineupSource.contains("addPlayerCheckingForLikelyDuplicate") == false)
-        #expect(lineupSource.contains("createPendingPlayer") == false)
-        #expect(lineupSource.contains("Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)"))
-        #expect(lineupSource.contains("AddPlayerDraftView(team: team)"))
-        #expect(lineupSource.contains(".standardAddPlayerPresentation()"))
-        #expect(lineupSource.contains(".lineupAddPlayerPresentationSizing()") == false)
-        #expect(lineupSource.contains("func addPlayers() {\n        pendingAddPlayerSlot = nil\n        showingAddPlayerDraft = true\n    }"))
-        #expect(lineupSource.contains(".onChange(of: players) {\n                    handleRosterPlayersChanged()\n                }"))
-        #expect(lineupSource.contains("private func handleRosterPlayersChanged()"))
+        #expect(scorecardSource.contains("AddPlayerDraftView(team: pendingScorecardCorrectionTeam)"))
+        #expect(scorecardSource.contains(".standardAddPlayerPresentation()"))
+        #expect(scorecardSource.contains("beginScorecardAddPlayer(for: slot, team: atbat.team)"))
+        #expect(scorecardSource.contains("Label(\"Add Player…\", systemImage: \"plus\")"))
+        #expect(editScoreSource.contains("StartingLineupView") == false)
     }
 
     private func playerCount(in container: ModelContainer) throws -> Int {

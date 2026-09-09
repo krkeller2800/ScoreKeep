@@ -16,12 +16,14 @@ Live scoring begins when the user chooses to score a prepared game. Before the f
 
 The transition from pregame preparation should be deliberate. If lineups or pitcher information are incomplete, the user should see that before the first plate appearance. The application should allow scoring to begin when the user intentionally accepts an incomplete but usable setup, because recreational games often start before every detail is known.
 
+Pregame drag-and-drop lineup preparation remains available before game creation/scoring through Team -> Default Batting Order. Saving there updates the reusable Team default order, and a subsequently created or newly materialized game uses that order.
+
 The initial game state should be clear and conventional. The game begins in the first inning with no outs, no runners on base, a zero score, and the visiting team batting first unless the user is resuming or correcting a game whose saved state says otherwise. The first batter should be the first eligible batter in the visiting lineup according to the selected lineup rules.
 
 The user should understand which batter is expected next before opening the scoring controls. If the batting order is wrong, the user should have a visible way to correct lineup or batter selection before recording a play. ScoreKeep should not silently guess a different batter when the saved batting order is ambiguous.
 
 ScoreKeep 6.1 lineup-slot correction allows eligible Player identities to be corrected directly from the live scorecard while the shared lineup-slot coordinator proves the slot remains safe.
-This is a lineup-entry correction, not a substitution, and it should use the same safety and mutation path as Starting Lineup.
+This is a lineup-entry correction, not a substitution, and it uses the shared lineup-slot safety and mutation path rather than the retired Starting Lineup screen.
 
 Beginning the first inning should not require the user to perform hidden setup. Any required scoring state should be visible through ordinary scoring screens. If the game is resumed later, the user should return to the saved inning, outs, runners, batter, score, and team at bat rather than being forced back to the first batter.
 

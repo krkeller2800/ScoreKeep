@@ -160,7 +160,7 @@ Tasks 2.19 and 2.20 remain completed preparation-only or blocked verdicts. They 
 
 The current 6.1 lineup and scoring direction is recorded in `ScoreKeep/Docs/LineupAndScoringDesign.md`.
 Phase 3C is completed locally with `LineupSlotSafetyCoordinator` as the shared non-UI foundation for lineup slot materialization, unordered-roster Team default creation, safety, and reassignment.
-Starting Lineup and live-scorecard work use that coordinator, make safe per-slot Player correction the normal wrong-lineup path, intentionally update Team default order after successful safe corrections, and should retire destructive `Upd Lineup` from normal scored-game use after replacement paths are proven.
+Team Default Batting Order and live-scorecard work use that coordinator, make safe per-slot Player correction the normal wrong-lineup path, intentionally update Team default order after successful safe corrections, and retire destructive `Upd Lineup` from normal scored-game use by removing the legacy game-specific Starting Lineup screen. Pregame drag-and-drop preparation remains available through Team Default Batting Order, where Save updates the Team default used by subsequently materialized games.
 
 ### Task 1.13 Completion Record - Pitcher Responsibility Meaning
 

@@ -3,10 +3,10 @@ import SwiftData
 @testable import ScoreKeep
 
 @MainActor
-@Suite("Starting lineup slot integration")
-struct StartingLineupSlotIntegrationTests {
-    @Test func startingLineupOffersPlayersAlreadyInOtherSlotsPregame() {
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
+@Suite("Scorecard lineup slot integration")
+struct ScorecardLineupSlotIntegrationTests {
+    @Test func scorecardCorrectionOffersPlayersAlreadyInOtherEditableSlots() {
+        let fixture = LineupSlotFixture(playerCount: 3)
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
         let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
@@ -21,25 +21,8 @@ struct StartingLineupSlotIntegrationTests {
         #expect(candidates.map(\.identifier).contains(fixture.players[2].identifier))
     }
 
-    @Test func scorecardCorrectionExcludesPlayersAlreadyInOtherActiveSlots() {
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
-        let slots = fixture.slots(editabilities: [.editable, .editable])
-
-        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
-            from: fixture.players,
-            slots: slots,
-            targetSlot: slots[0],
-            team: fixture.team,
-            context: .scorecardCorrection
-        )
-
-        #expect(candidates.map(\.identifier).contains(fixture.players[0].identifier))
-        #expect(candidates.map(\.identifier).contains(fixture.players[1].identifier) == false)
-        #expect(candidates.map(\.identifier).contains(fixture.players[2].identifier))
-    }
-
     @Test func benchPitchersAndPositionPlayersAreOfferedWhenUnassigned() {
-        let fixture = StartingLineupSlotFixture(playerCount: 2)
+        let fixture = LineupSlotFixture(playerCount: 2)
         let starter = Player(name: "Starting Pitcher", number: "35", position: "SP", batDir: "R", batOrder: 99, team: fixture.team)
         let reliever = Player(name: "Relief Pitcher", number: "48", position: "RP", batDir: "L", batOrder: 99, team: fixture.team)
         let pitcher = Player(name: "Pitcher", number: "44", position: "P", batDir: "R", batOrder: 99, team: fixture.team)
@@ -61,7 +44,7 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func playersAreNotExcludedSolelyByPosition() {
-        let fixture = StartingLineupSlotFixture(playerCount: 1)
+        let fixture = LineupSlotFixture(playerCount: 1)
         let unusualPositions = ["SP", "RP", "P", "C", "DH", "OF", ""]
         let unassignedPlayers = unusualPositions.enumerated().map { index, position in
             Player(
@@ -89,7 +72,7 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func pickerCandidatesUsePersistentIdentityRatherThanName() {
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
+        let fixture = LineupSlotFixture(playerCount: 3)
         let duplicateNameBenchPlayer = Player(
             name: fixture.players[1].name,
             number: "22",
@@ -104,16 +87,15 @@ struct StartingLineupSlotIntegrationTests {
             from: fixture.players + [duplicateNameBenchPlayer],
             slots: slots,
             targetSlot: slots[0],
-            team: fixture.team,
-            context: .scorecardCorrection
+            team: fixture.team
         )
 
-        #expect(candidates.map(\.identifier).contains(fixture.players[1].identifier) == false)
+        #expect(candidates.map(\.identifier).contains(fixture.players[1].identifier))
         #expect(candidates.map(\.identifier).contains(duplicateNameBenchPlayer.identifier))
     }
 
     @Test func pickerCandidatesExcludeOtherTeams() {
-        let fixture = StartingLineupSlotFixture(playerCount: 2)
+        let fixture = LineupSlotFixture(playerCount: 2)
         let otherTeam = Team(name: "Other", coach: "", details: "")
         let otherTeamPlayer = Player(name: "Other Player", number: "9", position: "RF", batDir: "R", batOrder: 99, team: otherTeam)
         let slots = fixture.slots(editabilities: [.editable])
@@ -128,147 +110,8 @@ struct StartingLineupSlotIntegrationTests {
         #expect(candidates.map(\.identifier).contains(otherTeamPlayer.identifier) == false)
     }
 
-    @Test func selectingOccupiedStartingLineupPlayerSwapsSlotsWithoutDuplicates() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 5)
-        let lineup = fixture.insert(into: store.context)
-        let slots = LineupSlotSafetyCoordinator.resolvedSlots(
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        )
-
-        try StartingLineupView.swapPregamePlayers(
-            targetSlot: slots[1],
-            occupiedSlot: slots[4],
-            lineup: lineup,
-            modelContext: store.context
-        )
-
-        let resolvedPlayers = LineupSlotSafetyCoordinator.resolvedSlots(
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        ).map(\.player.identifier)
-        #expect(resolvedPlayers[1] == fixture.players[4].identifier)
-        #expect(resolvedPlayers[4] == fixture.players[1].identifier)
-        #expect(Set(resolvedPlayers).count == resolvedPlayers.count)
-        #expect(fixture.players[4].batOrder == 2)
-        #expect(fixture.players[1].batOrder == 5)
-    }
-
-    @Test func swappedTeamDefaultIsUsedByFutureGames() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 5)
-        let lineup = fixture.insert(into: store.context)
-        let slots = LineupSlotSafetyCoordinator.resolvedSlots(
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        )
-        try StartingLineupView.swapPregamePlayers(
-            targetSlot: slots[1],
-            occupiedSlot: slots[4],
-            lineup: lineup,
-            modelContext: store.context
-        )
-        let futureGame = Game(
-            date: "2026-09-09T12:00:00Z",
-            location: "Future Field",
-            highLights: "",
-            hscore: 0,
-            vscore: 0,
-            vteam: fixture.team,
-            hteam: fixture.opponent
-        )
-        store.context.insert(futureGame)
-
-        let future = try LineupSlotSafetyCoordinator.materializeLineupIfNeeded(
-            game: futureGame,
-            team: fixture.team,
-            modelContext: store.context
-        )
-
-        #expect(future.slots.map(\.player.identifier)[1] == fixture.players[4].identifier)
-        #expect(future.slots.map(\.player.identifier)[4] == fixture.players[1].identifier)
-    }
-
-    @Test func unassignedBenchPlayerSelectionStillWorksInStartingLineup() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
-        _ = fixture.insert(into: store.context)
-        let bench = Player(name: "Bench Player", number: "30", position: "OF", batDir: "L", batOrder: 99, team: fixture.team)
-        fixture.team.players.append(bench)
-        store.context.insert(bench)
-        let slot = try #require(LineupSlotSafetyCoordinator.resolvedSlots(
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        ).first)
-
-        let result = try StartingLineupView.replacePregamePlayer(
-            in: slot,
-            to: bench,
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        )
-
-        #expect(result.slot.player.identifier == bench.identifier)
-        #expect(bench.batOrder == 1)
-        #expect(fixture.players[0].batOrder == 99)
-    }
-
-    @Test func scoredLockedStartingLineupCannotSwapPlayers() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 2)
-        let lineup = fixture.insert(into: store.context)
-        let lockedSlots = fixture.slots(editabilities: [.editable, .locked(.placeholderNotPristine)])
-
-        do {
-            try StartingLineupView.swapPregamePlayers(
-                targetSlot: lockedSlots[0],
-                occupiedSlot: lockedSlots[1],
-                lineup: lineup,
-                modelContext: store.context
-            )
-            Issue.record("Expected locked slot swap to fail")
-        } catch LineupSlotSafetyError.slotLocked {
-            #expect(fixture.placeholders[0].player.identifier == fixture.players[0].identifier)
-            #expect(fixture.placeholders[1].player.identifier == fixture.players[1].identifier)
-        }
-    }
-
-    @Test func everyoneHitsStartingLineupCanSwapBeyondNine() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 11, everyoneHits: true)
-        let lineup = fixture.insert(into: store.context)
-        let slots = LineupSlotSafetyCoordinator.resolvedSlots(
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        )
-
-        try StartingLineupView.swapPregamePlayers(
-            targetSlot: slots[1],
-            occupiedSlot: slots[10],
-            lineup: lineup,
-            modelContext: store.context
-        )
-
-        let resolvedPlayers = LineupSlotSafetyCoordinator.resolvedSlots(
-            game: fixture.game,
-            team: fixture.team,
-            modelContext: store.context
-        ).map(\.player.identifier)
-        #expect(resolvedPlayers[1] == fixture.players[10].identifier)
-        #expect(resolvedPlayers[10] == fixture.players[1].identifier)
-        #expect(fixture.players[10].batOrder == 2)
-        #expect(fixture.players[1].batOrder == 11)
-    }
-
     @Test func addPlayerMenuItemIsFirst() {
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
+        let fixture = LineupSlotFixture(playerCount: 3)
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
         let items = PlayerLineupMenuSupport.playerMenuItems(
@@ -290,21 +133,6 @@ struct StartingLineupSlotIntegrationTests {
         #expect(isSelected)
     }
 
-    @Test func preScoringReorderIsAvailableOnlyWhenAllSlotsAreEditable() {
-        let fixture = StartingLineupSlotFixture(playerCount: 2)
-
-        #expect(StartingLineupView.canReorder(slots: fixture.slots(editabilities: [.editable, .editable])))
-        #expect(StartingLineupView.canReorder(slots: fixture.slots(editabilities: [.editable, .locked(.placeholderNotPristine)])) == false)
-        #expect(StartingLineupView.canReorder(slots: []) == false)
-    }
-
-    @Test func lockReasonsUseUserVisibleLanguage() {
-        #expect(StartingLineupView.userVisibleLockExplanation(for: .placeholderNotPristine) == "This Player has participated in the game and can no longer be corrected as lineup entry.")
-        #expect(StartingLineupView.userVisibleLockExplanation(for: .pitcherParticipation) == "This Player has participated in the game and can no longer be corrected as lineup entry.")
-        #expect(StartingLineupView.userVisibleLockExplanation(for: .duplicateLineupSlot) == "This lineup slot cannot be safely changed.")
-        #expect(StartingLineupView.userVisibleLockExplanation(for: .incomingPlayerUnavailable) == "That Player is already used in this game lineup.")
-    }
-
     @Test func playerMenuRowLabelUsesCompactTrailingMetadataAndFullAccessibility() {
         let team = Team(name: "Lineup Team", coach: "", details: "")
         let player = Player(
@@ -321,7 +149,7 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func scorecardPlayerMenuShowsFullSameTeamRosterIncludingLaterSlots() {
-        let fixture = StartingLineupSlotFixture(playerCount: 4)
+        let fixture = LineupSlotFixture(playerCount: 4)
         let benchPlayer = Player(name: "Bench Hitter", number: "30", position: "OF", batDir: "L", batOrder: 99, team: fixture.team)
         let startingPitcher = Player(name: "Starter", number: "45", position: "SP", batDir: "R", batOrder: 99, team: fixture.team)
         let reliefPitcher = Player(name: "Reliever", number: "55", position: "RP", batDir: "R", batOrder: 99, team: fixture.team)
@@ -356,8 +184,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func scorecardOccupiedSlotSelectionSwapsEditablePlayersAndTeamDefault() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 4)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 4)
         _ = fixture.insert(into: store.context)
         let atbatIdentitiesBefore = fixture.placeholders.map(\.ident)
         let slots = LineupSlotSafetyCoordinator.resolvedSlots(
@@ -391,8 +219,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func futureGameUsesScorecardSwappedTeamDefault() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 4)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 4)
         _ = fixture.insert(into: store.context)
         _ = try LineupSlotSafetyCoordinator.swapPlayers(
             in: 2,
@@ -424,8 +252,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func lockedPlayerCannotParticipateInScorecardSwap() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 4)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 4)
         _ = fixture.insert(into: store.context)
         let defaultOrderBefore = Dictionary(uniqueKeysWithValues: fixture.players.map { ($0.identifier, $0.batOrder) })
         fixture.placeholders[3].result = "Single"
@@ -456,8 +284,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func scorecardUnassignedPlayerCorrectionUpdatesTeamDefault() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 3)
         _ = fixture.insert(into: store.context)
         let bench = Player(name: "Bench Hitter", number: "33", position: "OF", batDir: "L", batOrder: 99, team: fixture.team)
         fixture.team.players.append(bench)
@@ -478,8 +306,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func scorecardAddPlayerAssignmentUpdatesTeamDefault() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 3)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 3)
         _ = fixture.insert(into: store.context)
         let added = Player(name: "Added Player", number: "42", position: "OF", batDir: "L", batOrder: 99, team: fixture.team)
         fixture.team.players.append(added)
@@ -500,8 +328,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func scorecardSwapPreservesExistingScoringStateAndUnrelatedSlots() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 5)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 5)
         _ = fixture.insert(into: store.context)
         fixture.game.hscore = 2
         fixture.game.vscore = 3
@@ -542,8 +370,8 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func reopeningCurrentGamePreservesScorecardSwapAndDefaultOrder() throws {
-        let store = try StartingLineupSlotStore()
-        let fixture = StartingLineupSlotFixture(playerCount: 4)
+        let store = try LineupSlotStore()
+        let fixture = LineupSlotFixture(playerCount: 4)
         _ = fixture.insert(into: store.context)
         _ = try LineupSlotSafetyCoordinator.swapPlayers(
             in: 2,
@@ -570,7 +398,7 @@ struct StartingLineupSlotIntegrationTests {
     }
 
     @Test func scorecardRenderedPlaceholderMapsOnlyToMatchingCoordinatorSlot() {
-        let fixture = StartingLineupSlotFixture(playerCount: 2)
+        let fixture = LineupSlotFixture(playerCount: 2)
         let slots = fixture.slots(editabilities: [.editable, .locked(.placeholderNotPristine)])
         let matchingAtbat = fixture.placeholders[0]
         let mismatchedPlayerAtbat = Atbat(
@@ -598,7 +426,7 @@ struct StartingLineupSlotIntegrationTests {
 }
 
 @MainActor
-private struct StartingLineupSlotFixture {
+private struct LineupSlotFixture {
     let team: Team
     let opponent: Team
     let game: Game
@@ -679,7 +507,7 @@ private struct StartingLineupSlotFixture {
 }
 
 @MainActor
-private struct StartingLineupSlotStore {
+private struct LineupSlotStore {
     let container: ModelContainer
     let context: ModelContext
 

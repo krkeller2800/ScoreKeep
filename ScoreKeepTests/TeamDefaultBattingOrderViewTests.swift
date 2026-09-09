@@ -45,13 +45,11 @@ struct TeamDefaultBattingOrderViewTests {
         let playerViewSource = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/List Data/PlayerView.swift")
         let playersOnTeamSource = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/List Data/PlayersOnTeamView.swift")
         let defaultOrderSource = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/List Data/TeamDefaultBattingOrderView.swift")
-        let startingLineupSource = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/Player org/StartingLineupView.swift")
         let scorecardIdentitySource = try StableIdentityAndOrderingTestSupport.repositorySource("ScoreKeep/Common/ScorecardPlayerIdentityView.swift")
 
         #expect(playerViewSource.contains("PlayerCompactPositionDisplay.string(for: player.position)"))
         #expect(playersOnTeamSource.contains("PlayerCompactPositionDisplay.string(for: player.position)"))
         #expect(defaultOrderSource.contains("PlayerCompactPositionDisplay.string(for: position)"))
-        #expect(startingLineupSource.contains("PlayerCompactPositionDisplay.string(for: slot.player.position)"))
         #expect(scorecardIdentitySource.contains("PlayerCompactPositionDisplay.string(for: player.position)"))
     }
 

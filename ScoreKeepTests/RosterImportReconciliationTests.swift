@@ -360,11 +360,6 @@ struct RosterImportReconciliationTests {
         try assertManualUpdateExistingPersists(entryPath: "PlayersOnTeamView")
     }
 
-    @Test("StartingLineupView update-existing persists matched player identity")
-    func startingLineupViewUpdateExistingPersistsMatchedPlayerIdentity() throws {
-        try assertManualUpdateExistingPersists(entryPath: "StartingLineupView")
-    }
-
     @Test("EditPlayerView update-existing persists matched player identity")
     func editPlayerViewUpdateExistingPersistsMatchedPlayerIdentity() throws {
         try assertManualUpdateExistingPersists(entryPath: "EditPlayerView")

@@ -67,7 +67,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
   - `PlayersToScoreView` renders the scoring grid and creates/selects `Atbat` records.
   - The scorecard pitcher section uses compact pitcher display names; suffixes such as Jr., Sr., II, III, and IV remain attached to the family name.
   - `ScoreGameView` is the per-plate-appearance scoring sheet.
-  - `StartingLineupView` creates/updates lineup and initial `Atbat` placeholder rows; Add Player is available from the trailing toolbar and opens the shared player draft form instead of an inline quick-entry row.
+  - Team Default Batting Order owns pregame drag-and-drop whole-roster/default ordering from Team management; live scoring materializes game lineup placeholders through the lineup-slot coordinator.
   - `ReplacementView` handles substitutions and "Pitch Hitter" rows.
   - `PitcherContentView` and `PitchersStaffView` handle pitcher entry; Add Player is available from the trailing toolbar and opens the shared player draft form, while the Pitchers filter uses normalized defensive-position semantics for pitcher roles instead of exact-case raw position text.
 
@@ -93,7 +93,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 ### Responsibility boundaries
 
 - The app has no centralized domain layer for baseball scoring. Scoring rules and state mutation are distributed across `PlayersToScoreView.seqGame()`, `PlayersToScoreView.updMaxBases()`, `PlayersToScoreView.updatePitcherMarkers()`, `ScoreGameView.setEndOfInning()`, `ReplacementView.doSubs()`, and reporting functions in `GeneratePDF.swift`.
-- ScoreKeep 6.1 introduces a narrow non-SwiftUI lineup-slot authority in `ScoreKeep/Common/LineupSlotSafetyCoordinator.swift`. That coordinator owns lineup slot resolution, default materialization, unordered-roster default order creation, persisted-evidence editability, and safe per-slot Player reassignment. Live scoring materializes a default/imported lineup through that coordinator on entry or batting-Team switch; Starting Lineup and the live scorecard route eligible slot identity correction through the same coordinator. The durable design record is `ScoreKeep/Docs/LineupAndScoringDesign.md`.
+- ScoreKeep 6.1 introduces a narrow non-SwiftUI lineup-slot authority in `ScoreKeep/Common/LineupSlotSafetyCoordinator.swift`. That coordinator owns lineup slot resolution, default materialization, unordered-roster default order creation, persisted-evidence editability, and safe per-slot Player reassignment. Live scoring materializes a default/imported lineup through that coordinator on entry or batting-Team switch; live scorecard Player correction routes through that same coordinator. Team Default Batting Order owns reusable roster order and remains the pregame drag-and-drop lineup preparation path before a game is created or scored. The durable design record is `ScoreKeep/Docs/LineupAndScoringDesign.md`.
 - Persistence is accessed directly from SwiftUI views through `@Environment(\.modelContext)`, `@Query`, `FetchDescriptor`, and direct mutation of SwiftData model instances.
 - Import/export compatibility uses both older view-local code in `ImportPlayersView` and newer service code in `ImportService`; both should be treated as current behavior until rewritten and regression-tested.
 - StoreKit and entitlement logic is isolated in `PurchaseManager`, but feature gating is implemented in view code (`ScoreContentView`, `EditScoreView`, `ShareContentView`).
@@ -168,7 +168,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 ### Data-loss and crash assumptions
 
 - Deleting a game in `GameView.delete(_:)` manually deletes associated `Atbat`, `Pitcher`, and `Lineup` rows, then deletes the `Game`.
-- Updating an existing lineup in `StartingLineupView` warns that team at-bats will be deleted, then deletes at-bats for that team and removes substitution state.
+- The legacy destructive Starting Lineup update path is retired; normal lineup correction is safe per-slot scorecard reassignment/swap through `LineupSlotSafetyCoordinator`. Pregame drag-and-drop lineup preparation remains available through Team Default Batting Order and updates the Team default rather than a separate game-specific draft.
 - `PasteView.deleteAllPlayersOnSelectedTeam()` deletes `Player` rows but only counts related `Atbat`/`Pitcher` records; it does not delete those related records, despite the alert text saying it will.
 - Team/player deletion checks use names, not model identity (`TeamView.teamOnGame(team:)`, `PlayerView.playedInGame(player:)`, `PlayersOnTeamView.playedInGame(player:)`), so duplicate names across teams can block or permit unintended operations.
 - Non-optional relationships in `Atbat`, `Lineup`, and `Pitcher` can crash import or reporting paths if a referenced model is missing; old `ImportPlayersView` force unwraps teams/players during game import.
@@ -179,8 +179,8 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 
 - Games are `Game` rows with two teams, date/location, highlights, an `everyOneHits` flag, and arrays for players, at-bats, lineups, pitchers, replaced players, and incoming players.
 - Teams are `Team` rows with players and games.
-- Batting order is `Player.batOrder`; `99` means not hitting in many views (`PlayerView`, `PlayersOnTeamView`, `StartingLineupView`, `ReplacementView`). If a Team has roster Players but no eligible batting order, `LineupSlotSafetyCoordinator` establishes a deterministic Team default order in `Player.batOrder` before materializing a new game lineup.
-- Initial lineup creation for Starting Lineup and live scoring now uses `LineupSlotSafetyCoordinator.materializeLineupIfNeeded`, which creates one placeholder `Atbat` per batting player with `result = "Result"`, `maxbase = "No Bases"`, `outAt = "Safe"`, `inning = 1`, `col = 1`, and sequence/batting order.
+- Batting order is `Player.batOrder`; `99` means not hitting in many views (`PlayerView`, `PlayersOnTeamView`, `TeamDefaultBattingOrderView`, `ReplacementView`). If a Team has roster Players but no eligible batting order, `LineupSlotSafetyCoordinator` establishes a deterministic Team default order in `Player.batOrder` before materializing a new game lineup.
+- Initial lineup creation for live scoring uses `LineupSlotSafetyCoordinator.materializeLineupIfNeeded`, which creates one placeholder `Atbat` per batting player with `result = "Result"`, `maxbase = "No Bases"`, `outAt = "Safe"`, `inning = 1`, `col = 1`, and sequence/batting order.
 - Plate appearances are `Atbat` rows. Key strings come from `Common` in `CommonData.swift`:
   - On-base results: `Hit By Pitch`, `Dropped 3rd Strike`, `Catcher Interference`, `Walk`, hits, `Fielder's Choice`, `Error`.
   - Out results: `Ground Out`, `Fly Out`, `Line Out`, `Foul Out`, `Strikeout`, `Strikeout Looking`, `Sacrifice Fly`, `Sacrifice Bunt`.
@@ -222,11 +222,11 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
   - Provides the 6.1 non-UI foundation for safe per-slot lineup materialization, unordered-roster Team default creation, editability, and Player reassignment.
   - Preserves existing game-specific lineup/placeholder evidence before falling back to Team defaults.
   - Supports explicit Team default `Player.batOrder` updates for successful safe lineup corrections.
-- `StartingLineupView`
-  - Uses `LineupSlotSafetyCoordinator.resolvedSlots` for row ordering, editable Player pickers, locked Player text, and safe per-slot Player reassignment.
-  - As the full lineup editor, offers occupied same-Team roster Players before scoring and swaps the two slot occupants when one is selected.
-  - Updates Team default `Player.batOrder` for pregame swaps/replacements so future games use the corrected order.
-  - Preserves pre-scoring reorder but does not use destructive whole-lineup update for ordinary scored-game wrong-Player fixes.
+- `TeamDefaultBattingOrderView`
+  - Uses `TeamDefaultBattingOrderDraft` for pregame drag-and-drop whole-roster default order editing from Team management.
+  - Persists compact Team default `Player.batOrder` values only on explicit Save; a subsequently created or newly materialized game uses that saved order.
+  - Keeps Players not in the batting order at `Player.batOrder == 99`.
+  - Does not rewrite existing Games, Lineups, Atbats, substitutions, pitchers, or scoring evidence.
 - `ReplacementView.doSubs()`
   - Inserts "Pitch Hitter" at-bats and shifts sequence/batting order.
 - `GeneratePDF.swift`, `ReportView`, `ShowReportView`, `PitcherRptView`, and `ShowPitchRptView`
@@ -344,7 +344,7 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Paste roster from clipboard: `PasteView`.
 - Score an at-bat: `PlayersToScoreView` grid opens `ScoreGameView`.
 - Add/edit pitchers: `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; pitcher-only filtering recognizes normalized `P`, `SP`, and `RP` roles case-insensitively, and Add Player opens from the trailing toolbar.
-- Create/update lineup: `StartingLineupView`; Add Player opens from the trailing toolbar and returns saved players to the lineup roster.
+- Create/update pregame Team default batting order: `TeamDefaultBattingOrderView`; Add Player returns saved players to the Team default order editor as not in batting order until placed.
 - Substitute players: `ReplacementView`; Add Player is available from the toolbar and opens the shared player draft form instead of an inline quick-entry row.
 - Share rosters/games and download MLB teams: `ShareContentView`.
 - Import received files: `ImportPlayersView`.
@@ -357,12 +357,10 @@ These use synthesized `Codable`; exact JSON field names are the Swift property n
 - Sort, Score/Edit segmented picker, Upgrade, Search: `ScoreContentView`.
 - New Game home/visiting team picker Add Team detours: `EditGameView`.
 - Delete Game confirmation: `GameView`.
-- Add Pitcher, PDF, Replace Players, Lineup, Pitch Stats, Hit Stats: `EditScoreView`.
+- Add Pitcher, PDF, Replace Players, Pitch Stats, Hit Stats: `EditScoreView`.
 - Replacement Add Player toolbar action and Search: `ReplacementView`.
 - Pitcher Add Player toolbar action and Search: `PitcherContentView`.
-- Lineup Add Player toolbar action and Search: `StartingLineupView`.
 - Scoring sheet with Done/Delete/RBI/Steal/result/base/out/earned-run/fielder buttons: `ScoreGameView`.
-- Lineup update destructive alert: `StartingLineupView`.
 - Delete players destructive alert: `PasteView`.
 - Paywall sheet/full-screen presentation: `ScoreContentView`, `EditScoreView`, `ShareContentView`.
 - Share sheet through `ShareLink`: `ShareContentView`, `EditScoreView`, report views.
@@ -560,7 +558,7 @@ Inspected directly:
 - `ScoreKeep/ScoreKeep/Objects/Pitcher.swift`
 - `ScoreKeep/ScoreKeep/Objects/PurchaseManager.swift`
 - `ScoreKeep/ScoreKeep/Player org/PasteView.swift`
-- `ScoreKeep/ScoreKeep/Player org/StartingLineupView.swift`
+- `ScoreKeep/ScoreKeep/List Data/TeamDefaultBattingOrderView.swift`
 - `ScoreKeep/ScoreKeep/Player org/ReplacementView.swift`
 - `ScoreKeep/ScoreKeep/Player org/PitchersStaffView.swift`
 - `ScoreKeep/ScoreKeep/Reporting/GeneratePDF.swift`

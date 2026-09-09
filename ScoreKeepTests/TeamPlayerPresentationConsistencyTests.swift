@@ -98,7 +98,6 @@ struct TeamPlayerPresentationConsistencyTests {
         let playersOnTeamView = try source("ScoreKeep/List Data/PlayersOnTeamView.swift")
         let replacementView = try source("ScoreKeep/Player org/ReplacementView.swift")
         let pitcherView = try source("ScoreKeep/Content Views/PitcherContentView.swift")
-        let lineupView = try source("ScoreKeep/Player org/StartingLineupView.swift")
 
         #expect(addPlayerDraftView.contains("func standardAddPlayerPresentation() -> some View"))
         #expect(addPlayerDraftView.contains("if #available(iOS 18.0, *)"))
@@ -108,7 +107,7 @@ struct TeamPlayerPresentationConsistencyTests {
         #expect(playerView.contains("NavigationStack {\n                        AddPlayerDraftView(team: pTeam)"))
         #expect(playersOnTeamView.contains(".sheet(isPresented: $showingAddPlayerDraft)"))
         #expect(playersOnTeamView.contains("NavigationStack {\n                    AddPlayerDraftView(team: team)"))
-        for routeSource in [playerView, playersOnTeamView, replacementView, pitcherView, lineupView] {
+        for routeSource in [playerView, playersOnTeamView, replacementView, pitcherView] {
             #expect(routeSource.contains(".standardAddPlayerPresentation()"))
             #expect(routeSource.contains(".lineupAddPlayerPresentationSizing()") == false)
         }

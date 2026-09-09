@@ -1,6 +1,6 @@
 # Lineup and Scoring Design
 
-This document is the durable ScoreKeep 6.1 product and architecture record for lineup setup, lineup correction, and scoring safety. It captures the decisions from the Starting Lineup persistence investigation, safe single-player correction investigation, slot-based lineup investigation, live scorecard player-identification investigation, and Phase 1 lineup-slot safety foundation.
+This document is the durable ScoreKeep 6.1 product and architecture record for lineup setup, lineup correction, and scoring safety. It captures the decisions from the legacy Starting Lineup persistence investigation, safe single-player correction investigation, slot-based lineup investigation, live scorecard player-identification investigation, and Phase 1 lineup-slot safety foundation.
 
 ## Direction
 
@@ -20,7 +20,9 @@ There is no separate "on-the-fly lineup mode." There should also be no fake or p
 
 ## Default Lineup Source
 
-When a game has no game-specific lineup, existing roster/import `Player.batOrder` is the default lineup source. Live scoring materializes that default lineup on entry or when the batting Team changes, so the user does not need to manually open Starting Lineup and save first.
+Before creating or scoring a game, the user can open Team -> Default Batting Order, drag the roster into the desired order, and Save. That updates the reusable Team default `Player.batOrder`, and a subsequently created or newly materialized game uses the saved order. The user is not required to construct a perfect order beforehand; live scorecard correction remains available while slots are safe.
+
+When a game has no game-specific lineup, existing roster/import `Player.batOrder` is the default lineup source. Live scoring materializes that default lineup on entry or when the batting Team changes, so the user does not need to manually open a game-specific Starting Lineup screen and save first.
 
 When a Team has roster Players but no eligible batting order, 6.1 uses the existing Team-level `Player.batOrder` field rather than introducing a new persistence model. The coordinator establishes a deterministic default order once, persists it to the Team roster, and materializes the game lineup from that order. The deterministic fallback sorts by localized-standard Player name, then jersey number, then persistent Player identifier as the final tie-breaker. Once persisted, future games use the resulting `Player.batOrder` rather than recomputing from relationship-array order.
 
@@ -42,7 +44,7 @@ Team default order and current Game lineup remain distinct, but successful safe 
 
 The Phase 1 implementation is `ScoreKeep/Common/LineupSlotSafetyCoordinator.swift`.
 
-Starting Lineup and the live scorecard use this coordinator as the single authority for:
+Team Default Batting Order and the live scorecard use this coordinator as the single authority for:
 
 - Resolving a game's batting lineup slots.
 - Materializing a game-specific lineup from roster/default `Player.batOrder` when no game lineup exists.
@@ -79,32 +81,25 @@ A slot locks when the coordinator finds evidence that changing the Player identi
 
 The UI should expose this as a simple editable/locked state with a concise lock reason from the coordinator. The model should continue to fail closed even when a future UI tries to offer a correction.
 
-## Starting Lineup
+## Team Default Batting Order
 
-Starting Lineup remains available as the full pregame lineup preparation surface, but the live scorecard is the primary 6.1 correction surface for wrong-Player lineup fixes discovered during scoring.
+The legacy Starting Lineup screen is retired in 6.1. This retires the separate game-specific pregame lineup editor that could maintain a pregame order independently of the Team default; it does not remove pregame drag-and-drop lineup preparation. Whole-roster/default ordering now belongs to Team management through Default Batting Order, while live scorecard dropdowns own game-time Player correction.
 
 Current 6.1 implementation status:
 
-- Eligible Player fields are roster Player pickers when `LineupSlotSafetyCoordinator` reports the slot is editable.
-- While pregame reorder/editing is allowed, the Player picker shows the entire same-Team roster, including Players already occupying other lineup slots.
-- Selecting a Player already occupying another lineup slot swaps the two slot occupants and updates Team default `Player.batOrder` so future games use the corrected order.
-- Selecting an unassigned roster Player replaces the current slot and updates Team default `Player.batOrder`; the outgoing Player becomes non-hitting in the Team default.
-- Locked slots display non-editable Player text with user-facing lock explanation.
-- `Add Player…` appears first in the Player picker with the plus icon so the capability is obvious.
-- Saving a newly added Player returns to the originating slot and selects that Player if the slot remains eligible.
-- Number, position, and batting direction continue deriving from the selected Player.
-- Pregame batting-order drag/reorder remains supported through the currently resolved coordinator slots.
-- General batting-order reorder locks once any resolved slot is no longer editable.
-- Player-identity correction and batting-order reordering use different safety rules.
-- Useful resumable partial-lineup behavior is preserved before scoring.
-
-The existing behavior where partial lineup edits persist on Back is valuable. It should remain available before scoring as a draft/resume behavior, but it must not become a path to silently rewrite scored history.
+- Team management exposes Default Batting Order from the Player/roster area.
+- The screen shows the full Team roster without position filtering.
+- Drag/reorder establishes compact `Player.batOrder` values for the Team default.
+- Players not in the default batting order remain at `Player.batOrder == 99`.
+- Add Player uses the standardized Add Player workflow and returns to the Default Batting Order editor.
+- Save persists the Team default for the next newly materialized game and future games; Cancel/Back protects unsaved draft changes.
+- Existing Games, Lineups, Atbats, substitutions, pitchers, and scoring evidence are not rewritten by editing the Team default.
 
 ## Live Scorecard
 
 The final 6.1 UX decision is that eligible Player identity must be directly selectable from the live scorecard. The scorer should not be forced through an intermediate trip to Starting Lineup when the wrong Player is discovered at the plate.
 
-Both Starting Lineup and the live scorecard use `LineupSlotSafetyCoordinator`. The live scorecard must not duplicate safety or mutation logic.
+The live scorecard uses `LineupSlotSafetyCoordinator`. It must not duplicate safety or mutation logic.
 
 Current 6.1 implementation status:
 
@@ -118,7 +113,7 @@ Current 6.1 implementation status:
 - Add Player uses the existing standardized Add Player workflow.
 - Save returns to the originating scorecard slot and selects the new Player if the slot remains eligible.
 - Once locked, Player identity becomes non-editable text.
-- The previous live scorecard `Lineup` toolbar button is removed; Starting Lineup remains available outside the live scorecard.
+- The previous live scorecard `Lineup` toolbar button and legacy Starting Lineup screen are removed.
 
 The live scorecard Player-identification hierarchy is:
 
@@ -181,10 +176,10 @@ Deferred post-6.1:
 ## Implementation Roadmap
 
 1. Phase 1: completed locally. Shared lineup-slot materialization, safety, reassignment foundation, and focused tests.
-2. Starting Lineup integration: completed locally for editable Player picker, locked Player text, safe coordinator reassignment, pre-scoring reorder, and Starting Lineup Add Player return-to-slot.
+2. Team Default Batting Order integration: completed locally for whole-roster default ordering, Add Player return, explicit Save, and unsaved-change protection.
 3. Live scorecard richer Player identification and direct eligible-Player dropdown: completed locally.
 4. Add Player return-to-origin integration for live scorecard: completed locally.
 5. Automatic default lineup materialization into the live-scoring entry path, including deterministic unordered-roster Team default creation: completed locally.
 6. Accessibility and layout verification.
-7. Retire normal destructive `Upd Lineup` behavior once replacements are proven.
+7. Retire normal destructive `Upd Lineup` behavior: completed locally by removing the legacy Starting Lineup screen and its live-scorecard presentation path.
 8. Manual verification on iPad and real iPhone 16e before acceptance.

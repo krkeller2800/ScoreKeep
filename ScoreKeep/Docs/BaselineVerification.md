@@ -274,7 +274,7 @@ Manual read method: PDFKit extracted text from `ScoreKeep/Reporting/Manual.pdf`.
 | --- | --- | --- | --- | --- |
 | Teams | Yes | Yes | Yes | `TeamContentView`, `TeamView`, `EditTeamView`; team logo selection is implemented. |
 | Players | Yes | Yes | Yes | `PlayerContentView`, `PlayersOnTeamView`, `EditPlayerView`; player photo selection is implemented. |
-| Lineups | Yes | Yes | Yes | Manual documents starting lineup drag/reorder and save/update; `StartingLineupView` is reachable from `EditScoreView` via `Lineup`. |
+| Lineups | Yes | Yes | Yes | ScoreKeep 6.1 retires the legacy game-specific Starting Lineup screen. Pregame drag-and-drop preparation remains in Team Default Batting Order, which saves the Team default for newly materialized/future games; live scorecard dropdowns own safe game-time lineup correction. |
 | Games | Yes | Yes | Yes | Game creation/editing appears in `ScoreContentView`, `GameView`, and `EditGameView`. |
 | Scoring | Yes | Yes | Yes | `EditScoreView`, `PlayersToScoreView`, `ScoreGameView`; manual describes selecting scorecard square and recording at-bat. |
 | Pitchers | Yes | Yes | Yes | `PitcherContentView`, `PitchersStaffView`, `EditPitcherView`; manual describes start/end inning/out/batter markers. |

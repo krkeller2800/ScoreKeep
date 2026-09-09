@@ -15,9 +15,7 @@ enum PlayerLineupMenuItem: Identifiable {
 }
 
 enum PlayerLineupMenuContext {
-    case startingLineupEditor
     case scorecardSwapCorrection
-    case scorecardCorrection
 }
 
 enum PlayerLineupMenuSupport {
@@ -26,7 +24,7 @@ enum PlayerLineupMenuSupport {
         slots: [LineupSlot],
         targetSlot: LineupSlot,
         team: Team,
-        context: PlayerLineupMenuContext = .startingLineupEditor
+        context: PlayerLineupMenuContext = .scorecardSwapCorrection
     ) -> [PlayerLineupMenuItem] {
         [.addPlayer] + selectableRosterPlayers(
             from: players,
@@ -44,7 +42,7 @@ enum PlayerLineupMenuSupport {
         slots: [LineupSlot],
         targetSlot: LineupSlot,
         team: Team,
-        context: PlayerLineupMenuContext = .startingLineupEditor
+        context: PlayerLineupMenuContext = .scorecardSwapCorrection
     ) -> [Player] {
         let assignedPlayerIdentities = Set(slots
             .filter { $0.battingOrder != targetSlot.battingOrder }
@@ -52,14 +50,7 @@ enum PlayerLineupMenuSupport {
         return players
             .filter { player in
                 guard player.team?.ident == team.ident else { return false }
-                switch context {
-                case .startingLineupEditor:
-                    return true
-                case .scorecardSwapCorrection:
-                    return true
-                case .scorecardCorrection:
-                    return player.identifier == targetSlot.player.identifier || assignedPlayerIdentities.contains(player.identifier) == false
-                }
+                return player.identifier == targetSlot.player.identifier || assignedPlayerIdentities.contains(player.identifier) == false || context == .scorecardSwapCorrection
             }
             .sorted {
                 if $0.batOrder == $1.batOrder {

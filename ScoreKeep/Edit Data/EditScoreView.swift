@@ -19,10 +19,7 @@ struct EditScoreView: View {
     @State var isHomeTeam: Bool = false
     @State var theTeam: String = ""
     @State var latbats: [Atbat] = []
-    @State private var searchText = ""
-    @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
     @State private var sortAtbat = [SortDescriptor(\Atbat.col), SortDescriptor(\Atbat.seq)]
-    @State var showingDetail = false
     @State var presentRpt = false
     @SceneStorage("activeScoringTeamName") private var activeScoringTeamName: String?
     enum FocusField: Hashable {case field}
@@ -250,18 +247,6 @@ struct EditScoreView: View {
                         .padding(.bottom, scorecardBottomToolbarClearance)
                 }
                 .padding(.top, scoringContentTopSpacing)
-                .onChange(of: showingDetail, {
-                    if isHomeTeam {
-                        team = game.hteam ?? Team(name:"",coach:"",details:"")
-                        theTeam = game.hteam?.name ?? ""
-                    } else {
-                        team = game.vteam ?? Team(name:"",coach:"",details:"")
-                        theTeam = game.vteam?.name ?? ""
-                    }
-                })
-                .fullScreenCover(isPresented: $showingDetail) {
-                    StartingLineupView(showingDetail: $showingDetail, passedGame: game, passedTeam: team, theTeam: theTeam, searchString: searchText,sortOrder: sortOrder)
-                }
                 .onChange(of: doShot) {
                     if doShot {
                         if let screenshotMaker = screenshotMaker {
