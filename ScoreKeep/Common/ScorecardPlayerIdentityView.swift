@@ -44,7 +44,7 @@ enum ScorecardPlayerIdentityPolicy {
             parts.append("Bats \(player.batDir)")
         }
         if deviceClass == .iPadLandscape, player.position.isEmpty == false {
-            parts.append(player.position)
+            parts.append(PlayerCompactPositionDisplay.string(for: player.position))
         }
         return parts.joined(separator: "  ")
     }

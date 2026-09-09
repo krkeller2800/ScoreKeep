@@ -59,7 +59,13 @@ struct EditTeamView: View {
 
             if UIDevice.type != "iPhone" {
                 VStack(alignment: .leading, spacing: 6) {
-                    PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor, usesStandardPlayerAdd: true)
+                    PlayersOnTeamView(
+                        team: team,
+                        searchString: searchText,
+                        sortOrder: sortDescriptor,
+                        usesStandardPlayerAdd: true,
+                        openDefaultBattingOrder: openDefaultBattingOrder
+                    )
                         .navigationDestination(for: Player.self) { player in
                             EditPlayerView(player: player, team: team, navigationPath: $navigationPath)
                         }
@@ -148,7 +154,7 @@ struct EditTeamView: View {
             Text("Save changes to this team before leaving?")
         }
         .fullScreenCover(isPresented: $presentPlayers) {
-            PlayerView(team: team, navigationPath: $navigationPath, searchString: $searchText)
+            PlayerView(team: team, navigationPath: $navigationPath, searchString: $searchText, openDefaultBattingOrder: openDefaultBattingOrder)
         }
     }
 
@@ -197,5 +203,9 @@ struct EditTeamView: View {
         } else {
             navigationPath.removeLast()
         }
+    }
+
+    private func openDefaultBattingOrder() {
+        navigationPath.append(TeamDefaultBattingOrderNavigationDestination(teamIdentity: team.ident))
     }
 }

@@ -28,6 +28,9 @@ struct TeamNavigationDestinationView: View {
     var body: some View {
         if let team = teams.first {
             EditTeamView(navigationPath: $navigationPath, team: team)
+                .navigationDestination(for: TeamDefaultBattingOrderNavigationDestination.self) { destination in
+                    TeamDefaultBattingOrderDestinationView(destination: destination, navigationPath: $navigationPath)
+                }
         } else {
             Text("Team not found")
         }

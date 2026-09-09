@@ -19,6 +19,7 @@ struct PlayerView: View {
     @State private var showingAddPlayerDraft = false
     @Binding private var searchText: String
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
+    let openDefaultBattingOrder: (() -> Void)?
 
     @AppStorage("selectedPlayerTCriteria") var selectedPlayerPCriteria: SortCriteria = .orderAsc
 
@@ -71,7 +72,7 @@ struct PlayerView: View {
                                         .scorebookTrailingSeparator().padding(.leading, 5)
                                     Text(player.number).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                                         .scorebookTrailingSeparator()
-                                    Text(player.position).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                                    Text(PlayerCompactPositionDisplay.string(for: player.position)).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                                         .scorebookTrailingSeparator()
                                     Text(player.batDir).frame(width: smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
                                         .scorebookTrailingSeparator()
@@ -86,7 +87,26 @@ struct PlayerView: View {
                         .onDelete(perform: deletePlayer)
                     } header: {
                         if players.count > 0 {
-                            Text("Select a Player to edit").frame(maxWidth: .infinity, alignment: .leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                            HStack(spacing: 12) {
+                                Text("Select a Player to edit")
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .font(UIDevice.type == "iPhone" ? .callout : .title3)
+                                    .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                    .bold()
+
+                                if openDefaultBattingOrder != nil {
+                                    Button {
+                                        playerNavigationPath.append(TeamDefaultBattingOrderNavigationDestination(teamIdentity: pTeam.ident))
+                                    } label: {
+                                        Label("Default Batting Order", systemImage: "list.number")
+                                            .foregroundStyle(.primary)
+                                    }
+                                    .foregroundStyle(.primary)
+                                    .tint(.primary)
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Default batting order")
+                                }
+                            }
                         }
                     }
                 }
@@ -128,6 +148,7 @@ struct PlayerView: View {
                         } label: {
                             Image(systemName: "plus")
                         }
+                        .foregroundStyle(.primary)
                         .accessibilityLabel("Add player")
 
                         if UIDevice.type == "iPhone" {
@@ -160,6 +181,9 @@ struct PlayerView: View {
                 .navigationDestination(for: Player.self) { player in
                     EditPlayerView(player: player, team: pTeam, navigationPath: $playerNavigationPath)
                 }
+                .navigationDestination(for: TeamDefaultBattingOrderNavigationDestination.self) { destination in
+                    TeamDefaultBattingOrderDestinationView(destination: destination, navigationPath: $playerNavigationPath)
+                }
                 .sheet(isPresented: $showingAddPlayerDraft) {
                     NavigationStack {
                         AddPlayerDraftView(team: pTeam)
@@ -173,8 +197,15 @@ struct PlayerView: View {
         }
     }
 
-    init(team: Team, navigationPath: Binding<NavigationPath>, searchString: Binding<String>, sortOrder: [SortDescriptor<Player>] = []) {
+    init(
+        team: Team,
+        navigationPath: Binding<NavigationPath>,
+        searchString: Binding<String>,
+        sortOrder: [SortDescriptor<Player>] = [],
+        openDefaultBattingOrder: (() -> Void)? = nil
+    ) {
         self.pTeam = team
+        self.openDefaultBattingOrder = openDefaultBattingOrder
         _searchText = searchString
         let teamName = team.name
         let search = searchString.wrappedValue

@@ -9,7 +9,7 @@ struct StartingLineupSlotIntegrationTests {
         let fixture = StartingLineupSlotFixture(playerCount: 3)
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
-        let candidates = StartingLineupView.selectableRosterPlayers(
+        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
             from: fixture.players,
             slots: slots,
             targetSlot: slots[0],
@@ -25,7 +25,7 @@ struct StartingLineupSlotIntegrationTests {
         let fixture = StartingLineupSlotFixture(playerCount: 3)
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
-        let candidates = StartingLineupView.selectableRosterPlayers(
+        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
             from: fixture.players,
             slots: slots,
             targetSlot: slots[0],
@@ -46,7 +46,7 @@ struct StartingLineupSlotIntegrationTests {
         let benchPositionPlayer = Player(name: "Bench Outfielder", number: "12", position: "LF", batDir: "L", batOrder: 99, team: fixture.team)
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
-        let candidates = StartingLineupView.selectableRosterPlayers(
+        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
             from: fixture.players + [starter, reliever, pitcher, benchPositionPlayer],
             slots: slots,
             targetSlot: slots[0],
@@ -75,7 +75,7 @@ struct StartingLineupSlotIntegrationTests {
         }
         let slots = fixture.slots(editabilities: [.editable])
 
-        let candidates = StartingLineupView.selectableRosterPlayers(
+        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
             from: fixture.players + unassignedPlayers,
             slots: slots,
             targetSlot: slots[0],
@@ -100,7 +100,7 @@ struct StartingLineupSlotIntegrationTests {
         )
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
-        let candidates = StartingLineupView.selectableRosterPlayers(
+        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
             from: fixture.players + [duplicateNameBenchPlayer],
             slots: slots,
             targetSlot: slots[0],
@@ -118,7 +118,7 @@ struct StartingLineupSlotIntegrationTests {
         let otherTeamPlayer = Player(name: "Other Player", number: "9", position: "RF", batDir: "R", batOrder: 99, team: otherTeam)
         let slots = fixture.slots(editabilities: [.editable])
 
-        let candidates = StartingLineupView.selectableRosterPlayers(
+        let candidates = PlayerLineupMenuSupport.selectableRosterPlayers(
             from: fixture.players + [otherTeamPlayer],
             slots: slots,
             targetSlot: slots[0],
@@ -271,7 +271,7 @@ struct StartingLineupSlotIntegrationTests {
         let fixture = StartingLineupSlotFixture(playerCount: 3)
         let slots = fixture.slots(editabilities: [.editable, .editable])
 
-        let items = StartingLineupView.playerMenuItems(
+        let items = PlayerLineupMenuSupport.playerMenuItems(
             from: fixture.players,
             slots: slots,
             targetSlot: slots[0],

@@ -249,7 +249,7 @@ struct StandardTeamCreationDraftFlowTests {
         let editSource = try repositorySource("ScoreKeep/Edit Data/EditTeamView.swift")
 
         #expect(editSource.contains(".fullScreenCover(isPresented: $presentPlayers)"))
-        #expect(editSource.contains("PlayerView(team: team, navigationPath: $navigationPath, searchString: $searchText)"))
+        #expect(editSource.contains("PlayerView(team: team, navigationPath: $navigationPath, searchString: $searchText"))
         #expect(editSource.contains("Button(\"Cancel\")") == false)
         #expect(editSource.contains("navigationBarBackButtonHidden(hasUnsavedChanges)"))
     }

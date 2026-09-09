@@ -334,7 +334,7 @@ struct StandardPlayerRosterDraftFlowTests {
         let iPhoneSource = try repositorySource("ScoreKeep/List Data/PlayerView.swift")
         let editTeamSource = try repositorySource("ScoreKeep/Edit Data/EditTeamView.swift")
 
-        #expect(editTeamSource.contains("PlayerView(team: team, navigationPath: $navigationPath, searchString: $searchText)"))
+        #expect(editTeamSource.contains("PlayerView(team: team, navigationPath: $navigationPath, searchString: $searchText"))
         #expect(iPhoneSource.contains("@State private var playerNavigationPath = NavigationPath()"))
         #expect(iPhoneSource.contains("NavigationStack(path: $playerNavigationPath)"))
         #expect(iPhoneSource.contains("EditPlayerView(player: player, team: pTeam, navigationPath: $playerNavigationPath)"))
@@ -347,7 +347,9 @@ struct StandardPlayerRosterDraftFlowTests {
         let editTeamSource = try repositorySource("ScoreKeep/Edit Data/EditTeamView.swift")
 
         #expect(editTeamSource.contains("if UIDevice.type != \"iPhone\""))
-        #expect(editTeamSource.contains("PlayersOnTeamView(team: team, searchString: searchText, sortOrder: sortDescriptor, usesStandardPlayerAdd: true)"))
+        #expect(editTeamSource.contains("PlayersOnTeamView("))
+        #expect(editTeamSource.contains("usesStandardPlayerAdd: true"))
+        #expect(editTeamSource.contains("openDefaultBattingOrder: openDefaultBattingOrder"))
         #expect(editTeamSource.contains(".navigationDestination(for: Player.self) { player in"))
         #expect(iPadListSource.contains("NavigationStack(path: $navigationPath)") == false)
     }

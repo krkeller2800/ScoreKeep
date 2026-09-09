@@ -603,7 +603,7 @@ struct PlayersToScoreView: View {
         }
     }
 
-    private func scorecardPlayerMenuItems(for slot: LineupSlot, team: Team, slots: [LineupSlot]) -> [StartingLineupPlayerMenuItem] {
+    private func scorecardPlayerMenuItems(for slot: LineupSlot, team: Team, slots: [LineupSlot]) -> [PlayerLineupMenuItem] {
         Self.scorecardPlayerMenuItems(
             from: players,
             slots: slots,
@@ -612,8 +612,8 @@ struct PlayersToScoreView: View {
         )
     }
 
-    static func scorecardPlayerMenuItems(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [StartingLineupPlayerMenuItem] {
-        StartingLineupView.playerMenuItems(
+    static func scorecardPlayerMenuItems(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [PlayerLineupMenuItem] {
+        PlayerLineupMenuSupport.playerMenuItems(
             from: players,
             slots: slots,
             targetSlot: targetSlot,

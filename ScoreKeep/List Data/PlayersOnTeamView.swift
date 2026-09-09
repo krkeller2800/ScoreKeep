@@ -29,6 +29,7 @@ struct PlayersOnTeamView: View {
     @State private var showingAddPlayerDraft = false
     let usesStandardPlayerAdd: Bool
     let showsQuickAddRow: Bool
+    let openDefaultBattingOrder: (() -> Void)?
 
     enum FocusField: Hashable {case field}
 
@@ -38,11 +39,43 @@ struct PlayersOnTeamView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            List {
-                let nameWidth =  geometry.size.width/4
+            let nameWidth =  geometry.size.width/4
 //                let smallWidth =  geometry.size.width/12
-                let mediumWidth =  geometry.size.width/9
+            let mediumWidth =  geometry.size.width/9
 
+            VStack(spacing: 6) {
+                if players.count > 0 && showHeader {
+                    HStack(spacing: 12) {
+                        Text("Select a Player to edit")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .font(UIDevice.type == "iPhone" ? .callout : .title3)
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+
+                        if let openDefaultBattingOrder {
+                            Button {
+                                openDefaultBattingOrder()
+                            } label: {
+                                Label("Default Batting Order", systemImage: "list.number")
+                            }
+                            .foregroundStyle(.primary)
+                            .accessibilityLabel("Default batting order")
+                        }
+
+                        if usesStandardPlayerAdd {
+                            Button {
+                                showingAddPlayerDraft = true
+                            } label: {
+                                Image(systemName: "plus")
+                            }
+                            .foregroundStyle(.primary)
+                            .accessibilityLabel("Add player")
+                        }
+                    }
+                    .padding(.leading, 4)
+                    .padding(.trailing, 24)
+                }
+
+                List {
                 Section {
                     HStack {
                         scorebookHeaderCell("Order")
@@ -59,14 +92,7 @@ struct PlayersOnTeamView: View {
                             .frame(width:20)
                     }
 
-                    if usesStandardPlayerAdd {
-                        Button {
-                            showingAddPlayerDraft = true
-                        } label: {
-                            Label("Add Player", systemImage: "plus")
-                        }
-                        .accessibilityLabel("Add player")
-                    } else if showsQuickAddRow {
+                    if usesStandardPlayerAdd == false && showsQuickAddRow {
                         HStack {
                             Picker("Bat Order", selection: $pOrder) {
                                 let orders = ["?","1st","2nd","3rd","4th",
@@ -138,7 +164,7 @@ struct PlayersOnTeamView: View {
                                     .scorebookTrailingSeparator().padding(.leading, 0)
                                 Text(player.number).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                                     .scorebookTrailingSeparator().lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.position).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                Text(PlayerCompactPositionDisplay.string(for: player.position)).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                                     .scorebookTrailingSeparator().lineLimit(1).minimumScaleFactor(0.5)
                                 Text(player.batDir).frame(width:mediumWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
                                     .scorebookTrailingSeparator().lineLimit(1).minimumScaleFactor(0.5)
@@ -153,15 +179,11 @@ struct PlayersOnTeamView: View {
                     }
                     .onDelete(perform: deletePlayer)
                 }
-                header: {
-                    if players.count > 0 && showHeader {
-                        Text("Select a Player to edit").frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPhone" ? .callout : .title3).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                    }
-                }
             }
             .listRowSpacing(0)
             .scrollContentBackground(.hidden)
             .background(ScoreKeepVisualStyle.background)
+            }
             .sheet(isPresented: $showingAddPlayerDraft) {
                 NavigationStack {
                     AddPlayerDraftView(team: team)
@@ -172,12 +194,21 @@ struct PlayersOnTeamView: View {
     }
 
 
-    init(showHeader: Bool = true, team: Team, searchString: String = "", sortOrder: [SortDescriptor<Player>] = [], usesStandardPlayerAdd: Bool = false, showsQuickAddRow: Bool = true) {
+    init(
+        showHeader: Bool = true,
+        team: Team,
+        searchString: String = "",
+        sortOrder: [SortDescriptor<Player>] = [],
+        usesStandardPlayerAdd: Bool = false,
+        showsQuickAddRow: Bool = true,
+        openDefaultBattingOrder: (() -> Void)? = nil
+    ) {
 
         self.showHeader = showHeader
         self.team = team
         self.usesStandardPlayerAdd = usesStandardPlayerAdd
         self.showsQuickAddRow = showsQuickAddRow
+        self.openDefaultBattingOrder = openDefaultBattingOrder
         let teamName = team.name
           _players = Query(filter: #Predicate { player in
               if searchString.isEmpty {
