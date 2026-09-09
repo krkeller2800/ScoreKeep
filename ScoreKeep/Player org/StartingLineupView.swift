@@ -20,15 +20,15 @@ struct StartingLineupView: View {
     @State var updDateLineup = false
     @State private var editMode: EditMode = .active
     @State var linePlayers: [Player] = []
-    @State private var showingUpdate = false
+    @State private var lineupSlots: [LineupSlot] = []
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
-    @State var searchText:String = ""
+    @State var searchText: String = ""
     @State private var isSearching = false
     @State private var showingAddPlayerDraft = false
+    @State private var pendingAddPlayerSlot: Int?
     @State var navigationPath: NavigationPath = NavigationPath()
-
 
     @Query var atbats: [Atbat]
     @Query var lineups: [Lineup]
@@ -38,122 +38,93 @@ struct StartingLineupView: View {
         GeometryReader { geometry in
             NavigationStack(path: $navigationPath) {
                 List {
-                    let nameWidth = geometry.size.width/4
-                    let smallWidth = geometry.size.width/11
-//                    let mediumWidth = geometry.size.width/10
-                    Text("Hold and drag Players to change the batting order or add a new Player if needed. Select a Player to make changes. Swipe left to delete a Player.")
-                        .frame(maxWidth:.infinity, alignment:.leading).font(UIDevice.type == "iPad" ? .title3 : .callout).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                    HStack () {
+                    let nameWidth = geometry.size.width / 4
+                    let smallWidth = geometry.size.width / 11
+                    Text(instructionText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(UIDevice.type == "iPad" ? .title3 : .callout)
+                        .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+
+                    HStack {
                         scorebookHeaderCell("Order")
-                            .frame(width:smallWidth)
+                            .frame(width: smallWidth)
                         scorebookHeaderCell("Name")
                             .frame(width: nameWidth)
                         scorebookHeaderCell("Num")
-                            .frame(width:smallWidth)
+                            .frame(width: smallWidth)
                         scorebookHeaderCell("Pos")
-                            .frame(width:smallWidth)
+                            .frame(width: smallWidth)
                         scorebookHeaderCell("Dir")
-                            .frame(width:smallWidth)
-                       Text("").frame(width:45)
+                            .frame(width: smallWidth)
+                        Text("").frame(width: 45)
                     }
-                    ForEach(linePlayers) { player in
-                        NavigationLink(destination: EditPlayerView( player: player, team: team, navigationPath: $navigationPath)) { // Navigate to a DetailView
-                            HStack {
-                                Text(Double(player.batOrder), format: .number.rounded(increment: 1.0)).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.name).frame(width: nameWidth, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().lineLimit(1).minimumScaleFactor(0.5)
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).padding(.leading, 0)
-                                Text(player.number).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.position).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text(player.batDir).frame(width:smallWidth, alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
-                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing).lineLimit(1).minimumScaleFactor(0.5)
-                                Text("").frame(width:25)
-                            }
+
+                    ForEach(lineupSlots) { slot in
+                        HStack {
+                            Text(Double(slot.battingOrder), format: .number.rounded(increment: 1.0))
+                                .frame(width: smallWidth, alignment: .center)
+                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .bold()
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                            playerCell(for: slot, width: nameWidth)
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                .padding(.leading, 0)
+                            Text(slot.player.number)
+                                .frame(width: smallWidth, alignment: .center)
+                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .bold()
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                            Text(slot.player.position)
+                                .frame(width: smallWidth, alignment: .center)
+                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .bold()
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                            Text(slot.player.batDir)
+                                .frame(width: smallWidth, alignment: .center)
+                                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                                .bold()
+                                .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                            Text("").frame(width: 25)
                         }
+                        .moveDisabled(canReorderLineup == false)
+                        .accessibilityHint(accessibilityHint(for: slot))
                     }
-                    .onDelete(perform: deletePlayer)
-                    .onMove(perform: { indices, newOffset in
-                        linePlayers = linePlayers.sorted(by: { $0.batOrder < $1.batOrder })
-                        linePlayers.move(fromOffsets: indices, toOffset: newOffset)
-                        for (index, player) in linePlayers.enumerated() {
-                            if index+1 <= numOfHitters || lineup.everyoneHits {
-                                player.batOrder = index+1
-                            } else if !lineup.everyoneHits {
-                                player.batOrder = 99
-                            }
-                        }
-                    })
+                    .onMove(perform: moveSlots)
                 }
+                .environment(\.editMode, $editMode)
                 .scrollContentBackground(.hidden)
                 .background(Color.clear)
                 .onChange(of: sortOrder) {
-                    getPlayers()
+                    refreshSlots(materializeIfNeeded: false)
                 }
                 .onChange(of: searchText) {
-                    getPlayers()
+                    refreshSlots(materializeIfNeeded: false)
                 }
                 .onChange(of: players) {
-                    syncNewRosterPlayersIntoLineup()
+                    handleRosterPlayersChanged()
                 }
                 .onAppear {
-                    if let prevLineup = lineups.first(where: { $0.team == team && $0.game == game }) {
-                        updDateLineup = true
-                        lineup = prevLineup
-                        linePlayers = Self.resolvedLineupPlayers(
-                            savedLineup: prevLineup,
-                            atbats: atbats,
-                            fallbackPlayers: players,
-                            team: team,
-                            game: game
-                        )
-                    } else {
-                        linePlayers = Self.resolvedLineupPlayers(
-                            savedLineup: nil,
-                            atbats: atbats,
-                            fallbackPlayers: players,
-                            team: team,
-                            game: game
-                        )
-                        updDateLineup = false
-                    }
-                    lineup.everyoneHits = game.everyOneHits
-                    if lineup.everyoneHits {
-                        numOfHitters = 99
-                    } else {
-                        numOfHitters = 9
-                    }
-                    for (index, player) in linePlayers.enumerated() {
-                        if index+1 <= numOfHitters || lineup.everyoneHits {
-                            player.batOrder = index+1
-                        } else if !lineup.everyoneHits {
-                            player.batOrder = 99
-                        }
-                    }
+                    configureLineupMode()
+                    refreshSlots(materializeIfNeeded: true)
                 }
-                .alert(isPresented:$showingUpdate) {
-                    Alert(
-                        title: Text("Updating the Lineup"),
-                        message: Text("If the Lineup is updated, any at bats already recorded will be deleted and removed from the game. Take a picture or a screen shot of the game if you need to re-enter it after the update."),
-                        primaryButton: .destructive(Text("Update")) {
-                            for atbat in game.atbats {
-                                if atbat.team == team {
-                                    modelContext.delete(atbat)
-                                    game.atbats.removeAll() {$0 == atbat}
-                                    game.replaced.removeAll {$0 == atbat.player}
-                                    game.incomings.removeAll {$0 == atbat.player}
-                                }
-                            }
-                            doLineup()
-                            dismiss()
-                        },
-                        secondaryButton: .cancel()
-                    )
+                .alert("Starting Lineup", isPresented: $showingAlert) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text(alertMessage)
                 }
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        Text("\(team.name) Lineup").font(.title2).foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                        Text("\(team.name) Lineup")
+                            .font(.title2)
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
                     }
                     ToolbarItemGroup(placement: .topBarLeading) {
                         Button(action: {
@@ -178,17 +149,15 @@ struct StartingLineupView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarLeading) {
-                        Button(updDateLineup ? "Upd Lineup" :"Save Lineup") {
-                            if updDateLineup {
-                                showingUpdate = true
-                            } else {
-                                updDateLineup = true
-                                doLineup()
-                                dismiss()
-                            }
+                        Button(updDateLineup ? "Upd Lineup" : "Save Lineup") {
+                            finishLineup()
                         }
-                        .frame(maxWidth: 135,maxHeight: 30, alignment:.center).background(ScoreKeepVisualStyle.selectedFill)
-                        .border(ScoreKeepVisualStyle.separator).cornerRadius(10).accentColor(ScoreKeepVisualStyle.primaryText).padding(.horizontal, 10)
+                        .frame(maxWidth: 135, maxHeight: 30, alignment: .center)
+                        .background(ScoreKeepVisualStyle.selectedFill)
+                        .border(ScoreKeepVisualStyle.separator)
+                        .cornerRadius(10)
+                        .accentColor(ScoreKeepVisualStyle.primaryText)
+                        .padding(.horizontal, 10)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         if UIDevice.type == "iPhone" {
@@ -224,19 +193,263 @@ struct StartingLineupView: View {
                 .searchable(if: UIDevice.type == "iPhone" && isSearching, text: $searchText, placement: .automatic, prompt: "Player name or number")
                 .sheet(isPresented: $showingAddPlayerDraft) {
                     NavigationStack {
-                        AddPlayerDraftView(team: team)
+                        AddPlayerDraftView(team: team) { savedPlayer in
+                            assignSavedPlayer(savedPlayer, toPendingSlot: pendingAddPlayerSlot)
+                        }
                     }
                     .standardAddPlayerPresentation()
                 }
-                .onAppear {
-                    if UIDevice.type == "iPhone" {
-                       isSearching = false
-                    } else {
-                        isSearching = false
+                .onChange(of: showingAddPlayerDraft) {
+                    if showingAddPlayerDraft == false {
+                        pendingAddPlayerSlot = nil
                     }
+                }
+                .onAppear {
+                    isSearching = false
                 }
                 Spacer()
             }
+        }
+    }
+
+    private var instructionText: String {
+        if canReorderLineup {
+            return "Hold and drag Players before scoring to change the batting order. Use the Player menu to correct an eligible lineup slot or add a new Player."
+        }
+        return "Players who have participated are locked. Use Replacement for substitutions."
+    }
+
+    private var canReorderLineup: Bool {
+        Self.canReorder(slots: lineupSlots)
+    }
+
+    @ViewBuilder
+    private func playerCell(for slot: LineupSlot, width: CGFloat) -> some View {
+        if slot.isEditable {
+            Menu {
+                ForEach(playerMenuItems(for: slot)) { item in
+                    switch item {
+                    case .addPlayer:
+                        Button {
+                            pendingAddPlayerSlot = slot.battingOrder
+                            showingAddPlayerDraft = true
+                        } label: {
+                            Label("Add Player…", systemImage: "plus")
+                        }
+                    case .player(let player, let isSelected):
+                        Button {
+                            selectPlayer(player, for: slot)
+                        } label: {
+                            PlayerMenuRowLabel(
+                                player: player,
+                                isSelected: isSelected
+                            )
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(slot.player.name)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .frame(width: width, alignment: .leading)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .bold()
+            }
+            .accessibilityIdentifier("lineup-player-picker-\(slot.battingOrder)")
+            .accessibilityLabel("Player for batting order \(slot.battingOrder)")
+        } else {
+            Text(slot.player.name)
+                .frame(width: width, alignment: .leading)
+                .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                .bold()
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .accessibilityIdentifier("lineup-player-locked-\(slot.battingOrder)")
+        }
+    }
+
+    private func configureLineupMode() {
+        if lineup.everyoneHits || game.everyOneHits {
+            numOfHitters = 99
+        } else {
+            numOfHitters = 9
+        }
+    }
+
+    private func refreshSlots(materializeIfNeeded: Bool) {
+        do {
+            if materializeIfNeeded {
+                let result = try LineupSlotSafetyCoordinator.materializeLineupIfNeeded(
+                    game: game,
+                    team: team,
+                    modelContext: modelContext
+                )
+                lineup = result.lineup
+                lineupSlots = result.slots
+                updDateLineup = true
+            } else {
+                lineupSlots = LineupSlotSafetyCoordinator.resolvedSlots(
+                    game: game,
+                    team: team,
+                    modelContext: modelContext
+                )
+                if let existingLineup = game.lineups.first(where: { $0.game.ident == game.ident && $0.team.ident == team.ident }) {
+                    lineup = existingLineup
+                    updDateLineup = true
+                }
+            }
+            linePlayers = lineupSlots.map(\.player)
+        } catch {
+            lineupSlots = LineupSlotSafetyCoordinator.resolvedSlots(
+                game: game,
+                team: team,
+                modelContext: modelContext
+            )
+            linePlayers = lineupSlots.map(\.player)
+            alertMessage = error.localizedDescription
+            showingAlert = true
+        }
+    }
+
+    private func finishLineup() {
+        if canReorderLineup {
+            saveCurrentSlotOrder()
+        } else {
+            refreshSlots(materializeIfNeeded: false)
+        }
+        dismiss()
+    }
+
+    private func moveSlots(from indices: IndexSet, to newOffset: Int) {
+        guard canReorderLineup else {
+            alertMessage = "Batting order is locked after scoring begins."
+            showingAlert = true
+            return
+        }
+        lineupSlots.move(fromOffsets: indices, toOffset: newOffset)
+        saveCurrentSlotOrder()
+    }
+
+    private func saveCurrentSlotOrder() {
+        for (index, slot) in lineupSlots.enumerated() {
+            let battingOrder = index + 1
+            slot.player.batOrder = battingOrder
+            slot.placeholderAtbat.batOrder = battingOrder
+            slot.placeholderAtbat.seq = battingOrder
+        }
+        lineup.players = lineupSlots.map(\.player)
+        do {
+            try modelContext.save()
+            refreshSlots(materializeIfNeeded: false)
+        } catch {
+            alertMessage = "ScoreKeep could not save this lineup order."
+            showingAlert = true
+        }
+    }
+
+    private func selectPlayer(_ player: Player, for slot: LineupSlot) {
+        guard player.identifier != slot.player.identifier else { return }
+        do {
+            _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+                in: slot.battingOrder,
+                to: player,
+                game: game,
+                team: team,
+                modelContext: modelContext
+            )
+            refreshSlots(materializeIfNeeded: false)
+        } catch {
+            alertMessage = error.localizedDescription
+            showingAlert = true
+            refreshSlots(materializeIfNeeded: false)
+        }
+    }
+
+    private func assignSavedPlayer(_ player: Player, toPendingSlot slot: Int?) {
+        defer {
+            pendingAddPlayerSlot = nil
+            refreshSlots(materializeIfNeeded: false)
+        }
+        guard let slot else { return }
+        do {
+            _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+                in: slot,
+                to: player,
+                game: game,
+                team: team,
+                modelContext: modelContext
+            )
+        } catch {
+            alertMessage = "The Player was added to the roster, but this lineup slot can no longer be changed."
+            showingAlert = true
+        }
+    }
+
+    private func selectableRosterPlayers(for slot: LineupSlot) -> [Player] {
+        Self.selectableRosterPlayers(from: players, slots: lineupSlots, targetSlot: slot, team: team)
+    }
+
+    private func playerMenuItems(for slot: LineupSlot) -> [StartingLineupPlayerMenuItem] {
+        Self.playerMenuItems(from: players, slots: lineupSlots, targetSlot: slot, team: team)
+    }
+
+    static func playerMenuItems(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [StartingLineupPlayerMenuItem] {
+        [.addPlayer] + selectableRosterPlayers(from: players, slots: slots, targetSlot: targetSlot, team: team).map { player in
+            .player(player, isSelected: player.identifier == targetSlot.player.identifier)
+        }
+    }
+
+    static func selectableRosterPlayers(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [Player] {
+        let assignedPlayerIdentities = Set(slots
+            .filter { $0.battingOrder != targetSlot.battingOrder }
+            .map { $0.player.identifier })
+        return players
+            .filter { player in
+                player.team?.ident == team.ident &&
+                    (player.identifier == targetSlot.player.identifier || assignedPlayerIdentities.contains(player.identifier) == false)
+            }
+            .sorted {
+                if $0.batOrder == $1.batOrder {
+                    return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                }
+                return $0.batOrder < $1.batOrder
+            }
+    }
+
+    static func canReorder(slots: [LineupSlot]) -> Bool {
+        slots.isEmpty == false && slots.allSatisfy(\.isEditable)
+    }
+
+    private func accessibilityHint(for slot: LineupSlot) -> String {
+        switch slot.editability {
+        case .editable:
+            return "Player identity can still be corrected for this lineup slot."
+        case .locked:
+            return lockExplanation(for: slot)
+        }
+    }
+
+    private func lockExplanation(for slot: LineupSlot) -> String {
+        switch slot.editability {
+        case .editable:
+            return ""
+        case .locked(let reason):
+            return Self.userVisibleLockExplanation(for: reason)
+        }
+    }
+
+    static func userVisibleLockExplanation(for reason: LineupSlotLockReason) -> String {
+        switch reason {
+        case .placeholderNotPristine, .playerHasOtherAtbat, .acceptedScoringEvidence, .substitutionParticipation, .pitcherParticipation:
+            return "This Player has participated in the game and can no longer be corrected as lineup entry."
+        case .incomingPlayerUnavailable:
+            return "That Player is already used in this game lineup."
+        case .missingPlaceholder, .ambiguousLineupState, .duplicateLineupSlot, .duplicatePlayerAssignment, .persistenceEvidenceUnavailable:
+            return "This lineup slot cannot be safely changed."
         }
     }
 
@@ -259,187 +472,41 @@ struct StartingLineupView: View {
         return fallbackPlayers.sorted(by: { $0.batOrder < $1.batOrder })
     }
 
-    func doLineup() {
-        if let oldlineup = lineups.first(where: { $0.team == team && $0.game == game}) {
-            lineup = oldlineup
-        } else {
-            lineup = Lineup(everyoneHits: false, game: game, team: team, inning: 1)
-            modelContext.insert(lineup)
-            game.lineups.append(lineup)
-            do {
-                try self.modelContext.save()
-            }
-            catch {
-                print("Error saving lineup: \(error)")
-            }
-        }
-        lineup.players = linePlayers
-        var seq = 0
-        for (player) in linePlayers {
-            seq += 1
-            if let atbat = atbats.first(where: { $0.team == team && $0.inning <= 1 && $0.game == game && $0.player == player}) {
-                atbat.batOrder = player.batOrder
-                atbat.seq = seq
-            } else {
-                if player.batOrder != 99 {
-                    let atbat = Atbat(game: game, team: team, player: player, result: "Result", maxbase: "No Bases", batOrder: player.batOrder, outAt: "Safe", inning: 1, seq:seq, col:1, rbis:0, outs:0, sacFly: 0,sacBunt: 0,stolenBases: 0)
-                    modelContext.insert(atbat)
-                    game.atbats.append(atbat)
-                    game.players.append(player)
-                    try? modelContext.save()
-                }
-            }
-        }
-        do {
-            try self.modelContext.save()
-        }
-        catch {
-            print("Error saving atbat: \(error)")
-        }
-    }
-
     func addPlayers() {
+        pendingAddPlayerSlot = nil
         showingAddPlayerDraft = true
     }
 
     init(showingDetail: Binding<Bool>, passedGame: Game, passedTeam: Team, theTeam: String = "", searchString: String = "", sortOrder: [SortDescriptor<Player>] = []) {
-        team = passedTeam
-        game = passedGame
-
-
-        lineup = Lineup(everyoneHits: false, game: passedGame, team: passedTeam, inning: 1)
-
+        _team = State(initialValue: passedTeam)
+        _game = State(initialValue: passedGame)
+        _lineup = State(initialValue: Lineup(everyoneHits: false, game: passedGame, team: passedTeam, inning: 1))
         _showingDetail = showingDetail
+        _searchText = State(initialValue: searchString)
+        if sortOrder.isEmpty == false {
+            _sortOrder = State(initialValue: sortOrder)
+        }
+        let teamIdentity = passedTeam.ident
         _players = Query(filter: #Predicate { player in
-            if searchText.isEmpty {
-                player.team?.name == theTeam
-            } else {
-                player.team?.name == theTeam &&
-                (player.name.localizedStandardContains(searchText)
-                 || player.number.localizedStandardContains(searchText))
-            }
-        },  sort: self.sortOrder)
-    }
-    func deletePlayer(at offsets: IndexSet) {
-        for offset in offsets {
-            let player = linePlayers[offset]
-            if playedInGame(player: player) {
-                showingAlert = true
-                alertMessage = "\(player.name) is associated with game(s). Cannot delete."
-            } else if pitchedInGame(player: player) {
-                showingAlert = true
-                alertMessage = "\(player.name) has pitched in a game. Cannot delete."
-            } else {
-                linePlayers.removeAll { $0.name == player.name }
-                modelContext.delete(player)
-                for (index, player) in linePlayers.enumerated() {
-                    if index+1 <= numOfHitters || lineup.everyoneHits {
-                        player.batOrder =  index+1
-                    } else if !lineup.everyoneHits {
-                        player.batOrder = 99
-                    }
-                }
-                do {
-                    try self.modelContext.save()
-                }
-                catch {
-                    print("Error saving new atbats: \(error)")
-                }
-            }
-        }
-    }
-    func playedInGame(player:Player)->Bool {
-
-
-        var exist = false
-        let pName = player.name
-
-        if !pName.isEmpty {
-
-            var fetchDescriptor = FetchDescriptor<Atbat>()
-
-            fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-
-            do {
-                let existAtbats = try self.modelContext.fetch(fetchDescriptor)
-                if existAtbats.first != nil {
-                    exist = true
-                } else {
-                    exist = false
-                }
-            } catch {
-                print("SwiftData Error fetching Atbats: \(error)")
-            }
-        }
-        return exist
+            player.team?.ident == teamIdentity
+        }, sort: self.sortOrder)
     }
 
-    func pitchedInGame(player:Player)->Bool {
-
-        var exist = false
-        let pName = player.name
-
-        if !pName.isEmpty {
-
-            var fetchDescriptor = FetchDescriptor<Pitcher>()
-
-            fetchDescriptor.predicate = #Predicate { $0.player.name == pName }
-
-            do {
-                let existPitcher = try self.modelContext.fetch(fetchDescriptor)
-                if existPitcher.first != nil {
-                    exist = true
-                } else {
-                    exist = false
-                }
-            } catch {
-                print("SwiftData Error fetching Games: \(error)")
-            }
-        }
-        return exist
+    private func handleRosterPlayersChanged() {
+        refreshSlots(materializeIfNeeded: false)
     }
-    func getPlayers () {
+}
 
-        let teamName = team.name
+enum StartingLineupPlayerMenuItem: Identifiable {
+    case addPlayer
+    case player(Player, isSelected: Bool)
 
-        if !teamName.isEmpty {
-
-            var fetchDescriptor = FetchDescriptor<Player>(sortBy: sortOrder)
-            if searchText.isEmpty {
-                fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName }
-            } else {
-                fetchDescriptor.predicate = #Predicate { $0.team?.name == teamName &&
-                                                        ($0.name.localizedStandardContains(searchText) ||
-                                                         $0.number.localizedStandardContains(searchText))
-                }
-            }
-
-            do {
-                linePlayers = try self.modelContext.fetch(fetchDescriptor)
-            } catch {
-                print("SwiftData Error: \(error)")
-            }
-        } else {
-            showingAlert = true
-            alertMessage = "Please select a team."
-        }
-    }
-
-    func syncNewRosterPlayersIntoLineup() {
-        let missingPlayers = players.filter { player in
-            player.team?.ident == team.ident && !linePlayers.contains(where: { $0 === player })
-        }
-
-        guard !missingPlayers.isEmpty else { return }
-
-        linePlayers.append(contentsOf: missingPlayers)
-        linePlayers = linePlayers.sorted(by: { $0.batOrder < $1.batOrder })
-        for (index, player) in linePlayers.enumerated() {
-            if index+1 <= numOfHitters || lineup.everyoneHits {
-                player.batOrder = index+1
-            } else if !lineup.everyoneHits {
-                player.batOrder = 99
-            }
+    var id: String {
+        switch self {
+        case .addPlayer:
+            return "add-player"
+        case .player(let player, _):
+            return player.identifier.uuidString
         }
     }
 }

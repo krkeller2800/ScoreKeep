@@ -92,8 +92,8 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 
 ### Responsibility boundaries
 
-- The app has no centralized domain layer for baseball scoring. Scoring rules and state mutation are distributed across `PlayersToScoreView.seqGame()`, `PlayersToScoreView.updMaxBases()`, `PlayersToScoreView.updatePitcherMarkers()`, `ScoreGameView.setEndOfInning()`, `StartingLineupView.doLineup()`, `ReplacementView.doSubs()`, and reporting functions in `GeneratePDF.swift`.
-- ScoreKeep 6.1 Phase 1 introduces a narrow non-SwiftUI lineup-slot authority in `ScoreKeep/Common/LineupSlotSafetyCoordinator.swift`. That coordinator owns lineup slot resolution, default materialization, persisted-evidence editability, and safe per-slot Player reassignment for future Starting Lineup and live-scorecard integration. Existing UI flows still route through their legacy writers until those integrations are implemented. The durable design record is `ScoreKeep/Docs/LineupAndScoringDesign.md`.
+- The app has no centralized domain layer for baseball scoring. Scoring rules and state mutation are distributed across `PlayersToScoreView.seqGame()`, `PlayersToScoreView.updMaxBases()`, `PlayersToScoreView.updatePitcherMarkers()`, `ScoreGameView.setEndOfInning()`, `ReplacementView.doSubs()`, and reporting functions in `GeneratePDF.swift`.
+- ScoreKeep 6.1 introduces a narrow non-SwiftUI lineup-slot authority in `ScoreKeep/Common/LineupSlotSafetyCoordinator.swift`. That coordinator owns lineup slot resolution, default materialization, persisted-evidence editability, and safe per-slot Player reassignment. Starting Lineup now routes slot identity correction through that coordinator; live-scorecard integration remains future work. The durable design record is `ScoreKeep/Docs/LineupAndScoringDesign.md`.
 - Persistence is accessed directly from SwiftUI views through `@Environment(\.modelContext)`, `@Query`, `FetchDescriptor`, and direct mutation of SwiftData model instances.
 - Import/export compatibility uses both older view-local code in `ImportPlayersView` and newer service code in `ImportService`; both should be treated as current behavior until rewritten and regression-tested.
 - StoreKit and entitlement logic is isolated in `PurchaseManager`, but feature gating is implemented in view code (`ScoreContentView`, `EditScoreView`, `ShareContentView`).
@@ -180,7 +180,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 - Games are `Game` rows with two teams, date/location, highlights, an `everyOneHits` flag, and arrays for players, at-bats, lineups, pitchers, replaced players, and incoming players.
 - Teams are `Team` rows with players and games.
 - Batting order is `Player.batOrder`; `99` means not hitting in many views (`PlayerView`, `PlayersOnTeamView`, `StartingLineupView`, `ReplacementView`).
-- Initial lineup creation in `StartingLineupView.doLineup()` creates one placeholder `Atbat` per batting player with `result = "Result"`, `maxbase = "No Bases"`, `outAt = "Safe"`, `inning = 1`, `col = 1`, and sequence/batting order.
+- Initial lineup creation for Starting Lineup now uses `LineupSlotSafetyCoordinator.materializeLineupIfNeeded`, which creates one placeholder `Atbat` per batting player with `result = "Result"`, `maxbase = "No Bases"`, `outAt = "Safe"`, `inning = 1`, `col = 1`, and sequence/batting order.
 - Plate appearances are `Atbat` rows. Key strings come from `Common` in `CommonData.swift`:
   - On-base results: `Hit By Pitch`, `Dropped 3rd Strike`, `Catcher Interference`, `Walk`, hits, `Fielder's Choice`, `Error`.
   - Out results: `Ground Out`, `Fly Out`, `Line Out`, `Foul Out`, `Strikeout`, `Strikeout Looking`, `Sacrifice Fly`, `Sacrifice Bunt`.
@@ -211,11 +211,11 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
   - Deletes empty non-lineup at-bats on Done/Delete.
   - `setEndOfInning()` clears and recalculates `endOfInning`.
   - `checkForCol1Dup()` deletes duplicate first-column at-bats for the same player.
-- `StartingLineupView.doLineup()`
-  - Creates or updates `Lineup` and first-column placeholder `Atbat` rows.
-  - Updating an existing lineup deletes at-bats for that team first.
 - `LineupSlotSafetyCoordinator`
-  - Provides the 6.1 non-UI foundation for safe per-slot lineup materialization, editability, and Player reassignment. Future UI should use this instead of destructive whole-lineup correction for ordinary scored-game wrong-Player fixes.
+  - Provides the 6.1 non-UI foundation for safe per-slot lineup materialization, editability, and Player reassignment.
+- `StartingLineupView`
+  - Uses `LineupSlotSafetyCoordinator.resolvedSlots` for row ordering, editable Player pickers, locked Player text, and safe per-slot Player reassignment.
+  - Preserves pre-scoring reorder but does not use destructive whole-lineup update for ordinary scored-game wrong-Player fixes.
 - `ReplacementView.doSubs()`
   - Inserts "Pitch Hitter" at-bats and shifts sequence/batting order.
 - `GeneratePDF.swift`, `ReportView`, `ShowReportView`, `PitcherRptView`, and `ShowPitchRptView`

@@ -450,9 +450,9 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(lineupSource.contains("AddPlayerDraftView(team: team)"))
         #expect(lineupSource.contains(".standardAddPlayerPresentation()"))
         #expect(lineupSource.contains(".lineupAddPlayerPresentationSizing()") == false)
-        #expect(lineupSource.contains("func addPlayers() {\n        showingAddPlayerDraft = true\n    }"))
-        #expect(lineupSource.contains(".onChange(of: players) {\n                    syncNewRosterPlayersIntoLineup()\n                }"))
-        #expect(lineupSource.contains("func syncNewRosterPlayersIntoLineup()"))
+        #expect(lineupSource.contains("func addPlayers() {\n        pendingAddPlayerSlot = nil\n        showingAddPlayerDraft = true\n    }"))
+        #expect(lineupSource.contains(".onChange(of: players) {\n                    handleRosterPlayersChanged()\n                }"))
+        #expect(lineupSource.contains("private func handleRosterPlayersChanged()"))
     }
 
     private func playerCount(in container: ModelContainer) throws -> Int {

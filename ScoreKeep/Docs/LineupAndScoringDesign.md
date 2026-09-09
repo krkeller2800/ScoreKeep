@@ -76,14 +76,15 @@ The UI should expose this as a simple editable/locked state with a concise lock 
 
 Starting Lineup remains the full pregame lineup preparation surface.
 
-Future responsibilities:
+Current 6.1 implementation status:
 
-- Eligible Player fields become roster Player pickers.
-- `+ Add Player...` appears first in the Player picker so the capability is obvious.
+- Eligible Player fields are roster Player pickers when `LineupSlotSafetyCoordinator` reports the slot is editable.
+- Locked slots display non-editable Player text with user-facing lock explanation.
+- `Add Player…` appears first in the Player picker with the plus icon so the capability is obvious.
 - Saving a newly added Player returns to the originating slot and selects that Player if the slot remains eligible.
 - Number, position, and batting direction continue deriving from the selected Player.
-- Pregame batting-order drag/reorder remains supported.
-- General batting-order reorder locks once real scoring begins.
+- Pregame batting-order drag/reorder remains supported through the currently resolved coordinator slots.
+- General batting-order reorder locks once any resolved slot is no longer editable.
 - Player-identity correction and batting-order reordering use different safety rules.
 - Useful resumable partial-lineup behavior is preserved before scoring.
 
@@ -98,7 +99,7 @@ Both Starting Lineup and the live scorecard must use `LineupSlotSafetyCoordinato
 Future live scorecard Player dropdown behavior:
 
 - Available only while that slot is eligible.
-- `+ Add Player...` appears first.
+- `Add Player…` appears first with the plus icon.
 - Eligible roster Players follow.
 - Choosing a Player performs the shared safe slot reassignment.
 - Add Player uses the existing standardized Add Player workflow.
@@ -117,6 +118,7 @@ Planned presentation:
 
 - iPhone landscape: Name, number, and batting direction. Omit position by default if space requires.
 - iPad landscape: Name, number, batting direction, and position.
+- Player picker rows use the reusable `PlayerMenuRowLabel` format: name gets flexible single-line space, while jersey number and batting direction stay together as trailing metadata.
 - Preserve scoring-cell dimensions and usability.
 - Preserve substitution distinction and accessibility information.
 
@@ -165,11 +167,10 @@ Deferred post-6.1:
 ## Implementation Roadmap
 
 1. Phase 1: completed locally. Shared lineup-slot materialization, safety, reassignment foundation, and focused tests.
-2. Starting Lineup integration.
+2. Starting Lineup integration: completed locally for editable Player picker, locked Player text, safe coordinator reassignment, pre-scoring reorder, and Starting Lineup Add Player return-to-slot.
 3. Automatic default lineup materialization into the live-scoring entry path.
 4. Live scorecard richer Player identification and direct eligible-Player dropdown.
-5. Add Player return-to-origin integration.
+5. Add Player return-to-origin integration for live scorecard.
 6. Accessibility and layout verification.
 7. Retire normal destructive `Upd Lineup` behavior once replacements are proven.
 8. Manual verification on iPad and real iPhone 16e before acceptance.
-

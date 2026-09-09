@@ -7,6 +7,7 @@ struct AddPlayerDraftView: View {
     @Environment(\.dismiss) private var dismiss
 
     let team: Team
+    let onSave: ((Player) -> Void)?
 
     @State private var draft: PlayerFormDraft
     @State private var alertMessage = ""
@@ -18,8 +19,9 @@ struct AddPlayerDraftView: View {
     @Query(sort: [SortDescriptor(\Team.name)]) private var teams: [Team]
     @Query private var players: [Player]
 
-    init(team: Team) {
+    init(team: Team, onSave: ((Player) -> Void)? = nil) {
         self.team = team
+        self.onSave = onSave
         _draft = State(initialValue: PlayerFormDraft.empty(for: team))
         let teamIdentity = team.ident
         _players = Query(filter: #Predicate { player in
@@ -129,6 +131,7 @@ struct AddPlayerDraftView: View {
         do {
             try modelContext.save()
             likelyDuplicatePlayer = nil
+            onSave?(player)
             dismiss()
         } catch {
             modelContext.delete(player)
@@ -157,6 +160,9 @@ struct AddPlayerDraftView: View {
     }
 
     private func clearPendingDuplicateAndExit() {
+        if let likelyDuplicatePlayer {
+            onSave?(likelyDuplicatePlayer)
+        }
         likelyDuplicatePlayer = nil
         dismiss()
     }
