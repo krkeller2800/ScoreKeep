@@ -498,10 +498,6 @@ struct LineupSlotSafetyCoordinatorTests {
         }
     }
 
-    @Test func liveScorecardToolbarNoLongerPresentsLineupButton() {
-        #expect(EditScoreView.liveScorecardPresentsLineupButton == false)
-    }
-
     @Test func unorderedRosterAutomaticallyGetsStableDefaultOrder() throws {
         let store = try LineupSlotStore()
         let fixture = Fixture.insertRosterOnlyGame(into: store.context, players: [

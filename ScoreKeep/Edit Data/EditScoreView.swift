@@ -353,10 +353,6 @@ struct EditScoreView: View {
         _columnVisibility = columnVisability
     }
 
-    static var liveScorecardPresentsLineupButton: Bool {
-        false
-    }
-
     @discardableResult
     static func materializeLineupForLiveScoring(
         game: Game,

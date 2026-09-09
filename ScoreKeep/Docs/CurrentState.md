@@ -76,7 +76,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 - Game list/create/edit/score:
   - `ScoreContentView`, `GameView`, `EditGameView`, `EditScoreView`.
 - Team list/edit/player management:
-  - `TeamContentView`, `TeamView`, `EditTeamView`, `PlayersOnTeamView`, `PlayerView`, `EditPlayerView`, `EditAllPlayerView`, `EditLineupView`.
+  - `TeamContentView`, `TeamView`, `EditTeamView`, `PlayersOnTeamView`, `PlayerView`, `EditPlayerView`, `EditAllPlayerView`, `TeamDefaultBattingOrderView`.
 - Scoring grid and drawings:
   - `PlayersToScoreView`, `ScoreGameView`, `ScoreGameView`, `drawAtbatView.swift`, `drawCardView.swift`.
 - Roster import from clipboard:
