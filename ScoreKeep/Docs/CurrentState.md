@@ -18,7 +18,7 @@ No app extensions, widgets, watch targets, or supporting app-extension targets w
 - `Debug` uses `ScoreKeep/ScoreKeep/Debug.xcconfig`, which sets `SWIFT_OPTIMIZATION_LEVEL[config=Debug] = -Onone`, full Swift reflection metadata, incremental compilation, `DEBUG`, no symbol stripping, and `ONLY_ACTIVE_ARCH = YES`.
 - App target:
   - Bundle identifier: `Komakode.ScoreKeep`.
-  - Marketing version: `5.040`.
+  - Marketing version: `6.1`.
   - Current project version: `1`.
   - Swift version: `5.0`.
   - Supported platforms: `iphoneos iphonesimulator`.
