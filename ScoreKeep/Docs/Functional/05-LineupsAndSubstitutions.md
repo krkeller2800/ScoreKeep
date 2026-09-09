@@ -5,13 +5,14 @@
 Lineups define how players from a selected team participate in a specific game. They bridge reusable roster management and live scorekeeping by turning a team roster into the batting order, participation list, and substitution context used during that game.
 
 ScoreKeep 6.1 adds a slot-based lineup direction documented in `ScoreKeep/Docs/LineupAndScoringDesign.md`.
-When no game-specific lineup exists, roster/import `Player.batOrder` is the default lineup source.
+When no game-specific lineup exists, roster/import `Player.batOrder` is the default lineup source. If a Team has roster Players but no eligible batting order, the 6.1 lineup-slot coordinator creates and persists a deterministic Team default order in `Player.batOrder` before materializing the game lineup.
 Users do not need to construct a perfect lineup before scoring: they may accept the imported/default lineup, prepare it before the game, or correct individual Player identities on the fly while persisted evidence proves the slot remains safe.
 There is no separate on-the-fly mode and lineup slots should not be represented by fake Unknown Player records.
+The live scorecard is the primary wrong-Player correction surface. For editable slots it shows the full same-Team roster, safely reassigns unassigned Players, and swaps with another occupied editable slot when needed. Starting Lineup remains the full pregame batting-order editor and updates the Team default order for future games.
 
 A lineup determines which players are eligible to bat, the order in which they bat, and how the expected batter advances throughout the game. It also provides the game-specific player context needed for scorecards, batting statistics, pitching records, substitutions, corrections, and reports.
 
-Lineups are separate from rosters. A roster describes players who belong to a team over time. A lineup describes how selected players from that roster, plus any game-specific additions, are used in one game. Changing a lineup should not rewrite the reusable roster unless the user intentionally performs a roster-management action.
+Lineups are separate from rosters. A roster describes players who belong to a team over time. A lineup describes how selected players from that roster, plus any game-specific additions, are used in one game. Safe lineup correction updates the current Game lineup first and may also update Team default order for future games, but it must not rewrite completed or historical scoring data.
 
 Substitutions change the current and future lineup state without rewriting previous game history. When a player is replaced, earlier plate appearances, runner appearances, defensive participation, and pitching records must remain attributed to the player who actually participated at that time. The current lineup should reflect the present game situation, while historical lineup states remain understandable for review and reporting.
 

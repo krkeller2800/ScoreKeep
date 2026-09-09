@@ -71,7 +71,7 @@ struct LineupSlotSafetyCoordinatorTests {
         )
 
         #expect(result.source == .firstColumnAtbats)
-        #expect(result.lineup.players.sorted { $0.batOrder < $1.batOrder }.map(\.identifier) == [fixture.visitingPlayers[1].identifier, fixture.visitingPlayers[0].identifier])
+        #expect(result.slots.map { $0.player.identifier } == [fixture.visitingPlayers[1].identifier, fixture.visitingPlayers[0].identifier])
         #expect(result.slots.map { $0.placeholderAtbat.ident } == [first.ident, second.ident])
     }
 
@@ -312,11 +312,17 @@ struct LineupSlotSafetyCoordinatorTests {
         #expect(fixture.game.atbats.count == 3)
         #expect(firstSlotAtbat.ident == originalFirstAtbatIdentity)
         #expect(firstSlotAtbat.result == "Single")
-        #expect(fixture.game.lineups[0].players.sorted { $0.batOrder < $1.batOrder }.map(\.identifier) == [
+        #expect(LineupSlotSafetyCoordinator.resolvedSlots(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        ).map(\.player.identifier) == [
             fixture.visitingPlayers[0].identifier,
             originalSecondPlayerIdentity,
             bench.identifier
         ])
+        #expect(fixture.visitingPlayers[2].batOrder == 3)
+        #expect(bench.batOrder == 99)
         #expect(fixture.game.hscore == 4)
         #expect(fixture.game.vscore == 3)
         #expect(fixture.game.pitchers.map(\.ident) == [unrelatedPitcher.ident])
@@ -349,6 +355,340 @@ struct LineupSlotSafetyCoordinatorTests {
 
         #expect(firstPass == secondPass)
         #expect(secondPass == [.editable, .locked(.placeholderNotPristine)])
+    }
+
+    @Test func liveScorecardEntryMaterializesDefaultLineupWithoutLineupVisit() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 3)
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == .rosterBattingOrder)
+        #expect(result.slots.map(\.battingOrder) == [1, 2, 3])
+        #expect(result.slots.map { $0.placeholderAtbat.player.identifier } == fixture.visitingPlayers.map(\.identifier))
+        #expect(fixture.game.lineups.count == 1)
+        #expect(fixture.game.atbats.count == 3)
+    }
+
+    @Test func liveScorecardEntryPreservesExistingPartialAndScoredLineup() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 4)
+        let existingLineup = Lineup(
+            everyoneHits: false,
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            inning: 1,
+            players: [fixture.visitingPlayers[2], fixture.visitingPlayers[0]]
+        )
+        fixture.visitingPlayers[2].batOrder = 1
+        fixture.visitingPlayers[0].batOrder = 2
+        store.context.insert(existingLineup)
+        fixture.game.lineups = [existingLineup]
+        let first = Fixture.placeholder(game: fixture.game, team: fixture.visitingTeam, player: fixture.visitingPlayers[2], slot: 1)
+        let second = Fixture.placeholder(game: fixture.game, team: fixture.visitingTeam, player: fixture.visitingPlayers[0], slot: 2)
+        second.result = "Single"
+        second.maxbase = "First"
+        store.context.insert(first)
+        store.context.insert(second)
+        fixture.game.atbats = [first, second]
+        let originalFirstIdentity = first.ident
+        let originalSecondIdentity = second.ident
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == .existingLineup)
+        #expect(result.slots.map { $0.player.identifier } == [fixture.visitingPlayers[2].identifier, fixture.visitingPlayers[0].identifier])
+        #expect(result.slots.map { $0.placeholderAtbat.ident } == [originalFirstIdentity, originalSecondIdentity])
+        #expect(result.slots.map(\.editability) == [.editable, .locked(.placeholderNotPristine)])
+        #expect(fixture.game.atbats.count == 2)
+        #expect(second.result == "Single")
+        #expect(second.maxbase == "First")
+    }
+
+    @Test func liveScorecardEntryIsIdempotentAcrossReopenEquivalent() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 2)
+        let first = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+        let firstAtbatIdentities = fixture.game.atbats
+            .sorted { $0.batOrder < $1.batOrder }
+            .map(\.ident)
+        let firstLineupIdentity = first.lineup.ident
+
+        let reopenedContext = ModelContext(store.container)
+        let reopenedGame = try #require(try reopenedContext.fetch(FetchDescriptor<Game>()).first)
+        let reopenedTeam = try #require(reopenedGame.vteam)
+        let second = try EditScoreView.materializeLineupForLiveScoring(
+            game: reopenedGame,
+            team: reopenedTeam,
+            modelContext: reopenedContext
+        )
+
+        #expect(second.lineup.ident == firstLineupIdentity)
+        #expect(reopenedGame.atbats.sorted { $0.batOrder < $1.batOrder }.map(\.ident) == firstAtbatIdentities)
+        #expect(second.slots.map(\.battingOrder) == [1, 2])
+    }
+
+    @Test func liveScorecardEntryMaterializesWhenSwitchingTeams() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 2)
+
+        let visiting = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+        let home = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.homeTeam,
+            modelContext: store.context
+        )
+
+        #expect(visiting.slots.map(\.player.identifier) == fixture.visitingPlayers.map(\.identifier))
+        #expect(home.slots.map(\.player.identifier) == [fixture.homePitcher.identifier])
+        #expect(fixture.game.lineups.count == 2)
+        #expect(fixture.game.atbats.filter { $0.team.ident == fixture.visitingTeam.ident }.count == 2)
+        #expect(fixture.game.atbats.filter { $0.team.ident == fixture.homeTeam.ident }.count == 1)
+    }
+
+    @Test func liveScorecardEntryPreservesEveryoneHitsLineup() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 12, everyoneHits: true)
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.slots.count == 12)
+        #expect(result.slots.map(\.battingOrder) == Array(1...12))
+        #expect(result.lineup.everyoneHits)
+    }
+
+    @Test func liveScorecardEntryFailsSafelyWhenNoDefaultLineupExists() throws {
+        let store = try LineupSlotStore()
+        let emptyTeam = Team(name: "Empty", coach: "", details: "")
+        let opponent = Team(name: "Opponent", coach: "", details: "")
+        let game = Game(date: "2026-09-09T12:00:00Z", location: "Field", highLights: "", hscore: 0, vscore: 0, vteam: emptyTeam, hteam: opponent)
+        store.context.insert(emptyTeam)
+        store.context.insert(opponent)
+        store.context.insert(game)
+
+        do {
+            _ = try EditScoreView.materializeLineupForLiveScoring(
+                game: game,
+                team: emptyTeam,
+                modelContext: store.context
+            )
+            Issue.record("Expected no-default lineup to fail safely")
+        } catch LineupSlotSafetyError.noEligibleRosterPlayers {
+            #expect(EditScoreView.liveScorecardLineupMaterializationMessage(for: LineupSlotSafetyError.noEligibleRosterPlayers) == "No batting lineup is available. Add roster Players or set batting order before scoring.")
+        }
+    }
+
+    @Test func liveScorecardToolbarNoLongerPresentsLineupButton() {
+        #expect(EditScoreView.liveScorecardPresentsLineupButton == false)
+    }
+
+    @Test func unorderedRosterAutomaticallyGetsStableDefaultOrder() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, players: [
+            Fixture.player(name: "Charlie", number: "10", slot: 99, team: nil),
+            Fixture.player(name: "Able", number: "2", slot: 99, team: nil),
+            Fixture.player(name: "Baker", number: "7", slot: 99, team: nil)
+        ])
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == LineupSlotMaterializationResult.Source.rosterDeterministicOrder)
+        #expect(result.slots.map { $0.player.name } == ["Able", "Baker", "Charlie"])
+        let persistedDefaultOrder = fixture.visitingTeam.players
+            .sorted { $0.batOrder < $1.batOrder }
+            .map { "\($0.batOrder):\($0.name)" }
+        #expect(persistedDefaultOrder == [
+            "1:Able",
+            "2:Baker",
+            "3:Charlie"
+        ])
+    }
+
+    @Test func deterministicDefaultOrderUsesNameNumberThenPersistentIdentity() {
+        let team = Team(name: "Default Order", coach: "", details: "")
+        let zed = Fixture.player(name: "Zed", number: "1", slot: 99, team: team)
+        let sameNameLaterNumber = Fixture.player(name: "Able", number: "12", slot: 99, team: team)
+        let sameNameEarlierNumber = Fixture.player(name: "Able", number: "2", slot: 99, team: team)
+
+        let ordered = LineupSlotSafetyCoordinator.deterministicRosterDefaultOrder(from: [
+            zed,
+            sameNameLaterNumber,
+            sameNameEarlierNumber
+        ])
+
+        #expect(ordered.map(\.identifier) == [
+            sameNameEarlierNumber.identifier,
+            sameNameLaterNumber.identifier,
+            zed.identifier
+        ])
+    }
+
+    @Test func unorderedRosterDefaultPersistsForSubsequentNewGames() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, players: [
+            Fixture.player(name: "Delta", number: "4", slot: 99, team: nil),
+            Fixture.player(name: "Alpha", number: "1", slot: 99, team: nil),
+            Fixture.player(name: "Charlie", number: "3", slot: 99, team: nil)
+        ])
+        _ = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+        let nextGame = Game(
+            date: "2026-08-02T12:00:00Z",
+            location: "Second Field",
+            highLights: "",
+            hscore: 0,
+            vscore: 0,
+            vteam: fixture.visitingTeam,
+            hteam: fixture.homeTeam
+        )
+        store.context.insert(nextGame)
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: nextGame,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == LineupSlotMaterializationResult.Source.rosterBattingOrder)
+        #expect(result.slots.map { $0.player.name } == ["Alpha", "Charlie", "Delta"])
+    }
+
+    @Test func rearrangedTeamDefaultAffectsFutureGames() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 3)
+        fixture.visitingPlayers[0].batOrder = 3
+        fixture.visitingPlayers[1].batOrder = 1
+        fixture.visitingPlayers[2].batOrder = 2
+        let futureGame = Game(
+            date: "2026-08-03T12:00:00Z",
+            location: "Future Field",
+            highLights: "",
+            hscore: 0,
+            vscore: 0,
+            vteam: fixture.visitingTeam,
+            hteam: fixture.homeTeam
+        )
+        store.context.insert(futureGame)
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: futureGame,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == LineupSlotMaterializationResult.Source.rosterBattingOrder)
+        #expect(result.slots.map(\.player.identifier) == [
+            fixture.visitingPlayers[1].identifier,
+            fixture.visitingPlayers[2].identifier,
+            fixture.visitingPlayers[0].identifier
+        ])
+    }
+
+    @Test func gameSpecificCorrectionDoesNotAlterTeamDefaultOrder() throws {
+        let store = try LineupSlotStore()
+        let fixture = try Fixture.materialized(into: store.context, playerCount: 3)
+        let originalDefaults = Dictionary(uniqueKeysWithValues: fixture.visitingPlayers.map { ($0.identifier, $0.batOrder) })
+        let bench = Fixture.player(name: "Bench Player", number: "40", slot: 99, team: fixture.visitingTeam)
+        store.context.insert(bench)
+        fixture.visitingTeam.players.append(bench)
+
+        _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+            in: 2,
+            to: bench,
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(Dictionary(uniqueKeysWithValues: fixture.visitingPlayers.map { ($0.identifier, $0.batOrder) }) == originalDefaults)
+        #expect(bench.batOrder == 99)
+    }
+
+    @Test func existingImportedBattingOrderIsUnchangedByLiveScorecardEntry() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 3)
+        let originalDefaults = Dictionary(uniqueKeysWithValues: fixture.visitingPlayers.map { ($0.identifier, $0.batOrder) })
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == LineupSlotMaterializationResult.Source.rosterBattingOrder)
+        #expect(Dictionary(uniqueKeysWithValues: fixture.visitingPlayers.map { ($0.identifier, $0.batOrder) }) == originalDefaults)
+    }
+
+    @Test func unorderedEveryoneHitsRosterMaterializesAllPlayers() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, players: (1...12).reversed().map {
+            Fixture.player(name: "Player \($0)", number: "\($0)", slot: 99, team: nil)
+        }, everyoneHits: true)
+
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.source == LineupSlotMaterializationResult.Source.rosterDeterministicOrder)
+        #expect(result.slots.count == 12)
+        #expect(result.slots.map { $0.battingOrder } == Array(1...12))
+    }
+
+    @Test func reopeningScoredGameDoesNotRebuildFromTeamDefault() throws {
+        let store = try LineupSlotStore()
+        let fixture = try Fixture.materialized(into: store.context, playerCount: 3)
+        let firstAtbat = try #require(fixture.game.atbats.first { $0.batOrder == 1 && $0.col == 1 })
+        firstAtbat.result = "Single"
+        firstAtbat.maxbase = "First"
+        let originalAtbatIdentities = fixture.game.atbats
+            .sorted { $0.batOrder < $1.batOrder }
+            .map(\.ident)
+        fixture.visitingPlayers[0].batOrder = 3
+        fixture.visitingPlayers[1].batOrder = 1
+        fixture.visitingPlayers[2].batOrder = 2
+        try store.context.save()
+
+        let reopenedContext = ModelContext(store.container)
+        let reopenedGame = try #require(try reopenedContext.fetch(FetchDescriptor<Game>()).first)
+        let reopenedTeam = try #require(reopenedGame.vteam)
+        let result = try EditScoreView.materializeLineupForLiveScoring(
+            game: reopenedGame,
+            team: reopenedTeam,
+            modelContext: reopenedContext
+        )
+
+        #expect(result.source == .existingLineup)
+        #expect(reopenedGame.atbats.sorted { $0.batOrder < $1.batOrder }.map(\.ident) == originalAtbatIdentities)
+        #expect(result.slots.map { $0.placeholderAtbat.result } == ["Single", "Result", "Result"])
     }
 }
 
@@ -419,7 +759,44 @@ private struct Fixture {
         )
     }
 
-    static func player(name: String, number: String, slot: Int, team: Team) -> Player {
+    static func insertRosterOnlyGame(into context: ModelContext, players: [Player], everyoneHits: Bool = false) -> Fixture {
+        let visitingTeam = Team(name: "Visitors", coach: "", details: "")
+        let homeTeam = Team(name: "Home", coach: "", details: "")
+        let visitingPlayers = players
+        for player in visitingPlayers {
+            player.team = visitingTeam
+        }
+        let homePitcher = player(name: "Home Pitcher", number: "99", slot: 1, team: homeTeam)
+        let game = Game(
+            date: "2026-08-01T12:00:00Z",
+            location: "Lineup Slot Park",
+            highLights: "",
+            hscore: 0,
+            vscore: 0,
+            everyOneHits: everyoneHits,
+            vteam: visitingTeam,
+            hteam: homeTeam
+        )
+
+        context.insert(visitingTeam)
+        context.insert(homeTeam)
+        context.insert(homePitcher)
+        context.insert(game)
+        for player in visitingPlayers {
+            context.insert(player)
+        }
+        visitingTeam.players = visitingPlayers
+        homeTeam.players = [homePitcher]
+        return Fixture(
+            game: game,
+            visitingTeam: visitingTeam,
+            homeTeam: homeTeam,
+            visitingPlayers: visitingPlayers,
+            homePitcher: homePitcher
+        )
+    }
+
+    static func player(name: String, number: String, slot: Int, team: Team?) -> Player {
         Player(name: name, number: number, position: "SS", batDir: "R", batOrder: slot, team: team)
     }
 

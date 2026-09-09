@@ -159,8 +159,8 @@ Phase 2 establishes deterministic scoring and replay. Foundation, comparison, ro
 Tasks 2.19 and 2.20 remain completed preparation-only or blocked verdicts. They exposed a dependency gap rather than authorizing immediate production routing: canonical events are value-only, event ordering is not durably authoritative, operation identity is not persisted, duplicate and conflict classifications are not durable, corrections and supersessions are not persisted, replay after relaunch lacks an exact canonical source, current `Atbat` and `Game` mappings are lossy or ambiguous for scoring authority, no versioned-schema task yet authorizes new scoring persistence structures, no bounded scoring transaction adapter yet authorizes one-save writes, no disposable scoring persistence rehearsal exists, and later routing gates cannot succeed until those foundations are complete. Task 3.20 is not a substitute for canonical scoring persistence, migration completion alone does not enable scoring routing, and Team routing approval does not enable scoring routing.
 
 The current 6.1 lineup and scoring direction is recorded in `ScoreKeep/Docs/LineupAndScoringDesign.md`.
-Phase 1 is completed locally with `LineupSlotSafetyCoordinator` as the shared non-UI foundation for lineup slot materialization, safety, and reassignment, with 16 focused tests passing.
-Future Starting Lineup and live-scorecard work should use that coordinator, make safe per-slot Player correction the normal wrong-lineup path, and retire destructive `Upd Lineup` from normal scored-game use after replacement paths are proven.
+Phase 3C is completed locally with `LineupSlotSafetyCoordinator` as the shared non-UI foundation for lineup slot materialization, unordered-roster Team default creation, safety, and reassignment.
+Starting Lineup and live-scorecard work use that coordinator, make safe per-slot Player correction the normal wrong-lineup path, intentionally update Team default order after successful safe corrections, and should retire destructive `Upd Lineup` from normal scored-game use after replacement paths are proven.
 
 ### Task 1.13 Completion Record - Pitcher Responsibility Meaning
 

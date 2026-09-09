@@ -195,6 +195,55 @@ struct LiveScoringShellPresentationTests {
         #expect(PlayersToScoreView.scorecardRowScrollTargetID(for: rowID) == "scorecard_rendered_row_98000000-0000-0000-0000-000000000011")
     }
 
+    @Test("scorecard player identity policy uses compact iPhone metadata without position")
+    func scorecardPlayerIdentityPolicyUsesCompactIPhoneMetadataWithoutPosition() {
+        let player = Player(name: "Riley Greene", number: "31", position: "CF", batDir: "L", batOrder: 1)
+
+        let presentation = ScorecardPlayerIdentityPolicy.presentation(
+            for: player,
+            battingOrder: 1,
+            deviceClass: .iPhoneLandscape,
+            isIncoming: false,
+            isReplaced: false,
+            isEditable: true,
+            isLocked: false
+        )
+
+        #expect(presentation.name == "Riley Greene")
+        #expect(presentation.metadata == "#31  Bats L")
+        #expect(presentation.accessibilityLabel.contains("position CF"))
+        #expect(presentation.accessibilityLabel.contains("batting order 1"))
+        #expect(presentation.accessibilityLabel.contains("Player can be corrected"))
+    }
+
+    @Test("scorecard player identity policy uses iPad metadata with position")
+    func scorecardPlayerIdentityPolicyUsesIPadMetadataWithPosition() {
+        let player = Player(name: "Riley Greene", number: "31", position: "CF", batDir: "L", batOrder: 1)
+
+        let presentation = ScorecardPlayerIdentityPolicy.presentation(
+            for: player,
+            battingOrder: 1,
+            deviceClass: .iPadLandscape,
+            isIncoming: true,
+            isReplaced: true,
+            isEditable: false,
+            isLocked: true
+        )
+
+        #expect(presentation.metadata == "#31  Bats L  CF")
+        #expect(presentation.accessibilityLabel.contains("substitute"))
+        #expect(presentation.accessibilityLabel.contains("replaced"))
+        #expect(presentation.accessibilityLabel.contains("Locked after game participation"))
+    }
+
+    @Test("scorecard identity rail preserves scoring-grid width policy")
+    func scorecardIdentityRailPreservesScoringGridWidthPolicy() {
+        #expect(PlayersToScoreView.scorecardIdentityRailWidth(forWidth: 844) == 180)
+        #expect(PlayersToScoreView.scorecardIdentityRailWidth(forWidth: 1366) == 190)
+        #expect(PlayersToScoreView.scorecardIdentityDeviceClass(forWidth: 844) == .iPhoneLandscape)
+        #expect(PlayersToScoreView.scorecardIdentityDeviceClass(forWidth: 1366) == .iPadLandscape)
+    }
+
     @Test("semantic score presentation displays coordinator-provided score and line state")
     func semanticScorePresentationDisplaysCoordinatorProvidedScoreAndLineState() {
         let presenter = LiveScoringShellPresentation()

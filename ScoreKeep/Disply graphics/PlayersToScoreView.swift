@@ -12,6 +12,7 @@ struct PlayersToScoreView: View {
     @Environment(\.modelContext) var modelContext
     @Query var atbats: [Atbat]
     @Query var pitchers: [Pitcher]
+    @Query var players: [Player]
     @Binding var lAtbats: [Atbat]
     @Binding var game: Game
     @Binding var isLoading: Bool
@@ -52,6 +53,9 @@ struct PlayersToScoreView: View {
     @State private var pendingInvalidSelectionHintToken: UUID?
     @State private var pendingInvalidSelectionScrollRequested = false
     @State private var pendingInvalidSelectionScrollRequestID: UUID?
+    @State private var showingAddPlayerDraft = false
+    @State private var pendingScorecardCorrectionSlot: Int?
+    @State private var pendingScorecardCorrectionTeam: Team?
     private let inningHeaderPitcherSummaryClearance: CGFloat = 24
     let liveScoringCoordinator = LiveScoringWorkflowCoordinator()
     let liveScoringShellPresentation = LiveScoringShellPresentation()
@@ -66,6 +70,16 @@ struct PlayersToScoreView: View {
         Section {
             GeometryReader { geometry in
                 let gWidth = geometry.size.width
+                let battingTeam = atbats.first?.team ?? teamForName(teamName)
+                let lineupSlots = battingTeam.map {
+                    LineupSlotSafetyCoordinator.resolvedSlots(
+                        game: game,
+                        team: $0,
+                        modelContext: modelContext
+                    )
+                } ?? []
+                let identityRailWidth = Self.scorecardIdentityRailWidth(forWidth: gWidth)
+                let identityDeviceClass = Self.scorecardIdentityDeviceClass(forWidth: gWidth)
                 drawIndicator(iStat:iStat,size:geometry.size,colbox:colbox,space:calcSpace(gWidth: gWidth))
                 drawBoxScore(game:game,size:geometry.size)
                 if let semanticScorePresentation {
@@ -73,8 +87,12 @@ struct PlayersToScoreView: View {
                 }
                 VStack ( spacing: 0) {
                     HStack(alignment: .top) {
-                        Text("Num").frame(width:30, height: 15, alignment:.center).font(.caption).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold().padding(.leading, 3)
-                        Text("Name").frame(width:50, height: 15, alignment:.leading).font(.caption).foregroundStyle(ScoreKeepVisualStyle.primaryText).bold()
+                        Text("Player")
+                            .frame(width: identityRailWidth, height: 15, alignment:.leading)
+                            .font(.caption)
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .bold()
+                            .padding(.leading, 5)
                         Spacer()
                     }
                     ScrollViewReader { verticalScrollProxy in
@@ -85,14 +103,13 @@ struct PlayersToScoreView: View {
                                         HStack(spacing: 2) {
                                             if ScorecardRenderedRows.isRenderedBattingRow(atbat) {
                                                 let bSiz:CGFloat = gWidth > 1100 ? 60 : 50
-                                                let player = atbat.player
-                                                let strikeIt = containsPlayer(player, in: game.replaced)
-                                                let isIncoming = containsPlayer(player, in: game.incomings)
-                                                let iName = isIncoming ? "    \(player.name)" : player.name
-                                                Text(player.number).frame(width: 30, height: bSiz,alignment: .center).foregroundStyle(ScoreKeepVisualStyle.primaryText)
-                                                    .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
-                                                Text(iName).frame(width: 150, alignment: .leading).foregroundStyle(ScoreKeepVisualStyle.primaryText).strikethrough(strikeIt)
-                                                    .fixedSize(horizontal: true, vertical: true).padding(.leading,5).lineLimit(2)
+                                                scorecardPlayerIdentityCell(
+                                                    for: atbat,
+                                                    slots: lineupSlots,
+                                                    deviceClass: identityDeviceClass,
+                                                    height: bSiz,
+                                                    width: identityRailWidth
+                                                )
 
                                             }
                                         }
@@ -336,6 +353,22 @@ struct PlayersToScoreView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showingAddPlayerDraft) {
+                if let pendingScorecardCorrectionTeam {
+                    NavigationStack {
+                        AddPlayerDraftView(team: pendingScorecardCorrectionTeam) { savedPlayer in
+                            assignSavedScorecardPlayer(savedPlayer)
+                        }
+                    }
+                    .standardAddPlayerPresentation()
+                }
+            }
+            .onChange(of: showingAddPlayerDraft) {
+                if showingAddPlayerDraft == false {
+                    pendingScorecardCorrectionSlot = nil
+                    pendingScorecardCorrectionTeam = nil
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
 
@@ -458,6 +491,7 @@ struct PlayersToScoreView: View {
         _pitchers = Query(filter: #Predicate { pitcher in
             pitcher.game.date == date && pitcher.game.location == location
         })
+        _players = Query(sort: [SortDescriptor(\Player.batOrder), SortDescriptor(\Player.name)])
     }
     private func opponentTeam(for battingTeam: Team) -> Team? {
         if battingTeam == game.hteam {
@@ -489,6 +523,167 @@ struct PlayersToScoreView: View {
     private func containsPlayer(_ player: Player, in players: [Player]) -> Bool {
         let playerID = player.persistentModelID
         return players.contains { $0.persistentModelID == playerID }
+    }
+
+    @ViewBuilder
+    private func scorecardPlayerIdentityCell(
+        for atbat: Atbat,
+        slots: [LineupSlot],
+        deviceClass: ScorecardPlayerIdentityDeviceClass,
+        height: CGFloat,
+        width: CGFloat
+    ) -> some View {
+        let player = atbat.player
+        let strikeIt = containsPlayer(player, in: game.replaced)
+        let isIncoming = containsPlayer(player, in: game.incomings)
+        let slot = Self.scorecardLineupSlot(for: atbat, slots: slots)
+        let isEditable = slot?.isEditable == true
+        let isLocked = slot.map { $0.isEditable == false } ?? false
+        let presentation = ScorecardPlayerIdentityPolicy.presentation(
+            for: player,
+            battingOrder: atbat.batOrder,
+            deviceClass: deviceClass,
+            isIncoming: isIncoming,
+            isReplaced: strikeIt,
+            isEditable: isEditable,
+            isLocked: isLocked
+        )
+
+        if let slot, slot.isEditable {
+            Menu {
+                ForEach(scorecardPlayerMenuItems(for: slot, team: atbat.team, slots: slots)) { item in
+                    switch item {
+                    case .addPlayer:
+                        Button {
+                            beginScorecardAddPlayer(for: slot, team: atbat.team)
+                        } label: {
+                            Label("Add Player…", systemImage: "plus")
+                        }
+                    case .player(let player, let isSelected):
+                        Button {
+                            selectScorecardPlayer(player, for: slot, team: atbat.team)
+                        } label: {
+                            PlayerMenuRowLabel(player: player, isSelected: isSelected)
+                        }
+                    }
+                }
+            } label: {
+                ScorecardPlayerIdentityView(
+                    presentation: presentation,
+                    isIncoming: isIncoming,
+                    isReplaced: strikeIt,
+                    showsMenuIndicator: true
+                )
+                .frame(width: width, height: height, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+            .accessibilityIdentifier("scorecard-player-picker-\(slot.battingOrder)")
+        } else {
+            ScorecardPlayerIdentityView(
+                presentation: presentation,
+                isIncoming: isIncoming,
+                isReplaced: strikeIt,
+                showsMenuIndicator: false
+            )
+            .frame(width: width, height: height, alignment: .leading)
+            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+            .overlay(Divider().background(ScoreKeepVisualStyle.separator), alignment: .trailing)
+            .accessibilityIdentifier("scorecard-player-identity-\(atbat.batOrder)")
+            .accessibilityHint(isLocked ? "Locked after game participation." : "")
+        }
+    }
+
+    static func scorecardLineupSlot(for atbat: Atbat, slots: [LineupSlot]) -> LineupSlot? {
+        slots.first {
+            $0.battingOrder == atbat.batOrder &&
+                $0.placeholderAtbat.ident == atbat.ident &&
+                $0.player.identifier == atbat.player.identifier
+        }
+    }
+
+    private func scorecardPlayerMenuItems(for slot: LineupSlot, team: Team, slots: [LineupSlot]) -> [StartingLineupPlayerMenuItem] {
+        Self.scorecardPlayerMenuItems(
+            from: players,
+            slots: slots,
+            targetSlot: slot,
+            team: team
+        )
+    }
+
+    static func scorecardPlayerMenuItems(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [StartingLineupPlayerMenuItem] {
+        StartingLineupView.playerMenuItems(
+            from: players,
+            slots: slots,
+            targetSlot: targetSlot,
+            team: team,
+            context: .scorecardSwapCorrection
+        )
+    }
+
+    private func beginScorecardAddPlayer(for slot: LineupSlot, team: Team) {
+        pendingScorecardCorrectionSlot = slot.battingOrder
+        pendingScorecardCorrectionTeam = team
+        showingAddPlayerDraft = true
+    }
+
+    private func selectScorecardPlayer(_ player: Player, for slot: LineupSlot, team: Team) {
+        guard player.identifier != slot.player.identifier else { return }
+        do {
+            let slots = LineupSlotSafetyCoordinator.resolvedSlots(game: game, team: team, modelContext: modelContext)
+            if let occupiedSlot = slots.first(where: { $0.battingOrder != slot.battingOrder && $0.player.identifier == player.identifier }) {
+                _ = try LineupSlotSafetyCoordinator.swapPlayers(
+                    in: slot.battingOrder,
+                    withPlayerIn: occupiedSlot.battingOrder,
+                    game: game,
+                    team: team,
+                    modelContext: modelContext,
+                    updateTeamDefaultOrder: true
+                )
+            } else {
+                _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+                    in: slot.battingOrder,
+                    to: player,
+                    game: game,
+                    team: team,
+                    modelContext: modelContext,
+                    updateTeamDefaultOrder: true
+                )
+            }
+            lAtbats = atbats
+            hasChanged = true
+            refreshLiveScoringWorkflow()
+        } catch {
+            showInvalidSelectionGuidance(message: error.localizedDescription, token: restartInvalidSelectionGuidanceTimer())
+        }
+    }
+
+    private func assignSavedScorecardPlayer(_ player: Player) {
+        defer {
+            pendingScorecardCorrectionSlot = nil
+            pendingScorecardCorrectionTeam = nil
+            refreshLiveScoringWorkflow()
+        }
+        guard let slot = pendingScorecardCorrectionSlot,
+              let team = pendingScorecardCorrectionTeam else { return }
+        do {
+            _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+                in: slot,
+                to: player,
+                game: game,
+                team: team,
+                modelContext: modelContext,
+                updateTeamDefaultOrder: true
+            )
+            lAtbats = atbats
+            hasChanged = true
+        } catch {
+            showInvalidSelectionGuidance(
+                message: "The Player was added to the roster, but this lineup slot can no longer be changed.",
+                token: restartInvalidSelectionGuidanceTimer()
+            )
+        }
     }
 
     private func scorecardCellPresentation(
@@ -674,6 +869,14 @@ struct PlayersToScoreView: View {
         }
 
         return CGRect(origin: .zero, size: viewportSize).contains(frame)
+    }
+
+    static func scorecardIdentityRailWidth(forWidth width: CGFloat) -> CGFloat {
+        width > 1100 ? 190 : 180
+    }
+
+    static func scorecardIdentityDeviceClass(forWidth width: CGFloat) -> ScorecardPlayerIdentityDeviceClass {
+        width > 1100 ? .iPadLandscape : .iPhoneLandscape
     }
 
     static func invalidSelectionRecoveryScrollAxes(

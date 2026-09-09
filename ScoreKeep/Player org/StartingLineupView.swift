@@ -354,13 +354,32 @@ struct StartingLineupView: View {
     private func selectPlayer(_ player: Player, for slot: LineupSlot) {
         guard player.identifier != slot.player.identifier else { return }
         do {
-            _ = try LineupSlotSafetyCoordinator.reassignPlayer(
-                in: slot.battingOrder,
-                to: player,
-                game: game,
-                team: team,
-                modelContext: modelContext
-            )
+            if canReorderLineup, let occupiedSlot = lineupSlots.first(where: { $0.battingOrder != slot.battingOrder && $0.player.identifier == player.identifier }) {
+                try Self.swapPregamePlayers(
+                    targetSlot: slot,
+                    occupiedSlot: occupiedSlot,
+                    lineup: lineup,
+                    modelContext: modelContext
+                )
+            } else {
+                if canReorderLineup {
+                    _ = try Self.replacePregamePlayer(
+                        in: slot,
+                        to: player,
+                        game: game,
+                        team: team,
+                        modelContext: modelContext
+                    )
+                } else {
+                    _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+                        in: slot.battingOrder,
+                        to: player,
+                        game: game,
+                        team: team,
+                        modelContext: modelContext
+                    )
+                }
+            }
             refreshSlots(materializeIfNeeded: false)
         } catch {
             alertMessage = error.localizedDescription
@@ -376,13 +395,18 @@ struct StartingLineupView: View {
         }
         guard let slot else { return }
         do {
-            _ = try LineupSlotSafetyCoordinator.reassignPlayer(
+            let result = try LineupSlotSafetyCoordinator.reassignPlayer(
                 in: slot,
                 to: player,
                 game: game,
                 team: team,
                 modelContext: modelContext
             )
+            if canReorderLineup {
+                result.incomingPlayer.batOrder = slot
+                result.outgoingPlayer.batOrder = 99
+                try modelContext.save()
+            }
         } catch {
             alertMessage = "The Player was added to the roster, but this lineup slot can no longer be changed."
             showingAlert = true
@@ -394,23 +418,42 @@ struct StartingLineupView: View {
     }
 
     private func playerMenuItems(for slot: LineupSlot) -> [StartingLineupPlayerMenuItem] {
-        Self.playerMenuItems(from: players, slots: lineupSlots, targetSlot: slot, team: team)
+        Self.playerMenuItems(from: players, slots: lineupSlots, targetSlot: slot, team: team, context: .startingLineupEditor)
     }
 
-    static func playerMenuItems(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [StartingLineupPlayerMenuItem] {
-        [.addPlayer] + selectableRosterPlayers(from: players, slots: slots, targetSlot: targetSlot, team: team).map { player in
+    static func playerMenuItems(
+        from players: [Player],
+        slots: [LineupSlot],
+        targetSlot: LineupSlot,
+        team: Team,
+        context: StartingLineupPlayerMenuContext = .startingLineupEditor
+    ) -> [StartingLineupPlayerMenuItem] {
+        [.addPlayer] + selectableRosterPlayers(from: players, slots: slots, targetSlot: targetSlot, team: team, context: context).map { player in
             .player(player, isSelected: player.identifier == targetSlot.player.identifier)
         }
     }
 
-    static func selectableRosterPlayers(from players: [Player], slots: [LineupSlot], targetSlot: LineupSlot, team: Team) -> [Player] {
+    static func selectableRosterPlayers(
+        from players: [Player],
+        slots: [LineupSlot],
+        targetSlot: LineupSlot,
+        team: Team,
+        context: StartingLineupPlayerMenuContext = .startingLineupEditor
+    ) -> [Player] {
         let assignedPlayerIdentities = Set(slots
             .filter { $0.battingOrder != targetSlot.battingOrder }
             .map { $0.player.identifier })
         return players
             .filter { player in
-                player.team?.ident == team.ident &&
-                    (player.identifier == targetSlot.player.identifier || assignedPlayerIdentities.contains(player.identifier) == false)
+                guard player.team?.ident == team.ident else { return false }
+                switch context {
+                case .startingLineupEditor:
+                    return true
+                case .scorecardSwapCorrection:
+                    return true
+                case .scorecardCorrection:
+                    return player.identifier == targetSlot.player.identifier || assignedPlayerIdentities.contains(player.identifier) == false
+                }
             }
             .sorted {
                 if $0.batOrder == $1.batOrder {
@@ -418,6 +461,52 @@ struct StartingLineupView: View {
                 }
                 return $0.batOrder < $1.batOrder
             }
+    }
+
+    static func swapPregamePlayers(
+        targetSlot: LineupSlot,
+        occupiedSlot: LineupSlot,
+        lineup: Lineup,
+        modelContext: ModelContext
+    ) throws {
+        guard targetSlot.isEditable, occupiedSlot.isEditable else {
+            throw LineupSlotSafetyError.slotLocked(.placeholderNotPristine)
+        }
+
+        let targetPlayer = targetSlot.player
+        let occupiedPlayer = occupiedSlot.player
+        targetSlot.placeholderAtbat.player = occupiedPlayer
+        occupiedSlot.placeholderAtbat.player = targetPlayer
+        occupiedPlayer.batOrder = targetSlot.battingOrder
+        targetPlayer.batOrder = occupiedSlot.battingOrder
+
+        let swappedSlots = LineupSlotSafetyCoordinator.resolvedSlots(
+            game: lineup.game,
+            team: lineup.team,
+            modelContext: modelContext
+        )
+        lineup.players = swappedSlots.map(\.player)
+        try modelContext.save()
+    }
+
+    static func replacePregamePlayer(
+        in slot: LineupSlot,
+        to player: Player,
+        game: Game,
+        team: Team,
+        modelContext: ModelContext
+    ) throws -> LineupSlotReassignmentResult {
+        let result = try LineupSlotSafetyCoordinator.reassignPlayer(
+            in: slot.battingOrder,
+            to: player,
+            game: game,
+            team: team,
+            modelContext: modelContext
+        )
+        result.incomingPlayer.batOrder = slot.battingOrder
+        result.outgoingPlayer.batOrder = 99
+        try modelContext.save()
+        return result
     }
 
     static func canReorder(slots: [LineupSlot]) -> Bool {
@@ -509,4 +598,10 @@ enum StartingLineupPlayerMenuItem: Identifiable {
             return player.identifier.uuidString
         }
     }
+}
+
+enum StartingLineupPlayerMenuContext {
+    case startingLineupEditor
+    case scorecardSwapCorrection
+    case scorecardCorrection
 }

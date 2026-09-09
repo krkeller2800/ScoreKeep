@@ -37,6 +37,7 @@ struct LineupSlotMaterializationResult: Equatable {
         case existingLineup
         case firstColumnAtbats
         case rosterBattingOrder
+        case rosterDeterministicOrder
     }
 
     let source: Source
@@ -48,6 +49,13 @@ struct LineupSlotReassignmentResult: Equatable {
     let slot: LineupSlot
     let outgoingPlayer: Player
     let incomingPlayer: Player
+}
+
+struct LineupSlotSwapResult: Equatable {
+    let targetSlot: LineupSlot
+    let occupiedSlot: LineupSlot
+    let targetOutgoingPlayer: Player
+    let occupiedOutgoingPlayer: Player
 }
 
 enum LineupSlotSafetyError: Error, Equatable, LocalizedError {
@@ -90,7 +98,6 @@ enum LineupSlotSafetyCoordinator {
 
         for (index, player) in sourcePlayers.players.enumerated() {
             let slot = index + 1
-            player.batOrder = slot
             if game.players.contains(where: { samePlayer($0, player) }) == false {
                 game.players.append(player)
             }
@@ -170,7 +177,8 @@ enum LineupSlotSafetyCoordinator {
         to incomingPlayer: Player,
         game: Game,
         team: Team,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        updateTeamDefaultOrder: Bool = false
     ) throws -> LineupSlotReassignmentResult {
         let slots = resolvedSlots(game: game, team: team, modelContext: modelContext)
         guard let targetSlot = slots.first(where: { $0.battingOrder == slot }) else {
@@ -194,8 +202,10 @@ enum LineupSlotSafetyCoordinator {
 
         let outgoingPlayer = targetSlot.player
         targetSlot.placeholderAtbat.player = incomingPlayer
-        incomingPlayer.batOrder = slot
-        outgoingPlayer.batOrder = 99
+        if updateTeamDefaultOrder {
+            incomingPlayer.batOrder = slot
+            outgoingPlayer.batOrder = 99
+        }
 
         if let lineup = game.lineups.first(where: { $0.game.ident == game.ident && $0.team.ident == team.ident }) {
             lineup.players = slots.map { lineupSlot in
@@ -215,13 +225,85 @@ enum LineupSlotSafetyCoordinator {
         return LineupSlotReassignmentResult(slot: refreshed, outgoingPlayer: outgoingPlayer, incomingPlayer: incomingPlayer)
     }
 
+    static func swapPlayers(
+        in targetSlotNumber: Int,
+        withPlayerIn occupiedSlotNumber: Int,
+        game: Game,
+        team: Team,
+        modelContext: ModelContext,
+        updateTeamDefaultOrder: Bool = false
+    ) throws -> LineupSlotSwapResult {
+        let slots = resolvedSlots(game: game, team: team, modelContext: modelContext)
+        guard let targetSlot = slots.first(where: { $0.battingOrder == targetSlotNumber }) else {
+            throw LineupSlotSafetyError.slotNotFound(targetSlotNumber)
+        }
+        guard let occupiedSlot = slots.first(where: { $0.battingOrder == occupiedSlotNumber }) else {
+            throw LineupSlotSafetyError.slotNotFound(occupiedSlotNumber)
+        }
+        guard targetSlot.battingOrder != occupiedSlot.battingOrder else {
+            return LineupSlotSwapResult(
+                targetSlot: targetSlot,
+                occupiedSlot: occupiedSlot,
+                targetOutgoingPlayer: targetSlot.player,
+                occupiedOutgoingPlayer: occupiedSlot.player
+            )
+        }
+        guard case .editable = targetSlot.editability else {
+            if case .locked(let reason) = targetSlot.editability {
+                throw LineupSlotSafetyError.slotLocked(reason)
+            }
+            throw LineupSlotSafetyError.slotLocked(.ambiguousLineupState)
+        }
+        guard case .editable = occupiedSlot.editability else {
+            if case .locked(let reason) = occupiedSlot.editability {
+                throw LineupSlotSafetyError.slotLocked(reason)
+            }
+            throw LineupSlotSafetyError.slotLocked(.ambiguousLineupState)
+        }
+
+        let targetPlayer = targetSlot.player
+        let occupiedPlayer = occupiedSlot.player
+        targetSlot.placeholderAtbat.player = occupiedPlayer
+        occupiedSlot.placeholderAtbat.player = targetPlayer
+        if updateTeamDefaultOrder {
+            occupiedPlayer.batOrder = targetSlot.battingOrder
+            targetPlayer.batOrder = occupiedSlot.battingOrder
+        }
+
+        if let lineup = game.lineups.first(where: { $0.game.ident == game.ident && $0.team.ident == team.ident }) {
+            lineup.players = slots.map { slot in
+                if slot.battingOrder == targetSlot.battingOrder {
+                    return occupiedPlayer
+                }
+                if slot.battingOrder == occupiedSlot.battingOrder {
+                    return targetPlayer
+                }
+                return slot.player
+            }
+        }
+
+        try modelContext.save()
+        let refreshedSlots = resolvedSlots(game: game, team: team, modelContext: modelContext)
+        return LineupSlotSwapResult(
+            targetSlot: refreshedSlots.first(where: { $0.battingOrder == targetSlotNumber }) ?? targetSlot,
+            occupiedSlot: refreshedSlots.first(where: { $0.battingOrder == occupiedSlotNumber }) ?? occupiedSlot,
+            targetOutgoingPlayer: targetPlayer,
+            occupiedOutgoingPlayer: occupiedPlayer
+        )
+    }
+
     private static func resolvedSourcePlayers(game: Game, team: Team) throws -> (source: LineupSlotMaterializationResult.Source, players: [Player]) {
         let matchingLineups = game.lineups.filter { $0.game.ident == game.ident && $0.team.ident == team.ident }
         guard matchingLineups.count <= 1 else {
             throw LineupSlotSafetyError.ambiguousLineupState(.ambiguousLineupState)
         }
         if let lineup = matchingLineups.first, lineup.players.isEmpty == false {
-            let players = try orderedUniquePlayers(lineup.players, everyoneHits: game.everyOneHits)
+            let existingPlaceholders = firstColumnPlaceholders(game: game, team: team)
+            let players = if existingPlaceholders.isEmpty {
+                try orderedUniquePlayers(lineup.players, everyoneHits: game.everyOneHits)
+            } else {
+                try orderedUniquePlayers(from: existingPlaceholders, everyoneHits: game.everyOneHits)
+            }
             return (.existingLineup, players)
         }
 
@@ -232,10 +314,23 @@ enum LineupSlotSafetyCoordinator {
         }
 
         let rosterPlayers = try orderedUniquePlayers(team.players, everyoneHits: game.everyOneHits)
-        guard rosterPlayers.isEmpty == false else {
+        if rosterPlayers.isEmpty == false {
+            return (.rosterBattingOrder, rosterPlayers)
+        }
+
+        guard team.players.isEmpty == false else {
             throw LineupSlotSafetyError.noEligibleRosterPlayers
         }
-        return (.rosterBattingOrder, rosterPlayers)
+
+        let defaultOrderedRosterPlayers = deterministicRosterDefaultOrder(from: team.players)
+        for (index, player) in defaultOrderedRosterPlayers.enumerated() {
+            player.batOrder = index + 1
+        }
+        let materializedPlayers = try orderedUniquePlayers(defaultOrderedRosterPlayers, everyoneHits: game.everyOneHits)
+        guard materializedPlayers.isEmpty == false else {
+            throw LineupSlotSafetyError.noEligibleRosterPlayers
+        }
+        return (.rosterDeterministicOrder, materializedPlayers)
     }
 
     private static func resolvedOrCreatedLineup(
@@ -308,6 +403,20 @@ enum LineupSlotSafetyCoordinator {
             throw LineupSlotSafetyError.ambiguousLineupState(.duplicatePlayerAssignment)
         }
         return eligible.map(\.player)
+    }
+
+    static func deterministicRosterDefaultOrder(from players: [Player]) -> [Player] {
+        players.sorted {
+            let nameComparison = $0.name.localizedStandardCompare($1.name)
+            if nameComparison != .orderedSame {
+                return nameComparison == .orderedAscending
+            }
+            let numberComparison = $0.number.localizedStandardCompare($1.number)
+            if numberComparison != .orderedSame {
+                return numberComparison == .orderedAscending
+            }
+            return $0.identifier.uuidString < $1.identifier.uuidString
+        }
     }
 
     private static func firstColumnPlaceholders(game: Game, team: Team) -> [Atbat] {

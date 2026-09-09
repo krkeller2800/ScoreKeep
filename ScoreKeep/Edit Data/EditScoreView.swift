@@ -41,6 +41,7 @@ struct EditScoreView: View {
     @State private var isLoading = false
     @State private var isError = false
     @State private var alertText = ""
+    @State private var lineupMaterializationErrorText: String?
     @State private var teamName = ""
     @State private var selectedOption = ""
     @State private var pdfURL:URL = URL.documentsDirectory.appending(path: "Stats.pdf")
@@ -188,6 +189,7 @@ struct EditScoreView: View {
                             }
                             print(modelContext.sqliteCommand)
                             print(NSHomeDirectory())
+                            materializeLiveScorecardLineup(for: team)
 
                         }
                         .onChange(of: isHomeTeam, {
@@ -199,6 +201,7 @@ struct EditScoreView: View {
                                 team = game.vteam ?? Team(name:"",coach:"",details:"")
                             }
                             activeScoringTeamName = theTeam
+                            materializeLiveScorecardLineup(for: team)
                         })
                         .alert(alertText, isPresented: $isError) {
                             Button("OK", role: .cancel) { }
@@ -223,6 +226,16 @@ struct EditScoreView: View {
                     }
                     .frame(maxWidth:.infinity,maxHeight: 75)
                     Spacer()
+                    if let lineupMaterializationErrorText {
+                        Text(lineupMaterializationErrorText)
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(ScoreKeepVisualStyle.primaryText)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(ScoreKeepVisualStyle.elevatedSurface)
+                            .accessibilityIdentifier("live-scorecard-lineup-materialization-message")
+                    }
                     PlayersToScoreView(
                         passedGame: $game,
                         teamName: theTeam,
@@ -292,12 +305,6 @@ struct EditScoreView: View {
                         .fullScreenCover(isPresented: $presentReplacements) {
                             ReplacementView(game: game, team: team)
                         }
-                        Button(action: {
-                            self.showingDetail.toggle()
-                        }) {
-                            Text("Lineup")
-                        }
-                        .buttonStyle(ToolBarButtonStyle())
                     }
                     ToolbarItem(placement: .principal) {
                         Text("Score the Game")
@@ -359,6 +366,54 @@ struct EditScoreView: View {
         teamName = ateam
         _navigationPath = pnavigationPath
         _columnVisibility = columnVisability
+    }
+
+    static var liveScorecardPresentsLineupButton: Bool {
+        false
+    }
+
+    @discardableResult
+    static func materializeLineupForLiveScoring(
+        game: Game,
+        team: Team,
+        modelContext: ModelContext
+    ) throws -> LineupSlotMaterializationResult {
+        try LineupSlotSafetyCoordinator.materializeLineupIfNeeded(
+            game: game,
+            team: team,
+            modelContext: modelContext
+        )
+    }
+
+    static func liveScorecardLineupMaterializationMessage(for error: Error) -> String {
+        if let safetyError = error as? LineupSlotSafetyError {
+            switch safetyError {
+            case .noEligibleRosterPlayers:
+                return "No batting lineup is available. Add roster Players or set batting order before scoring."
+            case .missingTeam:
+                return "Select a team before scoring."
+            default:
+                return safetyError.localizedDescription
+            }
+        }
+        return "ScoreKeep could not prepare this batting lineup."
+    }
+
+    private func materializeLiveScorecardLineup(for team: Team) {
+        guard team.name.isEmpty == false else {
+            lineupMaterializationErrorText = Self.liveScorecardLineupMaterializationMessage(for: LineupSlotSafetyError.missingTeam)
+            return
+        }
+        do {
+            _ = try Self.materializeLineupForLiveScoring(
+                game: game,
+                team: team,
+                modelContext: modelContext
+            )
+            lineupMaterializationErrorText = nil
+        } catch {
+            lineupMaterializationErrorText = Self.liveScorecardLineupMaterializationMessage(for: error)
+        }
     }
 
     private func requestGeneratedOutput(_ action: PurchaseGatedAction) {
