@@ -55,9 +55,7 @@ struct StartPhoneView: View {
                 Text("Paste").padding(.horizontal,5)
             }
             .tag(2)
-            NavigationStack {
-                PdfView()
-            }
+            ScoreKeepHelpRoute()
             .tabItem {
                 Image("phelp")
                 Text("Help").padding(.horizontal,5)

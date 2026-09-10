@@ -171,6 +171,7 @@ struct ScoreContentView: View {
                     activeScoringSessionNeedsRestore = false
                     activeScoringColumnVisibility = nil
                     wakeRestoration.clearCurrentProcessWakeRestore()
+                    restoreSidebarAtRootIfNeeded()
                 }
             }
             .toolbar {
@@ -322,6 +323,7 @@ struct ScoreContentView: View {
         } else {
             EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: columnVisabilityProxy)
                 .onAppear {
+                    hideSidebarForLiveScoringIfNeeded()
                     rememberActiveScoringSession(for: game)
                 }
         }
@@ -447,6 +449,16 @@ struct ScoreContentView: View {
             columnVisability = restoredColumnVisibility
         }
         wakeRestoration.clearCurrentProcessWakeRestore()
+    }
+
+    private func hideSidebarForLiveScoringIfNeeded() {
+        guard UIDevice.type == "iPad" else { return }
+        columnVisability = ScoreKeepIPadNavigationPolicy.fullWidthWorkflowVisibility
+    }
+
+    private func restoreSidebarAtRootIfNeeded() {
+        guard UIDevice.type == "iPad" else { return }
+        columnVisability = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
     }
 
     private func applySuccessfulGameCreationAllowanceTransaction(for gameID: UUID) {

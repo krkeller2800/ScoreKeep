@@ -119,7 +119,7 @@ struct ScoreKeepSettingsView: View {
 
     private var helpSection: some View {
         Section("Help") {
-            Button("Help Documentation") {
+            Button("Help") {
                 routeOut(to: onOpenHelp)
             }
 

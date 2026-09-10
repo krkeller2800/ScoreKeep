@@ -7,12 +7,17 @@
 
 import SwiftUI
 
+enum ScoreKeepIPadNavigationPolicy {
+    static let sidebarRootVisibility = NavigationSplitViewVisibility.doubleColumn
+    static let fullWidthWorkflowVisibility = NavigationSplitViewVisibility.detailOnly
+}
+
 struct StartView: View {
     @Environment(\.modelContext) var modelContext
     @EnvironmentObject var router: AppRouter
     @Environment(\.colorScheme) private var colorScheme
     @State private var didLogPaths = false
-    @State var columnVisibility = NavigationSplitViewVisibility.doubleColumn
+    @State var columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
     @State private var flagNames = ["presentGames","presentTeams","presentPlayers","presentScoreGame","presentPaste","presentHelp","presentShareLineup","importPlayers","presentScreenShot"]
     @State private var flags:[Bool] = [true,false,false,false,false,false,false,false,false]
     @State private var navigationPath = NavigationPath()
@@ -31,13 +36,17 @@ struct StartView: View {
     private var sidebarShareIconForeground: Color {
         colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.78)
     }
+
+    private var sidebarToggleRemoval: ToolbarDefaultItemKind? {
+        columnVisibility == ScoreKeepIPadNavigationPolicy.sidebarRootVisibility ? .sidebarToggle : nil
+    }
   
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack {
                 Button("\n\n\n\n\nGames") {
                     setFlags(flag: "presentGames")
-                    columnVisibility = .doubleColumn
+                    columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
                 }
                 .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
@@ -50,7 +59,7 @@ struct StartView: View {
                 Spacer()
                 Button("\n\n\n\n\nTeams") {
                     setFlags(flag: "presentTeams")
-                    columnVisibility = .doubleColumn
+                    columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
                 }
                 .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
@@ -75,7 +84,7 @@ struct StartView: View {
 //                Spacer()
                 Button("\n\n\n\n\nPaste in Players") {
                     setFlags(flag: "presentPaste")
-                    columnVisibility = .doubleColumn
+                    columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
                 }
                 .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
@@ -86,9 +95,9 @@ struct StartView: View {
                     .brightness(sidebarIconBrightness)
                     }
                 Spacer()
-                Button("\n\n\n\n\nHelp Documentation") {
+                Button("\n\n\n\n\nHelp") {
                     setFlags(flag: "presentHelp")
-                    columnVisibility = .doubleColumn
+                    columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
                 }
                 .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
@@ -101,7 +110,7 @@ struct StartView: View {
                 Spacer()
                 Button("\n\n\n\n\nShare Data") {
                     setFlags(flag: "presentShareLineup")
-                    columnVisibility = .doubleColumn
+                    columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
                 }
                 .foregroundStyle(sidebarForeground).bold().italic().font(.caption)
                 .background {
@@ -144,7 +153,7 @@ struct StartView: View {
             } else if flags[4] {
                 PasteView()
             } else if flags[5] {
-                PdfView()
+                ScoreKeepHelpRoute()
             } else if flags[6] {
                 ShareContentView()
             } else if flags[7] {
@@ -174,7 +183,7 @@ struct StartView: View {
             if isImportFileURL(url) {
                 importUrl = url
                 setFlags(flag: "importPlayers")
-                columnVisibility = .detailOnly
+                columnVisibility = ScoreKeepIPadNavigationPolicy.fullWidthWorkflowVisibility
             }
         }
         .onReceive(router.$destination) { dest in
@@ -183,10 +192,11 @@ struct StartView: View {
             case .shareDownloadTeams:
                 // Show the Share view in the detail when deep link requests downloads
                 setFlags(flag: "presentShareLineup")
-                columnVisibility = .doubleColumn
+                columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom )
+        .toolbar(removing: sidebarToggleRemoval)
         .task {
             guard !didLogPaths else { return }
             didLogPaths = true
@@ -196,12 +206,12 @@ struct StartView: View {
 
     private func openShareDataFromSettings() {
         setFlags(flag: "presentShareLineup")
-        columnVisibility = .doubleColumn
+        columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
     }
 
     private func openHelpFromSettings() {
         setFlags(flag: "presentHelp")
-        columnVisibility = .doubleColumn
+        columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
     }
 
     func setFlags(flag flagName: String) {
