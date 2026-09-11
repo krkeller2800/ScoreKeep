@@ -57,7 +57,11 @@ struct StartPhoneView: View {
             .tag(2)
             ScoreKeepHelpRoute()
             .tabItem {
-                Image("phelp")
+                if let scaledHelp = Self.phoneHelpTabImage {
+                    Image(uiImage: scaledHelp)
+                } else {
+                    Image("phelp").renderingMode(.original)
+                }
                 Text("Help").padding(.horizontal,5)
             }
             .tag(3)
@@ -136,6 +140,20 @@ struct StartPhoneView: View {
             return .shareDownloadTeams(prefill: prefill)
         }
         return nil
+    }
+
+    private static var phoneHelpTabImage: UIImage? {
+        guard let source = UIImage(named: "phelp") else { return nil }
+        let size = CGSize(width: 50, height: 50)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = false
+
+        return UIGraphicsImageRenderer(size: size, format: format)
+            .image { _ in
+                source.draw(in: CGRect(origin: .zero, size: size))
+            }
+            .withRenderingMode(.alwaysOriginal)
     }
 }
 
