@@ -40,7 +40,7 @@ struct LiveScoringWorkflowCoordinatorTests {
     func blankFirstCurrentCellWithStartingPitcherSelectsExistingLineupPlaceholder() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
-        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        _ = Fixture.insertPitcher(for: fixture, into: store.context)
         try store.context.save()
         let coordinator = LiveScoringWorkflowCoordinator()
 
@@ -125,7 +125,7 @@ struct LiveScoringWorkflowCoordinatorTests {
     func selectingEmptyScorecardCellCreatesOneLegacyPlaceholderAtbatAndNoCanonicalRecords() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
-        let pitcher = Fixture.insertPitcher(for: fixture, into: store.context)
+        _ = Fixture.insertPitcher(for: fixture, into: store.context)
         fixture.visitingFirst.result = "Ground Out"
         fixture.visitingFirst.seq = 1
         fixture.visitingFirst.outs = 1
@@ -3104,12 +3104,12 @@ struct LiveScoringWorkflowCoordinatorTests {
         let newContainer = try ModelContainer(for: schema, configurations: [configuration])
         let newContext = ModelContext(newContainer)
 
-        var evidenceDescriptor = FetchDescriptor<LegacyScoringOperationEvidenceRecord>()
+        let evidenceDescriptor = FetchDescriptor<LegacyScoringOperationEvidenceRecord>()
         let evidence = try newContext.fetch(evidenceDescriptor)
         #expect(evidence.count == 1)
         #expect(evidence.first?.operationIdentity == operationIdentity)
 
-        var gameDescriptor = FetchDescriptor<Game>()
+        let gameDescriptor = FetchDescriptor<Game>()
         let games = try newContext.fetch(gameDescriptor)
         let reloadedGame = try #require(games.first { $0.ident == gameIdentity })
 
@@ -4138,7 +4138,7 @@ struct Task719Suite {
 
         let prepared = disabledCoordinator.prepareLiveGameState(game: fixture.game, battingTeam: fixture.visitingTeam, displayedAtbats: fixture.displayedAtbats, pitchers: [pitcher])
         let semantic = disabledCoordinator.semanticScoreState(preparedState: prepared, displayedAtbats: fixture.displayedAtbats)
-        let actions = disabledCoordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
+        _ = disabledCoordinator.enabledScoringActions(preparedState: prepared, semanticScoreState: semantic, displayedAtbats: fixture.displayedAtbats, supportedLegacyResults: ["Single"])
 
         let submitResultLegacy = disabledCoordinator.submitScoringAction(
             legacyResult: "Single",

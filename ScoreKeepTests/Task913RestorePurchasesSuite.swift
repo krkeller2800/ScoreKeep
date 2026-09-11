@@ -2,15 +2,39 @@ import XCTest
 @testable import ScoreKeep
 import StoreKit
 
+private actor RestoreActionSpy {
+    private var called = false
+
+    func markCalled() {
+        called = true
+    }
+
+    func wasCalled() -> Bool {
+        called
+    }
+}
+
 @MainActor
 final class Task913RestorePurchasesSuite: XCTestCase {
+    private let keychain = KeychainService()
+    private let entitlementKey = "seasonPassMaxExpirationISO8601"
+
+    override func setUp() {
+        super.setUp()
+        try? keychain.delete(entitlementKey)
+    }
+
+    override func tearDown() {
+        try? keychain.delete(entitlementKey)
+        super.tearDown()
+    }
+
     
     func testSuccessfulRestoreUpdatesStateAndEntitlement() async {
-        let catalogFetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let entitlementFetcher = SpyEntitlementFetcher()
         // Provide the evidence that refreshEntitlements will find during restore
@@ -18,14 +42,14 @@ final class Task913RestorePurchasesSuite: XCTestCase {
             TransactionEvidenceInput(productID: productID, isVerified: true, isRevoked: false)
         ]
         
-        var restoreActionCalled = false
+        let restoreAction = RestoreActionSpy()
         
         let manager = PurchaseManager(
             entitlementFetcher: entitlementFetcher,
             catalogFetcher: catalogFetcher,
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
             purchaseAction: { _ in return PurchaseManager.PurchaseOutcome.success(verified: true) },
-            restoreAction: { restoreActionCalled = true }
+            restoreAction: { await restoreAction.markCalled() }
         )
         
         await manager.loadProducts()
@@ -37,7 +61,8 @@ final class Task913RestorePurchasesSuite: XCTestCase {
         // Trigger restore
         await manager.restore()
         
-        XCTAssertTrue(restoreActionCalled, "Restore action should be called")
+        let restoreWasCalled = await restoreAction.wasCalled()
+        XCTAssertTrue(restoreWasCalled, "Restore action should be called")
         XCTAssertTrue(manager.isRestoreSuccessful, "Restore successful state should be published")
         XCTAssertFalse(manager.isNothingToRestore)
         XCTAssertTrue(manager.isSeasonPassActive, "Entitlement should be refreshed and active")
@@ -45,24 +70,23 @@ final class Task913RestorePurchasesSuite: XCTestCase {
     }
     
     func testNoPurchasesToRestoreUpdatesState() async {
-        let catalogFetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let entitlementFetcher = SpyEntitlementFetcher()
         // Empty inputs simulating no prior purchases
         entitlementFetcher.inputs = []
         
-        var restoreActionCalled = false
+        let restoreAction = RestoreActionSpy()
         
         let manager = PurchaseManager(
             entitlementFetcher: entitlementFetcher,
             catalogFetcher: catalogFetcher,
             currentDate: { Date(timeIntervalSince1970: 1748736000) }, // Jun 1, 2025
             purchaseAction: { _ in return PurchaseManager.PurchaseOutcome.success(verified: true) },
-            restoreAction: { restoreActionCalled = true }
+            restoreAction: { await restoreAction.markCalled() }
         )
         
         await manager.loadProducts()
@@ -74,7 +98,8 @@ final class Task913RestorePurchasesSuite: XCTestCase {
         // Trigger restore
         await manager.restore()
         
-        XCTAssertTrue(restoreActionCalled, "Restore action should be called")
+        let restoreWasCalled = await restoreAction.wasCalled()
+        XCTAssertTrue(restoreWasCalled, "Restore action should be called")
         XCTAssertFalse(manager.isRestoreSuccessful)
         XCTAssertTrue(manager.isNothingToRestore, "Nothing to restore state should be published")
         XCTAssertFalse(manager.isSeasonPassActive, "Entitlement should remain inactive")

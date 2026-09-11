@@ -8,11 +8,10 @@ final class Task912PurchaseFailureSuite: XCTestCase {
     struct DummyError: Error {}
     
     func testPurchaseFailureUpdatesStateAndLeavesEntitlementUnchanged() async {
-        let catalogFetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let manager = PurchaseManager(
             entitlementFetcher: StoreKitCurrentEntitlementFetcher(), // Default, shouldn't be called

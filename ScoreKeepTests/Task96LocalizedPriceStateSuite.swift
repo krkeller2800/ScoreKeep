@@ -3,21 +3,58 @@ import StoreKit
 @testable import ScoreKeep
 
 struct MockProduct: DiscoveredProduct {
-    var id: String
-    var displayName: String
-    var displayPrice: String
-    var description: String
+    let id: String
+    let displayName: String
+    let displayPrice: String
+    let description: String
+}
+
+enum MockProductCatalogFetcherError: Error, Sendable {
+    case requestedFailure
 }
 
 final class MockProductCatalogFetcher: ProductCatalogFetching {
-    var productsToReturn: [DiscoveredProduct] = []
-    var errorToThrow: Error?
+    let productsToReturn: [any DiscoveredProduct]
+    let errorToThrow: MockProductCatalogFetcherError?
+
+    init(
+        productsToReturn: [any DiscoveredProduct] = [],
+        errorToThrow: MockProductCatalogFetcherError? = nil
+    ) {
+        self.productsToReturn = productsToReturn
+        self.errorToThrow = errorToThrow
+    }
 
     func fetchProducts(for identifiers: [String]) async throws -> [DiscoveredProduct] {
         if let error = errorToThrow {
             throw error
         }
         return productsToReturn.filter { identifiers.contains($0.id) }
+    }
+}
+
+private actor MockProductCatalogFetchCounter {
+    private var count = 0
+
+    func next() -> Int {
+        count += 1
+        return count
+    }
+}
+
+final class SequencedMockProductCatalogFetcher: ProductCatalogFetching {
+    private let firstProducts: [any DiscoveredProduct]
+    private let counter = MockProductCatalogFetchCounter()
+
+    init(firstProducts: [any DiscoveredProduct]) {
+        self.firstProducts = firstProducts
+    }
+
+    func fetchProducts(for identifiers: [String]) async throws -> [DiscoveredProduct] {
+        if await counter.next() == 1 {
+            return firstProducts.filter { identifiers.contains($0.id) }
+        }
+        throw MockProductCatalogFetcherError.requestedFailure
     }
 }
 
@@ -30,11 +67,10 @@ final class Task96LocalizedPriceStateSuite: XCTestCase {
     }
 
     func testSuccessfulLocalizedProductDiscovery() async {
-        let fetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        fetcher.productsToReturn = [
+        let fetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
 
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
@@ -54,7 +90,6 @@ final class Task96LocalizedPriceStateSuite: XCTestCase {
 
     func testUnavailableProductState() async {
         let fetcher = MockProductCatalogFetcher()
-        fetcher.productsToReturn = [] // Product is unavailable
 
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
@@ -69,8 +104,7 @@ final class Task96LocalizedPriceStateSuite: XCTestCase {
     }
 
     func testDiscoveryFailureState() async {
-        let fetcher = MockProductCatalogFetcher()
-        fetcher.errorToThrow = NSError(domain: "Test", code: 1, userInfo: nil)
+        let fetcher = MockProductCatalogFetcher(errorToThrow: .requestedFailure)
 
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
@@ -85,13 +119,12 @@ final class Task96LocalizedPriceStateSuite: XCTestCase {
     }
 
     func testNoStalePricePresentationAfterFailure() async {
-        let fetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
 
         // 1. Success first
-        fetcher.productsToReturn = [
+        let fetcher = SequencedMockProductCatalogFetcher(firstProducts: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
 
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
@@ -107,7 +140,6 @@ final class Task96LocalizedPriceStateSuite: XCTestCase {
         }
 
         // 2. Now fail
-        fetcher.errorToThrow = NSError(domain: "Test", code: 1, userInfo: nil)
         await manager.loadProducts()
 
         XCTAssertEqual(manager.priceState, .failure(.lookupFailed))

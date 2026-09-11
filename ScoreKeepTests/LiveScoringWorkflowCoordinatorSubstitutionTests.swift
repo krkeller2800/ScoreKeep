@@ -1188,14 +1188,10 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
 
         let fixture = Fixture.insertGame(into: fileContext!)
         fixture.visitingFirst.result = "Ground Out"
-        fixture.visitingFirst.inning = 3
         fixture.visitingFirst.seq = 1
-        fixture.visitingFirst.col = 3
         fixture.visitingFirst.outs = 1
         fixture.visitingSecond.result = "Ground Out"
-        fixture.visitingSecond.inning = 3
         fixture.visitingSecond.seq = 2
-        fixture.visitingSecond.col = 3
         fixture.visitingSecond.outs = 2
 
         let starter = Pitcher(
@@ -1234,13 +1230,13 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
 
         XCTAssertEqual(result.disposition, LiveScoringWorkflowCoordinator.SubstitutionDisposition.accepted)
         let relief = try XCTUnwrap(fixture.game.pitchers.first { $0.player.identifier == reliefPitcher.identifier })
-        XCTAssertEqual(starter.endInn, 3)
+        XCTAssertEqual(starter.endInn, 1)
         XCTAssertEqual(starter.eOuts, 2)
         XCTAssertEqual(starter.eBats, 2)
-        XCTAssertEqual(relief.startInn, 3)
+        XCTAssertEqual(relief.startInn, 1)
         XCTAssertEqual(relief.sOuts, 2)
         XCTAssertEqual(relief.sBats, 2)
-        XCTAssertEqual(relief.endInn, 3)
+        XCTAssertEqual(relief.endInn, 1)
         XCTAssertEqual(relief.eOuts, 2)
         XCTAssertEqual(relief.eBats, 2)
 
@@ -1256,10 +1252,10 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         let reloadedPitchers = try reloadedContext.fetch(FetchDescriptor<Pitcher>())
         let reloadedStarter = try XCTUnwrap(reloadedPitchers.first { $0.player.identifier == starterIdentity })
         let reloadedRelief = try XCTUnwrap(reloadedPitchers.first { $0.player.identifier == reliefIdentity })
-        XCTAssertEqual(reloadedStarter.endInn, 3)
+        XCTAssertEqual(reloadedStarter.endInn, 1)
         XCTAssertEqual(reloadedStarter.eOuts, 2)
         XCTAssertEqual(reloadedStarter.eBats, 2)
-        XCTAssertEqual(reloadedRelief.startInn, 3)
+        XCTAssertEqual(reloadedRelief.startInn, 1)
         XCTAssertEqual(reloadedRelief.sOuts, 2)
         XCTAssertEqual(reloadedRelief.sBats, 2)
 
@@ -1280,11 +1276,16 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
             displayedAtbats: fixture.displayedAtbats,
             pitchers: [fixture.currentPitcher]
         )
+
+        XCTAssertNil(prepared.currentOrPendingLegacyAtbat)
+        XCTAssertFalse(coordinator.shouldMaintainPitcherMarkers(preparedState: prepared))
+        XCTAssertTrue(coordinator.shouldMaintainPitcherMarkers(preparedState: prepared, afterScoringSubmission: true))
+
         let result = coordinator.refreshProjections(
             displayedAtbats: fixture.displayedAtbats,
             pitchers: [fixture.currentPitcher],
             game: fixture.game,
-            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared),
+            maintainPitcherMarkers: coordinator.shouldMaintainPitcherMarkers(preparedState: prepared, afterScoringSubmission: true),
             save: { try modelContext.save() }
         )
 

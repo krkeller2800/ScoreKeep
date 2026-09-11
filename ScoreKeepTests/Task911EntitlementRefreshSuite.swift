@@ -16,11 +16,10 @@ final class SpyEntitlementFetcher: CurrentEntitlementFetching, @unchecked Sendab
 final class Task911EntitlementRefreshSuite: XCTestCase {
     
     func testVerifiedPurchaseRefreshesEntitlementAndUnlocksAccess() async {
-        let catalogFetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let entitlementFetcher = SpyEntitlementFetcher()
         // Provide the evidence that refreshEntitlements will find
@@ -49,11 +48,10 @@ final class Task911EntitlementRefreshSuite: XCTestCase {
     }
     
     func testUnverifiedPurchaseDoesNotRefreshEntitlement() async {
-        let catalogFetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let entitlementFetcher = SpyEntitlementFetcher()
         
@@ -73,11 +71,10 @@ final class Task911EntitlementRefreshSuite: XCTestCase {
     }
     
     func testDuplicateRefreshIsAvoidedWhenAlreadyActive() async {
-        let catalogFetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let entitlementFetcher = SpyEntitlementFetcher()
         entitlementFetcher.inputs = [

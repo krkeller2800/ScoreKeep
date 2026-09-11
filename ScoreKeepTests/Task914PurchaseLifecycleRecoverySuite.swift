@@ -19,10 +19,9 @@ final class Task914PurchaseLifecycleRecoverySuite: XCTestCase {
     }
 
     func testTransientStateCleanupOnNewPurchaseWorkflow() async {
-        let catalogFetcher = MockProductCatalogFetcher()
-        catalogFetcher.productsToReturn = [
+        let catalogFetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: "com.komakode.ScoreKeep.SeasonPass2025", displayName: "Pass", displayPrice: "$1", description: "Pass")
-        ]
+        ])
 
         let manager = PurchaseManager(
             entitlementFetcher: SpyEntitlementFetcher(),

@@ -6,11 +6,10 @@ import StoreKit
 final class Task99PurchaseCancellationSuite: XCTestCase {
     
     func testPurchaseCancellationUpdatesState() async {
-        let fetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
         
         let mockProduct = MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        fetcher.productsToReturn = [mockProduct]
+        let fetcher = MockProductCatalogFetcher(productsToReturn: [mockProduct])
         
         let manager = PurchaseManager(
             catalogFetcher: fetcher,

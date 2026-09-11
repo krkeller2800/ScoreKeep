@@ -5,11 +5,10 @@ import XCTest
 final class Task97PurchaseRequestSuite: XCTestCase {
     
     func testPurchaseRequestBeginsWhenProductIsAvailable() async {
-        let fetcher = MockProductCatalogFetcher()
         let productID = "com.komakode.ScoreKeep.SeasonPass2025"
-        fetcher.productsToReturn = [
+        let fetcher = MockProductCatalogFetcher(productsToReturn: [
             MockProduct(id: productID, displayName: "Season Pass", displayPrice: "$19.99", description: "ScoreKeep Season Pass")
-        ]
+        ])
         
         let manager = PurchaseManager(
             catalogFetcher: fetcher,
