@@ -117,6 +117,7 @@ struct EditGameView: View {
                             .labelsHidden()
                             .lineLimit(1)
                             .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, UIDevice.type == "iPad" ? 0 : 10)
 
                             addTeamRoleButton(for: .visiting, accessibilityLabel: "Add visiting team")
                         }
@@ -141,6 +142,7 @@ struct EditGameView: View {
                             .labelsHidden()
                             .lineLimit(1)
                             .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, UIDevice.type == "iPad" ? 0 : 10)
 
                             addTeamRoleButton(for: .home, accessibilityLabel: "Add home team")
                         }
