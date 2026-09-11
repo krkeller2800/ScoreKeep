@@ -1714,6 +1714,8 @@ struct LiveScoringWorkflowCoordinator {
 
         let team = outgoingPlayer.team!
         let gameAtbats = authoritativeGame.atbats.filter { $0.team.ident == team.ident }
+        let teamRoster = (try? modelContext.fetch(FetchDescriptor<Player>()))?.filter { $0.team?.ident == team.ident } ?? []
+        let participation = GameLineupParticipation.snapshot(game: authoritativeGame, team: team, rosterPlayers: teamRoster)
 
         if authoritativeGame.replaced.contains(where: { $0.identifier == outgoingPlayer.identifier }) &&
            authoritativeGame.incomings.contains(where: { $0.identifier == incomingPlayer.identifier }) {
@@ -1723,23 +1725,46 @@ struct LiveScoringWorkflowCoordinator {
                  message: "This substitution has already been processed."
              )
         }
+        guard participation.activePlayers.contains(where: { $0.identifier == outgoingPlayer.identifier }) else {
+            return SubstitutionSubmissionResult(
+                disposition: .duplicateOrConflicting,
+                refreshedState: nil,
+                message: "The outgoing player is not currently active in this lineup."
+            )
+        }
+        guard participation.availableReplacementPlayers.contains(where: { $0.identifier == incomingPlayer.identifier }) else {
+            return SubstitutionSubmissionResult(
+                disposition: .duplicateOrConflicting,
+                refreshedState: nil,
+                message: "The incoming player is not available for this substitution."
+            )
+        }
+        guard let outgoingSlot = GameLineupParticipation.firstColumnLineupRows(game: authoritativeGame, team: team)
+            .first(where: { $0.player.identifier == outgoingPlayer.identifier })?
+            .batOrder else {
+            return SubstitutionSubmissionResult(
+                disposition: .duplicateOrConflicting,
+                refreshedState: nil,
+                message: "The outgoing player's batting slot could not be resolved."
+            )
+        }
+        // Product decision: pre-first-PA player changes are lineup corrections, not substitutions.
+        // See ScoreKeep/Docs/LineupAndScoringDesign.md.
+        guard GameLineupParticipation.hasCompletedFirstPlateAppearance(slot: outgoingSlot, game: authoritativeGame, team: team) else {
+            return SubstitutionSubmissionResult(
+                disposition: .duplicateOrConflicting,
+                refreshedState: nil,
+                message: "This batting slot has not completed its first plate appearance. Use lineup correction before the first trip through the order."
+            )
+        }
 
         let rollback = LegacySubstitutionRollbackSnapshot(game: authoritativeGame)
 
-        incomingPlayer.batOrder = outgoingPlayer.batOrder + 1
         authoritativeGame.replaced.append(outgoingPlayer)
         authoritativeGame.incomings.append(incomingPlayer)
 
-        let allTeamPlayers = (try? modelContext.fetch(FetchDescriptor<Player>()))?.filter { $0.team?.ident == team.ident } ?? []
-        for player in allTeamPlayers {
-            if player.batOrder >= incomingPlayer.batOrder && player.identifier != incomingPlayer.identifier && player.identifier != outgoingPlayer.identifier && player.batOrder < 99 {
-                player.batOrder += 1
-            }
-        }
-
         var newseq = Array(repeating: 999, count: 20)
         for atbat in gameAtbats {
-            atbat.batOrder = atbat.player.batOrder
             if atbat.player.identifier == outgoingPlayer.identifier {
                 newseq[atbat.col] = atbat.seq + 1
             }
@@ -1756,7 +1781,7 @@ struct LiveScoringWorkflowCoordinator {
                     player: incomingPlayer,
                     result: "Pitch Hitter",
                     maxbase: "No Bases",
-                    batOrder: incomingPlayer.batOrder,
+                    batOrder: outgoingSlot,
                     outAt: "Safe",
                     inning: atbat.inning,
                     seq: newseq[atbat.col],
@@ -2077,8 +2102,8 @@ struct LiveScoringWorkflowCoordinator {
         game: Game
     ) {
         let firstTeam = displayedAtbats.first?.team
-        let currentBatter = displayedAtbats.sorted(by: atbatPrecedes).last(where: { $0.result != "Result" })
-        let currentBoundary = pitcherBoundary(after: currentBatter)
+        let hasCompletedScoringAtbat = latestCompletedScoringAtbat(in: displayedAtbats) != nil
+        let currentBoundary = pitcherBoundary(afterScoringAtbats: displayedAtbats)
         let opposingPitchers = pitchers.filter { $0.team != firstTeam && $0.game.ident == game.ident }
         guard let currentPitcher = opposingPitchers.last else { return }
 
@@ -2106,8 +2131,8 @@ struct LiveScoringWorkflowCoordinator {
             }
         }
 
-        if let currentBatter {
-            let endBoundary = pitcherBoundary(after: currentBatter)
+        if hasCompletedScoringAtbat {
+            let endBoundary = currentBoundary
             currentPitcher.endInn = endBoundary.inning
             currentPitcher.eOuts = endBoundary.outs
             currentPitcher.eBats = endBoundary.batters
@@ -2123,20 +2148,38 @@ struct LiveScoringWorkflowCoordinator {
         }
     }
 
-    private func pitcherBoundary(after currentBatter: Atbat?) -> (inning: Int, outs: Int, batters: Int) {
-        guard let currentBatter else {
-            return (inning: 1, outs: 0, batters: 0)
+    private func latestCompletedScoringAtbat(in displayedAtbats: [Atbat]) -> Atbat? {
+        displayedAtbats
+            .sorted(by: atbatPrecedes)
+            .last(where: { $0.result != "Result" && $0.result != "Pitch Hitter" })
+    }
+
+    private func pitcherBoundary(afterScoringAtbats displayedAtbats: [Atbat]) -> (inning: Int, outs: Int, batters: Int) {
+        var inning = 1
+        var outs = 0
+        var batters = 0
+        var boundary = (inning: inning, outs: outs, batters: batters)
+
+        for atbat in displayedAtbats.sorted(by: atbatPrecedes) where atbat.result != "Result" && atbat.result != "Pitch Hitter" {
+            if outs == 3 {
+                inning += 1
+                outs = 0
+                batters = 0
+            }
+
+            batters += 1
+            if common.outresults.contains(atbat.result) || atbat.outAt != "Safe" {
+                outs += 1
+            }
+
+            if outs == 3 || atbat.endOfInning {
+                boundary = (inning: inning + 1, outs: 0, batters: 0)
+            } else {
+                boundary = (inning: inning, outs: outs, batters: batters)
+            }
         }
 
-        if currentBatter.outs == 3 || currentBatter.endOfInning {
-            return (inning: Int(currentBatter.inning.rounded(.up)) + 1, outs: 0, batters: 0)
-        }
-
-        return (
-            inning: Int(currentBatter.inning.rounded(.up)),
-            outs: currentBatter.outs,
-            batters: currentBatter.seq
-        )
+        return boundary
     }
 
     private func canonicalReplacementEvent(
@@ -2430,9 +2473,8 @@ struct LiveScoringWorkflowCoordinator {
         save: SaveAction
     ) -> (disposition: Disposition, message: String?) {
         let firstTeam = displayedAtbats.first?.team
-        let otherTeamHitting = displayedAtbats.sorted { ($0.col, $0.seq) < ($1.col, $1.seq) }
-        let currentBatter = otherTeamHitting.last(where: { $0.result != "Result" })
-        let currentBoundary = pitcherBoundary(after: currentBatter)
+        let hasCompletedScoringAtbat = latestCompletedScoringAtbat(in: displayedAtbats) != nil
+        let currentBoundary = pitcherBoundary(afterScoringAtbats: displayedAtbats)
         let opposingPitchers = pitchers.filter { $0.team != firstTeam }
 
         guard !opposingPitchers.isEmpty else { return (.noChange, nil) }
@@ -2478,8 +2520,8 @@ struct LiveScoringWorkflowCoordinator {
             }
         }
 
-        if let currentBatter {
-            let endBoundary = pitcherBoundary(after: currentBatter)
+        if hasCompletedScoringAtbat {
+            let endBoundary = currentBoundary
             currentPitcher.endInn = endBoundary.inning
             currentPitcher.eOuts = endBoundary.outs
             currentPitcher.eBats = endBoundary.batters

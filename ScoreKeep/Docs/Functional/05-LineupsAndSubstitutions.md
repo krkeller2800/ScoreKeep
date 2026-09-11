@@ -109,6 +109,8 @@ Temporary replacements, if supported by the selected rules, should be clearly la
 
 Maintaining batting order is required. A substitution should not create an extra batting position, skip a batting position, or reorder unrelated hitters unless the user is explicitly correcting the lineup and confirms the downstream effect.
 
+ScoreKeep's live-scoring boundary between correction and substitution is intentionally based on the batting slot's first completed plate appearance. Changing the player in a slot before that slot has completed its first plate appearance is a lineup correction, not substitution history. Once that slot has completed its first plate appearance, later player changes in that slot are true substitutions. This deliberately differs from official lineup-card semantics; the durable product rationale is documented in `ScoreKeep/Docs/LineupAndScoringDesign.md`.
+
 Recording timing is required for historical meaning. The substitution record should preserve when the change occurred relative to inning, outs, batter, runner state, and scored events so reports and later review can explain participation.
 
 Historical preservation is required. Offensive substitutions must not rewrite previous at-bats, plate appearances, runs, runner appearances, or scorecard entries as if the incoming player had always occupied that lineup position.

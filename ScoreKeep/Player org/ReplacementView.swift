@@ -264,28 +264,14 @@ struct ReplacementView: View {
     }
 
     func updateReplacementLists() {
-        let startAtbats = game.atbats.filter { $0.col == 1 && $0.batOrder < 50 && $0.team.id == team.id}
-        var newRplPlayers: [Player] = []
-        var newIncPlayers: [Player] = []
-
-        for player in players {
-            var isPlaying = false
-            for atbat in startAtbats {
-                if player.id == atbat.player.id {
-                    if player.batOrder != atbat.batOrder {
-                        player.batOrder = atbat.batOrder
-                    }
-                    newRplPlayers.append(player)
-                    isPlaying = true
-                }
-            }
-            if !isPlaying {
-                if player.batOrder != 99 {
-                    player.batOrder = 99
-                }
-                newIncPlayers.append(player)
-            }
-        }
+        let participation = GameLineupParticipation.snapshot(
+            game: game,
+            team: team,
+            rosterPlayers: players
+        )
+        let eligibleIDs = Set(GameLineupParticipation.substitutionEligibleActivePlayers(game: game, team: team).map(\.identifier))
+        let newRplPlayers = participation.activePlayers.filter { eligibleIDs.contains($0.identifier) }
+        let newIncPlayers = participation.availableReplacementPlayers
 
         let rplChanged = rplPlayers.map { $0.id } != newRplPlayers.map { $0.id }
         let incChanged = incPlayers.map { $0.id } != newIncPlayers.map { $0.id }

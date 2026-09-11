@@ -8,6 +8,71 @@
 import SwiftUI
 import SwiftData
 
+struct PasteLineupMappedRow: Equatable {
+    let number: String?
+    let firstName: String?
+    let lastName: String?
+    let batsDirection: String?
+    let position: String?
+    let batOrder: String?
+}
+
+enum PasteLineupHeaderRowPolicy {
+    static func isHeaderRow(_ row: PasteLineupMappedRow) -> Bool {
+        let mappedValues = [
+            row.number.map { ($0, Field.number) },
+            row.firstName.map { ($0, Field.firstName) },
+            row.lastName.map { ($0, Field.lastName) },
+            row.batsDirection.map { ($0, Field.batsDirection) },
+            row.position.map { ($0, Field.position) },
+            row.batOrder.map { ($0, Field.batOrder) }
+        ].compactMap { $0 }
+
+        guard mappedValues.count > 1 else { return false }
+        return mappedValues.filter { fieldMatchesHeader(value: $0.0, field: $0.1) }.count >= 2
+    }
+
+    private enum Field {
+        case number
+        case firstName
+        case lastName
+        case batsDirection
+        case position
+        case batOrder
+    }
+
+    private static func fieldMatchesHeader(value: String, field: Field) -> Bool {
+        let normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: ".", with: "")
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+
+        switch field {
+        case .number:
+            return ["#", "no", "num", "number", "jersey", "jersey number"].contains(normalized)
+        case .firstName:
+            return ["first", "first name", "firstname", "given name", "name", "player", "player name"].contains(normalized)
+        case .lastName:
+            return ["last", "last name", "lastname", "surname", "name", "player", "player name"].contains(normalized)
+        case .batsDirection:
+            return ["b", "bat", "bats", "batting", "batting direction", "direction", "l/r", "lr", "hand", "throws"].contains(normalized)
+        case .position:
+            return ["pos", "position", "positions"].contains(normalized)
+        case .batOrder:
+            return ["bo", "order", "bat order", "batting order", "lineup", "lineup order", "slot"].contains(normalized)
+        }
+    }
+}
+
+enum PasteLineupBattingOrderPolicy {
+    static func resolvedOrder(mappedValue: String, usesPasteOrder: Bool, importedPlayerIndex: Int) -> Int {
+        let mappedOrder = usesPasteOrder ? importedPlayerIndex + 1 : Int(mappedValue.trimmingCharacters(in: .whitespaces))
+        return PlayerRosterBattingOrder.normalizedRosterOrder(mappedOrder ?? PlayerRosterBattingOrder.notHitting)
+    }
+}
+
 struct PasteView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
@@ -455,18 +520,35 @@ struct PasteView: View {
                 alertMessage = "Please pick a Delimeter"
                 showingAlert = true
             } else {
-                var x = 0
-                for _ in players {
+                var importedPlayerIndex = 0
+                for (x, player) in players.enumerated() {
                     let num = numberIdx == 0 ? "" : number[x]
                     let pos = positionIdx == 0 ? "" : position[x]
+                    let mappedFirstName = firstNameIdx == 0 ? "" : firstName[x]
+                    let mappedLastName = lastNameIdx == 0 ? "" : lastName[x]
                     var Name = firstNameIdx == 0 ? lastName[x]: ""
-                    Name = lastNameIdx == 0 ? Name :  firstNameIdx == 0 ? lastName[x] : String("\(firstName[x]) \(lastName[x])")
+                    Name = lastNameIdx == 0 ? Name :  firstNameIdx == 0 ? lastName[x] : String("\(mappedFirstName) \(mappedLastName)")
                     Name = Name.removeAccents()
                     Name = Name.split(separator: " ").count > 2 ? String(Name.split(separator: " ").first! + " " + Name.split(separator: " ").last!) : Name
                     let batdir = batsDirIdx == 0 ? "" : batsDirection[x]
-                    let order = Int(batOrder[x].trimmingCharacters(in: .whitespaces))
-                    let bOrder = order ?? 99 > 0 ? order ?? 99 : 99
-                    if bOrder < 20 {
+                    let usesPasteOrder = batOrderIdx != 0 && batOrderIdx == player.components(separatedBy: delimeter).count + 2
+                    let mappedRow = PasteLineupMappedRow(
+                        number: numberIdx == 0 ? nil : num,
+                        firstName: firstNameIdx == 0 ? nil : mappedFirstName,
+                        lastName: lastNameIdx == 0 ? nil : mappedLastName,
+                        batsDirection: batsDirIdx == 0 ? nil : batdir,
+                        position: positionIdx == 0 ? nil : pos,
+                        batOrder: usesPasteOrder || batOrderIdx == 0 ? nil : batOrder[x]
+                    )
+                    if PasteLineupHeaderRowPolicy.isHeaderRow(mappedRow) {
+                        continue
+                    }
+                    let bOrder = PasteLineupBattingOrderPolicy.resolvedOrder(
+                        mappedValue: batOrder[x],
+                        usesPasteOrder: usesPasteOrder,
+                        importedPlayerIndex: importedPlayerIndex
+                    )
+                    if RosterImportReconciler.activeSlot(bOrder) != nil {
                         for splayer in selectPlayers.filter({Int($0.batOrder) == bOrder}) {
                             splayer.batOrder = 99
                         }
@@ -484,7 +566,7 @@ struct PasteView: View {
                         modelContext.insert(player)
                         try? modelContext.save()
                     }
-                    x += 1
+                    importedPlayerIndex += 1
                 }
                 try? modelContext.save()
                 selectPlayers.removeAll()
@@ -673,4 +755,3 @@ struct PasteView: View {
         }
     }
 }
-

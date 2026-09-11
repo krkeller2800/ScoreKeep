@@ -436,6 +436,71 @@ struct RosterImportReconciliationTests {
         #expect(activeSlotCounts(players)[2] == 1)
     }
 
+    @Test("imported boss preserves ordered roster values above forty nine and not hitting sentinel")
+    func importedBossPreservesRosterOrdersAboveFortyNineAndNotHittingSentinel() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let team = Team(name: "Large Roster", coach: "", details: "")
+        let existingOrdered = Player(name: "Existing Ordered", number: "52", position: "OF", batDir: "R", batOrder: 1, team: team)
+        let existingNotHitting = Player(name: "Existing Bench", number: "99", position: "P", batDir: "L", batOrder: 1, team: team)
+        environment.context.insert(team)
+        environment.context.insert(existingOrdered)
+        environment.context.insert(existingNotHitting)
+        try environment.save()
+
+        try ImportService(modelContext: environment.context).importPlayers(
+            [
+                sharePlayer(name: "Existing Ordered", number: "52", position: "OF", batDir: "R", batOrder: 52),
+                sharePlayer(name: "Existing Bench", number: "99", position: "P", batDir: "L", batOrder: 99),
+                sharePlayer(name: "Incoming Sixty", number: "60", position: "CF", batDir: "S", batOrder: 60)
+            ],
+            teamName: "Large Roster",
+            strategy: .imported
+        )
+
+        let players = try fetchPlayers(environment, teamName: "Large Roster")
+        #expect(players.first { $0.name == "Existing Ordered" }?.batOrder == 52)
+        #expect(players.first { $0.name == "Existing Bench" }?.batOrder == 99)
+        #expect(players.first { $0.name == "Incoming Sixty" }?.batOrder == 60)
+    }
+
+    @Test("current boss treats roster order above forty nine as valid existing order")
+    func currentBossTreatsRosterOrderAboveFortyNineAsValidExistingOrder() throws {
+        let environment = try IsolatedPersistenceEnvironment()
+        let team = Team(name: "Large Roster", coach: "", details: "")
+        let existingOrdered = Player(name: "Existing Ordered", number: "52", position: "OF", batDir: "R", batOrder: 52, team: team)
+        let existingNotHitting = Player(name: "Existing Bench", number: "99", position: "P", batDir: "L", batOrder: 99, team: team)
+        environment.context.insert(team)
+        environment.context.insert(existingOrdered)
+        environment.context.insert(existingNotHitting)
+        try environment.save()
+
+        try ImportService(modelContext: environment.context).importPlayers(
+            [
+                sharePlayer(name: "Existing Ordered", number: "52", position: "RF", batDir: "L", batOrder: 12),
+                sharePlayer(name: "Existing Bench", number: "99", position: "P", batDir: "L", batOrder: 61)
+            ],
+            teamName: "Large Roster",
+            strategy: .current
+        )
+
+        let players = try fetchPlayers(environment, teamName: "Large Roster")
+        #expect(players.first { $0.name == "Existing Ordered" }?.batOrder == 52)
+        #expect(players.first { $0.name == "Existing Bench" }?.batOrder == 61)
+    }
+
+    @Test("share player codable round trip preserves roster order and not hitting sentinel")
+    func sharePlayerCodableRoundTripPreservesRosterOrderAndNotHittingSentinel() throws {
+        let source = [
+            sharePlayer(name: "Ordered Fifty Two", number: "52", position: "OF", batDir: "R", batOrder: 52),
+            sharePlayer(name: "Not Hitting", number: "99", position: "P", batDir: "L", batOrder: 99)
+        ]
+
+        let data = try JSONEncoder().encode(source)
+        let decoded = try JSONDecoder().decode([SharePlayer].self, from: data)
+
+        #expect(decoded.map(\.batOrder) == [52, 99])
+    }
+
     @Test("blue jays seed plus later imported boss roster keeps active slots unique")
     func blueJaysSeedPlusLaterImportKeepsActiveSlotsUnique() throws {
         let environment = try IsolatedPersistenceEnvironment()

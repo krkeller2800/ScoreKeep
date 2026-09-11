@@ -90,6 +90,22 @@ struct LineupSlotSafetyCoordinatorTests {
         #expect(result.lineup.everyoneHits)
     }
 
+    @Test func conventionalMaterializationUsesOnlyFirstNineRosterOrdersFromLargerRoster() throws {
+        let store = try LineupSlotStore()
+        let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 12, everyoneHits: false)
+
+        let result = try LineupSlotSafetyCoordinator.materializeLineupIfNeeded(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            modelContext: store.context
+        )
+
+        #expect(result.slots.count == 9)
+        #expect(result.slots.map(\.battingOrder) == Array(1...9))
+        #expect(result.slots.map { $0.player.batOrder } == Array(1...9))
+        #expect(fixture.visitingPlayers.suffix(3).map(\.batOrder) == [10, 11, 12])
+    }
+
     @Test func ambiguousDuplicateRosterSlotFailsClosedDuringMaterialization() throws {
         let store = try LineupSlotStore()
         let fixture = Fixture.insertRosterOnlyGame(into: store.context, playerCount: 2)

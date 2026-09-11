@@ -281,7 +281,7 @@ struct ImportPlayersView: View {
             boss: .imported,
             updateMatched: { currPlayer, sharePlayer in
                 currPlayer.number = !sharePlayer.number.isEmpty ? sharePlayer.number : currPlayer.number
-                currPlayer.batOrder = sharePlayer.batOrder < 50 ? sharePlayer.batOrder : currPlayer.batOrder
+                currPlayer.batOrder = PlayerRosterBattingOrder.normalizedRosterOrder(sharePlayer.batOrder)
                 currPlayer.batDir = !sharePlayer.batDir.isEmpty ? sharePlayer.batDir : currPlayer.batDir
                 currPlayer.position = !sharePlayer.position.isEmpty ? sharePlayer.position : currPlayer.position
                 currPlayer.photo = !sharePlayer.photo.isEmpty ? sharePlayer.photo : currPlayer.photo
@@ -311,7 +311,7 @@ struct ImportPlayersView: View {
             boss: .current,
             updateMatched: { currPlayer, sharePlayer in
                 currPlayer.number = currPlayer.number.isEmpty ? sharePlayer.number : currPlayer.number
-                currPlayer.batOrder = currPlayer.batOrder > 50 ? sharePlayer.batOrder : currPlayer.batOrder
+                currPlayer.batOrder = currPlayer.batOrder == PlayerRosterBattingOrder.notHitting ? PlayerRosterBattingOrder.normalizedRosterOrder(sharePlayer.batOrder) : currPlayer.batOrder
                 currPlayer.batDir = currPlayer.batDir.isEmpty ? sharePlayer.batDir : currPlayer.batDir
                 currPlayer.position = currPlayer.position.isEmpty ? sharePlayer.position : currPlayer.position
                 currPlayer.photo = (currPlayer.photo?.isEmpty ?? true) ? sharePlayer.photo : currPlayer.photo

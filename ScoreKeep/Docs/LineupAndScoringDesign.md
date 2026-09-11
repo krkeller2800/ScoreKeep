@@ -137,6 +137,22 @@ Replacement represents an actual substitution. It does not rewrite the original 
 
 Lineup correction must not be represented as Replacement. Pitcher selection and pitcher changes remain separate workflows. Do not conflate lineup correction, substitution, and pitching participation.
 
+## Lineup Correction vs. Substitution Boundary
+
+ScoreKeep intentionally treats a player change in a batting slot before that slot has completed its first plate appearance as a lineup correction. Once that batting slot has completed its first plate appearance, subsequent player changes in that slot are true substitutions.
+
+This is a ScoreKeep product decision, not an attempt to exactly reproduce the official MLB lineup-card boundary. Under official baseball rules, after the lineup becomes official, replacing a listed starter can constitute a substitution even if that player has not yet batted.
+
+ScoreKeep uses the first completed plate appearance for each batting slot because:
+
+- The scorer may not know when the official lineup was accepted by the umpire.
+- Last-minute scratches normally appear to the scorer simply as corrections to the starting lineup.
+- A completed first plate appearance is objective and observable from ScoreKeep's own game data.
+- The rule works consistently for conventional baseball, high school/American Legion, softball, Little League, and Everyone Hits lineups.
+- It avoids requiring an additional "lineup is official" action or state solely to model a relatively uncommon edge case.
+
+Future maintainers should not change this to official-lineup-card semantics without deliberately reconsidering the product decision, user workflow, persistence effects, and regression coverage.
+
 ## Upd Lineup
 
 The existing destructive whole-lineup `Upd Lineup` behavior is not the desired normal correction mechanism once scoring exists.

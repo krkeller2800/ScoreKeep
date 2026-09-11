@@ -205,7 +205,7 @@ struct ImportService {
                 switch strategy {
                 case .imported:
                     if !sp.number.isEmpty { curr.number = sp.number }
-                    if sp.batOrder < 50 { curr.batOrder = sp.batOrder }
+                    curr.batOrder = PlayerRosterBattingOrder.normalizedRosterOrder(sp.batOrder)
                     if !sp.batDir.isEmpty { curr.batDir = sp.batDir }
                     if !sp.position.isEmpty { curr.position = sp.position }
                     if !sp.photo.isEmpty { curr.photo = sp.photo }
@@ -213,7 +213,9 @@ struct ImportService {
 
                 case .current:
                     if curr.number.isEmpty { curr.number = sp.number }
-                    if curr.batOrder > 50 { curr.batOrder = sp.batOrder }
+                    if curr.batOrder == PlayerRosterBattingOrder.notHitting {
+                        curr.batOrder = PlayerRosterBattingOrder.normalizedRosterOrder(sp.batOrder)
+                    }
                     if curr.batDir.isEmpty { curr.batDir = sp.batDir }
                     if curr.position.isEmpty { curr.position = sp.position }
                     if (curr.photo?.isEmpty ?? true), !sp.photo.isEmpty {

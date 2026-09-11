@@ -264,6 +264,19 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(draft.photoData == photo)
     }
 
+    @Test("player roster order normalization preserves values above nineteen")
+    func playerRosterOrderNormalizationPreservesValuesAboveNineteen() {
+        let team = Team(name: "Large Roster", coach: "", details: "")
+        let player = Player(name: "Loaded Player", number: "24", position: "Catcher", batDir: "S", batOrder: 52, team: team)
+        let draft = PlayerFormDraft(player: player, fallbackTeam: team)
+
+        #expect(draft.batOrder == 52)
+        #expect(PlayerRosterBattingOrder.normalizedRosterOrder(20) == 20)
+        #expect(PlayerRosterBattingOrder.normalizedRosterOrder(52) == 52)
+        #expect(PlayerRosterBattingOrder.normalizedRosterOrder(99) == 99)
+        #expect(PlayerRosterBattingOrder.normalizedRosterOrder(0) == 99)
+    }
+
     @Test("edit save persists all draft changes through explicit save")
     func editSavePersistsAllDraftChangesThroughExplicitSave() throws {
         let editSource = try repositorySource("ScoreKeep/Edit Data/EditPlayerView.swift")

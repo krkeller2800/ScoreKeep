@@ -92,16 +92,20 @@ enum PlayerRosterBattingOrder {
     static let notHitting = 99
 
     static func normalizedRosterOrder(_ order: Int) -> Int {
-        (1...19).contains(order) ? order : notHitting
+        isOrderedRosterValue(order) ? order : notHitting
+    }
+
+    static func isOrderedRosterValue(_ order: Int) -> Bool {
+        order > 0 && order != notHitting
     }
 
     static func nextRosterOrder(after players: [Player]) -> Int {
-        let maxOrder = players.map(\.batOrder).filter { (1...18).contains($0) }.max() ?? 0
+        let maxOrder = players.map(\.batOrder).filter(isOrderedRosterValue).max() ?? 0
         return maxOrder + 1
     }
 
     static func resolvedOrderForSave(requestedOrder: Int, existingPlayers: [Player]) -> Int {
-        if (1...19).contains(requestedOrder) {
+        if isOrderedRosterValue(requestedOrder) {
             return requestedOrder
         }
         return nextRosterOrder(after: existingPlayers)
@@ -119,10 +123,13 @@ struct PlayerFormContent: View {
     @State private var showingPhotoError = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    private let orders = [
-        "Not Hitting", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th",
-        "10th", "11th", "12th", "13th", "14th", "15th", "16th", "17th", "18th", "19th"
-    ]
+    private var orderOptions: [Int] {
+        let standardOrders = Array(1..<PlayerRosterBattingOrder.notHitting)
+        if PlayerRosterBattingOrder.isOrderedRosterValue(draft.batOrder) && standardOrders.contains(draft.batOrder) == false {
+            return standardOrders + [draft.batOrder]
+        }
+        return standardOrders
+    }
 
     var body: some View {
         Group {
@@ -279,14 +286,31 @@ struct PlayerFormContent: View {
 
     private var battingOrderPicker: some View {
         Picker("Batting Order", selection: $draft.batOrder) {
-            ForEach(Array(orders.enumerated()), id: \.offset) { index, order in
-                Text(order).tag(index == 0 ? PlayerRosterBattingOrder.notHitting : index)
+            Text("Not Hitting").tag(PlayerRosterBattingOrder.notHitting)
+            ForEach(orderOptions, id: \.self) { order in
+                Text(ordinalLabel(for: order)).tag(order)
             }
         }
         .pickerStyle(.menu)
         .tint(ScoreKeepVisualStyle.accent)
         .accessibilityLabel("Batting Order")
         .accessibilityIdentifier("player_batting_order_picker")
+    }
+
+    private func ordinalLabel(for order: Int) -> String {
+        let suffix: String
+        let tens = order % 100
+        if (11...13).contains(tens) {
+            suffix = "th"
+        } else {
+            switch order % 10 {
+            case 1: suffix = "st"
+            case 2: suffix = "nd"
+            case 3: suffix = "rd"
+            default: suffix = "th"
+            }
+        }
+        return "\(order)\(suffix)"
     }
 
     @ViewBuilder
