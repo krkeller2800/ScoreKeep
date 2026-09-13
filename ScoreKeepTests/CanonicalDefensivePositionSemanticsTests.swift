@@ -7,6 +7,7 @@ struct CanonicalDefensivePositionSemanticsTests {
         let rawValues = [
             "P": CanonicalDefensivePosition.pitcher,
             "SP": .startingPitcher,
+            "RP": .reliefPitcher,
             "Relief Pitcher": .reliefPitcher,
             "C": .catcher,
             "1B": .firstBase,

@@ -37,7 +37,7 @@ struct PlayerFormDraft: Hashable {
     ) {
         self.name = name
         self.number = number
-        self.position = position
+        self.position = Self.normalizedPosition(position)
         self.batDir = batDir
         self.batOrder = PlayerRosterBattingOrder.normalizedRosterOrder(batOrder)
         self.teamIdentity = teamIdentity
@@ -69,7 +69,11 @@ struct PlayerFormDraft: Hashable {
     }
 
     var normalizedPosition: String {
-        CanonicalDefensivePosition.normalizedDisplayValue(for: position)
+        Self.normalizedPosition(position)
+    }
+
+    static func normalizedPosition(_ position: String) -> String {
+        position.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
     }
 }
 
@@ -267,12 +271,19 @@ struct PlayerFormContent: View {
     }
 
     private var positionField: some View {
-        TextField("Position", text: $draft.position, prompt: scorebookInputPrompt("Position"))
+        TextField("Position", text: positionTextBinding, prompt: scorebookInputPrompt("Position"))
             .playerEditableTextField()
             .textInputAutocapitalization(.characters)
             .textContentType(.none)
             .accessibilityLabel("Player position")
             .accessibilityIdentifier("player_position_field")
+    }
+
+    private var positionTextBinding: Binding<String> {
+        Binding(
+            get: { draft.position },
+            set: { draft.position = PlayerFormDraft.normalizedPosition($0) }
+        )
     }
 
     private var battingDirectionField: some View {
@@ -451,6 +462,7 @@ private extension View {
         self
             .textFieldStyle(.roundedBorder)
             .scorebookInputField()
+            .autocorrectionDisabled(true)
             .frame(maxWidth: .infinity)
     }
 }

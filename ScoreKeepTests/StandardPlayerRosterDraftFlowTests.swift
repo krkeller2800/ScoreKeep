@@ -60,7 +60,7 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(players.count == 1)
         #expect(players.first?.name == "Casey Jones")
         #expect(players.first?.number == "12")
-        #expect(players.first?.position == "Shortstop")
+        #expect(players.first?.position == "SS")
         #expect(players.first?.batDir == "R")
         #expect(players.first?.batOrder == 3)
         #expect(players.first?.team?.ident == team.ident)
@@ -154,7 +154,7 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(cancel.shouldCreateNewPlayer == false)
         #expect(try playerCount(in: container) == 1)
         #expect(match.number == "88")
-        #expect(match.position == "Shortstop")
+        #expect(match.position == "SS")
     }
 
     @Test("photo selected or pasted in add persists only on save and is discardable")
@@ -231,13 +231,14 @@ struct StandardPlayerRosterDraftFlowTests {
 
         #expect(formSource.contains("TextField(\"Name\", text: $draft.name"))
         #expect(formSource.contains("TextField(\"Number\", text: $draft.number"))
-        #expect(formSource.contains("TextField(\"Position\", text: $draft.position"))
+        #expect(formSource.contains("TextField(\"Position\", text: positionTextBinding"))
         #expect(formSource.contains("TextField(\"Batting Direction\", text: $draft.batDir"))
         #expect(formSource.components(separatedBy: ".playerEditableTextField()").count - 1 == 4)
         #expect(formSource.contains("private extension View"))
         #expect(formSource.contains("func playerEditableTextField() -> some View"))
         #expect(formSource.contains(".textFieldStyle(.roundedBorder)"))
         #expect(formSource.contains(".scorebookInputField()"))
+        #expect(formSource.contains(".autocorrectionDisabled(true)"))
         #expect(formSource.contains(".frame(maxWidth: .infinity)"))
         #expect(formSource.contains(".accessibilityIdentifier(\"player_name_field\")"))
         #expect(formSource.contains(".accessibilityIdentifier(\"player_number_field\")"))
@@ -313,9 +314,9 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(editSource.contains("player.photo = image.pngData()") == false)
     }
 
-    @Test("position normalization is preserved")
-    func positionNormalizationIsPreserved() {
-        let draft = PlayerFormDraft(
+    @Test("position normalization stores uppercase codes without expanding abbreviations")
+    func positionNormalizationStoresUppercaseCodesWithoutExpandingAbbreviations() {
+        let infieldDraft = PlayerFormDraft(
             name: "Position Player",
             number: "",
             position: "1b",
@@ -324,8 +325,21 @@ struct StandardPlayerRosterDraftFlowTests {
             teamIdentity: UUID(),
             teamName: "Team"
         )
+        let emptyDraft = PlayerFormDraft.empty(for: Team(name: "Pitcher Team", coach: "", details: ""))
+        let reliefDraft = PlayerFormDraft(
+            name: "Relief Player",
+            number: "",
+            position: " rp ",
+            batDir: "",
+            batOrder: 99,
+            teamIdentity: UUID(),
+            teamName: "Team"
+        )
 
-        #expect(draft.normalizedPosition == "First Baseman")
+        #expect(emptyDraft.position.isEmpty)
+        #expect(infieldDraft.normalizedPosition == "1B")
+        #expect(reliefDraft.position == "RP")
+        #expect(reliefDraft.normalizedPosition == "RP")
     }
 
     @Test("iPhone and iPad ordinary roster add use the same creation semantics")
@@ -408,9 +422,10 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(playersOnTeamSource.contains("} else if showsQuickAddRow {"))
     }
 
-    @Test("pitcher screen uses trailing add player draft after search without forcing pitcher position")
-    func pitcherScreenUsesTrailingAddPlayerDraftAfterSearchWithoutForcingPitcherPosition() throws {
+    @Test("pitcher screen uses trailing add player draft after search with blank field save fallback")
+    func pitcherScreenUsesTrailingAddPlayerDraftAfterSearchWithBlankFieldSaveFallback() throws {
         let pitcherSource = try repositorySource("ScoreKeep/Content Views/PitcherContentView.swift")
+        let addPlayerSource = try repositorySource("ScoreKeep/Common/AddPlayerDraftView.swift")
         let staffSource = try repositorySource("ScoreKeep/Player org/PitchersStaffView.swift")
 
         #expect(pitcherSource.contains("ToolbarItemGroup(placement: .topBarLeading)"))
@@ -428,12 +443,12 @@ struct StandardPlayerRosterDraftFlowTests {
         let searchFieldPosition = try #require(pitcherSource.range(of: "TextField(\"Player name or number\", text: $searchText)")?.lowerBound)
         let addPlayerButtonPosition = try #require(pitcherSource.range(of: "Button(\"Add Player\", systemImage: \"plus\", action: addPlayers)")?.lowerBound)
         #expect(searchFieldPosition < addPlayerButtonPosition)
-        #expect(pitcherSource.contains("AddPlayerDraftView(team: team)"))
+        #expect(pitcherSource.contains("AddPlayerDraftView(team: team, blankPositionSaveDefault: \"P\")"))
         #expect(pitcherSource.contains("func addPlayers() {\n        showingAddPlayerDraft = true\n    }"))
         #expect(pitcherSource.contains("Player(name: \"\", number: \"\",  position: \"\", batDir: \"\", batOrder: 99,team: team)") == false)
-        #expect(pitcherSource.contains("position: \"P\"") == false)
-        #expect(pitcherSource.contains("position: \"SP\"") == false)
-        #expect(pitcherSource.contains("position: \"RP\"") == false)
+        #expect(addPlayerSource.contains("_draft = State(initialValue: PlayerFormDraft.empty(for: team))"))
+        #expect(addPlayerSource.contains("draft.normalizedPosition.isEmpty ? blankPositionSaveDefault : draft.normalizedPosition"))
+        #expect(staffSource.contains("return players.filter { CanonicalDefensivePosition.isPitcherRole($0.position) }"))
         #expect(staffSource.contains("@State var pName = \"Not Selected Yet\""))
         #expect(staffSource.contains("Button(\"Delete\")"))
     }

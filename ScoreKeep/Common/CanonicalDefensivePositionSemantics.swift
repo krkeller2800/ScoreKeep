@@ -21,9 +21,9 @@ enum CanonicalDefensivePosition: String, CaseIterable, Hashable, Sendable {
         case .pitcher:
             return "P"
         case .startingPitcher:
-            return "Starting Pitcher"
+            return "SP"
         case .reliefPitcher:
-            return "Relief Pitcher"
+            return "RP"
         case .catcher:
             return "Catcher"
         case .firstBase:
@@ -74,6 +74,17 @@ enum CanonicalDefensivePosition: String, CaseIterable, Hashable, Sendable {
         }
     }
 
+    var descriptiveNames: Set<String> {
+        switch self {
+        case .startingPitcher:
+            return ["Starting Pitcher"]
+        case .reliefPitcher:
+            return ["Relief Pitcher"]
+        default:
+            return []
+        }
+    }
+
     var isPitcherRole: Bool {
         switch self {
         case .pitcher, .startingPitcher, .reliefPitcher:
@@ -87,7 +98,9 @@ enum CanonicalDefensivePosition: String, CaseIterable, Hashable, Sendable {
         let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let uppercased = trimmed.uppercased()
         return allCases.first { position in
-            position.displayValue.caseInsensitiveCompare(trimmed) == .orderedSame || position.abbreviations.contains(uppercased)
+            position.displayValue.caseInsensitiveCompare(trimmed) == .orderedSame ||
+            position.abbreviations.contains(uppercased) ||
+            position.descriptiveNames.contains { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
         }
     }
 

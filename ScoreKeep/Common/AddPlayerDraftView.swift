@@ -7,6 +7,7 @@ struct AddPlayerDraftView: View {
     @Environment(\.dismiss) private var dismiss
 
     let team: Team
+    let blankPositionSaveDefault: String
     let onSave: ((Player) -> Void)?
 
     @State private var draft: PlayerFormDraft
@@ -19,8 +20,9 @@ struct AddPlayerDraftView: View {
     @Query(sort: [SortDescriptor(\Team.name)]) private var teams: [Team]
     @Query private var players: [Player]
 
-    init(team: Team, onSave: ((Player) -> Void)? = nil) {
+    init(team: Team, blankPositionSaveDefault: String = "", onSave: ((Player) -> Void)? = nil) {
         self.team = team
+        self.blankPositionSaveDefault = PlayerFormDraft.normalizedPosition(blankPositionSaveDefault)
         self.onSave = onSave
         _draft = State(initialValue: PlayerFormDraft.empty(for: team))
         let teamIdentity = team.ident
@@ -83,6 +85,10 @@ struct AddPlayerDraftView: View {
         draft.hasMeaningfulChanges
     }
 
+    private var resolvedPositionForSave: String {
+        draft.normalizedPosition.isEmpty ? blankPositionSaveDefault : draft.normalizedPosition
+    }
+
     private func dismissOrConfirmDiscard() {
         if hasUnsavedNewPlayerDraft {
             showingUnsavedNewPlayerAlert = true
@@ -120,7 +126,7 @@ struct AddPlayerDraftView: View {
         let player = Player(
             name: validation.trimmedName,
             number: draft.number,
-            position: draft.normalizedPosition,
+            position: resolvedPositionForSave,
             batDir: draft.batDir,
             batOrder: orderToAssign,
             team: team,

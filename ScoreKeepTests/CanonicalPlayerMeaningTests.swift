@@ -5,9 +5,11 @@ import Testing
 struct CanonicalPlayerMeaningTests {
     @Test func defensivePositionRecognitionNormalizesPitcherRolesCaseInsensitively() {
         #expect(CanonicalDefensivePosition.normalizedDisplayValue(for: " p ") == "P")
-        #expect(CanonicalDefensivePosition.normalizedDisplayValue(for: "rp") == "Relief Pitcher")
+        #expect(CanonicalDefensivePosition.normalizedDisplayValue(for: "sp") == "SP")
+        #expect(CanonicalDefensivePosition.normalizedDisplayValue(for: "rp") == "RP")
         #expect(CanonicalDefensivePosition.isPitcherRole("P"))
         #expect(CanonicalDefensivePosition.isPitcherRole("sp"))
+        #expect(CanonicalDefensivePosition.isPitcherRole("RP"))
         #expect(CanonicalDefensivePosition.isPitcherRole("Relief Pitcher"))
         #expect(!CanonicalDefensivePosition.isPitcherRole("1B"))
     }

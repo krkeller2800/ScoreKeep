@@ -138,7 +138,7 @@ struct PitcherContentView: View {
             .searchable(if: UIDevice.type == "iPhone" && isSearching, text: $searchText, placement: .toolbar, prompt: "Player name or number")
             .sheet(isPresented: $showingAddPlayerDraft) {
                 NavigationStack {
-                    AddPlayerDraftView(team: team)
+                    AddPlayerDraftView(team: team, blankPositionSaveDefault: "P")
                 }
                 .standardAddPlayerPresentation()
             }
