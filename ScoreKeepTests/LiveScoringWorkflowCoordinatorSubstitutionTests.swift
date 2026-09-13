@@ -34,6 +34,10 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
 
         // Capture previous atbat data for verification
         let previousAtbat = fixture.visitingFirst
+        previousAtbat.result = "Ground Out"
+        previousAtbat.outs = 1
+        previousAtbat.inning = 1
+        previousAtbat.seq = 1
         let prevResult = previousAtbat.result
         let prevOuts = previousAtbat.outs
         let prevInning = previousAtbat.inning
@@ -71,8 +75,9 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         let placeholder = game.atbats.last { $0.result == "Pitch Hitter" }
         XCTAssertNotNil(placeholder)
         XCTAssertEqual(placeholder?.player.identifier, incoming.identifier)
-        XCTAssertEqual(placeholder?.batOrder, fixture.visitingFirst.batOrder)
+        XCTAssertEqual(placeholder?.batOrder, fixture.visitingFirst.batOrder + 1)
         XCTAssertEqual(placeholder?.seq, 2) // Inserted after outgoing's seq
+        XCTAssertEqual(fixture.visitingSecond.batOrder, 3)
 
         // Verify earlier plays are preserved
         XCTAssertEqual(previousAtbat.player.identifier, outgoing.identifier)
@@ -458,12 +463,17 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertFalse(participation.availableReplacementPlayers.contains { $0.identifier == incoming.identifier })
 
         let incomingRow = try XCTUnwrap(fixture.game.atbats.first { $0.player.identifier == incoming.identifier && $0.col == 1 })
-        XCTAssertEqual(incomingRow.batOrder, 4)
+        XCTAssertEqual(incomingRow.batOrder, 5)
+        XCTAssertEqual(fixture.game.atbats.first { $0.player.identifier == fixture.visitingPlayers[4].identifier && $0.col == 1 }?.batOrder, 6)
         XCTAssertEqual(
-            GameLineupParticipation.firstColumnLineupRows(game: fixture.game, team: fixture.visitingTeam)
-                .filter { $0.batOrder == 4 }
+            GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
+                .filter { $0.logicalSlot == 4 }
                 .map { $0.player.identifier },
             [outgoing.identifier, incoming.identifier]
+        )
+        XCTAssertTrue(
+            Dictionary(grouping: GameLineupParticipation.firstColumnLineupRows(game: fixture.game, team: fixture.visitingTeam), by: \.batOrder)
+                .allSatisfy { $0.value.count == 1 }
         )
         XCTAssertEqual(result.refreshedState?.currentBatter?.identity, fixture.visitingPlayers[4].identifier)
         XCTAssertEqual(result.refreshedState?.battingOrderPosition, 5)
@@ -500,10 +510,16 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertFalse(participation.availableReplacementPlayers.contains { $0.identifier == secondIncoming.identifier })
 
         XCTAssertEqual(
-            GameLineupParticipation.firstColumnLineupRows(game: fixture.game, team: fixture.visitingTeam)
-                .filter { $0.batOrder == 4 }
+            GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
+                .filter { $0.logicalSlot == 4 }
                 .map { $0.player.identifier },
             [starter.identifier, firstIncoming.identifier, secondIncoming.identifier]
+        )
+        XCTAssertEqual(
+            GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
+                .filter { $0.logicalSlot == 4 }
+                .map(\.physicalBand),
+            [4, 5, 6]
         )
         let prepared = coordinator.prepareLiveGameState(
             game: fixture.game,
@@ -585,10 +601,16 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         XCTAssertFalse(participation.availableReplacementPlayers.contains { $0.identifier == outgoingID })
         XCTAssertFalse(participation.availableReplacementPlayers.contains { $0.identifier == incomingID })
         XCTAssertEqual(
-            GameLineupParticipation.firstColumnLineupRows(game: reopenedGame, team: reopenedTeam)
-                .filter { $0.batOrder == 4 }
+            GameLineupParticipation.firstColumnLineupEntries(game: reopenedGame, team: reopenedTeam)
+                .filter { $0.logicalSlot == 4 }
                 .map { $0.player.identifier },
             [outgoingID, incomingID]
+        )
+        XCTAssertEqual(
+            GameLineupParticipation.firstColumnLineupEntries(game: reopenedGame, team: reopenedTeam)
+                .filter { $0.logicalSlot == 4 }
+                .map(\.physicalBand),
+            [4, 5]
         )
 
         let prepared = coordinator.prepareLiveGameState(
@@ -598,6 +620,58 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
             pitchers: reopenedPitchers
         )
         XCTAssertEqual(prepared.currentBatter?.identity, reopenedPlayers.first { $0.batOrder == 5 }?.identifier)
+        XCTAssertEqual(prepared.battingOrderPosition, 5)
+    }
+
+    func testLegacySeparateReplacementBandRemainsLogicallySameSlot() throws {
+        let fixture = insertFullRosterGame(playerCount: 12, materializedSlots: 9)
+        let starter = fixture.visitingPlayers[3]
+        let incoming = fixture.visitingPlayers[9]
+        completeSlotsThroughFour(fixture)
+
+        for atbat in fixture.game.atbats where atbat.team.ident == fixture.visitingTeam.ident && atbat.batOrder >= 5 && atbat.batOrder != PlayerRosterBattingOrder.notHitting {
+            atbat.batOrder += 1
+        }
+        let marker = Atbat(
+            game: fixture.game,
+            team: fixture.visitingTeam,
+            player: incoming,
+            result: "Pitch Hitter",
+            maxbase: "No Bases",
+            batOrder: 5,
+            outAt: "Safe",
+            inning: 1,
+            seq: 5,
+            col: 1,
+            rbis: 0,
+            outs: 0,
+            sacFly: 0,
+            sacBunt: 0,
+            stolenBases: 0
+        )
+        modelContext.insert(marker)
+        fixture.game.atbats.append(marker)
+        fixture.game.players.append(incoming)
+        fixture.game.replaced.append(starter)
+        fixture.game.incomings.append(incoming)
+        try modelContext.save()
+
+        let entries = GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
+        XCTAssertEqual(
+            entries.filter { $0.logicalSlot == 4 }.map { $0.player.identifier },
+            [starter.identifier, incoming.identifier]
+        )
+        XCTAssertEqual(entries.filter { $0.logicalSlot == 4 }.map(\.physicalBand), [4, 5])
+        XCTAssertEqual(entries.first { $0.player.identifier == fixture.visitingPlayers[4].identifier }?.logicalSlot, 5)
+        XCTAssertEqual(entries.first { $0.player.identifier == fixture.visitingPlayers[4].identifier }?.physicalBand, 6)
+
+        let prepared = coordinator.prepareLiveGameState(
+            game: fixture.game,
+            battingTeam: fixture.visitingTeam,
+            displayedAtbats: teamAtbats(fixture),
+            pitchers: [fixture.currentPitcher]
+        )
+        XCTAssertEqual(prepared.currentBatter?.identity, fixture.visitingPlayers[4].identifier)
         XCTAssertEqual(prepared.battingOrderPosition, 5)
     }
 
@@ -1814,7 +1888,7 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
             throw SubstitutionStressFailure.invariant("Substitution arrays unpaired for \(context)")
         }
 
-        let rows = GameLineupParticipation.firstColumnLineupRows(game: fixture.game, team: fixture.visitingTeam)
+        let rows = GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
         let participation = GameLineupParticipation.snapshot(
             game: fixture.game,
             team: fixture.visitingTeam,
@@ -1832,7 +1906,7 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
         for slot in 1...state.scenario.activeSlotCount {
             let expectedHistory = state.slotHistories[slot, default: []]
             let actualHistory = rows
-                .filter { $0.batOrder == slot }
+                .filter { $0.logicalSlot == slot }
                 .map { $0.player.identifier }
             guard actualHistory == expectedHistory else {
                 throw SubstitutionStressFailure.invariant("Slot \(slot) history mismatch for \(context)")
@@ -2036,10 +2110,13 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
             team: fixture.visitingTeam,
             rosterPlayers: fixture.visitingPlayers
         )
-        let history = GameLineupParticipation.firstColumnLineupRows(game: fixture.game, team: fixture.visitingTeam)
-            .filter { $0.batOrder == slot }
+        let history = GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
+            .filter { $0.logicalSlot == slot }
             .map { $0.player.identifier }
-        XCTAssertEqual(history, expectedHistoryIDs, file: file, line: line)
+        let debugEntries = GameLineupParticipation.firstColumnLineupEntries(game: fixture.game, team: fixture.visitingTeam)
+            .map { "\($0.player.name):logical=\($0.logicalSlot):physical=\($0.physicalBand):replaced=\($0.isReplaced):incoming=\($0.isIncoming)" }
+            .joined(separator: " | ")
+        XCTAssertEqual(history, expectedHistoryIDs, debugEntries, file: file, line: line)
         XCTAssertTrue(participation.activePlayers.contains { $0.identifier == expectedCurrentID }, file: file, line: line)
         for playerID in expectedHistoryIDs where playerID != expectedCurrentID {
             XCTAssertFalse(participation.activePlayers.contains { $0.identifier == playerID }, file: file, line: line)

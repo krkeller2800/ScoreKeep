@@ -57,8 +57,9 @@ struct StartPhoneView: View {
             .tag(2)
             ScoreKeepHelpRoute()
             .tabItem {
-                if let scaledHelp = Self.phoneHelpTabImage {
-                    Image(uiImage: scaledHelp)
+                if let 
+                    dHelp = Self.phoneHelpTabImage {
+                    Image(uiImage: dHelp)
                 } else {
                     Image("phelp").renderingMode(.original)
                 }

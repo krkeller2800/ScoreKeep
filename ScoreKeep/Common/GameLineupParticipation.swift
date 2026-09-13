@@ -1,6 +1,15 @@
 import Foundation
 
 struct GameLineupParticipation {
+    struct LineupEntry {
+        let atbat: Atbat
+        let player: Player
+        let physicalBand: Int
+        let logicalSlot: Int
+        let isReplaced: Bool
+        let isIncoming: Bool
+    }
+
     struct Snapshot {
         let activePlayers: [Player]
         let replacedPlayers: [Player]
@@ -36,7 +45,7 @@ struct GameLineupParticipation {
 
     static func activeLineupPlayers(game: Game, team: Team) -> [Player] {
         let replacedIDs = Set(players(in: game.replaced, for: team).map(\.identifier))
-        return firstColumnLineupRows(game: game, team: team)
+        return firstColumnLineupEntries(game: game, team: team)
             .filter { replacedIDs.contains($0.player.identifier) == false }
             .map(\.player)
     }
@@ -44,10 +53,10 @@ struct GameLineupParticipation {
     static func substitutionEligibleActivePlayers(game: Game, team: Team) -> [Player] {
         let completedSlots = completedFirstPlateAppearanceSlots(game: game, team: team)
         let replacedIDs = Set(players(in: game.replaced, for: team).map(\.identifier))
-        return firstColumnLineupRows(game: game, team: team)
+        return firstColumnLineupEntries(game: game, team: team)
             .filter {
                 replacedIDs.contains($0.player.identifier) == false &&
-                    completedSlots.contains($0.batOrder)
+                    completedSlots.contains($0.logicalSlot)
             }
             .map(\.player)
     }
@@ -65,8 +74,65 @@ struct GameLineupParticipation {
                   atbat.result != "Pitch Hitter" else {
                 return nil
             }
-            return atbat.batOrder
+            return logicalSlot(for: atbat, game: game, team: team)
         })
+    }
+
+    static func firstColumnLineupEntries(game: Game, team: Team) -> [LineupEntry] {
+        let rows = lineupSourceRows(game: game, team: team)
+        let replacedIDs = Set(players(in: game.replaced, for: team).map(\.identifier))
+        let incomingIDs = Set(players(in: game.incomings, for: team).map(\.identifier))
+
+        var logicalSlotByPlayer: [UUID: Int] = [:]
+        var nextLogicalSlot = 1
+        var lastLogicalSlot: Int?
+
+        for row in rows {
+            let logicalSlot: Int
+            if incomingIDs.contains(row.player.identifier) {
+                logicalSlot = lastLogicalSlot ?? row.batOrder
+            } else {
+                logicalSlot = nextLogicalSlot
+                nextLogicalSlot += 1
+            }
+            logicalSlotByPlayer[row.player.identifier] = logicalSlot
+            lastLogicalSlot = logicalSlot
+        }
+
+        return rows.map { row in
+            let logicalSlot = logicalSlotByPlayer[row.player.identifier] ?? row.batOrder
+            return LineupEntry(
+                atbat: row,
+                player: row.player,
+                physicalBand: row.batOrder,
+                logicalSlot: logicalSlot,
+                isReplaced: replacedIDs.contains(row.player.identifier),
+                isIncoming: incomingIDs.contains(row.player.identifier)
+            )
+        }
+    }
+
+    static func logicalSlot(for atbat: Atbat, game: Game, team: Team) -> Int {
+        firstColumnLineupEntries(game: game, team: team)
+            .first { $0.player.identifier == atbat.player.identifier }
+            .map(\.logicalSlot) ?? atbat.batOrder
+    }
+
+    static func physicalBand(for player: Player, game: Game, team: Team) -> Int? {
+        firstColumnLineupEntries(game: game, team: team)
+            .last { $0.player.identifier == player.identifier }?
+            .physicalBand
+    }
+
+    static func logicalSlotsByAtbatIdentity(game: Game, team: Team) -> [UUID: Int] {
+        let entries = firstColumnLineupEntries(game: game, team: team)
+        var logicalSlotByPlayer: [UUID: Int] = [:]
+        for entry in entries {
+            logicalSlotByPlayer[entry.player.identifier] = entry.logicalSlot
+        }
+        return Dictionary(uniqueKeysWithValues: game.atbats
+            .filter { $0.game.ident == game.ident && $0.team.ident == team.ident }
+            .map { ($0.ident, logicalSlotByPlayer[$0.player.identifier] ?? $0.batOrder) })
     }
 
     static func firstColumnLineupRows(game: Game, team: Team) -> [Atbat] {
@@ -90,6 +156,25 @@ struct GameLineupParticipation {
                 }
                 return $0.ident.uuidString < $1.ident.uuidString
             }
+    }
+
+    private static func lineupSourceRows(game: Game, team: Team) -> [Atbat] {
+        let groupedByPlayer = Dictionary(grouping: firstColumnLineupRows(game: game, team: team), by: { $0.player.identifier })
+        return groupedByPlayer.values.compactMap { rows in
+            rows.first { $0.result == "Pitch Hitter" } ?? rows.first
+        }
+        .sorted {
+            if $0.batOrder != $1.batOrder {
+                return $0.batOrder < $1.batOrder
+            }
+            if $0.seq != $1.seq {
+                return $0.seq < $1.seq
+            }
+            if $0.player.identifier.uuidString != $1.player.identifier.uuidString {
+                return $0.player.identifier.uuidString < $1.player.identifier.uuidString
+            }
+            return $0.ident.uuidString < $1.ident.uuidString
+        }
     }
 
     static func isActive(_ player: Player, game: Game, team: Team) -> Bool {

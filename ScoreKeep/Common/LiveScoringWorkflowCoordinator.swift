@@ -375,6 +375,7 @@ struct LiveScoringWorkflowCoordinator {
 
     struct PreparedLineupEntry: Equatable {
         let slot: Int
+        let physicalBand: Int
         let player: PreparedPlayerSnapshot
         let sourceAtbatIdentity: UUID
         let isReplaced: Bool
@@ -1003,12 +1004,15 @@ struct LiveScoringWorkflowCoordinator {
         let completedHalfInningEnded = lastCompleted?.outs == 3 && lastCompleted?.endOfInning == true
         let inning = completedHalfInningEnded ? completedInning + 1 : completedInning
         let outs = completedHalfInningEnded ? 0 : (lastCompleted?.outs ?? 0)
-        let currentBatterEntry = preparedCurrentBatter(after: lastCompleted, lineup: lineup)
+        let logicalSlotsByAtbatIdentity = GameLineupParticipation.logicalSlotsByAtbatIdentity(game: game, team: battingTeam)
+        let lastCompletedLogicalSlot = lastCompleted.flatMap { logicalSlotsByAtbatIdentity[$0.ident] }
+        let currentBatterEntry = preparedCurrentBatter(afterLogicalSlot: lastCompletedLogicalSlot, lineup: lineup)
         let currentColumn = preparedCurrentColumn(
             after: lastCompleted,
             nextBatterSlot: currentBatterEntry?.slot,
             completedAtbats: completedAtbats,
-            completedHalfInningEnded: completedHalfInningEnded
+            completedHalfInningEnded: completedHalfInningEnded,
+            logicalSlotsByAtbatIdentity: logicalSlotsByAtbatIdentity
         )
         let preparedPitchers = preparedPitcherAppearances(from: pitchers, game: game, defensiveTeam: defensiveTeam)
         let currentPitcher = preparedPitchers.last
@@ -1739,15 +1743,16 @@ struct LiveScoringWorkflowCoordinator {
                 message: "The incoming player is not available for this substitution."
             )
         }
-        guard let outgoingSlot = GameLineupParticipation.firstColumnLineupRows(game: authoritativeGame, team: team)
-            .first(where: { $0.player.identifier == outgoingPlayer.identifier })?
-            .batOrder else {
+        guard let outgoingLineupEntry = GameLineupParticipation.firstColumnLineupEntries(game: authoritativeGame, team: team)
+            .first(where: { $0.player.identifier == outgoingPlayer.identifier }) else {
             return SubstitutionSubmissionResult(
                 disposition: .duplicateOrConflicting,
                 refreshedState: nil,
                 message: "The outgoing player's batting slot could not be resolved."
             )
         }
+        let outgoingSlot = outgoingLineupEntry.logicalSlot
+        let incomingPhysicalBand = outgoingLineupEntry.physicalBand + 1
         // Product decision: pre-first-PA player changes are lineup corrections, not substitutions.
         // See ScoreKeep/Docs/LineupAndScoringDesign.md.
         guard GameLineupParticipation.hasCompletedFirstPlateAppearance(slot: outgoingSlot, game: authoritativeGame, team: team) else {
@@ -1771,6 +1776,9 @@ struct LiveScoringWorkflowCoordinator {
         }
 
         for atbat in gameAtbats {
+            if atbat.batOrder >= incomingPhysicalBand && atbat.batOrder != PlayerRosterBattingOrder.notHitting {
+                atbat.batOrder += 1
+            }
             if atbat.seq >= newseq[atbat.col] {
                 atbat.seq += 1
             }
@@ -1781,7 +1789,7 @@ struct LiveScoringWorkflowCoordinator {
                     player: incomingPlayer,
                     result: "Pitch Hitter",
                     maxbase: "No Bases",
-                    batOrder: outgoingSlot,
+                    batOrder: incomingPhysicalBand,
                     outAt: "Safe",
                     inning: atbat.inning,
                     seq: newseq[atbat.col],
@@ -2563,7 +2571,7 @@ struct LiveScoringWorkflowCoordinator {
         preparedState: PreparedLiveGameState,
         semanticScoreState: SemanticScoreState?
     ) -> EnabledScoringActionState {
-        let identity = ScoringActionIdentity.scorecardCell(column: column, battingOrder: lineupEntry.slot)
+        let identity = ScoringActionIdentity.scorecardCell(column: column, battingOrder: lineupEntry.physicalBand)
         guard column > 0 else {
             return disabledAction(identity, disposition: .disabledPresentationUnavailable, reason: "Scorecard column is unavailable.")
         }
@@ -3044,32 +3052,29 @@ struct LiveScoringWorkflowCoordinator {
     }
 
     private func preparedLineup(from atbats: [Atbat], game: Game) -> [PreparedLineupEntry] {
-        atbats
-            .filter { $0.col == 1 && $0.batOrder != 99 }
-            .sorted {
-                ($0.batOrder, $0.seq, $0.player.identifier.uuidString, $0.ident.uuidString) <
-                ($1.batOrder, $1.seq, $1.player.identifier.uuidString, $1.ident.uuidString)
-            }
+        guard let team = atbats.first?.team else { return [] }
+        return GameLineupParticipation.firstColumnLineupEntries(game: game, team: team)
             .map {
                 PreparedLineupEntry(
-                    slot: $0.batOrder,
+                    slot: $0.logicalSlot,
+                    physicalBand: $0.physicalBand,
                     player: preparedPlayer($0.player),
-                    sourceAtbatIdentity: $0.ident,
-                    isReplaced: containsModel($0.player, in: game.replaced),
-                    isIncoming: containsModel($0.player, in: game.incomings)
+                    sourceAtbatIdentity: $0.atbat.ident,
+                    isReplaced: $0.isReplaced,
+                    isIncoming: $0.isIncoming
                 )
             }
     }
 
     private func preparedCurrentBatter(
-        after lastCompleted: Atbat?,
+        afterLogicalSlot lastCompletedLogicalSlot: Int?,
         lineup: [PreparedLineupEntry]
     ) -> PreparedLineupEntry? {
         let activeLineup = lineup.filter { $0.isReplaced == false }
         guard activeLineup.isEmpty == false else { return nil }
-        guard let lastCompleted else { return activeLineup.first }
+        guard let lastCompletedLogicalSlot else { return activeLineup.first }
 
-        if let next = activeLineup.first(where: { $0.slot > lastCompleted.batOrder }) {
+        if let next = activeLineup.first(where: { $0.slot > lastCompletedLogicalSlot }) {
             return next
         }
         return activeLineup.first
@@ -3079,7 +3084,8 @@ struct LiveScoringWorkflowCoordinator {
         after lastCompleted: Atbat?,
         nextBatterSlot: Int?,
         completedAtbats: [Atbat],
-        completedHalfInningEnded: Bool
+        completedHalfInningEnded: Bool,
+        logicalSlotsByAtbatIdentity: [UUID: Int]
     ) -> Int {
         guard let lastCompleted else { return 1 }
         if completedHalfInningEnded { return lastCompleted.col + 1 }
@@ -3088,7 +3094,7 @@ struct LiveScoringWorkflowCoordinator {
         guard let nextBatterSlot else { return currentColumn }
 
         let isSlotOccupiedInCurrentColumn = completedAtbats.contains {
-            $0.col == currentColumn && $0.batOrder == nextBatterSlot
+            $0.col == currentColumn && logicalSlotsByAtbatIdentity[$0.ident] == nextBatterSlot
         }
 
         return isSlotOccupiedInCurrentColumn ? currentColumn + 1 : currentColumn
