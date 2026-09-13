@@ -8,10 +8,17 @@
 import SwiftUI
 import SwiftData
 
+enum ImportFlowCompletionPolicy {
+    static func returnsToGamesAfterSuccessfulImport(fileType: String) -> Bool {
+        fileType.localizedStandardContains("ScoreKeep_Games")
+    }
+}
+
 struct ImportPlayersView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Binding var showingImport: Bool
+    private let onClose: () -> Void
 
     @State         var importURL:URL
     @State private var sortOrder = [SortDescriptor(\Player.batOrder)]
@@ -26,6 +33,7 @@ struct ImportPlayersView: View {
     @State private var fileType = ""
     @State private var title = ""
     @State private var team: Team = Team(name: "", coach: "", details: "")
+    @State private var shouldCloseAfterAlert = false
 
     @Query var teams: [Team]
     @Query var games: [Game]
@@ -95,6 +103,8 @@ struct ImportPlayersView: View {
                             sharedGamesBoss(shareGames: shareGames)
                             if !showingAlert {
                                 alertMessage = "Import Complete"
+                                shouldCloseAfterAlert = ImportFlowCompletionPolicy
+                                    .returnsToGamesAfterSuccessfulImport(fileType: fileType)
                                 showingAlert = true
                             }
                         }
@@ -177,7 +187,7 @@ struct ImportPlayersView: View {
                         }
                         ToolbarItem(placement: .topBarLeading) {
                             Button(action: {
-                                dismiss()
+                                closeImport()
                             }) {
                                 HStack {
                                     Image(systemName: "chevron.left")
@@ -206,17 +216,35 @@ struct ImportPlayersView: View {
                         }
                     }
                     .alert(alertMessage, isPresented: $showingAlert) {
-                        Button("OK", role: .cancel) { }
+                        Button("OK", role: .cancel) {
+                            if shouldCloseAfterAlert {
+                                shouldCloseAfterAlert = false
+                                closeImport()
+                            }
+                        }
                     }
                 }
             }
         }
     }
-    init(showingImport: Binding<Bool>, iURL: URL,   columnVisibility: Binding<NavigationSplitViewVisibility>) {
+    init(
+        showingImport: Binding<Bool>,
+        iURL: URL,
+        columnVisibility: Binding<NavigationSplitViewVisibility>,
+        onClose: @escaping () -> Void = {}
+    ) {
         _columnVisibility = columnVisibility
         _showingImport = showingImport
         self.importURL = iURL
+        self.onClose = onClose
     }
+
+    private func closeImport() {
+        showingImport = false
+        onClose()
+        dismiss()
+    }
+
     func decodePlayers() -> [SharePlayer] {
         let needsAccess = importURL.startAccessingSecurityScopedResource()
         defer {

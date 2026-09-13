@@ -158,7 +158,12 @@ struct StartView: View {
                 ShareContentView()
             } else if flags[7] {
                 if let url = importUrl {
-                    ImportPlayersView(showingImport: $showImport, iURL: url,columnVisibility: $columnVisibility )
+                    ImportPlayersView(
+                        showingImport: $showImport,
+                        iURL: url,
+                        columnVisibility: $columnVisibility,
+                        onClose: closeImportFlowToGames
+                    )
                 }
             } else if flags[8] {
                 ScreenShotView()
@@ -211,6 +216,13 @@ struct StartView: View {
 
     private func openHelpFromSettings() {
         setFlags(flag: "presentHelp")
+        columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
+    }
+
+    private func closeImportFlowToGames() {
+        importUrl = nil
+        showImport = false
+        setFlags(flag: "presentGames")
         columnVisibility = ScoreKeepIPadNavigationPolicy.sidebarRootVisibility
     }
 
