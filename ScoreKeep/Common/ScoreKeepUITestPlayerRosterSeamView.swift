@@ -29,11 +29,14 @@ struct ScoreKeepUITestPlayerRosterSeamView: View {
         do {
             let container = try ModelContainer(for: schema, configurations: [config])
             let context = container.mainContext
-            let team = Team(name: "Seam Team", coach: "Coach", details: "Fixture team")
-            let player = Player(name: "Existing Player", number: "7", position: "Shortstop", batDir: "R", batOrder: 1, team: team)
+            let usesEmptyRoster = ProcessInfo.processInfo.arguments.contains("-ScoreKeepUITestEmptyRoster")
+            let team = Team(name: usesEmptyRoster ? "Angels" : "Seam Team", coach: "Coach", details: "Fixture team")
 
             context.insert(team)
-            context.insert(player)
+            if usesEmptyRoster == false {
+                let player = Player(name: "Existing Player", number: "7", position: "Shortstop", batDir: "R", batOrder: 1, team: team)
+                context.insert(player)
+            }
             try context.save()
 
             fixtureTeam = team

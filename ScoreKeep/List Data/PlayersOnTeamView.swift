@@ -61,15 +61,6 @@ struct PlayersOnTeamView: View {
                             .accessibilityLabel("Default batting order")
                         }
 
-                        if usesStandardPlayerAdd {
-                            Button {
-                                showingAddPlayerDraft = true
-                            } label: {
-                                Image(systemName: "plus")
-                            }
-                            .foregroundStyle(.primary)
-                            .accessibilityLabel("Add player")
-                        }
                     }
                     .padding(.leading, 4)
                     .padding(.trailing, 24)
@@ -88,8 +79,15 @@ struct PlayersOnTeamView: View {
                             .frame(width:mediumWidth)
                         scorebookHeaderCell("Dir")
                             .frame(width:mediumWidth)
-                        Text("")
-                            .frame(width:20)
+                        Spacer(minLength: 16)
+                        if usesStandardPlayerAdd {
+                            standardAddPlayerButton
+                                .frame(width: 44)
+                                .padding(.trailing, 16)
+                        } else {
+                            Text("")
+                                .frame(width:20)
+                        }
                     }
 
                     if usesStandardPlayerAdd == false && showsQuickAddRow {
@@ -191,6 +189,20 @@ struct PlayersOnTeamView: View {
                 .standardAddPlayerPresentation()
             }
         }
+    }
+
+    private var standardAddPlayerButton: some View {
+        Button {
+            showingAddPlayerDraft = true
+        } label: {
+            Image(systemName: "plus")
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.primary)
+        .accessibilityLabel("Add player")
+        .accessibilityIdentifier("team_roster_add_player_button")
     }
 
 

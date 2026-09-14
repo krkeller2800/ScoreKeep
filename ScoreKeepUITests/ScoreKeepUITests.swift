@@ -235,6 +235,32 @@ final class ScoreKeepUITests: XCTestCase {
         XCTAssertFalse(saveTeam.isEnabled, "Save should be disabled before a team name is entered")
     }
 
+    @MainActor
+    func testEmptyIPadTeamEditRosterShowsHeaderAddPlayer() throws {
+        let app = XCUIApplication()
+        app.launchArguments.append("-ScoreKeepUITestPlayerRosterSeam")
+        app.launchArguments.append("-ScoreKeepUITestEmptyRoster")
+        app.launch()
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        XCTAssertTrue(app.navigationBars["Angels"].waitForExistence(timeout: 5.0), "Empty team edit screen should open")
+        XCTAssertTrue(app.staticTexts["Order"].waitForExistence(timeout: 3.0), "Roster header should show Order")
+        XCTAssertTrue(app.staticTexts["Name"].exists, "Roster header should show Name")
+        XCTAssertTrue(app.staticTexts["Num"].exists, "Roster header should show Num")
+        XCTAssertTrue(app.staticTexts["Pos"].exists, "Roster header should show Pos")
+        XCTAssertTrue(app.staticTexts["Dir"].exists, "Roster header should show Dir")
+
+        let addPlayer = app.buttons["team_roster_add_player_button"]
+        XCTAssertTrue(addPlayer.waitForExistence(timeout: 3.0), "Empty roster header should show Add Player")
+        XCTAssertTrue(addPlayer.isHittable, "Empty roster Add Player should be hittable on iPad")
+        XCTAssertGreaterThan(addPlayer.frame.minX, app.staticTexts["Dir"].frame.maxX, "Add Player should sit after the Dir header")
+        XCTAssertGreaterThan(addPlayer.frame.minX - app.staticTexts["Dir"].frame.maxX, 120, "Add Player should be separated from Dir by flexible trailing header space")
+
+        addPlayer.tap()
+        XCTAssertTrue(app.navigationBars["Add Player"].waitForExistence(timeout: 5.0), "Header Add Player should open the standard Add Player form")
+    }
+
 
     @MainActor
     func testLaunchPerformance() throws {

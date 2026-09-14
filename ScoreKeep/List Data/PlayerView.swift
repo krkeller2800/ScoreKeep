@@ -62,7 +62,10 @@ struct PlayerView: View {
                                 .frame(width: smallWidth)
                             scorebookHeaderCell("Order")
                                 .frame(width: mediumWidth)
-                            Text("").frame(width: 45)
+                            Spacer(minLength: 16)
+                            headerAddPlayerButton
+                                .frame(width: 45)
+                                .padding(.trailing, 16)
                         }
 
                         ForEach(players) { player in
@@ -143,14 +146,6 @@ struct PlayerView: View {
                             .font(.title2)
                     }
                     ToolbarItemGroup(placement: .navigationBarTrailing) {
-                        Button {
-                            showingAddPlayerDraft = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
-                        .foregroundStyle(.primary)
-                        .accessibilityLabel("Add player")
-
                         if UIDevice.type == "iPhone" {
                             Button(action: {
                                 withAnimation {
@@ -195,6 +190,20 @@ struct PlayerView: View {
             .scrollContentBackground(.hidden)
             .background(ScoreKeepVisualStyle.background)
         }
+    }
+
+    private var headerAddPlayerButton: some View {
+        Button {
+            showingAddPlayerDraft = true
+        } label: {
+            Image(systemName: "plus")
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.primary)
+        .accessibilityLabel("Add player")
+        .accessibilityIdentifier("player_roster_add_player_button")
     }
 
     init(

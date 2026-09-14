@@ -352,6 +352,10 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(iPhoneSource.contains("AddPlayerDraftView(team: pTeam)"))
         #expect(editTeamSource.contains("usesStandardPlayerAdd: true"))
         #expect(iPadListSource.contains("usesStandardPlayerAdd"))
+        #expect(iPhoneSource.contains("headerAddPlayerButton"))
+        #expect(iPhoneSource.contains(".accessibilityIdentifier(\"player_roster_add_player_button\")"))
+        #expect(iPadListSource.contains("standardAddPlayerButton"))
+        #expect(iPadListSource.contains(".accessibilityIdentifier(\"team_roster_add_player_button\")"))
         #expect(addSource.contains("PlayerRosterBattingOrder.normalizedRosterOrder(draft.batOrder)"))
         #expect(iPhoneSource.contains("createPendingPlayer()") == false)
     }
@@ -419,7 +423,7 @@ struct StandardPlayerRosterDraftFlowTests {
         #expect(replacementSource.contains("func addPlayers() {\n        showingAddPlayerDraft = true\n    }"))
         #expect(replacementSource.contains("modelContext.insert(player)") == false)
         #expect(playersOnTeamSource.contains("let showsQuickAddRow: Bool"))
-        #expect(playersOnTeamSource.contains("} else if showsQuickAddRow {"))
+        #expect(playersOnTeamSource.contains("if usesStandardPlayerAdd == false && showsQuickAddRow {"))
     }
 
     @Test("pitcher screen uses trailing add player draft after search with blank field save fallback")
