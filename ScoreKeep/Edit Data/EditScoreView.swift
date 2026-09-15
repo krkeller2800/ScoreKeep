@@ -39,6 +39,7 @@ struct EditScoreView: View {
     @State private var isError = false
     @State private var alertText = ""
     @State private var lineupMaterializationErrorText: String?
+    @State private var invalidScorecardSelectionWarningVisible = false
     @State private var teamName = ""
     @State private var selectedOption = ""
     @State private var pdfURL:URL = URL.documentsDirectory.appending(path: "Stats.pdf")
@@ -292,9 +293,14 @@ struct EditScoreView: View {
                         }
                     }
                     ToolbarItem(placement: .principal) {
-                        Text("Score the Game")
-                            .font(.title2)
+                        if !invalidScorecardSelectionWarningVisible {
+                            Text("Score the Game")
+                                .font(.title2)
+                        }
                     }
+                }
+                .onPreferenceChange(InvalidScorecardSelectionWarningVisiblePreferenceKey.self) { isVisible in
+                    invalidScorecardSelectionWarningVisible = isVisible
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
 

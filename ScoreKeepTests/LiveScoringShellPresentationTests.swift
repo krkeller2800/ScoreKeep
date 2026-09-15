@@ -131,36 +131,27 @@ struct LiveScoringShellPresentationTests {
         #expect(ScorecardCellView.invalidGuidanceCueVerticalOffset(for: 60) == 5)
     }
 
-    @Test("invalid selection banner anchors near tapped scorecard cell within viewport")
-    func invalidSelectionBannerAnchorsNearTappedCellWithinViewport() {
-        let bannerSize = CGSize(width: 240, height: 72)
-        let viewportSize = CGSize(width: 320, height: 500)
+    @Test("invalid selection banner respects top safe area")
+    func invalidSelectionBannerRespectsTopSafeArea() {
+        #expect(InvalidScorecardSelectionBanner.horizontalMargin == 12)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: nil, bannerHeight: 0, safeAreaTop: 0, containerGlobalMinY: 0, isPhone: false) == 12)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: nil, bannerHeight: 0, safeAreaTop: 24, containerGlobalMinY: 0, isPhone: false) == 36)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: nil, bannerHeight: 0, safeAreaTop: -8, containerGlobalMinY: 0, isPhone: false) == 12)
+    }
 
-        let left = InvalidScorecardSelectionBanner.placement(
-            for: CGRect(x: 4, y: 180, width: 50, height: 50),
-            bannerSize: bannerSize,
-            viewportSize: viewportSize
-        )
-        let center = InvalidScorecardSelectionBanner.placement(
-            for: CGRect(x: 135, y: 180, width: 50, height: 50),
-            bannerSize: bannerSize,
-            viewportSize: viewportSize
-        )
-        let right = InvalidScorecardSelectionBanner.placement(
-            for: CGRect(x: 280, y: 180, width: 50, height: 50),
-            bannerSize: bannerSize,
-            viewportSize: viewportSize
-        )
-        let top = InvalidScorecardSelectionBanner.placement(
-            for: CGRect(x: 135, y: 20, width: 50, height: 50),
-            bannerSize: bannerSize,
-            viewportSize: viewportSize
-        )
-
-        #expect(left == CGPoint(x: 132, y: 136))
-        #expect(center == CGPoint(x: 160, y: 136))
-        #expect(right == CGPoint(x: 188, y: 136))
-        #expect(top == CGPoint(x: 160, y: 114))
+    @Test("invalid selection banner clears measured scorecard grid top")
+    func invalidSelectionBannerClearsMeasuredScorecardGridTop() {
+        #expect(InvalidScorecardSelectionBanner.gridTop(in: [
+            "later": CGRect(x: 0, y: 120, width: 50, height: 50),
+            "first": CGRect(x: 0, y: 80, width: 50, height: 50)
+        ]) == 80)
+        #expect(InvalidScorecardSelectionBanner.gridTop(in: [:]) == nil)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: 240, bannerHeight: 72, safeAreaTop: 0, containerGlobalMinY: 0, isPhone: false) == 80)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: 180, bannerHeight: 72, safeAreaTop: 0, containerGlobalMinY: 0, isPhone: false) == 80)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: 70, bannerHeight: 72, safeAreaTop: 0, containerGlobalMinY: 0, isPhone: false) == 12)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: 260, bannerHeight: 72, safeAreaTop: 0, containerGlobalMinY: 0, isPhone: true) == 132)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: 120, bannerHeight: 72, safeAreaTop: 0, containerGlobalMinY: 200, isPhone: false) == -120)
+        #expect(InvalidScorecardSelectionBanner.topOffset(gridTop: 140, bannerHeight: 100, safeAreaTop: 0, containerGlobalMinY: 250, isPhone: true) == -118)
     }
 
     @Test("scorecard cell visibility requires the full frame inside viewport")

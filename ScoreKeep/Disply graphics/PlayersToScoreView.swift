@@ -253,6 +253,10 @@ struct PlayersToScoreView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing) // <5>
                 .coordinateSpace(name: "live_scoring_root")
                 .accessibilityIdentifier("live_scoring_root")
+                .preference(
+                    key: InvalidScorecardSelectionWarningVisiblePreferenceKey.self,
+                    value: showingAlert
+                )
                 .onPreferenceChange(ScorecardCellFramePreferenceKey.self) { frames in
                     scorecardCellFrames = frames
                     showPendingInvalidSelectionHintIfTargetVisible(
@@ -263,12 +267,7 @@ struct PlayersToScoreView: View {
                 .overlayPreferenceValue(ScorecardCellFramePreferenceKey.self) { cellFrames in
                     GeometryReader { proxy in
                         if showingAlert {
-                            let targetFrame = highlightedCell.flatMap { cellFrames[$0] }
-                            let placement = InvalidScorecardSelectionBanner.placement(
-                                for: targetFrame,
-                                bannerSize: invalidSelectionBannerSize,
-                                viewportSize: proxy.size
-                            )
+                            let gridTop = InvalidScorecardSelectionBanner.gridTop(in: cellFrames)
                             InvalidScorecardSelectionBanner(message: alertMessage)
                                 .background(
                                     GeometryReader { bannerProxy in
@@ -278,7 +277,22 @@ struct PlayersToScoreView: View {
                                         )
                                     }
                                 )
-                                .position(placement)
+                                .frame(
+                                    maxWidth: .infinity,
+                                    maxHeight: .infinity,
+                                    alignment: .top
+                                )
+                                .padding(
+                                    .top,
+                                    InvalidScorecardSelectionBanner.topOffset(
+                                        gridTop: gridTop,
+                                        bannerHeight: invalidSelectionBannerSize.height,
+                                        safeAreaTop: proxy.safeAreaInsets.top,
+                                        containerGlobalMinY: proxy.frame(in: .global).minY,
+                                        isPhone: UIDevice.type == "iPhone"
+                                    )
+                                )
+                                .padding(.horizontal, InvalidScorecardSelectionBanner.horizontalMargin)
                                 .transition(.opacity)
                                 .zIndex(1)
                                 .onPreferenceChange(InvalidScorecardSelectionBannerSizePreferenceKey.self) { size in
@@ -1107,6 +1121,14 @@ struct ScorecardCellFramePreferenceKey: PreferenceKey {
     }
 }
 
+struct InvalidScorecardSelectionWarningVisiblePreferenceKey: PreferenceKey {
+    static var defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 struct InvalidScorecardSelectionBannerSizePreferenceKey: PreferenceKey {
     static var defaultValue: CGSize = .zero
 
@@ -1123,37 +1145,46 @@ struct ScorecardRecoveryScrollAxes: Equatable {
 struct InvalidScorecardSelectionBanner: View {
     let message: String
 
-    static func placement(
-        for targetFrame: CGRect?,
-        bannerSize: CGSize,
-        viewportSize: CGSize,
-        margin: CGFloat = 12,
-        cellSpacing: CGFloat = 8
-    ) -> CGPoint {
-        let resolvedBannerSize = CGSize(
-            width: bannerSize.width > 0 ? bannerSize.width : min(320, max(0, viewportSize.width - margin * 2)),
-            height: bannerSize.height > 0 ? bannerSize.height : 72
-        )
-        let halfWidth = resolvedBannerSize.width / 2
-        let halfHeight = resolvedBannerSize.height / 2
-        let minX = margin + halfWidth
-        let maxX = max(minX, viewportSize.width - margin - halfWidth)
-        let minY = margin + halfHeight
-        let maxY = max(minY, viewportSize.height - margin - halfHeight)
+    static let horizontalMargin: CGFloat = 12
+    static let gridClearance: CGFloat = 12
+    static let topScreenClearance: CGFloat = 12
+    static let fallbackHeight: CGFloat = 72
+    static let iPadPreferredScreenTop: CGFloat = 80
+    static let iPhonePreferredScreenTop: CGFloat = 132
 
-        guard let targetFrame else {
-            return CGPoint(
-                x: min(max(viewportSize.width / 2, minX), maxX),
-                y: minY
-            )
+    static func topOffset(in proxy: GeometryProxy) -> CGFloat {
+        topOffset(
+            gridTop: nil,
+            bannerHeight: 0,
+            safeAreaTop: proxy.safeAreaInsets.top,
+            containerGlobalMinY: proxy.frame(in: .global).minY,
+            isPhone: UIDevice.type == "iPhone"
+        )
+    }
+
+    static func topOffset(
+        gridTop: CGFloat?,
+        bannerHeight: CGFloat,
+        safeAreaTop: CGFloat,
+        containerGlobalMinY: CGFloat,
+        isPhone: Bool
+    ) -> CGFloat {
+        let safeScreenTop = max(safeAreaTop, 0) + topScreenClearance
+        let safeLocalTop = safeScreenTop - containerGlobalMinY
+        let preferredLocalTop = (isPhone ? iPhonePreferredScreenTop : iPadPreferredScreenTop) - containerGlobalMinY
+        guard let gridTop else { return max(safeLocalTop, topScreenClearance) }
+
+        let resolvedHeight = bannerHeight > 0 ? bannerHeight : fallbackHeight
+        let latestGridClearingOffset = gridTop - resolvedHeight - gridClearance
+        guard latestGridClearingOffset >= safeLocalTop else {
+            return safeLocalTop
         }
 
-        let preferredY = targetFrame.minY - cellSpacing - halfHeight
-        let fallbackY = targetFrame.maxY + cellSpacing + halfHeight
-        let y = preferredY >= minY ? preferredY : min(max(fallbackY, minY), maxY)
-        let x = min(max(targetFrame.midX, minX), maxX)
+        return min(max(preferredLocalTop, safeLocalTop), latestGridClearingOffset)
+    }
 
-        return CGPoint(x: x, y: y)
+    static func gridTop(in cellFrames: [String: CGRect]) -> CGFloat? {
+        cellFrames.values.map(\.minY).min()
     }
 
     var body: some View {
@@ -1174,7 +1205,7 @@ struct InvalidScorecardSelectionBanner: View {
         .frame(maxWidth: 320, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(ScoreKeepVisualStyle.elevatedSurface)
+                .fill(Color(uiColor: .systemBackground))
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         )
         .accessibilityElement(children: .combine)
