@@ -21,6 +21,7 @@ struct ShowPitchRptView: View {
     @State var pitchers:[Pitcher] = []
     @State var pagenum = 1
     @State private var thumbnailImage: UIImage?
+    @State private var generatedPDFShareItem: GeneratedPDFShareItem?
 
     var com:Common = Common()
 
@@ -105,6 +106,9 @@ struct ShowPitchRptView: View {
             Button("Generate PDF") {
                 if let pdfData = generatePDF() {
                     pdfURL = savePDF(data: pdfData, fileName: "pitchStats")
+                    if let pdfURL {
+                        generatedPDFShareItem = GeneratedPDFShareItem(url: pdfURL)
+                    }
                 }
             }
             .padding(0)
@@ -130,8 +134,10 @@ struct ShowPitchRptView: View {
                 isLoading = false
              }
             .padding()
-            if let pdfURL = pdfURL {
-                ShareLink("Export PDF", item: pdfURL)
+        }
+        .sheet(item: $generatedPDFShareItem) { item in
+            SystemShareSheet(itemURL: item.url) {
+                generatedPDFShareItem = nil
             }
         }
     }

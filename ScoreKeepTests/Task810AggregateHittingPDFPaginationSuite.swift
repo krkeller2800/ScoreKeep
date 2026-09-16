@@ -2,6 +2,7 @@ import CoreGraphics
 import Foundation
 import PDFKit
 import Testing
+import UIKit
 @testable import ScoreKeep
 
 @Suite("Task810AggregateHittingPDFPaginationSuite")
@@ -95,10 +96,17 @@ struct Task810AggregateHittingPDFPaginationSuite {
 
         #expect(document.pageCount == 2)
         #expect(occurrences(of: "Task810 Hitting", in: combinedText).count == document.pageCount)
-        #expect(occurrences(of: "Num", in: combinedText).count == document.pageCount)
+        #expect(ShowReportView.aggregateHittingPDFColumnLabels.first?.identifier == "number")
+        #expect(ShowReportView.aggregateHittingPDFColumnLabels.first?.text == "#")
+        #expect(occurrences(of: "Name", in: combinedText).count == document.pageCount)
 
         for pageNumber in 1...document.pageCount {
             #expect(combinedText.contains("Page \(pageNumber)"))
+        }
+
+        for pageIndex in 0..<document.pageCount {
+            let page = try #require(document.page(at: pageIndex))
+            #expect(numberColumnHeaderDarkPixelCount(on: page) >= 12)
         }
     }
 
@@ -182,5 +190,72 @@ struct Task810AggregateHittingPDFPaginationSuite {
         }
 
         return matches
+    }
+
+    private func numberColumnHeaderDarkPixelCount(on page: PDFPage) -> Int {
+        let geometry = AggregateHittingPDFPaginationGeometry()
+        let label = ShowReportView.aggregateHittingPDFColumnLabels[0]
+        let labelRect = ShowReportView.aggregateHittingPDFLineRect(
+            x: geometry.margin + label.xOffset,
+            y: geometry.margin + 61,
+            width: label.width,
+            font: UIFont.systemFont(ofSize: 12)
+        )
+        let image = page.thumbnail(of: geometry.pageSize, for: .mediaBox)
+
+        return darkPixelCount(in: labelRect.insetBy(dx: 4, dy: 0), image: image)
+    }
+
+    private func darkPixelCount(in rect: CGRect, image: UIImage) -> Int {
+        guard let sourceImage = image.cgImage else { return 0 }
+
+        let width = sourceImage.width
+        let height = sourceImage.height
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(
+            data: &pixels,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return 0
+        }
+
+        context.draw(sourceImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        let scaleX = CGFloat(width) / image.size.width
+        let scaleY = CGFloat(height) / image.size.height
+        let sampleRect = CGRect(
+            x: rect.minX * scaleX,
+            y: rect.minY * scaleY,
+            width: rect.width * scaleX,
+            height: rect.height * scaleY
+        ).integral
+
+        let minX = max(0, Int(sampleRect.minX))
+        let maxX = min(width, Int(sampleRect.maxX))
+        let minY = max(0, Int(sampleRect.minY))
+        let maxY = min(height, Int(sampleRect.maxY))
+        var darkPixels = 0
+
+        for y in minY..<maxY {
+            for x in minX..<maxX {
+                let offset = ((y * width) + x) * 4
+                let red = pixels[offset]
+                let green = pixels[offset + 1]
+                let blue = pixels[offset + 2]
+                let alpha = pixels[offset + 3]
+
+                if alpha > 0, red < 90, green < 90, blue < 90 {
+                    darkPixels += 1
+                }
+            }
+        }
+
+        return darkPixels
     }
 }

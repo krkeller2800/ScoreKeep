@@ -68,6 +68,7 @@ struct ShowReportView: View {
     @State var atbats:[Atbat]=[]
     @State var pagenum = 1
     @State private var thumbnailImage: UIImage?
+    @State private var generatedPDFShareItem: GeneratedPDFShareItem?
 
 
     var body: some View {
@@ -76,6 +77,9 @@ struct ShowReportView: View {
             Button("Generate PDF") {
                 if let pdfData = generatePDF() {
                     pdfURL = savePDF(data: pdfData, fileName: "Stats")
+                    if let pdfURL {
+                        generatedPDFShareItem = GeneratedPDFShareItem(url: pdfURL)
+                    }
                 }
             }
             .onAppear() {
@@ -83,8 +87,10 @@ struct ShowReportView: View {
                 sumData()
             }
             .padding()
-            if let pdfURL = pdfURL {
-                ShareLink("Export PDF", item: pdfURL)
+        }
+        .sheet(item: $generatedPDFShareItem) { item in
+            SystemShareSheet(itemURL: item.url) {
+                generatedPDFShareItem = nil
             }
         }
     }

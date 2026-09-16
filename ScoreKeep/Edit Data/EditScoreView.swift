@@ -35,6 +35,7 @@ struct EditScoreView: View {
     @State private var showPitchRpt = false
     @State private var shareReport = false
     @State private var showPaywall = false
+    @State private var showGeneratedOutputGateAlert = false
     @State private var isLoading = false
     @State private var isError = false
     @State private var alertText = ""
@@ -50,6 +51,7 @@ struct EditScoreView: View {
     @State var doShot = false
     @State var hasChanged = false
     @State var url:URL?
+    @State private var generatedPDFShareItem: GeneratedPDFShareItem?
     @State private var generatedOutputGateLifecycle = PurchaseGatedWorkflowLifecycle()
     private let purchaseDecisionAuthority = PurchaseDecisionAuthority()
 
@@ -276,9 +278,6 @@ struct EditScoreView: View {
                         }
                         .frame(width: 56)
                         .buttonStyle(ToolBarButtonStyle())
-                        if let pdfURL = url {
-                            ShareLink("Share", item: pdfURL)
-                        }
                     }
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         Button(action: {
@@ -343,6 +342,21 @@ struct EditScoreView: View {
             PaywallView(context: .reports)
                 .environmentObject(purchaseManager)
                 .presentationDetents([.large])
+        }
+        .alert("PDF reports require the ScoreKeep Season Pass", isPresented: $showGeneratedOutputGateAlert) {
+            Button("Get Season Pass") {
+                showPaywall = true
+            }
+            Button("Cancel", role: .cancel) {
+                cancelPendingGeneratedOutputFlow()
+            }
+        } message: {
+            Text("Get a Season Pass to create and share PDF reports.")
+        }
+        .sheet(item: $generatedPDFShareItem) { item in
+            SystemShareSheet(itemURL: item.url) {
+                generatedPDFShareItem = nil
+            }
         }
         .onReceive(purchaseManager.$entitlementState) { entitlementState in
             guard purchaseDecisionAuthority.decision(for: entitlementState).permitsCurrentSeasonAccess else { return }
@@ -428,8 +442,9 @@ struct EditScoreView: View {
         case .none:
             break
         case .presentPaywall:
-            showPaywall = true
+            showGeneratedOutputGateAlert = true
         case .perform(let action):
+            showGeneratedOutputGateAlert = false
             showPaywall = false
             performGeneratedOutput(action)
         }
@@ -440,6 +455,9 @@ struct EditScoreView: View {
         case .scorecardPDF:
             let generatePDF = PDFGenerator()
             url = generatePDF.generatePDFData(game: game, team: team, title: "Test PDF", body: "This is a test")
+            if let url {
+                generatedPDFShareItem = GeneratedPDFShareItem(url: url)
+            }
         case .pitchingStatistics:
             showPitchRpt.toggle()
             isLoading = true
