@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 enum ScoreKeepIPadNavigationPolicy {
     static let sidebarRootVisibility = NavigationSplitViewVisibility.doubleColumn

@@ -306,7 +306,7 @@ struct EditScoreView: View {
                     // Give a moment for the screen boundaries to change after
                     // the device is rotated
                     Task { @MainActor in
-                        try await Task.sleep(for: .seconds(0.1))
+                        try? await Task.sleep(for: .seconds(0.1))
                         withAnimation {
                             screenHeight = UIScreen.main.bounds.height
                             screenWidth = UIScreen.main.bounds.width
@@ -367,10 +367,10 @@ struct EditScoreView: View {
         }
     }
     init(pgame: Game, pnavigationPath: Binding<NavigationPath>, ateam: String, columnVisability: Binding<NavigationSplitViewVisibility>) {
-        game = pgame
-        teamName = ateam
         _navigationPath = pnavigationPath
         _columnVisibility = columnVisability
+        _game = State(initialValue: pgame)
+        _teamName = State(initialValue: ateam)
     }
 
     @discardableResult
