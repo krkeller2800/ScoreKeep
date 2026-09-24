@@ -239,11 +239,7 @@ struct ScoreKeepHelpView: View {
                     isPlaying = false
                 }
                 .fullScreenCover(isPresented: $isShowingFullScreenPlayer) {
-                    ScoreKeepFullScreenHelpPlayer(
-                        player: player,
-                        isPlaying: $isPlaying,
-                        onRestart: restartSelectedVideo
-                    )
+                    ScoreKeepFullScreenHelpPlayer(player: player)
                 }
         }
     }
@@ -391,56 +387,16 @@ struct ScoreKeepHelpView: View {
 }
 
 private struct ScoreKeepFullScreenHelpPlayer: View {
-    @Environment(\.dismiss) private var dismiss
-
     let player: AVPlayer?
-    @Binding var isPlaying: Bool
-    let onRestart: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack {
             Color.black
                 .ignoresSafeArea()
 
             PlayerViewControllerWrapper(player: player)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .ignoresSafeArea()
-
-            HStack(spacing: 12) {
-                Button {
-                    onRestart()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                }
-                .accessibilityLabel("Restart Video")
-                .disabled(player == nil)
-
-                Button {
-                    togglePlayback()
-                } label: {
-                    Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                }
-                .accessibilityLabel(isPlaying ? "Pause" : "Play")
-                .disabled(player == nil)
-
-                Button("Done") {
-                    dismiss()
-                }
-                .fontWeight(.semibold)
-            }
-            .buttonStyle(.borderedProminent)
-            .padding()
-        }
-    }
-
-    private func togglePlayback() {
-        guard let player else { return }
-        if isPlaying {
-            player.pause()
-            isPlaying = false
-        } else {
-            player.play()
-            isPlaying = true
         }
     }
 }

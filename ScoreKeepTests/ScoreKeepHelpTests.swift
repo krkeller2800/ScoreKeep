@@ -113,19 +113,28 @@ struct ScoreKeepHelpTests {
         #expect(ScoreKeepHelpView.landscapeVideoAspectRatio > 2.0)
     }
 
-    @Test("video Help presents full screen above root navigation with one Done exit")
-    func videoHelpPresentsFullScreenAboveRootNavigationWithOneDoneExit() throws {
+    @Test("video Help full screen uses only native player controls")
+    func videoHelpFullScreenUsesOnlyNativePlayerControls() throws {
         let helpView = try sourceText(at: "ScoreKeep/Common/ScoreKeepHelpView.swift")
+        let fullScreenPlayer = try #require(
+            helpView
+                .components(separatedBy: "private struct ScoreKeepFullScreenHelpPlayer: View")
+                .last?
+                .components(separatedBy: "private struct PlayerViewControllerWrapper")
+                .first
+        )
 
         #expect(ScoreKeepHelpView.enterFullScreenSystemImage == "arrow.up.left.and.arrow.down.right")
         #expect(helpView.contains(".fullScreenCover(isPresented: $isShowingFullScreenPlayer)"))
         #expect(helpView.contains("private struct ScoreKeepFullScreenHelpPlayer: View"))
-        #expect(helpView.contains("Button(\"Done\")"))
-        #expect(!helpView.contains("Label(\"Exit Full Screen\""))
         #expect(helpView.contains("PlayerViewControllerWrapper(player: player)"))
         #expect(!helpView.contains(".aspectRatio(ScoreKeepHelpView.landscapeVideoAspectRatio, contentMode: .fit)"))
         #expect(helpView.contains(".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)"))
         #expect(helpView.contains("controller.videoGravity = .resizeAspect"))
+        #expect(helpView.contains("controller.showsPlaybackControls = true"))
+        #expect(!fullScreenPlayer.contains("Button"))
+        #expect(!fullScreenPlayer.contains("@Environment(\\.dismiss)"))
+        #expect(!helpView.contains("ScoreKeepHelpControlsAutoHidePolicy"))
     }
 
     @Test("existing root Help routes use video Help instead of the PDF manual")
