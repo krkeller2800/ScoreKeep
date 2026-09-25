@@ -50,7 +50,7 @@ MLB roster downloads provide access to remotely available roster data where supp
 
 Reports provide scorecards, batting reports, pitching reports, summaries, and generated document previews where supported. Reports should clearly identify their scope, such as game, team, player, completed games, or date range.
 
-Help and documentation provide the manual, instructions, support information, and relevant explanations. Help should remain reachable from major workflows, especially when users are setting up a game, importing data, scoring, or interpreting reports.
+Help and documentation provide tutorials, instructions, support information, and relevant explanations. Help should remain reachable from major workflows, especially when users are setting up a game, importing data, scoring, or interpreting reports. Settings provides Contact Support in its Help section; this action presents the production ScoreKeep feedback page inside the app using the system Safari interface. The system interface supplies dismissal back to ScoreKeep, page navigation, sharing, and an optional path to open the page in Safari.
 
 Purchases and premium status show available products, current entitlement state, remaining free-use allowances where applicable, restoration status, and upgrade actions. Purchase navigation should not hide existing local data or cause users to lose the task that led to the paywall.
 

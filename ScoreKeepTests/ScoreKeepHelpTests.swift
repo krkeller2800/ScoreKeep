@@ -151,6 +151,21 @@ struct ScoreKeepHelpTests {
         #expect(!settingsView.contains("Help Documentation"))
     }
 
+    @Test("Contact Support presents the production feedback page in native Safari UI")
+    func contactSupportPresentsProductionFeedbackPageInNativeSafariUI() throws {
+        let settingsView = try sourceText(at: "ScoreKeep/Common/ScoreKeepSettingsEntryPoint.swift")
+
+        #expect(ScoreKeepSettingsView.feedbackURL.absoluteString == "https://komakode.com/scorekeep/feedback/")
+        #expect(settingsView.contains("Button(\"Contact Support\")"))
+        #expect(settingsView.contains(".fullScreenCover(isPresented: $isShowingFeedback)"))
+        #expect(settingsView.contains("struct ScoreKeepSafariView: UIViewControllerRepresentable"))
+        #expect(settingsView.contains("SFSafariViewController(url: url)"))
+        #expect(settingsView.contains("controller.delegate = context.coordinator"))
+        #expect(settingsView.contains("func safariViewControllerDidFinish"))
+        #expect(!settingsView.contains("WKWebView"))
+        #expect(!settingsView.contains("mailto:"))
+    }
+
     @Test("production endpoint is the published ScoreKeep manifest")
     func productionEndpointIsPublishedScoreKeepManifest() {
         #expect(ScoreKeepHelpManifestLoader.productionFeedURL.absoluteString == "https://komakode.com/videos/ScoreKeep-help-videos.json")

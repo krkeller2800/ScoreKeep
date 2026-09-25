@@ -1,12 +1,14 @@
 import SwiftUI
+import SafariServices
 #if canImport(UIKit)
 import UIKit
 #endif
 
 struct ScoreKeepSettingsView: View {
+    static let feedbackURL = URL(string: "https://komakode.com/scorekeep/feedback/")!
+
     @EnvironmentObject private var purchaseManager: PurchaseManager
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
 
     let onOpenImportFlow: () -> Void
     let onOpenExportFlow: () -> Void
@@ -14,11 +16,10 @@ struct ScoreKeepSettingsView: View {
 
     @AppStorage("scoreKeepAppearance") private var appearanceSelection = ScoreKeepAppearanceOption.system.rawValue
     @State private var isShowingPaywall = false
+    @State private var isShowingFeedback = false
     @State private var didCopyDiagnostics = false
 
     private let privacyURL = URL(string: "https://komakode.com/Privacy%20Policy")!
-    private let supportEmailAddress = "comment@KomaKode.com"
-    private let supportEmailSubject = "ScoreKeep Support"
 
     init(
         onOpenImportFlow: @escaping () -> Void = {},
@@ -51,6 +52,12 @@ struct ScoreKeepSettingsView: View {
         .sheet(isPresented: $isShowingPaywall) {
             PaywallView(context: .general)
                 .environmentObject(purchaseManager)
+        }
+        .fullScreenCover(isPresented: $isShowingFeedback) {
+            ScoreKeepSafariView(
+                url: Self.feedbackURL,
+                isPresented: $isShowingFeedback
+            )
         }
         .task {
             if purchaseManager.priceState == .notStarted {
@@ -124,7 +131,7 @@ struct ScoreKeepSettingsView: View {
             }
 
             Button("Contact Support") {
-                openURL(supportURL)
+                isShowingFeedback = true
             }
         }
     }
@@ -218,18 +225,6 @@ struct ScoreKeepSettingsView: View {
         }
     }
 
-    private var supportURL: URL {
-        var components = URLComponents()
-        components.scheme = "mailto"
-        components.path = supportEmailAddress
-        components.queryItems = [
-            URLQueryItem(name: "subject", value: supportEmailSubject),
-            URLQueryItem(name: "body", value: supportEmailBody)
-        ]
-
-        return components.url ?? URL(string: "mailto:\(supportEmailAddress)")!
-    }
-
     private var supportEmailBody: String {
         """
         Please describe the problem above this line.
@@ -298,6 +293,35 @@ struct ScoreKeepSettingsView: View {
         UIPasteboard.general.string = supportEmailBody
         #endif
         didCopyDiagnostics = true
+    }
+}
+
+struct ScoreKeepSafariView: UIViewControllerRepresentable {
+    let url: URL
+    @Binding var isPresented: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(isPresented: $isPresented)
+    }
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let controller = SFSafariViewController(url: url)
+        controller.delegate = context.coordinator
+        return controller
+    }
+
+    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
+
+    final class Coordinator: NSObject, SFSafariViewControllerDelegate {
+        @Binding private var isPresented: Bool
+
+        init(isPresented: Binding<Bool>) {
+            _isPresented = isPresented
+        }
+
+        func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+            isPresented = false
+        }
     }
 }
 
