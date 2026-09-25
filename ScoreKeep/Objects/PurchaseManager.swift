@@ -21,6 +21,7 @@ final class PurchaseManager: ObservableObject {
     @Published var seasonPassProduct: Product?
     @Published var entitlementState: EntitlementState = .notEntitled
     @Published var priceState: ProductDiscoveryState = .notStarted
+    @Published private(set) var discoveredSeasonProductID: String?
 
     // State for Paywall UI
     @Published var isPurchasing: Bool = false
@@ -49,6 +50,7 @@ final class PurchaseManager: ObservableObject {
     private let entitlementFetcher: any CurrentEntitlementFetching
     private let calendar: Calendar
     private let currentDate: @Sendable () -> Date
+    private let seasonIdentifierProvider: any CurrentSeasonIdentifierProviding
     private let discoveryService: ProductDiscoveryService
     private let purchaseAction: @Sendable (any DiscoveredProduct) async throws -> PurchaseOutcome
     private let restoreAction: @Sendable () async throws -> Void
@@ -85,9 +87,11 @@ final class PurchaseManager: ObservableObject {
         self.purchaseAction = purchaseAction
         self.restoreAction = restoreAction
 
+        let seasonIdentifierProvider = CalendarSeasonIdentifierProvider(calendar: calendar, currentDate: currentDate)
+        self.seasonIdentifierProvider = seasonIdentifierProvider
         self.discoveryService = ProductDiscoveryService(
             fetcher: catalogFetcher,
-            identifierProvider: CalendarSeasonIdentifierProvider(calendar: calendar, currentDate: currentDate)
+            identifierProvider: seasonIdentifierProvider
         )
 
         // Begin listening to transaction updates immediately
@@ -103,6 +107,8 @@ final class PurchaseManager: ObservableObject {
     func loadProducts() async {
         lastErrorMessage = nil
         priceState = .loading
+        discoveredSeasonProductID = nil
+        seasonPassProduct = nil
 
         await discoveryService.discoverCurrentSeasonProduct()
         self.priceState = discoveryService.state
@@ -110,6 +116,7 @@ final class PurchaseManager: ObservableObject {
         // Update the legacy product field for compatibility with the purchase method
         switch discoveryService.state {
         case .discovered(let discoveredProduct):
+            self.discoveredSeasonProductID = discoveredProduct.id
             if let liveProduct = discoveredProduct as? Product {
                 self.seasonPassProduct = liveProduct
                 self.lastErrorMessage = nil
@@ -119,9 +126,11 @@ final class PurchaseManager: ObservableObject {
                 self.lastErrorMessage = nil
             }
         case .productUnavailable:
+            self.discoveredSeasonProductID = nil
             self.seasonPassProduct = nil
             self.lastErrorMessage = "This year’s Season Pass is not currently available."
         case .failure:
+            self.discoveredSeasonProductID = nil
             self.seasonPassProduct = nil
             self.lastErrorMessage = "We couldn’t load this year’s Season Pass. Please try again in a moment."
         case .loading, .notStarted:
@@ -129,9 +138,33 @@ final class PurchaseManager: ObservableObject {
         }
     }
 
+    /// Keeps product discovery aligned with the current calendar season without
+    /// reloading an already-discovered product for the same season.
+    func ensureCurrentSeasonProduct() async {
+        let expectedProductID = seasonIdentifierProvider.currentSeasonIdentifier()
+        if case .discovered(let discoveredProduct) = priceState,
+           discoveredProduct.id == expectedProductID {
+            discoveredSeasonProductID = discoveredProduct.id
+            return
+        }
+
+        await loadProducts()
+    }
+
     /// Initiates a purchase request for the currently discovered Season Pass.
     func purchaseSeasonPass() async {
-        guard case .discovered(let discoveredProduct) = priceState else { return }
+        guard case .discovered(let initiallyDiscoveredProduct) = priceState else { return }
+
+        if initiallyDiscoveredProduct.id != seasonIdentifierProvider.currentSeasonIdentifier() {
+            await loadProducts()
+        }
+
+        let expectedProductID = seasonIdentifierProvider.currentSeasonIdentifier()
+        guard case .discovered(let discoveredProduct) = priceState,
+              discoveredProduct.id == expectedProductID else {
+            lastErrorMessage = "This year’s Season Pass is not currently available."
+            return
+        }
 
         resetTransientPurchaseState()
         isPurchasing = true

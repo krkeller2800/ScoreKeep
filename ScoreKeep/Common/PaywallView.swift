@@ -126,16 +126,12 @@ struct PaywallView: View {
         }
         .task {
             if scenePhase == .active {
-                if case .discovered = purchaseManager.priceState { } else {
-                    await purchaseManager.loadProducts()
-                }
+                await purchaseManager.ensureCurrentSeasonProduct()
             }
         }
         .onChange(of: scenePhase) {
             if scenePhase == .active {
-                if case .discovered = purchaseManager.priceState { } else {
-                    Task { await purchaseManager.loadProducts() }
-                }
+                Task { await purchaseManager.ensureCurrentSeasonProduct() }
             }
         }
     }
@@ -331,4 +327,3 @@ struct PaywallView: View {
         }
     }
 }
-

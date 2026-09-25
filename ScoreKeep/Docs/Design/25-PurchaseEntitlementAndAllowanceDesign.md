@@ -59,7 +59,7 @@ Entitlement changes are product-state changes. They may update availability of g
 <!-- MARK: - 7. Seasonal Product Model -->
 ## 7. Seasonal Product Model
 
-Current repository evidence shows non-renewing seasonal products in the StoreKit configuration for `com.komakode.ScoreKeep.SeasonPass2025` and `com.komakode.ScoreKeep.SeasonPass2026`, each named as a ScoreKeep year-specific Season Pass and described as scoring games through that year with full MLB download access. Source code builds the current product identifier from the stable prefix `com.komakode.ScoreKeep.SeasonPass` plus the current calendar year, and current entitlement expiration is computed from the product identifier suffix as local end of that year.
+Current repository evidence shows non-renewing seasonal products in the StoreKit configuration for `com.komakode.ScoreKeep.SeasonPass2025`, `com.komakode.ScoreKeep.SeasonPass2026`, and `com.komakode.ScoreKeep.SeasonPass2027`, each named as a ScoreKeep year-specific Season Pass and described as scoring games through that year with full MLB download access. Source code builds the current product identifier from the stable prefix `com.komakode.ScoreKeep.SeasonPass` plus the current calendar year, and current entitlement expiration is computed from the product identifier suffix as local end of that year.
 
 Current-season access means confirmed access for the season the app is currently selling and gating. Prior-season access means a recognized purchase whose season no longer covers current premium actions. A future or wrong-season product must not be presented as current access. Season transitions must distinguish expired history from active access and must avoid silently activating the wrong year.
 
@@ -70,6 +70,10 @@ This design does not invent additional product identifiers. Future yearly identi
 
 Product loading asks purchase infrastructure for the intended current-season product and waits for confirmed product information. Product unavailable means the requested product could not be found or offered. Price unavailable means product identity may be known but localized price information cannot be safely presented. Delayed response and offline loading are temporary or uncertain states, not proof that the user lacks access.
 
+Successful discovery records the exact season-product identifier it represents. App activation and paywall presentation compare that identifier with the identifier currently produced by `CalendarSeasonIdentifierProvider`; a mismatch triggers discovery for the new season, while an exact same-season match avoids an unnecessary reload. Immediately before purchase, the manager repeats this comparison, reloads a stale discovery, and requires an exact current-season identifier before invoking StoreKit. This makes a process kept alive across New Year fail closed instead of purchasing the prior year's cached product.
+
+The identifier calculation is dynamic, but StoreKit offerings are not created dynamically. Annual release operations must create and approve the next `SeasonPassYYYY` non-renewing product in App Store Connect and add the same product to the checked-in StoreKit test configuration before rollover testing.
+
 Unsupported storefront, account restrictions, StoreKit service failure, network loss, or unavailable App Store state should be classified as product or status unavailability. Stale product information should not be used to promise a current price, current season, or current availability.
 
 Retry should be offered when safe and useful. The app must not invent prices, reuse obsolete prices as purchase promises, or imply purchase readiness before the current product and price are confirmed.
@@ -77,7 +81,7 @@ Retry should be offered when safe and useful. The app must not invent prices, re
 <!-- MARK: - 9. Price Presentation -->
 ## 9. Price Presentation
 
-Price presentation must use confirmed localized product information supplied by purchase infrastructure. The current StoreKit configuration contains `4.99` display prices for the 2025 and 2026 season passes, but that is repository evidence for the current configuration, not an architectural constant or future promise.
+Price presentation must use confirmed localized product information supplied by purchase infrastructure. The current StoreKit configuration contains `4.99` display prices for the 2025, 2026, and 2027 season passes, but that is repository evidence for the current configuration, not an architectural constant or future promise.
 
 When price is loading, the UI should show a pending state. When price is unavailable, the paywall should say that price could not be loaded and offer retry or return actions. It should not hard-code a price, infer price from prior years, or present a stale value as current.
 
@@ -437,7 +441,7 @@ Support summaries should distinguish purchase access recovery from baseball-data
 <!-- MARK: - 49. Legacy Purchase and Allowance Mapping -->
 ## 49. Legacy Purchase and Allowance Mapping
 
-Repository evidence identifies the StoreKit configuration as product evidence: non-renewing 2025 and 2026 season passes, year-specific product identifiers, displayed price evidence, App Store internal IDs, and non-family-shareable configuration.
+Repository evidence identifies the StoreKit configuration as product evidence: non-renewing 2025, 2026, and 2027 season passes, year-specific product identifiers, displayed price evidence, App Store internal IDs, and non-family-shareable configuration.
 
 `PurchaseManager` is purchase-service evidence and migration risk. It loads only the current-year product by prefix convention, stores a max local expiration in Keychain, computes local end-of-year entitlement from product ID suffix, listens for transaction updates, handles pending and canceled outcomes through messages, and notes that non-renewing purchases do not automatically restore active access on a new device without local entitlement.
 

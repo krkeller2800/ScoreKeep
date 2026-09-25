@@ -22,7 +22,7 @@ Future-season purchases may be offered when a new season becomes available. A fu
 
 Existing-season access should remain understandable after the season changes. A prior-season purchase may remain visible as purchase history or as an expired entitlement, but it should not be presented as active current-season premium access after its season period ends.
 
-Pricing should be presented clearly before the user purchases. The user should see the price supplied for the current-season product and should not need to infer cost from promotional copy, outdated documentation, or prior seasons. The current baseline StoreKit configuration uses a displayed price of `4.99` for the 2025 and 2026 season passes; this is a current default, not a guarantee that every future season will use the same price.
+Pricing should be presented clearly before the user purchases. The user should see the price supplied for the current-season product and should not need to infer cost from promotional copy, outdated documentation, or prior seasons. The current baseline StoreKit configuration uses a displayed price of `4.99` for the 2025, 2026, and 2027 season passes; this is a current default, not a guarantee that every future season will use the same price.
 
 Product naming should be season-specific and direct. User-facing names should communicate that the purchase is a ScoreKeep season pass or current-season premium access for a named year or season. Product text must avoid confusing subscription language, renewal promises, or claims that future purchases are automatic.
 
@@ -219,6 +219,10 @@ Current-season product presentation should identify the season being sold. The p
 Year-to-year changes are expected. The price, product name, availability date, access period, premium feature set, or product presentation may change in future seasons. Any change should be presented before purchase and should avoid surprising users who bought a prior-season pass.
 
 New season availability should be clear. When a new season product is available, the app should offer that season's purchase and explain that it is separate from prior-season access unless the product rules explicitly say otherwise.
+
+An app process that remains alive across a calendar-year boundary must revalidate product discovery when it becomes active and when the paywall is presented. If the cached product identifier does not exactly match the identifier derived for the current calendar year, ScoreKeep reloads that year's product. The purchase boundary repeats the exact-identifier check and will not purchase a cached prior-season product. An already-discovered current-season product is retained during ordinary same-year activation.
+
+The year is derived dynamically in the app, but product availability is annual operational configuration. Before each new calendar year, the matching non-renewing Season Pass product must exist in App Store Connect and in the checked-in StoreKit test configuration using the stable `com.komakode.ScoreKeep.SeasonPassYYYY` identifier convention.
 
 Old season expiration should be clear. When a season period ends, active premium capabilities for that season may expire. The app should communicate that expiration without suggesting that user-owned data has expired.
 

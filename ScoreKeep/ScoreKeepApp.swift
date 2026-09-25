@@ -52,7 +52,7 @@ struct ScoreKeepApp: App {
                     .environmentObject(announcements)
                     .preferredColorScheme(selectedColorScheme)
                     .task {
-                        await purchaseManager.loadProducts()
+                        await purchaseManager.ensureCurrentSeasonProduct()
                         await purchaseManager.refreshEntitlements()
                         await announcements.refresh()
                     }
@@ -60,9 +60,7 @@ struct ScoreKeepApp: App {
                         if scenePhase == .active {
                             Task {
                                 await purchaseManager.refreshEntitlements()
-                                if purchaseManager.seasonPassProduct == nil {
-                                    await purchaseManager.loadProducts()
-                                }
+                                await purchaseManager.ensureCurrentSeasonProduct()
                                 await announcements.refresh()
                             }
                         }

@@ -40,6 +40,21 @@
       "productID" : "com.komakode.ScoreKeep.SeasonPass2026",
       "referenceName" : "ScoreKeep 2026 Season Pass",
       "type" : "NonRenewingSubscription"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6755930910",
+      "localizations" : [
+        {
+          "description" : "Score games through 2027 with full MLB download access",
+          "displayName" : "ScoreKeep 2027 Season Pass",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.komakode.ScoreKeep.SeasonPass2027",
+      "referenceName" : "ScoreKeep 2027 Season Pass",
+      "type" : "NonRenewingSubscription"
     }
   ],
   "products" : [
