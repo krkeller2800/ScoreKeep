@@ -80,6 +80,8 @@ Deleting a game must require clear confirmation and must not delete unrelated te
 
 Plate appearances must record the selected batter, inning, sequence, result, outs, runner movement, RBI attribution, pitcher context, and team score consistently.
 
+Release-configuration scoring smoke tests must verify that every visible defensive-fielder control records its own position. Each fielder's interactive region must remain bounded to that visible control so neighboring positions cannot intercept the tap.
+
 Hits must advance batters and runners according to the selected scoring result and must update score, hits, player statistics, pitcher statistics, scorecards, box scores, reports, and exports consistently.
 
 Walks must preserve batter and runner advancement, pitcher attribution, earned-run implications where supported, and inning state.

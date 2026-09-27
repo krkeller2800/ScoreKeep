@@ -352,6 +352,40 @@ struct drawoutAt: View {
     }
 }
 
+enum DefensiveFielderHitTargetLayout {
+    static func targetSize(isPhone: Bool) -> CGSize {
+        isPhone ? CGSize(width: 50, height: 50) : CGSize(width: 60, height: 60)
+    }
+
+    static func frame(center: UnitPoint, in containerSize: CGSize, isPhone: Bool) -> CGRect {
+        let size = targetSize(isPhone: isPhone)
+        let point = CGPoint(x: center.x * containerSize.width, y: center.y * containerSize.height)
+        return CGRect(
+            x: point.x - size.width / 2,
+            y: point.y - size.height / 2,
+            width: size.width,
+            height: size.height
+        )
+    }
+
+    static func updatedPlayRecord(
+        _ playRecord: String,
+        position: Int,
+        isOutfielder: Bool,
+        result: String
+    ) -> String {
+        let token: String
+        if result == "Fly Out" {
+            token = "\(isOutfielder ? "F" : "P")\(position)"
+        } else if result == "Line Out" {
+            token = "L\(position)"
+        } else {
+            token = String(position)
+        }
+        return playRecord.isEmpty ? token : "\(playRecord)-\(token)"
+    }
+}
+
 struct fielderButtons: View {
     @Environment(\.colorScheme) private var colorScheme
     var size: CGSize
@@ -385,167 +419,121 @@ struct fielderButtons: View {
         selected ? .red : (colorScheme == .dark ? ScoreKeepVisualStyle.primaryText : .black)
     }
 
-    var body: some View {
-        let sz = UIDevice.type == "iPhone" ? 32.5: 45.0
-        let phone = UIDevice.type == "iPhone" ? true : false
-        Button("\n\n\nLeft") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-F7" : result == "Line Out" ? "-L7" : "-7"
-            } else {
-                playRecord += result == "Fly Out" ? "F7" : result == "Line Out" ? "L7" : "7"
-            }
+    private func fielderLabel(
+        _ label: String,
+        imageName: String,
+        imageSize: CGFloat,
+        selected: Bool,
+        bold: Bool = false,
+        targetSize: CGSize
+    ) -> some View {
+        VStack(spacing: -3) {
+            Image(imageName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: imageSize, height: imageSize)
+                .accessibilityHidden(true)
+            Text(label)
+                .font(.caption.weight(bold ? .bold : .regular))
+                .italic()
+                .lineLimit(1)
         }
-        .foregroundColor(fielderLabelColor(selected: showShadow7)).italic().font(.caption)
+        .foregroundColor(fielderLabelColor(selected: selected))
+        .frame(width: targetSize.width, height: targetSize.height)
+        .contentShape(Rectangle())
+    }
+
+    var body: some View {
+        let sz = UIDevice.type == "iPhone" ? 32.5 : 45.0
+        let phone = UIDevice.type == "iPhone"
+        let targetSize = DefensiveFielderHitTargetLayout.targetSize(isPhone: phone)
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 7, isOutfielder: true, result: result)
+        } label: {
+            fielderLabel("Left", imageName: "outfielder", imageSize: sz, selected: showShadow7, targetSize: targetSize)
+        }
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.33 :0.15) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         .shadow(color: Color.red, radius: showShadow7 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("outfielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.33 :0.15) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
-        }
+        .accessibilityIdentifier("defensive-fielder-7")
         .onChange (of: playRecord) {
             setflags()
         }
         .onAppear() {
             setflags()
         }
-        Button("\n\n\nCenter") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-F8" : result == "Line Out" ? "-L8" : "-8"
-            } else {
-                playRecord += result == "Fly Out" ? "F8" : result == "Line Out" ? "L8" : "8"
-            }
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 8, isOutfielder: true, result: result)
+        } label: {
+            fielderLabel("Center", imageName: "outfielder", imageSize: sz, selected: showShadow8, targetSize: targetSize)
         }
-        .foregroundColor(fielderLabelColor(selected: showShadow8)).italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.5 :0.5) * size.width, y:(phone ? 0.5 : 0.35) * size.height)
         .shadow(color: Color.red, radius: showShadow8 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("outfielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.5 :0.5) * size.width, y:(phone ? 0.5 : 0.35) * size.height)
+        .accessibilityIdentifier("defensive-fielder-8")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 9, isOutfielder: true, result: result)
+        } label: {
+            fielderLabel("Right", imageName: "outfielder", imageSize: sz, selected: showShadow9, targetSize: targetSize)
         }
-        Button("\n\n\nRight") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-F9" : result == "Line Out" ? "-L9" : "-9"
-            } else {
-                playRecord += result == "Fly Out" ? "F9" : result == "Line Out" ? "L9" : "9"
-            }
-        }
-        .foregroundColor(fielderLabelColor(selected: showShadow9)).italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.67 :0.85) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
         .shadow(color: Color.red, radius: showShadow9 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("outfielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.67 :0.85) * size.width, y:(phone ? 0.59 : 0.4) * size.height)
+        .accessibilityIdentifier("defensive-fielder-9")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 5, isOutfielder: false, result: result)
+        } label: {
+            fielderLabel("3rd", imageName: "Infielder", imageSize: sz, selected: showShadow5, targetSize: targetSize)
         }
-        Button("\n\n\n3rd") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-P5" : result == "Line Out" ? "-L5" : "-5"
-            } else {
-                playRecord += result == "Fly Out" ? "P5" : result == "Line Out" ? "L5": "5"
-            }
-        }
-        .foregroundColor(fielderLabelColor(selected: showShadow5)).italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.40 : 0.25) * size.width, y:(phone ? 0.68 : 0.59) * size.height)
         .shadow(color: Color.red, radius: showShadow5 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("Infielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.4 :0.25) * size.width, y:(phone ? 0.68 : 0.59) * size.height)
+        .accessibilityIdentifier("defensive-fielder-5")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 6, isOutfielder: false, result: result)
+        } label: {
+            fielderLabel("Short", imageName: "Infielder", imageSize: sz, selected: showShadow6, targetSize: targetSize)
         }
-        Button("\n\n\nShort") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-P6" : result == "Line Out" ? "-L6" : "-6"
-            } else {
-                playRecord += result == "Fly Out" ? "P6" : result == "Line Out" ? "L6" : "6"
-            }
-        }
-        .foregroundColor(fielderLabelColor(selected: showShadow6)).italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.46 : 0.36) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         .shadow(color: Color.red, radius: showShadow6 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("Infielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.46 : 0.36) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
+        .accessibilityIdentifier("defensive-fielder-6")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 4, isOutfielder: false, result: result)
+        } label: {
+            fielderLabel("2nd", imageName: "Infielder", imageSize: sz, selected: showShadow4, bold: true, targetSize: targetSize)
         }
-        Button("\n\n\n2nd") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-P4" : result == "Line Out" ? "-L4" : "-4"
-            } else {
-                playRecord += result == "Fly Out" ? "P4" : result == "Line Out" ? "L4" : "4"
-            }
-        }
-        .foregroundColor(fielderLabelColor(selected: showShadow4)).bold().italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.54 : 0.64) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
         .shadow(color: Color.red, radius: showShadow4 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("Infielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.54 : 0.64) * size.width, y:(phone ? 0.64 : 0.46) * size.height)
+        .accessibilityIdentifier("defensive-fielder-4")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 3, isOutfielder: false, result: result)
+        } label: {
+            fielderLabel("1st", imageName: "Infielder", imageSize: sz, selected: showShadow3, targetSize: targetSize)
         }
-        Button("\n\n\n1st") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-P3" : result == "Line Out" ? "-L3" : "-3"
-            } else {
-                playRecord += result == "Fly Out" ? "P3" : result == "Line Out" ? "L3" : "3"
-            }        }
-        .foregroundColor(fielderLabelColor(selected: showShadow3)).italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
         .shadow(color: Color.red, radius: showShadow3 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("Infielder")
-                .resizable()
-                .scaledToFill()
-                .frame(width: sz, height: sz)
-                .position(x:(phone ? 0.6 : 0.75) * size.width, y:(phone ? 0.7 : 0.59) * size.height)
+        .accessibilityIdentifier("defensive-fielder-3")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 1, isOutfielder: false, result: result)
+        } label: {
+            fielderLabel("Pitch", imageName: "pitcher", imageSize: phone ? 38 : 45, selected: showShadow1, targetSize: targetSize)
         }
-        Button("\n\n\nPitch") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-P1" : result == "Line Out" ? "-L1" : "-1"
-            } else {
-                playRecord += result == "Fly Out" ? "P1" : result == "Line Out" ? "L1" : "1"
-            }
-        }
-        .foregroundColor(fielderLabelColor(selected: showShadow1)).italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.77 : 0.7) * size.height)
         .shadow(color: Color.red, radius: showShadow1 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("pitcher")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 55, height: 55)
-                .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.77 : 0.7) * size.height)
+        .accessibilityIdentifier("defensive-fielder-1")
+        Button {
+            playRecord = DefensiveFielderHitTargetLayout.updatedPlayRecord(playRecord, position: 2, isOutfielder: false, result: result)
+        } label: {
+            fielderLabel("Catch", imageName: "catcher", imageSize: 35, selected: showShadow2, bold: true, targetSize: targetSize)
         }
-        Button("\n\nCatch") {
-            if playRecord.count > 0 {
-                playRecord += result == "Fly Out" ? "-P2" : result == "Line Out" ? "-L2" : "-2"
-            } else {
-                playRecord += result == "Fly Out" ? "P2" : result == "Line Out" ? "L2" : "2"
-            }
-        }
-        .foregroundColor(fielderLabelColor(selected: showShadow2)).bold().italic().font(.caption)
+        .buttonStyle(.plain)
         .position(x:(phone ? 0.5 : 0.5) * size.width, y:(phone ? 0.93 : 0.94) * size.height)
         .shadow(color: Color.red, radius: showShadow2 ? 5 : 0, x: 0, y: 0)
-        .background {
-            Image("catcher")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 35, height: 35)
-                .position(x:0.5 * size.width, y:0.94 * size.height)
-        }
+        .accessibilityIdentifier("defensive-fielder-2")
     }
     func setflags() {
         showShadow1 = playRecord.contains("1") ? true : false
