@@ -661,6 +661,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScoreKeep/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScoreKeep;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
@@ -801,6 +802,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ScoreKeep/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScoreKeep;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.sports";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
