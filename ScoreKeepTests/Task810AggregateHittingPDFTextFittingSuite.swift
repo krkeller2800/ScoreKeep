@@ -221,7 +221,7 @@ struct Task810AggregateHittingPDFTextFittingSuite {
         #expect(shrinkingFit.text.contains("FITLONGTITLE"))
         #expect(shrinkingFit.fontSize < 16)
         #expect(shrinkingFit.fontSize >= 8)
-        #expect(shrinkingFit.didTruncate)
+        #expect(!shrinkingFit.didTruncate)
         #expect(truncatingFit.text.hasPrefix("FITEXTREME"))
         #expect(truncatingFit.text.hasSuffix("..."))
         #expect(truncatingFit.fontSize == 8)

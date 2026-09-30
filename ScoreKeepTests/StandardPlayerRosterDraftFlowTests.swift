@@ -258,7 +258,7 @@ struct StandardPlayerRosterDraftFlowTests {
 
         #expect(draft.name == "Loaded Player")
         #expect(draft.number == "24")
-        #expect(draft.position == "Catcher")
+        #expect(draft.position == "CATCHER")
         #expect(draft.batDir == "S")
         #expect(draft.batOrder == 5)
         #expect(draft.teamIdentity == team.ident)

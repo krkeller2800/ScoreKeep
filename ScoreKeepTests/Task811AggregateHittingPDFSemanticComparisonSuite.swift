@@ -268,7 +268,7 @@ struct Task811AggregateHittingPDFSemanticComparisonSuite {
         
         let tokens = [
             "Header", "MismatchTeam",
-            "1", "MismatchPlayer", "1", "000", "000", "000", "000", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0",
+            "1", "MismatchPlayer", "1", ".000", ".000", ".000", ".000", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0",
             "Footer"
         ]
         
