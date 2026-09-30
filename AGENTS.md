@@ -14,6 +14,17 @@ When ripgrep is needed, invoke it using the absolute path:
 
 If that exact executable is unavailable or blocked inside the active agent sandbox, report that once and use `find` or `/usr/bin/grep` as the fallback. Do not repeatedly investigate or treat unavailable ripgrep as a task blocker.
 
+# ScoreKeep Work Rules
+
+- Before work, verify the absolute repository root, branch or detached HEAD, and working-tree status against the requested current or Legacy app.
+- For Xcode verification, prefer connected Xcode build/test tools when available. Classify CoreSimulator, DerivedData, destination, and plugin failures before blaming source; after a confirmed sandbox denial, switch gates instead of retrying the same route.
+- Discover exact active-plan test identifiers, run focused changed-area and adjacent tests first, and require a positive executed-test count for the intended cases. Preserve `xcodebuild`'s own exit status when filtering shell output.
+- Use a full test plan when scope or release criteria require it. Triage each failure against current behavior and fixture preconditions before changing production code.
+- Resolve Xcode navigator paths to actual filesystem paths before shell or patch edits.
+- For migration work, establish authentic store provenance, metadata, and production classification; test the exact startup route with backups and independent verification evidence. Do not infer ordered semantics from unordered SwiftData relationships.
+- When a SwiftUI destination gains an `EnvironmentObject`, check every production presentation route that can reach it.
+- Preserve unrelated work, stage only intended paths or hunks, inspect the staged diff, and verify the pushed remote SHA independently of local tracking refs. Report final working-tree status.
+
 # Persistent Task Reports
 
 ScoreKeep work may be performed by Codex, Gemini, or Claude. When a task has an established final-report file, update that file with the current task results before finishing. Do not satisfy this requirement only by returning a report in the conversation.
