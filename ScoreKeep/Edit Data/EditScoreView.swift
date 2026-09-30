@@ -253,7 +253,7 @@ struct EditScoreView: View {
                 .onChange(of: doShot) {
                     if doShot {
                         if let screenshotMaker = screenshotMaker {
-                            url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                            url = screenshotMaker.saveScreenshot(using: saveImage)
                             doShot.toggle()
                         }
                     }

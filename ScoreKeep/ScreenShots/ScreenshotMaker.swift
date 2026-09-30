@@ -12,3 +12,9 @@ public protocol ScreenshotMaker {
     /// - Returns: The UIImage with the screenshot of the view
     func screenshot() -> UIImage?
 }
+
+extension ScreenshotMaker {
+    func saveScreenshot(using saveImage: (UIImage?) -> URL?) -> URL? {
+        saveImage(screenshot())
+    }
+}

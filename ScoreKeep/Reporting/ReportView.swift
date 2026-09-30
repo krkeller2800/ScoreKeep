@@ -60,7 +60,7 @@ struct ReportView: View {
             .onChange(of: doShot) { _, newValue in
                 if newValue {
                     if let screenshotMaker = screenshotMaker {
-                        url = saveImage(uiimage: screenshotMaker.screenshot()!)
+                        url = screenshotMaker.saveScreenshot(using: saveImage)
                         doShot.toggle()
                     }
                 }

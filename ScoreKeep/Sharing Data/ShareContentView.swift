@@ -15,6 +15,17 @@ final class AppRouter: ObservableObject {
     @Published var destination: Destination?
 }
 
+struct TeamExportShareSelection {
+    let url: URL
+    let teamName: String
+
+    init?(team: Team?, url: URL?) {
+        guard let team, let url else { return nil }
+        self.url = url
+        teamName = team.name
+    }
+}
+
 struct ShareContentView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
@@ -280,6 +291,7 @@ struct ShareContentView: View {
                 }
             }
             .onChange(of: team) {
+                playerURL = nil
                 if team == nil {
                     showingAlert = true
                     alertMessage = "Please select a team"
@@ -293,6 +305,7 @@ struct ShareContentView: View {
                 }
             }
             .onChange(of: game) {
+                gameURL = nil
                 if game == nil {
                     showingAlert = true
                     alertMessage = "Please select a game"
@@ -402,11 +415,11 @@ struct ShareContentView: View {
                 }
             }
             ToolbarItem(placement: .topBarLeading) {
-                if let playerURL = playerURL {
-                    ShareLink(item: playerURL) {
+                if let selection = TeamExportShareSelection(team: team, url: playerURL) {
+                    ShareLink(item: selection.url) {
                         HStack {
                             Image(systemName: "square.and.arrow.up")
-                            Text("Share \(team!.name)")
+                            Text("Share \(selection.teamName)")
                         }
                     }
                 } else if let gameURL = gameURL {

@@ -1489,6 +1489,10 @@ final class LiveScoringWorkflowCoordinatorSubstitutionTests: XCTestCase {
 
         // Capture previous atbat data for verification
         let previousAtbat = fixture.visitingFirst
+        previousAtbat.result = "Ground Out"
+        previousAtbat.outs = 1
+        previousAtbat.inning = 1
+        previousAtbat.seq = 1
         let prevResult = previousAtbat.result
         let prevOuts = previousAtbat.outs
         let prevInning = previousAtbat.inning
