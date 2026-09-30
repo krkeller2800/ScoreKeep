@@ -322,6 +322,7 @@ struct ScoreContentView: View {
             EditGameView(game: game, navigationPath: $path)
         } else {
             EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? "", columnVisability: columnVisabilityProxy)
+                .environmentObject(purchaseManager)
                 .onAppear {
                     hideSidebarForLiveScoringIfNeeded()
                     rememberActiveScoringSession(for: game)

@@ -162,6 +162,26 @@ struct Task812PurchaseGatingSuite {
         #expect(inactiveDecision.pendingWorkflow == inactiveWorkflow)
     }
 
+    @Test("Live scoring destination carries purchase manager into generated-output scorecard")
+    func liveScoringDestinationCarriesPurchaseManagerIntoGeneratedOutputScorecard() throws {
+        let scoreContentSource = try repositorySource("ScoreKeep/Content Views/ScoreContentView.swift")
+        let editScoreSource = try repositorySource("ScoreKeep/Edit Data/EditScoreView.swift")
+
+        let editScoreConstruction = try #require(
+            scoreContentSource.range(of: "EditScoreView(pgame: game, pnavigationPath: $path, ateam: game.vteam?.name ?? \"\", columnVisability: columnVisabilityProxy)")
+        )
+        let environmentInjection = try #require(
+            scoreContentSource[editScoreConstruction.upperBound...].range(of: ".environmentObject(purchaseManager)")
+        )
+        let destinationEnd = try #require(
+            scoreContentSource[editScoreConstruction.upperBound...].range(of: "hideSidebarForLiveScoringIfNeeded()")
+        )
+
+        #expect(environmentInjection.lowerBound < destinationEnd.lowerBound)
+        #expect(editScoreSource.contains("@EnvironmentObject var purchaseManager: PurchaseManager"))
+        #expect(editScoreSource.contains("purchaseManager.$entitlementState"))
+    }
+
     private var generatedOutputActions: [PurchaseGatedAction] {
         [.scorecardPDF, .hittingStatistics, .pitchingStatistics]
     }
@@ -186,5 +206,9 @@ struct Task812PurchaseGatingSuite {
             observedStateBeforeExecution = lifecycle.state
             performedActions.append(action)
         }
+    }
+
+    private func repositorySource(_ relativePath: String) throws -> String {
+        try StableIdentityAndOrderingTestSupport.repositorySource(relativePath)
     }
 }
