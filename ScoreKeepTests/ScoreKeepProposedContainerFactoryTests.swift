@@ -35,8 +35,8 @@ struct ScoreKeepProposedContainerFactoryTests {
     @Test("existing Proposed V2 store is blocked in the hosted current target")
     func existingProposedV2StoreIsBlockedInHostedCurrentTarget() throws {
         let url = try IsolatedUnversionedProductionStoreSupport.temporaryStoreURL()
-        let first = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .noStoreExists))
-        #expect(first.container != nil)
+        _ = try IsolatedUnversionedProductionStoreSupport.proposedV2Container(url: url)
+        #expect(ScoreKeepProductionStoreMetadataAssessment.assess(storeURL: url).sourceClassification == .existingProposedV2Store)
 
         let second = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV2Store))
         let third = ScoreKeepProposedContainerFactory.construct(input(url: url, source: .existingProposedV2Store))

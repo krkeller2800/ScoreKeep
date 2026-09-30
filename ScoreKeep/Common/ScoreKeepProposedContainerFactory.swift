@@ -138,13 +138,19 @@ enum ScoreKeepProposedContainerFactory {
             return classified(.unsafe, input: input)
         }
 
+        if input.sourceClassification == .existingProposedV2Store,
+           input.storeLocation.kind == .disposableMigrationTarget,
+           input.startupIntent == .isolatedVerification,
+           input.routeChoice == .proposedV3EligibleForIsolatedVerification {
+            return constructV3CandidateFromCopiedV2Workspace(input, url: url)
+        }
+
+        if input.sourceClassification == .emptyCurrentUnversionedStore ||
+           input.sourceClassification == .populatedCurrentUnversionedStore {
+            return classified(.unsafe, input: input)
+        }
+
         guard input.sourceClassification.isSupportedForProposedV2Startup else {
-            if input.sourceClassification == .existingProposedV2Store,
-               input.storeLocation.kind == .disposableMigrationTarget,
-               input.startupIntent == .isolatedVerification,
-               input.routeChoice == .proposedV3EligibleForIsolatedVerification {
-                return constructV3CandidateFromCopiedV2Workspace(input, url: url)
-            }
             switch input.sourceClassification {
             case .unknownVersion:
                 return classified(.sourceVersionUnknown, input: input)

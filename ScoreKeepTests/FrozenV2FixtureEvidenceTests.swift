@@ -521,11 +521,11 @@ struct MigrationAcceptanceTask322ETests {
 
     private var failClosedSourceClassifications: [ScoreKeepSourceStoreClassification] {
         [
-            .proposedV1RecognizableStore,
             .unknownVersion,
             .unsupportedFutureVersion,
             .unreadableStore,
             .contradictoryMetadata,
+            .migrationEvidenceUncertain,
             .emptyCurrentUnversionedStore,
             .populatedCurrentUnversionedStore
         ]

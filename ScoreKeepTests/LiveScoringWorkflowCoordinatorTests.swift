@@ -543,13 +543,16 @@ struct LiveScoringWorkflowCoordinatorTests {
     func persistenceFailureIsReportedAsFailureRatherThanSuccess() throws {
         let store = try Store()
         let fixture = Fixture.insertGame(into: store.context)
+        _ = Fixture.insertPitcher(for: fixture, into: store.context)
+        fixture.visitingFirst.result = "Single"
+        fixture.visitingSecond.result = "Ground Out"
         try store.context.save()
         let coordinator = LiveScoringWorkflowCoordinator()
 
         let result = coordinator.selectAtbat(
             column: 2,
-            rowIndex: 1,
-            sourceAtbat: fixture.visitingSecond,
+            rowIndex: 0,
+            sourceAtbat: fixture.visitingFirst,
             displayedAtbats: fixture.displayedAtbats,
             game: fixture.game,
             modelContext: store.context,
@@ -722,7 +725,8 @@ struct LiveScoringWorkflowCoordinatorTests {
         )
 
         #expect(state.disposition == .ready)
-        #expect(state.lineup.map(\.slot) == [1, 2, 3])
+        #expect(state.lineup.map(\.slot) == [1, 2, 2])
+        #expect(state.lineup.map(\.physicalBand) == [1, 2, 3])
         #expect(state.lineup.last?.isIncoming == true)
         #expect(state.lineup[1].isReplaced)
         #expect(state.substitutions.count == 1)
@@ -2275,7 +2279,7 @@ struct LiveScoringWorkflowCoordinatorTests {
             supportedLegacyResults: Common().onresults + Common().outresults,
             save: saves.save
         )
-        staleFixture.visitingSecond.result = "Single"
+        staleFixture.visitingFirst.result = "Ground Out"
         let stale = coordinator.submitAdditionalChoiceScoringAction(
             pendingChoice: stalePending,
             choices: acceptedChoices,
@@ -2295,7 +2299,7 @@ struct LiveScoringWorkflowCoordinatorTests {
         #expect(fixture.visitingFirst.maxbase == "First")
         #expect(fixture.visitingFirst.rbis == 0)
         #expect(fixture.visitingFirst.earnedRun == true)
-        #expect(staleFixture.visitingFirst.result == "Result")
+        #expect(staleFixture.visitingFirst.result == "Ground Out")
         #expect(try store.canonicalScoringRecordCount() == 0)
     }
 
